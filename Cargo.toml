@@ -1,0 +1,9 @@
+[package]
+name = "rigz_runtime"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+indexmap = "2.3.0"
+logos = "0.14.1"
+rigz_vm = { path = ".." }
