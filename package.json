@@ -1,17 +1,58 @@
 {
   "name": "tree-sitter-rigz",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
+  "version": "2.0.0",
+  "description": "Rigz grammar for tree-sitter",
+  "repository": "github:tree-sitter/tree-sitter-rigz",
   "license": "MIT",
-  "description": "",
+  "main": "bindings/node",
+  "types": "bindings/node",
+  "keywords": [
+    "incremental",
+    "parsing",
+    "tree-sitter",
+    "rigz"
+  ],
+  "files": [
+    "grammar.js",
+    "binding.gyp",
+    "prebuilds/**",
+    "bindings/node/*",
+    "queries/*",
+    "src/**"
+  ],
   "dependencies": {
-    "nan": "^2.20.0"
+    "node-addon-api": "^7.1.0",
+    "node-gyp-build": "^4.8.0"
   },
   "devDependencies": {
-    "tree-sitter-cli": "^0.22.6"
-  }
+    "prebuildify": "^6.0.0",
+    "tree-sitter-cli": "^0.22.2"
+  },
+  "peerDependencies": {
+    "tree-sitter": "^0.21.0"
+  },
+  "peerDependenciesMeta": {
+    "tree-sitter": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "install": "node-gyp-build",
+    "prebuildify": "prebuildify --napi --strip",
+    "build": "tree-sitter generate --no-bindings",
+    "build-wasm": "tree-sitter build --wasm",
+    "test": "tree-sitter test",
+    "parse": "tree-sitter parse"
+  },
+  "tree-sitter": [
+    {
+      "scope": "source.rigz",
+      "file-types": [
+        "rigz"
+      ],
+      "injection-regex": "rigz",
+      "highlights": "queries/highlights.scm"
+    }
+  ]
 }
+

@@ -1,0 +1,115 @@
+program = { statement+ }
+statement = {
+    assignment
+    | expression
+    | import
+    | export
+    | type_definition
+}
+
+import = {
+    "import"
+}
+
+export = {
+    "import"
+}
+
+assignment = {
+    identifier ~ "=" ~ expression
+}
+
+expression = {
+    ("(" ~ expression ~ ")")
+    | binary
+    | unary
+    | function_call
+}
+
+unary = {
+    unary_op? ~ expression
+}
+
+binary = {
+    expression ~ binary_op? ~ expression
+}
+
+unary_op = {
+  "-"
+  | "!"
+}
+
+binary_op = {
+  "-"
+  | "+"
+  | "*"
+  | "/"
+  | ">>"
+  | "<<"
+  | "<"
+  | "<="
+  | ">"
+  | ">="
+  | "!="
+  | "=="
+}
+
+value = {
+    "none"
+    | number
+    | string
+    | list
+    | map
+}
+
+number = {
+    ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)
+}
+
+function_call = {
+    identifier ~ (
+        expression ~ ("," ~ expression)* ~ ","?
+    )?
+}
+
+string = {
+    "'" ~ (!"'" ~ ANY) ~ "'"
+}
+
+list = {
+    "["
+    ~ value
+    ~ (value ~ ",")*
+    ~ ","?
+    ~ "]"
+}
+
+map = {
+    "{"
+    ~ identifier ~ "=" ~ value
+    ~ (identifier ~ "=" ~ value ~ ",")*
+    ~ ","?
+    ~ "}"
+}
+
+identifier = {
+    ("_" | ASCII_ALPHANUMERIC)+
+}
+
+type_definition = {
+    type_identifier ~ "=" ~ "{"
+    ~ identifier ~ _type
+    ~ "}"
+}
+
+_type = {
+    "None"
+    | "Int"
+    | "Uint"
+    | "String"
+    | ("[" ~ _type ~ "]")
+}
+
+type_identifier = {
+    ASCII_ALPHA_UPPER ~ ("_" | ASCII_ALPHANUMERIC)+
+}

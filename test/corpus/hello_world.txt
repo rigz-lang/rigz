@@ -1,0 +1,18 @@
+==================
+Hello World
+==================
+puts 42
+---
+(program
+    (statement
+        (expression
+            (function_call
+                (identifier)
+                (expression
+                    (value
+                        (int)
+                    ))
+            )
+        )
+    )
+)
