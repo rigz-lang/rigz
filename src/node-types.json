@@ -19,7 +19,7 @@
     }
   },
   {
-    "type": "binary_expression",
+    "type": "binary",
     "named": true,
     "fields": {},
     "children": {
@@ -39,23 +39,15 @@
     "fields": {}
   },
   {
-    "type": "closure",
+    "type": "error",
     "named": true,
     "fields": {},
     "children": {
-      "multiple": true,
+      "multiple": false,
       "required": true,
       "types": [
         {
-          "type": "identifier",
-          "named": true
-        },
-        {
-          "type": "program",
-          "named": true
-        },
-        {
-          "type": "type",
+          "type": "string",
           "named": true
         }
       ]
@@ -70,7 +62,15 @@
       "required": true,
       "types": [
         {
-          "type": "binary_expression",
+          "type": "assignment",
+          "named": true
+        },
+        {
+          "type": "binary",
+          "named": true
+        },
+        {
+          "type": "expression",
           "named": true
         },
         {
@@ -78,7 +78,7 @@
           "named": true
         },
         {
-          "type": "unary_expression",
+          "type": "unary",
           "named": true
         },
         {
@@ -101,7 +101,34 @@
           "named": true
         },
         {
-          "type": "identifier",
+          "type": "function_identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "function_definition",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "function_identifier",
+          "named": true
+        },
+        {
+          "type": "lifecycle",
+          "named": true
+        },
+        {
+          "type": "program",
+          "named": true
+        },
+        {
+          "type": "type",
           "named": true
         }
       ]
@@ -111,6 +138,21 @@
     "type": "identifier",
     "named": true,
     "fields": {}
+  },
+  {
+    "type": "lifecycle",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "list",
@@ -128,7 +170,7 @@
     }
   },
   {
-    "type": "object",
+    "type": "map",
     "named": true,
     "fields": {},
     "children": {
@@ -167,18 +209,14 @@
     "fields": {},
     "children": {
       "multiple": false,
-      "required": false,
+      "required": true,
       "types": [
-        {
-          "type": "assignment",
-          "named": true
-        },
         {
           "type": "expression",
           "named": true
         },
         {
-          "type": "type_definition",
+          "type": "function_definition",
           "named": true
         }
       ]
@@ -186,6 +224,11 @@
   },
   {
     "type": "string",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "symbol",
     "named": true,
     "fields": {}
   },
@@ -198,30 +241,7 @@
       "required": false,
       "types": [
         {
-          "type": "string",
-          "named": true
-        },
-        {
           "type": "type",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "type_definition",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "type_identifier",
-          "named": true
-        },
-        {
-          "type": "type_object",
           "named": true
         }
       ]
@@ -247,7 +267,7 @@
     }
   },
   {
-    "type": "unary_expression",
+    "type": "unary",
     "named": true,
     "fields": {},
     "children": {
@@ -267,14 +287,14 @@
     "fields": {},
     "children": {
       "multiple": false,
-      "required": true,
+      "required": false,
       "types": [
         {
           "type": "bool",
           "named": true
         },
         {
-          "type": "closure",
+          "type": "error",
           "named": true
         },
         {
@@ -282,7 +302,7 @@
           "named": true
         },
         {
-          "type": "none",
+          "type": "map",
           "named": true
         },
         {
@@ -290,11 +310,11 @@
           "named": true
         },
         {
-          "type": "object",
+          "type": "string",
           "named": true
         },
         {
-          "type": "string",
+          "type": "symbol",
           "named": true
         }
       ]
@@ -302,10 +322,6 @@
   },
   {
     "type": "!",
-    "named": false
-  },
-  {
-    "type": "!=",
     "named": false
   },
   {
@@ -318,6 +334,14 @@
   },
   {
     "type": "&&",
+    "named": false
+  },
+  {
+    "type": "(",
+    "named": false
+  },
+  {
+    "type": ")",
     "named": false
   },
   {
@@ -334,10 +358,6 @@
   },
   {
     "type": "-",
-    "named": false
-  },
-  {
-    "type": "->",
     "named": false
   },
   {
@@ -365,10 +385,6 @@
     "named": false
   },
   {
-    "type": "==",
-    "named": false
-  },
-  {
     "type": ">",
     "named": false
   },
@@ -378,6 +394,14 @@
   },
   {
     "type": ">>",
+    "named": false
+  },
+  {
+    "type": "@",
+    "named": false
+  },
+  {
+    "type": "Error",
     "named": false
   },
   {
@@ -417,11 +441,15 @@
     "named": true
   },
   {
-    "type": "error",
+    "type": "do",
     "named": false
   },
   {
-    "type": "export",
+    "type": "end",
+    "named": false
+  },
+  {
+    "type": "error",
     "named": false
   },
   {
@@ -429,7 +457,15 @@
     "named": false
   },
   {
-    "type": "import",
+    "type": "fn",
+    "named": false
+  },
+  {
+    "type": "function_identifier",
+    "named": true
+  },
+  {
+    "type": "let",
     "named": false
   },
   {
@@ -438,7 +474,7 @@
   },
   {
     "type": "none",
-    "named": true
+    "named": false
   },
   {
     "type": "number",

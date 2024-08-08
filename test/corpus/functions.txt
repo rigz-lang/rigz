@@ -1,0 +1,71 @@
+==================
+Define Function
+==================
+fn add(a, b)
+  a + b
+end
+
+==================
+Call Multiple
+==================
+puts puts 42
+---
+(program
+    (statement
+        (expression
+            (function_call
+                (function_identifier)
+                (expression
+                    (function_call
+                        (function_identifier)
+                        (expression
+                            (value
+                                (number)
+                            )))
+                    )
+            )
+        )
+    )
+)
+
+==================
+Call Multiple (parens)
+==================
+puts(puts 42, 43, 24), 54
+---
+(program
+    (statement
+        (expression
+            (function_call
+                (function_identifier)
+                (expression
+                    (expression
+                        (function_call
+                            (function_identifier)
+                            (expression
+                                (value
+                                    (number)
+                                )
+                            )
+                            (expression
+                                (value
+                                    (number)
+                                )
+                            )
+                            (expression
+                                (value
+                                    (number)
+                                )
+                            )
+                        )
+                    )
+                )
+                (expression
+                  (value
+                    (number)
+                  )
+                )
+            )
+        )
+    )
+)

@@ -4,54 +4,82 @@ module.exports = grammar({
     extras: $ => [
         $.comment, $._whitespace
     ],
+    conflicts: $ => [
+        [$.function_call],
+        [$.statement, $.binary],
+        [$.unary, $.binary],
+        [$.binary],
+        [$.binary, $.assignment],
+        [$.binary, $.function_call],
+    ],
     rules: {
         program: $ => repeat1($.statement),
         statement: $ => choice(
-            $._import,
-            $._export,
             $.expression,
-            $.assignment,
-            $.type_definition,
+            $.function_definition,
         ),
-        _import: $ => seq("import"),
-        _export: $ => seq("export"),
+        function_definition: $ => seq(
+            optional($.lifecycle),
+            "fn", $.function_identifier, "(", ")", optional($.type),
+            $.program,
+            "end"
+        ),
         expression: $ => choice(
             $.function_call,
-            $.binary_expression,
-            $.unary_expression,
             $.value,
+            $.assignment,
+            $.binary,
+            $.unary,
+            seq("(", $.expression, ")")
         ),
-        binary_expression: $ => prec.left(2, choice(
-            seq($.expression, choice("+", "-", "*", "/", ">>", "<<", "|", "||", "&", "&&", "^", "%", "==", "!=", "<=", "<", ">", ">="), $.expression))
+        unary: $ => seq(choice("-", "!"), $.expression),
+        binary: $ => seq(
+            $.expression,
+            choice("+", "-", "*", "/", "%", "^", "|", "||", "&", "&&", ">>", "<<", "<=", "<", ">", ">="),
+            $.expression
         ),
-        unary_expression: $ => choice(
-            seq(choice("!", "-"), $.expression)
-        ),
-        function_call: $ => prec.left(2, seq(
+        symbol: $ => seq(":", /\w+/),
+        assignment: $ => seq(
+            choice("let", "mut"),
             $.identifier,
+            "=",
+            $.expression
+        ),
+        function_call: $ => prec(3, seq(
+            $.function_identifier,
             optional(seq($.expression, repeat(seq(",", $.expression))))
         )),
-        closure: $ => seq("{",
-            optional(choice(
-                seq($.identifier, repeat(seq(",", $.identifier))),
-                seq($.identifier, ":", $.type, repeat(seq(",", $.identifier, $.type)))
-            )),
-            "->",
-            $.program,
-            "}"
+        value: $ => choice(
+          "none",
+            $.bool,
+            $.number,
+            $.string,
+            $.list,
+            $.map,
+            $.error,
+            $.symbol
         ),
-        assignment: $ => choice(
-            seq("mut", $.identifier, "=", $.expression),
-            seq($.identifier, "=", $.expression),
+        scope: $ => seq(optional($.lifecycle), "do", $.program, "end"),
+        lifecycle: $ => seq("@", $.identifier),
+        error: $ => seq("error", $.string),
+        bool: $ => choice('true', 'false'),
+        number: $ => /\d+(.\d+)?/,
+        string: $ => choice(
+            $._single_quoted_string,
+            $._double_quoted_string,
+            $._backtick_string
         ),
-        identifier: $ => $._valid_chars,
-        type_identifier: $ => token(/[A-Z]\w+/),
-        _valid_chars: $ => token(/(\w|\.|\$)+/),
+        _single_quoted_string: $ => /'([^'\\]|\\[\s\S])*'/,
+        _double_quoted_string: $ => /"([^"\\]|\\[\s\S])*"/,
+        _backtick_string: $ => /`([^`\\]|\\[\s\S])*`/,
+        map: $ => seq("{", $._attribute, repeat(seq(',', $._attribute)), optional(','), "}"),
+        type_object: $ => seq("{", seq($.identifier, "=", $.type), repeat(seq(',', seq($.identifier, "=", $.type))), optional(','), "}"),
+        type_identifier: $ => /[A-Z]\w+/,
         type_definition: $ => choice(
             seq("type", $.type_identifier, "=", $.type_object),
         ),
         _attribute: $ => choice(
-            seq($.identifier, "=", $.expression),
+            prec.left(2, seq($.identifier, "=", $.expression)),
             $.expression
         ),
         type: $ => choice(
@@ -63,23 +91,11 @@ module.exports = grammar({
             seq("[", $.type, "]"),
             seq("{", $.type, "}"),
             seq("{", $.type, $.type, "}"),
-            seq("error", $.string)
+            "Error" // TODO switch to zig style ! for errors, add zig try catch
         ),
-        value: $ => choice($.none, $.bool, $.number, $.string, $.object, $.list, $.closure),
-        none: $ => 'none',
-        bool: $ => choice('true', 'false'),
-        number: $ => /\d+(\.\d+)?/,
-        string: $ => choice(
-            $._single_quoted_string,
-            $._double_quoted_string,
-            $._backtick_string
-        ),
-        _single_quoted_string: $ => /'([^'\\]|\\[\s\S])*'/,
-        _double_quoted_string: $ => /"([^"\\]|\\[\s\S])*"/,
-        _backtick_string: $ => /`([^`\\]|\\[\s\S])*`/,
-        object: $ => seq("{", $._attribute, repeat(seq(',', $._attribute)), optional(','), "}"),
-        type_object: $ => seq("{", seq($.identifier, "=", $.type), repeat(seq(',', seq($.identifier, "=", $.type))), optional(','), "}"),
         list: $ => seq("[", $.value, repeat(seq(',', $.value)), optional(','), "]"),
+        identifier: $ => /\w+/,
+        function_identifier: $ => /[$\w][\w.]*/,
         comment: $ => token(
             choice(
                 seq("#", /.*/),
@@ -88,4 +104,4 @@ module.exports = grammar({
         ),
         _whitespace: $ => /[\s\uFEFF\u2060\u200B\u00A0]+/,
     }
-});
+})

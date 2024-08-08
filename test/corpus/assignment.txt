@@ -1,0 +1,18 @@
+==================
+Assignment
+==================
+let a = 42
+---
+(program
+    (statement
+        (expression
+            (assignment
+                (identifier)
+                (expression
+                    (value
+                        (number)
+                    ))
+            )
+        )
+    )
+)

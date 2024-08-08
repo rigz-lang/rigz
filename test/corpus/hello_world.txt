@@ -1,5 +1,5 @@
 ==================
-Hello World
+Hello World (number)
 ==================
 puts 42
 ---
@@ -7,10 +7,29 @@ puts 42
     (statement
         (expression
             (function_call
-                (identifier)
+                (function_identifier)
                 (expression
                     (value
-                        (int)
+                        (number)
+                    ))
+            )
+        )
+    )
+)
+
+==================
+Hello World (string)
+==================
+puts "hello world"
+---
+(program
+    (statement
+        (expression
+            (function_call
+                (function_identifier)
+                (expression
+                    (value
+                        (string)
                     ))
             )
         )
