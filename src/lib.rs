@@ -120,8 +120,6 @@ impl<'vm> StateMachine<'vm> {
         }
     }
 
-
-
     pub fn next(&mut self, bucket: Bucket) {
 
     }
@@ -131,7 +129,7 @@ impl<'vm> StateMachine<'vm> {
     }
 }
 
-pub fn parse(input: &str) -> VM {
+fn internal_parse(input: &str) -> StateMachine {
     let mut fsm = StateMachine::new(input);
     loop {
         match fsm.next_token() {
@@ -139,11 +137,17 @@ pub fn parse(input: &str) -> VM {
             Some(t) => fsm.next(t),
         }
     }
+    fsm
+}
+
+pub fn parse(input: &str) -> VM {
+    let mut fsm = internal_parse(input);
     fsm.vm()
 }
 
 #[cfg(test)]
 mod tests {
+    use rigz_vm::Scope;
     use super::*;
 
     #[test]
@@ -171,5 +175,13 @@ mod tests {
             Token::Add,
             Token::Identifier,
         ])
+    }
+
+    #[test]
+    fn create_vm_works() {
+        let a = "puts 'Hello World'";
+        let fsm = internal_parse(a);
+        let scope = Scope::new();
+        assert_eq!(vec![], fsm.builder.scopes)
     }
 }
