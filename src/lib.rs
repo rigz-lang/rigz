@@ -1,5 +1,5 @@
 use logos::Logos;
-use rigz_vm::{RigzType, VM};
+pub use rigz_vm::{RigzType, VM, Value, Number};
 use crate::parser::Parser;
 use crate::token::{LexingError};
 
