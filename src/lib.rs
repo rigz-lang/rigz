@@ -1,5 +1,5 @@
 use logos::Logos;
-pub use rigz_vm::{RigzType, VM, Value, Number};
+pub use rigz_vm::{RigzType, VM, Value, Number, Module, VMBuilder};
 use crate::parser::Parser;
 use crate::token::{LexingError};
 
@@ -14,6 +14,14 @@ mod parser;
 
 pub fn parse(input: &str) -> Result<VM, LexingError> {
     Parser::parse(input)
+}
+
+pub fn parse_with_modules<'vm>(input: &'vm str, modules: Vec<Module<'vm>>) -> Result<VM<'vm>, LexingError> {
+    let mut builder = VMBuilder::new();
+    for module in modules {
+        builder.register_module(module);
+    }
+    Parser::parse_with_builder(input, builder)
 }
 
 #[cfg(test)]

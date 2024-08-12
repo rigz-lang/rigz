@@ -51,9 +51,8 @@ pub enum Element<'lex> {
 }
 
 impl <'lex> Parser<'lex> {
-    pub fn parse(input: &'lex str) -> Result<VM<'lex>, LexingError> {
+    pub fn parse_with_builder(input: &'lex str, builder: VMBuilder<'lex>) -> Result<VM<'lex>, LexingError> {
         let lexer = TokenKind::lexer(input);
-        let builder = VMBuilder::new();
         let mut parser = Parser {
             lexer,
             builder,
@@ -95,6 +94,10 @@ impl <'lex> Parser<'lex> {
         }
 
         Ok(parser.builder.build())
+    }
+
+    pub fn parse(input: &'lex str) -> Result<VM<'lex>, LexingError> {
+        Self::parse_with_builder(input, VMBuilder::new())
     }
 
     pub fn next_expression(&mut self, token: Option<Token<'lex>>) -> Result<Expression<'lex>, LexingError> {
