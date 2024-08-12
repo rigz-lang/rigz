@@ -6,8 +6,9 @@ use std::str::ParseBoolError;
 pub enum LexingError {
     NumberParseError,
     #[default]
-    Other,
+    NonAsciiError,
     BoolParseError,
+    ParseError(String)
 }
 
 impl From<std::num::ParseIntError> for LexingError {
@@ -29,25 +30,23 @@ impl From<ParseBoolError> for LexingError {
 }
 
 #[derive(Logos, Debug, PartialEq, Clone)]
-#[logos(error = LexingError)]
-pub enum TokenKind {
-    #[regex(r"[ \t\f]+", logos::skip)]
-    Ignored,
+#[logos(skip r"[ \t\f]+", error = LexingError)]
+pub enum TokenKind<'lex> {
     #[token("\n")]
     Newline,
-    #[regex("-?[0-9]+", |lex| lex.slice().parse())]
-    Integer(i64),
-    #[regex("-?[0-9]+\\.[0-9]+", |lex| lex.slice().parse())]
-    Float(f64),
-    #[regex("true|false", |lex| lex.slice().parse())]
-    Bool(bool),
-    #[regex("('[^'\n\r]+')|(\"[^\"\n\r]+\")|(`[^`\n\r]+`)", |lex| { let s = lex.slice(); s[1..s.len()-1].to_string() })]
-    StrLiteral(String),
-    // TODO double & backticks string support interpolation
-    #[token("none")]
-    None,
+    #[regex("-?[0-9]+", |lex| Value::Number(Number::Int(lex.slice().parse().unwrap())))]
+    #[regex("-?[0-9]+\\.[0-9]+", |lex| Value::Number(Number::Float(lex.slice().parse().unwrap())))]
+    #[token("none", |_| Value::None)]
+    #[token("false", |_| Value::Bool(false))]
+    #[token("true", |_| Value::Bool(true))]
+    #[regex("('[^'\n\r]+')|(\"[^\"\n\r]+\")|(`[^`\n\r]+`)", |lex| { let s = lex.slice(); Value::String(s[1..s.len()-1].to_string()) })]
+    Value(Value<'lex>),
     #[token("=")]
     Assign,
+    #[token("let")]
+    Let,
+    #[token("mut")]
+    Mut,
     #[token("==", |_| BinaryOperation::Eq)]
     #[token("!=", |_| BinaryOperation::Neq)]
     #[token("<", |_| BinaryOperation::Lt)]
@@ -76,10 +75,10 @@ pub enum TokenKind {
     Comma,
     #[token("fn")]
     FunctionDef,
-    #[regex("[A-Za-z_]+", |lex| lex.slice().to_string())]
-    Identifier(String),
-    #[regex("[A-Za-z_$]+", |lex| lex.slice().to_string(), priority=3)]
-    FunctionIdentifier(String),
+    #[regex("[A-Za-z_]+", |lex| lex.slice())]
+    Identifier(&'lex str),
+    #[regex("[A-Za-z_$]+", |lex| lex.slice(), priority=3)]
+    FunctionIdentifier(&'lex str),
     #[token("(")]
     Lparen,
     #[token(")")]
@@ -98,71 +97,40 @@ pub enum TokenKind {
     End,
 }
 
-impl TokenKind {
-    #[inline]
-    pub fn is_value(&self) -> bool {
-        match self {
-            TokenKind::None
-            | TokenKind::Bool(_)
-            | TokenKind::Integer(_)
-            | TokenKind::Float(_)
-            | TokenKind::StrLiteral(_) => true,
-            _ => false,
-        }
-    }
-
-    #[inline]
-    pub fn is_identifier(&self) -> bool {
-        match &self {
-            TokenKind::Identifier(_) => true,
-            TokenKind::FunctionIdentifier(_) => true,
-            _ => false
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
-pub struct Token<'vm> {
-    pub(crate) kind: TokenKind,
-    pub(crate) span: Span,
-    pub(crate) slice: &'vm str,
+pub struct Token<'lex> {
+    pub kind: TokenKind<'lex>,
+    pub span: Span,
+    pub slice: &'lex str,
 }
 
-impl<'vm> Token<'vm> {
-    #[inline]
-    pub fn parse_error(&self, message: String) -> VMError {
-        VMError::ParseError(message, self.span.start, self.span.end)
-    }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    #[inline]
-    pub fn is_identifier(&self) -> bool {
-        self.kind.is_identifier()
-    }
+    #[test]
+    fn tokenize_works() {
+        let raw = r#"
+            a = 1
+            b = 2
+            a + b
+        "#;
 
-    #[inline]
-    pub fn is_value(&self) -> bool {
-        self.kind.is_value()
-    }
-
-    pub fn to_value(&self) -> Option<Value<'vm>> {
-        let v = match &self.kind {
-            TokenKind::Integer(i) => Value::Number(Number::Int(*i)),
-            TokenKind::Float(f) => Value::Number(Number::Float(*f)),
-            TokenKind::Bool(b) => Value::Bool(*b),
-            TokenKind::StrLiteral(s) => Value::String(s.to_string()),
-            TokenKind::None => Value::None,
-            _ => return None,
-        };
-        Some(v)
-    }
-}
-
-impl<'vm> Default for Token<'vm> {
-    fn default() -> Self {
-        Self {
-            kind: TokenKind::Ignored,
-            slice: "",
-            span: Span::default(),
-        }
+        let lexer = TokenKind::lexer(raw);
+        let actual: Vec<TokenKind> = lexer.map(|t| t.unwrap()).filter(|t| t != &TokenKind::Newline).collect();
+        assert_eq!(
+            actual,
+            vec![
+                TokenKind::FunctionIdentifier("a"),
+                TokenKind::Assign,
+                TokenKind::Value(Value::Number(Number::Int(1))),
+                TokenKind::FunctionIdentifier("b"),
+                TokenKind::Assign,
+                TokenKind::Value(Value::Number(Number::Int(2))),
+                TokenKind::FunctionIdentifier("a"),
+                TokenKind::BinOp(BinaryOperation::Add),
+                TokenKind::FunctionIdentifier("b"),
+            ]
+        )
     }
 }

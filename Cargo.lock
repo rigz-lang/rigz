@@ -116,9 +116,9 @@ dependencies = [
 
 [[package]]
 name = "rigz_vm"
-version = "0.1.4"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc3d92174825607f62c87c699a81ec0827edd32c72d0ba48a42c4689c3916a7e"
+checksum = "bc7c02cbc2d2f3ed751c3d9fd855b4a1ee9d9c01c8637a31fd96b040f4a58c46"
 dependencies = [
  "indexmap",
  "once_cell",
