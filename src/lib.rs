@@ -11,6 +11,7 @@ pub struct FunctionDefinition {
 
 mod token;
 mod parser;
+mod runtime;
 
 pub fn parse(input: &str) -> Result<VM, LexingError> {
     Parser::parse(input)
@@ -71,6 +72,51 @@ mod tests {
             .push(Instruction::LoadLetRegister("a".into(), 2));
         scope.instructions.push(Instruction::Halt(2));
         assert_eq!(vec![scope], vm.scopes)
+    }
+
+    #[test]
+    fn parse_binex_assignment() {
+        let a = "a = 1 + 2; a + 2";
+        let vm = parse(a).unwrap();
+        let mut scope = Scope::new();
+        let mut inner_scope = Scope::new();
+        inner_scope
+            .instructions
+            .push(Instruction::Load(2, Value::Number(Number::Int(1))));
+        inner_scope
+            .instructions
+            .push(Instruction::Load(3, Value::Number(Number::Int(2))));
+        inner_scope
+            .instructions
+            .push(Instruction::Binary {
+                op: BinaryOperation::Add,
+                lhs: 2,
+                rhs: 3,
+                output: 4,
+            });
+        inner_scope.instructions.push(Instruction::Ret);
+        scope
+            .instructions
+            .push(Instruction::Load(5, Value::ScopeId(1)));
+        scope
+            .instructions
+            .push(Instruction::LoadLetRegister("a".into(), 5));
+        scope
+            .instructions
+            .push(Instruction::GetVariable("a".into(), 6));
+        scope
+            .instructions
+            .push(Instruction::Load(7, Value::Number(Number::Int(2))));
+        scope
+            .instructions
+            .push(Instruction::Binary {
+                op: BinaryOperation::Add,
+                lhs: 6,
+                rhs: 7,
+                output: 8,
+            });
+        scope.instructions.push(Instruction::Halt(8));
+        assert_eq!(vec![scope, inner_scope], vm.scopes)
     }
 
     #[test]

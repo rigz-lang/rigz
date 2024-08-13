@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-use std::fmt::format;
-use std::ops::Deref;
+use std::collections::{HashMap, HashSet};
 use indexmap::IndexMap;
 use logos::{Lexer, Logos};
 use rigz_vm::{BinaryOperation, Instruction, Register, RigzType, UnaryOperation, VMBuilder, Value, VM};
 use crate::FunctionDefinition;
 use crate::token::{LexingError, Token, TokenKind};
+use crate::token::TokenKind::BinOp;
 
 pub struct Parser<'lex> {
     lexer: Lexer<'lex, TokenKind<'lex>>,
@@ -16,7 +15,37 @@ pub struct Parser<'lex> {
     current_token: Option<Token<'lex>>,
 }
 
-#[derive(Debug)]
+impl <'lex> Parser<'lex> {
+    fn build(&mut self) -> VM<'lex> {
+        self.builder.build()
+    }
+
+    fn build_multiple(&mut self) -> VM<'lex> {
+        let (vm, _) = self.builder.build_multiple();
+        vm
+    }
+}
+
+pub struct VMParser<'lex> {
+    lexer: Lexer<'lex, TokenKind<'lex>>,
+    builder: VM<'lex>,
+    function_declarations: HashMap<String, FunctionDefinition>,
+    next: Register,
+    last: Register,
+    current_token: Option<Token<'lex>>,
+}
+
+impl <'lex> VMParser<'lex> {
+    fn build(&mut self) -> VM<'lex> {
+        std::mem::take(&mut self.builder)
+    }
+
+    fn build_multiple(&mut self) -> VM<'lex> {
+        self.builder.clone()
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum Statement<'lex> {
     Assignment {
         name: &'lex str,
@@ -32,7 +61,7 @@ pub enum Statement<'lex> {
     // import, exports
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Expression<'lex> {
     Value(Value<'lex>),
     List(Vec<Expression<'lex>>),
@@ -44,16 +73,20 @@ pub enum Expression<'lex> {
     Scope(Vec<Expression<'lex>>)
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Element<'lex> {
     Statement(Statement<'lex>),
     Expression(Expression<'lex>)
 }
 
+// macro_rules! gen_parser {
+//     ($type:ident, $builder:ident) => {
 impl <'lex> Parser<'lex> {
+    //impl <'lex> $type<'lex> {
+    //pub fn parse_with_builder(input: &'lex str, builder: $builder<'lex>) -> Result<VM<'lex>, LexingError> {
     pub fn parse_with_builder(input: &'lex str, builder: VMBuilder<'lex>) -> Result<VM<'lex>, LexingError> {
         let lexer = TokenKind::lexer(input);
-        let mut parser = Parser {
+        let mut parser = Self {
             lexer,
             builder,
             function_declarations: HashMap::from([
@@ -77,6 +110,7 @@ impl <'lex> Parser<'lex> {
             let element = match next {
                 None => break,
                 Some(t) => {
+                    println!("token: {:?}", t);
                     parser.next_element(t)?
                 }
             };
@@ -84,7 +118,7 @@ impl <'lex> Parser<'lex> {
             match element {
                 None => {}
                 Some(e) => {
-                    parser.build(e);
+                    parser.build_element(e);
                 }
             }
         }
@@ -93,7 +127,7 @@ impl <'lex> Parser<'lex> {
             parser.builder.add_halt_instruction(parser.last);
         }
 
-        Ok(parser.builder.build())
+        Ok(parser.build())
     }
 
     pub fn parse(input: &'lex str) -> Result<VM<'lex>, LexingError> {
@@ -104,9 +138,12 @@ impl <'lex> Parser<'lex> {
         match token {
             None => Err(LexingError::ParseError("Missing expression".to_string())),
             Some(t) => {
+                let kind = t.kind.clone();
                 let element = self.next_element(t)?;
                 match element {
-                    None => Err(LexingError::ParseError("No element after !".to_string())),
+                    None => {
+                        Err(LexingError::ParseError(format!("No element after {:?}", kind)))
+                    },
                     Some(e) => match e {
                         Element::Statement(s) => Err(LexingError::ParseError(format!("Unexpected statement {:?}", s))),
                         Element::Expression(e) => Ok(e),
@@ -116,7 +153,7 @@ impl <'lex> Parser<'lex> {
         }
     }
 
-    pub fn handle_identifier(&mut self, id: &'lex str) -> Result<Option<Element<'lex>>, LexingError>  {
+    pub fn handle_identifier(&mut self, id: &'lex str) -> Result<Option<Element<'lex>>, LexingError> {
         match self.next_token()? {
             None => Ok(Some(Element::Expression(Expression::Identifier(id)))),
             Some(t) => {
@@ -162,6 +199,7 @@ impl <'lex> Parser<'lex> {
                     Some(s) => {
                         match s.kind {
                             TokenKind::Newline => Ok(Some(Element::Expression(Expression::Value(v)))),
+                            TokenKind::Semi => Ok(Some(Element::Expression(Expression::Value(v)))),
                             TokenKind::Value(v) => Err(LexingError::ParseError(format!("Unexpected value {}", v))),
                             TokenKind::BinOp(o) => {
                                 let next = self.next_token()?;
@@ -273,7 +311,9 @@ impl <'lex> Parser<'lex> {
             }
             TokenKind::End => Err(LexingError::ParseError("Unexpected end".to_string())),
             TokenKind::Let => todo!(),
-            TokenKind::Mut => todo!()
+            TokenKind::Mut => todo!(),
+            TokenKind::As => Err(LexingError::ParseError("Unexpected as".to_string())),
+            TokenKind::Semi => Ok(None),
         }
     }
 
@@ -377,7 +417,7 @@ impl <'lex> Parser<'lex> {
         }
     }
 
-    fn build(&mut self, element: Element<'lex>) {
+    fn build_element(&mut self, element: Element<'lex>) {
         match element {
             Element::Statement(s) => {
                 match s {
@@ -406,8 +446,24 @@ impl <'lex> Parser<'lex> {
                             Expression::Map(_) => {
                                 // if list<value> store as value, otherwise create scope
                             }
-                            Expression::BinExp(_, _, _) => {
+                            Expression::BinExp(lhs, op, rhs) => {
                                 // create scope
+                                self.builder.enter_scope();
+                                let scope = self.builder.sp;
+                                self.build_expression(*lhs);
+                                let lhs = self.last;
+                                self.build_expression(*rhs);
+                                let rhs = self.last;
+                                let output = self.next_register();
+                                self.builder.add_instruction(Instruction::Binary {
+                                    op,
+                                    lhs,
+                                    rhs,
+                                    output
+                                });
+                                self.builder.exit_scope();
+                                self.load_value(Value::ScopeId(scope));
+                                self.builder.add_load_let_instruction(name.to_string(), self.last);
                             }
                             Expression::UnaryExp(_, _) => {
                                 // create scope
@@ -426,3 +482,9 @@ impl <'lex> Parser<'lex> {
         }
     }
 }
+// }
+//     };
+// }
+
+// gen_parser!(Parser, VMBuilder);
+// gen_parser!(VMParser, VM);

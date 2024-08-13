@@ -43,10 +43,14 @@ pub enum TokenKind<'lex> {
     Value(Value<'lex>),
     #[token("=")]
     Assign,
+    #[token(";")]
+    Semi,
     #[token("let")]
     Let,
     #[token("mut")]
     Mut,
+    #[token("as")]
+    As,
     #[token("==", |_| BinaryOperation::Eq)]
     #[token("!=", |_| BinaryOperation::Neq)]
     #[token("<", |_| BinaryOperation::Lt)]
