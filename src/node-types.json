@@ -39,6 +39,21 @@
     "fields": {}
   },
   {
+    "type": "cast",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "error",
     "named": true,
     "fields": {},
@@ -58,15 +73,15 @@
     "named": true,
     "fields": {},
     "children": {
-      "multiple": false,
+      "multiple": true,
       "required": true,
       "types": [
         {
-          "type": "assignment",
+          "type": "binary",
           "named": true
         },
         {
-          "type": "binary",
+          "type": "cast",
           "named": true
         },
         {
@@ -78,7 +93,23 @@
           "named": true
         },
         {
+          "type": "if_else",
+          "named": true
+        },
+        {
+          "type": "trailing_if",
+          "named": true
+        },
+        {
+          "type": "trailing_unless",
+          "named": true
+        },
+        {
           "type": "unary",
+          "named": true
+        },
+        {
+          "type": "unless",
           "named": true
         },
         {
@@ -138,6 +169,25 @@
     "type": "identifier",
     "named": true,
     "fields": {}
+  },
+  {
+    "type": "if_else",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        },
+        {
+          "type": "program",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "lifecycle",
@@ -212,6 +262,10 @@
       "required": true,
       "types": [
         {
+          "type": "assignment",
+          "named": true
+        },
+        {
           "type": "expression",
           "named": true
         },
@@ -231,6 +285,36 @@
     "type": "symbol",
     "named": true,
     "fields": {}
+  },
+  {
+    "type": "trailing_if",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "trailing_unless",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "type",
@@ -282,12 +366,31 @@
     }
   },
   {
+    "type": "unless",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        },
+        {
+          "type": "program",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "value",
     "named": true,
     "fields": {},
     "children": {
       "multiple": false,
-      "required": false,
+      "required": true,
       "types": [
         {
           "type": "bool",
@@ -303,6 +406,10 @@
         },
         {
           "type": "map",
+          "named": true
+        },
+        {
+          "type": "none",
           "named": true
         },
         {
@@ -369,6 +476,10 @@
     "named": false
   },
   {
+    "type": ";",
+    "named": false
+  },
+  {
     "type": "<",
     "named": false
   },
@@ -398,6 +509,10 @@
   },
   {
     "type": "@",
+    "named": false
+  },
+  {
+    "type": "Any",
     "named": false
   },
   {
@@ -437,11 +552,19 @@
     "named": false
   },
   {
+    "type": "as",
+    "named": false
+  },
+  {
     "type": "comment",
     "named": true
   },
   {
     "type": "do",
+    "named": false
+  },
+  {
+    "type": "else",
     "named": false
   },
   {
@@ -465,6 +588,10 @@
     "named": true
   },
   {
+    "type": "if",
+    "named": false
+  },
+  {
     "type": "let",
     "named": false
   },
@@ -474,7 +601,7 @@
   },
   {
     "type": "none",
-    "named": false
+    "named": true
   },
   {
     "type": "number",
@@ -491,6 +618,10 @@
   {
     "type": "type_identifier",
     "named": true
+  },
+  {
+    "type": "unless",
+    "named": false
   },
   {
     "type": "{",

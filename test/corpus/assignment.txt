@@ -5,13 +5,51 @@ let a = 42
 ---
 (program
     (statement
-        (expression
-            (assignment
-                (identifier)
-                (expression
-                    (value
-                        (number)
-                    ))
+        (assignment
+            (identifier)
+            (expression
+                (value
+                    (number)
+                ))
+        )
+    )
+)
+
+==================
+Assignment cast
+==================
+let a = 42 as String
+---
+(program
+    (statement
+        (assignment
+            (identifier)
+            (expression
+                (value
+                    (number))
+                (cast (type))
+            )
+        )
+    )
+)
+
+==================
+Assignment unless
+==================
+let a = 42 unless true
+---
+(program
+    (statement
+        (assignment
+            (identifier)
+            (expression
+                (value
+                    (number))
+                (trailing_unless
+                    (expression
+                        (value (bool))
+                    )
+                )
             )
         )
     )

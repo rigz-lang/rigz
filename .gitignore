@@ -1,2 +1,7 @@
 node_modules
 .idea
+parser.exp
+parser.lib
+parser.obj
+build
+target

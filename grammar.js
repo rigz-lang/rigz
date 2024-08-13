@@ -9,29 +9,47 @@ module.exports = grammar({
         [$.statement, $.binary],
         [$.unary, $.binary],
         [$.binary],
+        [$.expression],
         [$.binary, $.assignment],
         [$.binary, $.function_call],
+        [$.trailing_if, $.binary],
+        [$.trailing_unless, $.binary],
     ],
     rules: {
         program: $ => repeat1($.statement),
-        statement: $ => choice(
+        statement: $ => seq(choice(
             $.expression,
             $.function_definition,
-        ),
+            $.assignment,
+            // $.import,
+            // $.export,
+        ), optional(";")),
         function_definition: $ => seq(
             optional($.lifecycle),
             "fn", $.function_identifier, "(", ")", optional($.type),
             $.program,
             "end"
         ),
-        expression: $ => choice(
+        expression: $ => seq(choice(
             $.function_call,
             $.value,
-            $.assignment,
             $.binary,
             $.unary,
-            seq("(", $.expression, ")")
-        ),
+            $.if_else,
+            $.unless,
+            seq("(", $.expression, ")"),
+        ), optional(
+            choice(
+                $.cast,
+                $.trailing_if,
+                $.trailing_unless,
+            )
+        )),
+        trailing_if: $ => seq("if", $.expression),
+        trailing_unless: $ => seq("unless", $.expression),
+        if_else: $ => seq("if", $.expression, $.program, optional(seq("else", $.program)), "end"),
+        unless: $ => seq("unless", $.expression, $.program, "end"),
+        cast: $ => seq("as", $.type),
         unary: $ => seq(choice("-", "!"), $.expression),
         binary: $ => seq(
             $.expression,
@@ -43,14 +61,15 @@ module.exports = grammar({
             choice("let", "mut"),
             $.identifier,
             "=",
-            $.expression
+            $.expression,
         ),
         function_call: $ => prec(3, seq(
             $.function_identifier,
             optional(seq($.expression, repeat(seq(",", $.expression))))
         )),
+        none: $ => token('none'),
         value: $ => choice(
-          "none",
+          $.none,
             $.bool,
             $.number,
             $.string,
@@ -84,6 +103,7 @@ module.exports = grammar({
         ),
         type: $ => choice(
             "None",
+            "Any",
             "Float",
             "Int",
             "Uint",

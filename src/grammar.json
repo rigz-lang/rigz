@@ -9,15 +9,36 @@
       }
     },
     "statement": {
-      "type": "CHOICE",
+      "type": "SEQ",
       "members": [
         {
-          "type": "SYMBOL",
-          "name": "expression"
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "expression"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "function_definition"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "assignment"
+            }
+          ]
         },
         {
-          "type": "SYMBOL",
-          "name": "function_definition"
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": ";"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         }
       ]
     },
@@ -75,44 +96,180 @@
       ]
     },
     "expression": {
-      "type": "CHOICE",
+      "type": "SEQ",
       "members": [
         {
-          "type": "SYMBOL",
-          "name": "function_call"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "value"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "assignment"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "binary"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "unary"
-        },
-        {
-          "type": "SEQ",
+          "type": "CHOICE",
           "members": [
             {
-              "type": "STRING",
-              "value": "("
+              "type": "SYMBOL",
+              "name": "function_call"
             },
             {
               "type": "SYMBOL",
-              "name": "expression"
+              "name": "value"
             },
             {
-              "type": "STRING",
-              "value": ")"
+              "type": "SYMBOL",
+              "name": "binary"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "unary"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "if_else"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "unless"
+            },
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "STRING",
+                  "value": "("
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "expression"
+                },
+                {
+                  "type": "STRING",
+                  "value": ")"
+                }
+              ]
             }
           ]
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "cast"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "trailing_if"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "trailing_unless"
+                }
+              ]
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        }
+      ]
+    },
+    "trailing_if": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "if"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "expression"
+        }
+      ]
+    },
+    "trailing_unless": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "unless"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "expression"
+        }
+      ]
+    },
+    "if_else": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "if"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "expression"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "program"
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "STRING",
+                  "value": "else"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "program"
+                }
+              ]
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "STRING",
+          "value": "end"
+        }
+      ]
+    },
+    "unless": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "unless"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "expression"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "program"
+        },
+        {
+          "type": "STRING",
+          "value": "end"
+        }
+      ]
+    },
+    "cast": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "as"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "type"
         }
       ]
     },
@@ -309,12 +466,19 @@
         ]
       }
     },
+    "none": {
+      "type": "TOKEN",
+      "content": {
+        "type": "STRING",
+        "value": "none"
+      }
+    },
     "value": {
       "type": "CHOICE",
       "members": [
         {
-          "type": "STRING",
-          "value": "none"
+          "type": "SYMBOL",
+          "name": "none"
         },
         {
           "type": "SYMBOL",
@@ -632,6 +796,10 @@
         },
         {
           "type": "STRING",
+          "value": "Any"
+        },
+        {
+          "type": "STRING",
           "value": "Float"
         },
         {
@@ -829,12 +997,23 @@
       "binary"
     ],
     [
+      "expression"
+    ],
+    [
       "binary",
       "assignment"
     ],
     [
       "binary",
       "function_call"
+    ],
+    [
+      "trailing_if",
+      "binary"
+    ],
+    [
+      "trailing_unless",
+      "binary"
     ]
   ],
   "precedences": [],
