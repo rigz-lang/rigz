@@ -12,7 +12,7 @@ mod token;
 mod parser;
 mod runtime;
 
-pub use parser::Parser;
+pub use parser::{Parser, VMParser};
 pub use runtime::Runtime;
 
 pub fn parse(input: &str) -> Result<VM, LexingError> {

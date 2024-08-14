@@ -1,6 +1,6 @@
 [package]
 name = "rigz_runtime"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 description = "Handles parsing and converting rigz to its VM instructions, no AST available (use tree-sitter-rigz instead)"
 readme = "README.md"
