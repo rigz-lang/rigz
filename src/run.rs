@@ -18,22 +18,12 @@ pub(crate) fn run(args: RunArgs) {
     let mut file = File::open(input).expect("failed to open input");
     let mut contents = String::new();
     file.read_to_string(&mut contents).expect("Failed to read contents");
-    match rigz_runtime::parse(contents.as_str()) {
-        Ok(mut vm) => {
-            match vm.run() {
-                Ok(v) => {
-                    if v != Value::None {
-                        println!("{}", v)
-                    }
-                }
-                Err(e) => {
-                    eprintln!("VM Run Failed: {:?}", e);
-                    exit(1)
-                }
-            }
+    match rigz_runtime::Runtime::run(contents.as_str()) {
+        Ok(v) => {
+            println!("{}", v)
         }
         Err(e) => {
-            eprintln!("Failed to parse input: {:?}", e);
+            eprintln!("VM Run Failed: {:?}", e);
             exit(1)
         }
     }

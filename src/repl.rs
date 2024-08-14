@@ -1,5 +1,5 @@
 use clap::Args;
-use rigz_runtime::VM;
+use rigz_runtime::{VMParser, VM};
 use rustyline::DefaultEditor;
 
 #[derive(Args)]
@@ -10,7 +10,6 @@ pub struct ReplArgs {
 
 pub(crate) fn repl(args: ReplArgs) {
     let mut r = DefaultEditor::new().expect("Failed to create REPL");
-
     loop {
         let next = r.readline(">").expect("Failed to read line");
 

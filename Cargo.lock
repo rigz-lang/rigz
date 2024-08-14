@@ -427,9 +427,9 @@ dependencies = [
 
 [[package]]
 name = "rigz_runtime"
-version = "0.1.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b21caab85a7cfd072e4d473447e5bf6961b32229c9e198b5b6b8284f6d6ffbe"
+checksum = "b14a69bff2ede7e5366b6459926392e6888abba0fd3b176c518c4c2c5913a56a"
 dependencies = [
  "indexmap",
  "logos",
@@ -438,11 +438,12 @@ dependencies = [
 
 [[package]]
 name = "rigz_vm"
-version = "0.3.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc7c02cbc2d2f3ed751c3d9fd855b4a1ee9d9c01c8637a31fd96b040f4a58c46"
+checksum = "ba25acda52edb6ee134be490f1eea1caffa1519e53f3ea942d4e4e83eda43c04"
 dependencies = [
  "indexmap",
+ "log",
  "once_cell",
 ]
 
