@@ -203,6 +203,7 @@ impl <'lex> $type<'lex> {
                             TokenKind::BinOp(o) => {
                                 let next = self.next_token()?;
                                 let expr = self.next_expression(next)?;
+                                // TODO this is right recursive, not left recursive not like it's supposed to be
                                 Ok(Some(Element::Expression(Expression::BinExp(Box::new(Expression::Value(v)), o, Box::new(expr)))))
                             }
                             TokenKind::Minus => {

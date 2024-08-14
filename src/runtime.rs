@@ -43,6 +43,7 @@ mod tests {
 
     test_run! {
         basic "1 + 2" = Value::Number(Number::Int(3)),
+        complex "1 + 2 * 3" = Value::Number(Number::Int(9)),
         assign "a = 1 + 2" = Value::Number(Number::Int(3)),
         assign_add "a = 1 + 2; a + 2" = Value::Number(Number::Int(5)),
         unary_not "!1" = Value::Number(Number::Int(!1)),
