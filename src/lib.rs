@@ -1,6 +1,5 @@
 use logos::Logos;
 pub use rigz_vm::{RigzType, VM, Value, Number, Module, VMBuilder};
-use crate::parser::Parser;
 use crate::token::{LexingError};
 
 #[derive(Debug, Clone)]
@@ -12,6 +11,9 @@ pub struct FunctionDefinition {
 mod token;
 mod parser;
 mod runtime;
+
+pub use parser::Parser;
+pub use runtime::Runtime;
 
 pub fn parse(input: &str) -> Result<VM, LexingError> {
     Parser::parse(input)
