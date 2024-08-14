@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use indexmap::IndexMap;
 use logos::{Lexer, Logos};
-use rigz_vm::{BinaryOperation, Instruction, Register, RigzType, UnaryOperation, VMBuilder, Value, VM};
+use rigz_vm::{Binary, BinaryOperation, Instruction, Register, RigzType, Unary, UnaryOperation, VMBuilder, Value, VM};
 use crate::FunctionDefinition;
 use crate::token::{LexingError, Token, TokenKind};
 use crate::token::TokenKind::BinOp;
@@ -79,12 +79,11 @@ pub enum Element<'lex> {
     Expression(Expression<'lex>)
 }
 
-// macro_rules! gen_parser {
-//     ($type:ident, $builder:ident) => {
-impl <'lex> Parser<'lex> {
-    //impl <'lex> $type<'lex> {
-    //pub fn parse_with_builder(input: &'lex str, builder: $builder<'lex>) -> Result<VM<'lex>, LexingError> {
-    pub fn parse_with_builder(input: &'lex str, builder: VMBuilder<'lex>) -> Result<VM<'lex>, LexingError> {
+macro_rules! gen_parser {
+    ($type:ident, $builder:ident, $init:expr) => {
+impl <'lex> $type<'lex> {
+    pub fn parse_with_builder(input: &'lex str, builder: $builder<'lex>) -> Result<VM<'lex>, LexingError> {
+    //pub fn parse_with_builder(input: &'lex str, builder: VMBuilder<'lex>) -> Result<VM<'lex>, LexingError> {
         let lexer = TokenKind::lexer(input);
         let mut parser = Self {
             lexer,
@@ -131,7 +130,7 @@ impl <'lex> Parser<'lex> {
     }
 
     pub fn parse(input: &'lex str) -> Result<VM<'lex>, LexingError> {
-        Self::parse_with_builder(input, VMBuilder::new())
+        Self::parse_with_builder(input, $init())
     }
 
     pub fn next_expression(&mut self, token: Option<Token<'lex>>) -> Result<Expression<'lex>, LexingError> {
@@ -386,14 +385,23 @@ impl <'lex> Parser<'lex> {
                 self.build_expression(*rhs);
                 let rhs = self.last;
                 let next = self.next_register();
-                self.builder.add_instruction(Instruction::Binary {
+                self.builder.add_instruction(Instruction::Binary(Binary{
                     op,
                     lhs,
                     rhs,
                     output: next
-                });
+                }));
             }
-            Expression::UnaryExp(_, _) => {}
+            Expression::UnaryExp(op, expression) => {
+                self.build_expression(*expression);
+                let from = self.last;
+                let output = self.next_register();
+                self.builder.add_instruction(Instruction::Unary(Unary {
+                    op,
+                    from,
+                    output,
+                }));
+            }
             Expression::FunctionCall(name, def) => {
                 match name {
                     "puts" => {
@@ -413,78 +421,97 @@ impl <'lex> Parser<'lex> {
                     }
                 }
             }
-            Expression::Scope(_) => {}
+            Expression::Scope(s) => {
+                self.builder.enter_scope();
+                for expr in s {
+                    self.build_expression(expr);
+                }
+                self.builder.exit_scope(self.last);
+            }
+        }
+    }
+
+    fn build_assignment_value(&mut self, name: &'lex str, mutable: bool, value: Value<'lex>) {
+        self.load_value(value);
+        if mutable {
+            self.builder.add_load_mut_instruction(name.to_string(), self.last);
+        } else {
+            self.builder.add_load_let_instruction(name.to_string(), self.last);
+        }
+    }
+
+    fn build_assignment_identifier(&mut self, name: &'lex str, mutable: bool, id: &'lex str) {
+        let next = self.next_register();
+        self.builder.add_get_variable_instruction(id.to_string(), next);
+        if mutable {
+            self.builder.add_load_mut_instruction(name.to_string(), self.last);
+        } else {
+            self.builder.add_load_let_instruction(name.to_string(), self.last);
+        }
+    }
+
+    fn build_statement(&mut self, statement: Statement<'lex>) {
+        match statement {
+            Statement::Assignment { name, mutable, expression } => {
+                match expression {
+                    Expression::Value(v) => self.build_assignment_value(name, mutable, v),
+                    Expression::Identifier(id) => self.build_assignment_identifier(name, mutable, id),
+                    Expression::List(_) => {
+                        // if list<value> store as value, otherwise create scope
+                    }
+                    Expression::Map(_) => {
+                        // if list<value> store as value, otherwise create scope
+                    }
+                    Expression::BinExp(lhs, op, rhs) => {
+                        self.builder.enter_scope();
+                        let scope = self.builder.sp;
+                        self.build_expression(*lhs);
+                        let lhs = self.last;
+                        self.build_expression(*rhs);
+                        let rhs = self.last;
+                        let output = self.next_register();
+                        self.builder.add_instruction(Instruction::Binary(Binary{
+                            op,
+                            lhs,
+                            rhs,
+                            output
+                        }));
+                        self.builder.exit_scope(output);
+                        self.load_value(Value::ScopeId(scope, output));
+                        self.builder.add_load_let_instruction(name.to_string(), self.last);
+                    }
+                    Expression::UnaryExp(op, expr) => {
+                        self.builder.enter_scope();
+                        self.build_expression(*expr);
+                        self.builder.exit_scope(self.last);
+                        let from = self.last;
+                        let output = self.next_register();
+                        self.builder.add_instruction(Instruction::Unary(Unary {
+                            op,
+                            from,
+                            output,
+                        }));
+                    }
+                    Expression::FunctionCall(_, _) => {
+                        // create scope
+                    }
+                    Expression::Scope(_) => {}
+                }
+            }
+            Statement::FunctionDefinition { .. } => {}
+            Statement::Expression(e) => self.build_expression(e),
         }
     }
 
     fn build_element(&mut self, element: Element<'lex>) {
         match element {
-            Element::Statement(s) => {
-                match s {
-                    Statement::Assignment { name, mutable, expression } => {
-                        match expression {
-                            Expression::Value(v) => {
-                                self.load_value(v);
-                                if mutable {
-                                    self.builder.add_load_mut_instruction(name.to_string(), self.last);
-                                } else {
-                                    self.builder.add_load_let_instruction(name.to_string(), self.last);
-                                }
-                            }
-                            Expression::Identifier(i) => {
-                                let next = self.next_register();
-                                self.builder.add_get_variable_instruction(i.to_string(), next);
-                                if mutable {
-                                    self.builder.add_load_mut_instruction(name.to_string(), self.last);
-                                } else {
-                                    self.builder.add_load_let_instruction(name.to_string(), self.last);
-                                }
-                            }
-                            Expression::List(_) => {
-                                // if list<value> store as value, otherwise create scope
-                            }
-                            Expression::Map(_) => {
-                                // if list<value> store as value, otherwise create scope
-                            }
-                            Expression::BinExp(lhs, op, rhs) => {
-                                // create scope
-                                self.builder.enter_scope();
-                                let scope = self.builder.sp;
-                                self.build_expression(*lhs);
-                                let lhs = self.last;
-                                self.build_expression(*rhs);
-                                let rhs = self.last;
-                                let output = self.next_register();
-                                self.builder.add_instruction(Instruction::Binary {
-                                    op,
-                                    lhs,
-                                    rhs,
-                                    output
-                                });
-                                self.builder.exit_scope();
-                                self.load_value(Value::ScopeId(scope));
-                                self.builder.add_load_let_instruction(name.to_string(), self.last);
-                            }
-                            Expression::UnaryExp(_, _) => {
-                                // create scope
-                            }
-                            Expression::FunctionCall(_, _) => {
-                                // create scope
-                            }
-                            Expression::Scope(_) => {}
-                        }
-                    }
-                    Statement::FunctionDefinition { .. } => {}
-                    Statement::Expression(e) => self.build_expression(e),
-                }
-            }
+            Element::Statement(s) => self.build_statement(s),
             Element::Expression(e) => self.build_expression(e),
         }
     }
 }
-// }
-//     };
-// }
+    };
+}
 
-// gen_parser!(Parser, VMBuilder);
-// gen_parser!(VMParser, VM);
+gen_parser!(Parser, VMBuilder, VMBuilder::new);
+gen_parser!(VMParser, VM, VM::new);

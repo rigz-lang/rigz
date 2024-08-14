@@ -1,6 +1,6 @@
 [package]
 name = "rigz_runtime"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 description = "Handles parsing and converting rigz to its VM instructions, no AST available (use tree-sitter-rigz instead)"
 readme = "README.md"
@@ -10,4 +10,4 @@ repository = "https://gitlab.com/magicfoodhand/rigz_runtime"
 [dependencies]
 indexmap = "2.3.0"
 logos = "0.14.1"
-rigz_vm = { version = "0.4.4" }
+rigz_vm = { version = "0.7.1" }

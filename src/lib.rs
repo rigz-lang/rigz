@@ -28,7 +28,7 @@ pub fn parse_with_modules<'vm>(input: &'vm str, modules: Vec<Module<'vm>>) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rigz_vm::{BinaryOperation, Instruction, Scope, UnaryOperation, Value};
+    use rigz_vm::{Binary, BinaryOperation, Instruction, Scope, Unary, UnaryOperation, Value};
 
     #[test]
     fn create_vm_works() {
@@ -38,11 +38,11 @@ mod tests {
         scope
             .instructions
             .push(Instruction::Load(2, Value::String("Hello World".into())));
-        scope.instructions.push(Instruction::Unary {
+        scope.instructions.push(Instruction::Unary(Unary {
             op: UnaryOperation::Print,
             from: 2,
             output: 0,
-        });
+        }));
         scope.instructions.push(Instruction::Halt(0));
         assert_eq!(vec![scope], vm.scopes)
     }
@@ -88,16 +88,16 @@ mod tests {
             .push(Instruction::Load(3, Value::Number(Number::Int(2))));
         inner_scope
             .instructions
-            .push(Instruction::Binary {
+            .push(Instruction::Binary(Binary{
                 op: BinaryOperation::Add,
                 lhs: 2,
                 rhs: 3,
                 output: 4,
-            });
-        inner_scope.instructions.push(Instruction::Ret);
+            }));
+        inner_scope.instructions.push(Instruction::Ret(4));
         scope
             .instructions
-            .push(Instruction::Load(5, Value::ScopeId(1)));
+            .push(Instruction::Load(5, Value::ScopeId(1, 4)));
         scope
             .instructions
             .push(Instruction::LoadLetRegister("a".into(), 5));
@@ -109,12 +109,12 @@ mod tests {
             .push(Instruction::Load(7, Value::Number(Number::Int(2))));
         scope
             .instructions
-            .push(Instruction::Binary {
+            .push(Instruction::Binary(Binary {
                 op: BinaryOperation::Add,
                 lhs: 6,
                 rhs: 7,
                 output: 8,
-            });
+            }));
         scope.instructions.push(Instruction::Halt(8));
         assert_eq!(vec![scope, inner_scope], vm.scopes)
     }
@@ -149,18 +149,18 @@ mod tests {
         scope
             .instructions
             .push(Instruction::GetVariable("b".to_string(), 6));
-        scope.instructions.push(Instruction::Binary {
+        scope.instructions.push(Instruction::Binary(Binary {
             op: BinaryOperation::Add,
             lhs: 5,
             rhs: 6,
             output: 7,
-        });
-        scope.instructions.push(Instruction::Binary {
+        }));
+        scope.instructions.push(Instruction::Binary(Binary {
             op: BinaryOperation::Add,
             lhs: 4,
             rhs: 7,
             output: 8,
-        });
+        }));
         scope.instructions.push(Instruction::Halt(8));
         assert_eq!(vm.scopes[0], scope)
     }

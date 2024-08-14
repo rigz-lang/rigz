@@ -43,6 +43,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
+name = "log"
+version = "0.4.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
+
+[[package]]
 name = "logos"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -116,11 +122,12 @@ dependencies = [
 
 [[package]]
 name = "rigz_vm"
-version = "0.4.4"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0391847e83b5bca362b3d91d2a63d7c8e20530448fab7fc742763143a01f6ce4"
+checksum = "ba25acda52edb6ee134be490f1eea1caffa1519e53f3ea942d4e4e83eda43c04"
 dependencies = [
  "indexmap",
+ "log",
  "once_cell",
 ]
 
