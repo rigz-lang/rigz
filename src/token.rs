@@ -8,7 +8,7 @@ pub enum LexingError {
     #[default]
     NonAsciiError,
     BoolParseError,
-    ParseError(String)
+    ParseError(String),
 }
 
 impl From<std::num::ParseIntError> for LexingError {
@@ -121,7 +121,10 @@ mod tests {
         "#;
 
         let lexer = TokenKind::lexer(raw);
-        let actual: Vec<TokenKind> = lexer.map(|t| t.unwrap()).filter(|t| t != &TokenKind::Newline).collect();
+        let actual: Vec<TokenKind> = lexer
+            .map(|t| t.unwrap())
+            .filter(|t| t != &TokenKind::Newline)
+            .collect();
         assert_eq!(
             actual,
             vec![

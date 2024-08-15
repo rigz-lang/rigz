@@ -1,6 +1,6 @@
+use crate::token::LexingError;
 use logos::Logos;
-pub use rigz_vm::{RigzType, VM, Value, Number, Module, VMBuilder};
-use crate::token::{LexingError};
+pub use rigz_vm::{Module, Number, RigzType, VMBuilder, Value, VM};
 
 #[derive(Debug, Clone)]
 pub struct FunctionDefinition {
@@ -8,9 +8,9 @@ pub struct FunctionDefinition {
     pub return_type: RigzType,
 }
 
-mod token;
 mod parser;
 mod runtime;
+mod token;
 
 pub use parser::{Parser, VMParser};
 pub use runtime::Runtime;
@@ -19,7 +19,10 @@ pub fn parse(input: &str) -> Result<VM, LexingError> {
     Parser::parse(input)
 }
 
-pub fn parse_with_modules<'vm>(input: &'vm str, modules: Vec<Module<'vm>>) -> Result<VM<'vm>, LexingError> {
+pub fn parse_with_modules<'vm>(
+    input: &'vm str,
+    modules: Vec<Module<'vm>>,
+) -> Result<VM<'vm>, LexingError> {
     let mut builder = VMBuilder::new();
     for module in modules {
         builder.register_module(module);
@@ -88,14 +91,12 @@ mod tests {
         inner_scope
             .instructions
             .push(Instruction::Load(3, Value::Number(Number::Int(2))));
-        inner_scope
-            .instructions
-            .push(Instruction::Binary(Binary{
-                op: BinaryOperation::Add,
-                lhs: 2,
-                rhs: 3,
-                output: 4,
-            }));
+        inner_scope.instructions.push(Instruction::Binary(Binary {
+            op: BinaryOperation::Add,
+            lhs: 2,
+            rhs: 3,
+            output: 4,
+        }));
         inner_scope.instructions.push(Instruction::Ret(4));
         scope
             .instructions
@@ -109,14 +110,12 @@ mod tests {
         scope
             .instructions
             .push(Instruction::Load(7, Value::Number(Number::Int(2))));
-        scope
-            .instructions
-            .push(Instruction::Binary(Binary {
-                op: BinaryOperation::Add,
-                lhs: 6,
-                rhs: 7,
-                output: 8,
-            }));
+        scope.instructions.push(Instruction::Binary(Binary {
+            op: BinaryOperation::Add,
+            lhs: 6,
+            rhs: 7,
+            output: 8,
+        }));
         scope.instructions.push(Instruction::Halt(8));
         assert_eq!(vec![scope, inner_scope], vm.scopes)
     }
