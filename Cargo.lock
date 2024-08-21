@@ -122,9 +122,9 @@ dependencies = [
 
 [[package]]
 name = "rigz_vm"
-version = "0.7.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba25acda52edb6ee134be490f1eea1caffa1519e53f3ea942d4e4e83eda43c04"
+checksum = "4d4f36d54c8b94cd1c4879b573d077c5b94b0a88b0f8161b9a330d83a0abc7c7"
 dependencies = [
  "indexmap",
  "log",

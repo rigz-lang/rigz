@@ -1,4 +1,4 @@
-use crate::parse;
+use crate::{parse, Parser};
 use rigz_vm::{VMError, Value, VM};
 
 pub struct Runtime<'run> {
@@ -7,7 +7,7 @@ pub struct Runtime<'run> {
 
 impl<'run> Runtime<'run> {
     pub fn run(input: &'run str) -> Result<Value<'run>, VMError> {
-        let mut vm = match parse(input) {
+        let mut vm = match Parser::parse(input) {
             Ok(vm) => vm,
             Err(e) => {
                 return Err(VMError::ParseError(
@@ -17,11 +17,12 @@ impl<'run> Runtime<'run> {
                 ))
             }
         };
-        vm.run()
+        let v = vm.run()?;
+        Ok(v)
     }
 
     pub fn run_repl(&mut self, input: &'run str) -> Result<Value<'run>, VMError> {
-        let mut vm = match parse(input) {
+        let mut vm = match Parser::parse(input) {
             Ok(vm) => vm,
             Err(e) => {
                 return Err(VMError::ParseError(
@@ -31,7 +32,8 @@ impl<'run> Runtime<'run> {
                 ))
             }
         };
-        vm.run()
+        let v = vm.run()?;
+        Ok(v)
     }
 }
 

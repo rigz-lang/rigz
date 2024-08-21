@@ -74,7 +74,7 @@ mod tests {
             .push(Instruction::Load(2, Value::String("Hello World".into())));
         scope
             .instructions
-            .push(Instruction::LoadLetRegister("a".into(), 2));
+            .push(Instruction::LoadLetRegister("a", 2));
         scope.instructions.push(Instruction::Halt(2));
         assert_eq!(vec![scope], vm.scopes)
     }
@@ -103,10 +103,10 @@ mod tests {
             .push(Instruction::Load(5, Value::ScopeId(1, 4)));
         scope
             .instructions
-            .push(Instruction::LoadLetRegister("a".into(), 5));
+            .push(Instruction::LoadLetRegister("a", 5));
         scope
             .instructions
-            .push(Instruction::GetVariable("a".into(), 6));
+            .push(Instruction::GetVariable("a", 6));
         scope
             .instructions
             .push(Instruction::Load(7, Value::Number(Number::Int(2))));
@@ -134,22 +134,22 @@ mod tests {
             .push(Instruction::Load(2, Value::String("Hello".into())));
         scope
             .instructions
-            .push(Instruction::LoadLetRegister("a".into(), 2));
+            .push(Instruction::LoadLetRegister("a", 2));
         scope
             .instructions
             .push(Instruction::Load(3, Value::String("Elliot".into())));
         scope
             .instructions
-            .push(Instruction::LoadLetRegister("b".into(), 3));
+            .push(Instruction::LoadLetRegister("b", 3));
         scope
             .instructions
-            .push(Instruction::GetVariable("a".to_string(), 4));
+            .push(Instruction::GetVariable("a", 4));
         scope
             .instructions
             .push(Instruction::Load(5, Value::String(" ".into())));
         scope
             .instructions
-            .push(Instruction::GetVariable("b".to_string(), 6));
+            .push(Instruction::GetVariable("b", 6));
         scope.instructions.push(Instruction::Binary(Binary {
             op: BinaryOperation::Add,
             lhs: 5,

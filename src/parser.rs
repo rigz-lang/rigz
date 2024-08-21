@@ -453,8 +453,7 @@ macro_rules! gen_parser {
                     Expression::Map(_) => {}
                     Expression::Identifier(i) => {
                         let next = self.next_register();
-                        self.builder
-                            .add_get_variable_instruction(i.to_string(), next);
+                        self.builder.add_get_variable_instruction(i, next);
                     }
                     Expression::BinExp(lhs, op, rhs) => {
                         self.build_expression(*lhs);
@@ -483,14 +482,27 @@ macro_rules! gen_parser {
                         "puts" => {
                             let list = self.to_value(def);
                             self.load_value(list);
-                            self.builder.add_print_instruction(self.last, 0);
-                            self.set_last(0);
+                            self.builder.add_puts_instruction(vec![self.last]);
                         }
                         "eprintln" => {
                             let list = self.to_value(def);
                             self.load_value(list);
+                            self.builder.add_eprintln_instruction(self.last, 0);
+                        }
+                        "eprint" => {
+                            let list = self.to_value(def);
+                            self.load_value(list);
                             self.builder.add_eprint_instruction(self.last, 0);
-                            self.set_last(0);
+                        }
+                        "println" => {
+                            let list = self.to_value(def);
+                            self.load_value(list);
+                            self.builder.add_println_instruction(self.last, 0);
+                        }
+                        "print" => {
+                            let list = self.to_value(def);
+                            self.load_value(list);
+                            self.builder.add_print_instruction(self.last, 0);
                         }
                         _ => {
                             todo!()
@@ -515,10 +527,10 @@ macro_rules! gen_parser {
                 self.load_value(value);
                 if mutable {
                     self.builder
-                        .add_load_mut_instruction(name.to_string(), self.last);
+                        .add_load_mut_instruction(name, self.last);
                 } else {
                     self.builder
-                        .add_load_let_instruction(name.to_string(), self.last);
+                        .add_load_let_instruction(name, self.last);
                 }
             }
 
@@ -530,13 +542,13 @@ macro_rules! gen_parser {
             ) {
                 let next = self.next_register();
                 self.builder
-                    .add_get_variable_instruction(id.to_string(), next);
+                    .add_get_variable_instruction(id, next);
                 if mutable {
                     self.builder
-                        .add_load_mut_instruction(name.to_string(), self.last);
+                        .add_load_mut_instruction(name, self.last);
                 } else {
                     self.builder
-                        .add_load_let_instruction(name.to_string(), self.last);
+                        .add_load_let_instruction(name, self.last);
                 }
             }
 
@@ -575,7 +587,7 @@ macro_rules! gen_parser {
                                 self.builder.exit_scope(output);
                                 self.load_value(Value::ScopeId(scope, output));
                                 self.builder
-                                    .add_load_let_instruction(name.to_string(), self.last);
+                                    .add_load_let_instruction(name, self.last);
                             }
                             Expression::UnaryExp(op, expr) => {
                                 self.builder.enter_scope();
