@@ -1,6 +1,6 @@
 {
   "name": "tree-sitter-rigz",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Rigz grammar for tree-sitter",
   "repository": "github:tree-sitter/tree-sitter-rigz",
   "license": "MIT",
