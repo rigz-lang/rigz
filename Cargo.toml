@@ -1,6 +1,6 @@
 [package]
 name = "rigz"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 license = "MIT"
 description = "CLI for running rigz locally"
@@ -10,5 +10,5 @@ repository = "https://gitlab.com/magicfoodhand/rigz_cli"
 clap = {version = "4.5.15", features = ["env", "derive"]}
 log = { version = "0.4.22", features = [] }
 pretty_env_logger = "0.5.0"
-rigz_runtime = "0.2.2"
+rigz_runtime = "0.2.3"
 rustyline = "14.0.0"

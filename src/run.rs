@@ -18,7 +18,8 @@ pub(crate) fn run(args: RunArgs) {
     let mut file = File::open(input).expect("failed to open input");
     let mut contents = String::new();
     file.read_to_string(&mut contents).expect("Failed to read contents");
-    match rigz_runtime::Runtime::run(contents.as_str()) {
+    let mut runtime = rigz_runtime::Runtime::prepare(contents.as_str()).expect("Failed to parse input");
+    match runtime.run() {
         Ok(v) => {
             println!("{}", v)
         }
