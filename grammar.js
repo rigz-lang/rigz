@@ -26,9 +26,15 @@ module.exports = grammar({
         ), optional(";")),
         function_definition: $ => seq(
             optional($.lifecycle),
-            "fn", $.function_identifier, "(", ")", optional($.type),
+            "fn", $.function_identifier, seq(optional(
+                seq("(", $.function_arg,
+                    repeat(seq(',', $.function_arg)),
+                    optional(","), ")")), optional(seq(":", $.type))),
             $.program,
             "end"
+        ),
+        function_arg: $ => seq(
+            $.identifier, optional(seq(":", $.type))
         ),
         expression: $ => seq(choice(
             $.function_call,

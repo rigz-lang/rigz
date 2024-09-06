@@ -4,6 +4,38 @@ Define Function
 fn add(a, b)
   a + b
 end
+---
+(program
+    (statement
+        (function_definition
+            (function_identifier)
+            (function_arg
+                (identifier)
+            )
+            (function_arg
+                (identifier)
+            )
+            (program
+                (statement
+                    (expression
+                        (binary
+                            (expression
+                                (function_call
+                                    (function_identifier)
+                                )
+                            )
+                            (expression
+                                (function_call
+                                    (function_identifier)
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+)
 
 ==================
 Call Multiple
