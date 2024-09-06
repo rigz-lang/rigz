@@ -1,5 +1,5 @@
 use logos::{Logos, Span};
-use rigz_vm::{BinaryOperation, Number, UnaryOperation, VMError, Value};
+use rigz_vm::{BinaryOperation, Number, Value};
 use std::str::ParseBoolError;
 
 #[derive(Debug, PartialEq, Clone, Default)]

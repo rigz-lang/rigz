@@ -1,4 +1,3 @@
-use crate::token::TokenKind::BinOp;
 use crate::token::{LexingError, Token, TokenKind};
 use crate::FunctionDefinition;
 use indexmap::IndexMap;
@@ -7,7 +6,7 @@ use rigz_vm::{
     Binary, BinaryOperation, Instruction, Register, RigzType, Unary, UnaryOperation, VMBuilder,
     Value, VM,
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 pub struct Parser<'lex> {
     lexer: Lexer<'lex, TokenKind<'lex>>,
@@ -21,11 +20,6 @@ pub struct Parser<'lex> {
 impl<'lex> Parser<'lex> {
     fn build(&mut self) -> VM<'lex> {
         self.builder.build()
-    }
-
-    fn build_multiple(&mut self) -> VM<'lex> {
-        let (vm, _) = self.builder.build_multiple();
-        vm
     }
 }
 
@@ -41,10 +35,6 @@ pub struct VMParser<'lex> {
 impl<'lex> VMParser<'lex> {
     fn build(&mut self) -> VM<'lex> {
         std::mem::take(&mut self.builder)
-    }
-
-    fn build_multiple(&mut self) -> VM<'lex> {
-        self.builder.clone()
     }
 }
 
@@ -76,6 +66,7 @@ pub enum Expression<'lex> {
     ),
     UnaryExp(UnaryOperation, Box<Expression<'lex>>),
     FunctionCall(&'lex str, Vec<Expression<'lex>>),
+    ModuleCall(&'lex str, &'lex str, Vec<Expression<'lex>>),
     Scope(Vec<Expression<'lex>>),
 }
 
@@ -180,48 +171,136 @@ macro_rules! gen_parser {
             ) -> Result<Option<Element<'lex>>, LexingError> {
                 match self.next_token()? {
                     None => Ok(Some(Element::Expression(Expression::Identifier(id)))),
-                    Some(t) => {
-                        match t.kind {
+                    Some(t) => match t.kind {
+                        TokenKind::Newline => {
+                            Ok(Some(Element::Expression(Expression::Identifier(id))))
+                        }
+                        TokenKind::Value(v) => {
+                            Err(LexingError::ParseError(format!("Unexpected Value {}", v)))
+                        }
+                        TokenKind::Assign => {
+                            let token = self.next_token()?;
+                            let expr = self.next_expression(token)?;
+                            Ok(Some(Element::Statement(Statement::Assignment {
+                                name: id,
+                                mutable: false,
+                                expression: expr,
+                            })))
+                        }
+                        TokenKind::BinOp(op) => {
+                            let token = self.next_token()?;
+                            let expr = self.next_expression(token)?;
+                            Ok(Some(Element::Expression(Expression::BinExp(
+                                Box::new(Expression::Identifier(id)),
+                                op,
+                                Box::new(expr),
+                            ))))
+                        }
+                        TokenKind::Minus => {
+                            let token = self.next_token()?;
+                            let expr = self.next_expression(token)?;
+                            Ok(Some(Element::Expression(Expression::BinExp(
+                                Box::new(Expression::Identifier(id)),
+                                BinaryOperation::Sub,
+                                Box::new(expr),
+                            ))))
+                        }
+                        TokenKind::Period => {
+                            if self.builder.module_exists(id) {
+                                let (func, args) = self.next_function_call()?;
+                                Ok(Some(Element::Expression(Expression::ModuleCall(
+                                    id, func, args,
+                                ))))
+                            } else {
+                                todo!()
+                            }
+                        }
+                        k => Err(LexingError::ParseError(format!(
+                            "Unexpected {:?} after identifier",
+                            k
+                        ))),
+                    },
+                }
+            }
+
+            pub fn next_function_call(
+                &mut self,
+            ) -> Result<(&'lex str, Vec<Expression<'lex>>), LexingError> {
+                let t = match self.next_token()? {
+                    None => return Err(LexingError::ParseError("Expected function call".into())),
+                    Some(t) => t,
+                };
+                match t.kind {
+                    TokenKind::FunctionIdentifier(id) => {
+                        let mut args = Vec::new();
+                        let mut last = None;
+                        loop {
+                            let next = self.next_token()?;
+                            match next {
+                                None => break,
+                                Some(t)
+                                    if t.kind == TokenKind::Comma
+                                        && last != Some(TokenKind::Comma) =>
+                                {
+                                    last = Some(t.kind);
+                                }
+                                Some(t)
+                                    if t.kind == TokenKind::Comma
+                                        && last == Some(TokenKind::Comma) =>
+                                {
+                                    return Err(LexingError::ParseError("Unexpected ,".to_string()))
+                                }
+                                Some(t) => {
+                                    let expr = self.next_expression(Some(t))?;
+                                    args.push(expr);
+                                }
+                            }
+                        }
+                        Ok((id, args))
+                    }
+                    inv => Err(LexingError::ParseError(
+                        format!("Expected FunctionIdentifier got {:?}", inv),
+                    )),
+                }
+            }
+
+            pub fn next_value(
+                &mut self,
+                v: Value<'lex>,
+            ) -> Result<Option<Element<'lex>>, LexingError> {
+                match self.next_token()? {
+                    None => Ok(Some(Element::Expression(Expression::Value(v)))),
+                    Some(s) => {
+                        match s.kind {
                             TokenKind::Newline => {
-                                Ok(Some(Element::Expression(Expression::Identifier(id))))
+                                Ok(Some(Element::Expression(Expression::Value(v))))
                             }
+                            TokenKind::Semi => Ok(Some(Element::Expression(Expression::Value(v)))),
                             TokenKind::Value(v) => {
-                                Err(LexingError::ParseError(format!("Unexpected Value {}", v)))
+                                Err(LexingError::ParseError(format!("Unexpected value {}", v)))
                             }
-                            TokenKind::Assign => {
-                                let token = self.next_token()?;
-                                let expr = self.next_expression(token)?;
-                                Ok(Some(Element::Statement(Statement::Assignment {
-                                    name: id,
-                                    mutable: false,
-                                    expression: expr,
-                                })))
-                            }
-                            TokenKind::BinOp(op) => {
-                                let token = self.next_token()?;
-                                let expr = self.next_expression(token)?;
+                            TokenKind::BinOp(o) => {
+                                let next = self.next_token()?;
+                                let expr = self.next_expression(next)?;
                                 Ok(Some(Element::Expression(Expression::BinExp(
-                                    Box::new(Expression::Identifier(id)),
-                                    op,
+                                    Box::new(Expression::Value(v)),
+                                    o,
                                     Box::new(expr),
                                 ))))
                             }
                             TokenKind::Minus => {
-                                let token = self.next_token()?;
-                                let expr = self.next_expression(token)?;
+                                let next = self.next_token()?;
+                                let expr = self.next_expression(next)?;
                                 Ok(Some(Element::Expression(Expression::BinExp(
-                                    Box::new(Expression::Identifier(id)),
+                                    Box::new(Expression::Value(v)),
                                     BinaryOperation::Sub,
                                     Box::new(expr),
                                 ))))
                             }
                             TokenKind::Period => {
-                                todo!() // maybe valid for extension function?
+                                todo!() // value extension functions
                             }
-                            k => Err(LexingError::ParseError(format!(
-                                "Unexpected {:?} after identifier",
-                                k
-                            ))),
+                            k => Err(LexingError::ParseError(format!("Unexpected value {:?}", k))),
                         }
                     }
                 }
@@ -233,51 +312,7 @@ macro_rules! gen_parser {
             ) -> Result<Option<Element<'lex>>, LexingError> {
                 match token.kind {
                     TokenKind::Newline => Ok(None),
-                    TokenKind::Value(v) => {
-                        match self.next_token()? {
-                            None => Ok(Some(Element::Expression(Expression::Value(v)))),
-                            Some(s) => {
-                                match s.kind {
-                                    TokenKind::Newline => {
-                                        Ok(Some(Element::Expression(Expression::Value(v))))
-                                    }
-                                    TokenKind::Semi => {
-                                        Ok(Some(Element::Expression(Expression::Value(v))))
-                                    }
-                                    TokenKind::Value(v) => Err(LexingError::ParseError(format!(
-                                        "Unexpected value {}",
-                                        v
-                                    ))),
-                                    TokenKind::BinOp(o) => {
-                                        let next = self.next_token()?;
-                                        let expr = self.next_expression(next)?;
-                                        // TODO this is right recursive, not left recursive not like it's supposed to be
-                                        Ok(Some(Element::Expression(Expression::BinExp(
-                                            Box::new(Expression::Value(v)),
-                                            o,
-                                            Box::new(expr),
-                                        ))))
-                                    }
-                                    TokenKind::Minus => {
-                                        let next = self.next_token()?;
-                                        let expr = self.next_expression(next)?;
-                                        Ok(Some(Element::Expression(Expression::BinExp(
-                                            Box::new(Expression::Value(v)),
-                                            BinaryOperation::Sub,
-                                            Box::new(expr),
-                                        ))))
-                                    }
-                                    TokenKind::Period => {
-                                        todo!() // value extension functions
-                                    }
-                                    k => Err(LexingError::ParseError(format!(
-                                        "Unexpected value {:?}",
-                                        k
-                                    ))),
-                                }
-                            }
-                        }
-                    }
+                    TokenKind::Value(v) => self.next_value(v),
                     TokenKind::Assign => Err(LexingError::ParseError("Unexpected =".to_string())),
                     TokenKind::BinOp(b) => {
                         Err(LexingError::ParseError(format!("Unexpected {:?}", b)))
@@ -348,7 +383,7 @@ macro_rules! gen_parser {
                     }
                     TokenKind::Rparen => Err(LexingError::ParseError("Unexpected )".to_string())),
                     TokenKind::Lcurly => {
-                        let mut map = IndexMap::new();
+                        let map = IndexMap::new();
                         Ok(Some(Element::Expression(Expression::Map(map))))
                     }
                     TokenKind::Rcurly => Err(LexingError::ParseError("Unexpected }".to_string())),
@@ -483,27 +518,33 @@ macro_rules! gen_parser {
                             let list = self.to_value(def);
                             self.load_value(list);
                             self.builder.add_puts_instruction(vec![self.last]);
+                            self.set_last(0);
                         }
                         "eprintln" => {
                             let list = self.to_value(def);
                             self.load_value(list);
                             self.builder.add_eprintln_instruction(self.last, 0);
+                            self.set_last(0);
                         }
                         "eprint" => {
                             let list = self.to_value(def);
                             self.load_value(list);
                             self.builder.add_eprint_instruction(self.last, 0);
+                            self.set_last(0);
                         }
                         "println" => {
                             let list = self.to_value(def);
                             self.load_value(list);
                             self.builder.add_println_instruction(self.last, 0);
+                            self.set_last(0);
                         }
                         "print" => {
                             let list = self.to_value(def);
                             self.load_value(list);
                             self.builder.add_print_instruction(self.last, 0);
+                            self.set_last(0);
                         }
+                        // todo logging
                         _ => {
                             todo!()
                         }
@@ -514,6 +555,21 @@ macro_rules! gen_parser {
                             self.build_expression(expr);
                         }
                         self.builder.exit_scope(self.last);
+                    }
+                    Expression::ModuleCall(m, f, args) => {
+                        let mut reg_args = Vec::with_capacity(args.len());
+                        for arg in args {
+                            self.build_expression(arg);
+                            reg_args.push(self.last);
+                        }
+                        let output = self.next_register();
+                        if m == "__VM" {
+                            self.builder
+                                .add_call_vm_extension_module_instruction(m, f, reg_args, output);
+                        } else {
+                            self.builder
+                                .add_call_module_instruction(m, f, reg_args, output);
+                        }
                     }
                 }
             }
@@ -526,11 +582,9 @@ macro_rules! gen_parser {
             ) {
                 self.load_value(value);
                 if mutable {
-                    self.builder
-                        .add_load_mut_instruction(name, self.last);
+                    self.builder.add_load_mut_instruction(name, self.last);
                 } else {
-                    self.builder
-                        .add_load_let_instruction(name, self.last);
+                    self.builder.add_load_let_instruction(name, self.last);
                 }
             }
 
@@ -541,14 +595,11 @@ macro_rules! gen_parser {
                 id: &'lex str,
             ) {
                 let next = self.next_register();
-                self.builder
-                    .add_get_variable_instruction(id, next);
+                self.builder.add_get_variable_instruction(id, next);
                 if mutable {
-                    self.builder
-                        .add_load_mut_instruction(name, self.last);
+                    self.builder.add_load_mut_instruction(name, self.last);
                 } else {
-                    self.builder
-                        .add_load_let_instruction(name, self.last);
+                    self.builder.add_load_let_instruction(name, self.last);
                 }
             }
 
@@ -586,8 +637,7 @@ macro_rules! gen_parser {
                                 }));
                                 self.builder.exit_scope(output);
                                 self.load_value(Value::ScopeId(scope, output));
-                                self.builder
-                                    .add_load_let_instruction(name, self.last);
+                                self.builder.add_load_let_instruction(name, self.last);
                             }
                             Expression::UnaryExp(op, expr) => {
                                 self.builder.enter_scope();
@@ -605,6 +655,7 @@ macro_rules! gen_parser {
                                 // create scope
                             }
                             Expression::Scope(_) => {}
+                            Expression::ModuleCall(_, _, _) => todo!(),
                         }
                     }
                     Statement::FunctionDefinition { .. } => {}

@@ -1,5 +1,4 @@
 use crate::token::LexingError;
-use logos::Logos;
 pub use rigz_vm::{Module, Number, RigzType, VMBuilder, Value, VM};
 
 #[derive(Debug, Clone)]
@@ -8,6 +7,7 @@ pub struct FunctionDefinition {
     pub return_type: RigzType,
 }
 
+pub mod modules;
 mod parser;
 mod runtime;
 mod token;
@@ -21,7 +21,7 @@ pub fn parse(input: &str) -> Result<VM, LexingError> {
 
 pub fn parse_with_modules<'vm>(
     input: &'vm str,
-    modules: Vec<Module<'vm>>,
+    modules: Vec<impl Module<'vm> + 'static>,
 ) -> Result<VM<'vm>, LexingError> {
     let mut builder = VMBuilder::new();
     for module in modules {
@@ -33,7 +33,7 @@ pub fn parse_with_modules<'vm>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rigz_vm::{Binary, BinaryOperation, Instruction, Scope, Unary, UnaryOperation, Value};
+    use rigz_vm::{Binary, BinaryOperation, Instruction, Scope, Value};
 
     #[test]
     fn create_vm_works() {
@@ -43,11 +43,7 @@ mod tests {
         scope
             .instructions
             .push(Instruction::Load(2, Value::String("Hello World".into())));
-        scope.instructions.push(Instruction::Unary(Unary {
-            op: UnaryOperation::Print,
-            from: 2,
-            output: 0,
-        }));
+        scope.instructions.push(Instruction::Puts(vec![2]));
         scope.instructions.push(Instruction::Halt(0));
         assert_eq!(vec![scope], vm.scopes)
     }
@@ -104,9 +100,7 @@ mod tests {
         scope
             .instructions
             .push(Instruction::LoadLetRegister("a", 5));
-        scope
-            .instructions
-            .push(Instruction::GetVariable("a", 6));
+        scope.instructions.push(Instruction::GetVariable("a", 6));
         scope
             .instructions
             .push(Instruction::Load(7, Value::Number(Number::Int(2))));
@@ -141,15 +135,11 @@ mod tests {
         scope
             .instructions
             .push(Instruction::LoadLetRegister("b", 3));
-        scope
-            .instructions
-            .push(Instruction::GetVariable("a", 4));
+        scope.instructions.push(Instruction::GetVariable("a", 4));
         scope
             .instructions
             .push(Instruction::Load(5, Value::String(" ".into())));
-        scope
-            .instructions
-            .push(Instruction::GetVariable("b", 6));
+        scope.instructions.push(Instruction::GetVariable("b", 6));
         scope.instructions.push(Instruction::Binary(Binary {
             op: BinaryOperation::Add,
             lhs: 5,
