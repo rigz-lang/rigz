@@ -1,5 +1,5 @@
 use crate::token::{LexingError, Token, TokenKind};
-use crate::FunctionDefinition;
+use crate::{FunctionArgument, FunctionDefinition};
 use indexmap::IndexMap;
 use logos::{Lexer, Logos};
 use rigz_vm::{
@@ -8,10 +8,18 @@ use rigz_vm::{
 };
 use std::collections::HashMap;
 
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
+pub struct FunctionCallDefinition {
+    scope: usize, // non zero
+    args: Vec<usize>,
+    output: usize // 0 if output is None
+}
+
 pub struct Parser<'lex> {
     lexer: Lexer<'lex, TokenKind<'lex>>,
     builder: VMBuilder<'lex>,
-    function_declarations: HashMap<String, FunctionDefinition>,
+    function_declarations: HashMap<&'lex str, FunctionDefinition<'lex>>,
+    function_scopes: HashMap<&'lex str, FunctionCallDefinition>,
     next: Register,
     last: Register,
     current_token: Option<Token<'lex>>,
@@ -23,10 +31,16 @@ impl<'lex> Parser<'lex> {
     }
 }
 
+impl <'lex> From<&FunctionArgument<'lex>> for RigzType {
+    fn from(value: &FunctionArgument<'lex>) -> Self {
+        value.rigz_type.clone()
+    }
+}
+
 pub struct VMParser<'lex> {
     lexer: Lexer<'lex, TokenKind<'lex>>,
     builder: VM<'lex>,
-    function_declarations: HashMap<String, FunctionDefinition>,
+    function_declarations: HashMap<String, FunctionDefinition<'lex>>,
     next: Register,
     last: Register,
     current_token: Option<Token<'lex>>,
@@ -38,68 +52,32 @@ impl<'lex> VMParser<'lex> {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum Statement<'lex> {
-    Assignment {
-        name: &'lex str,
-        mutable: bool,
-        expression: Expression<'lex>,
-    },
-    FunctionDefinition {
-        name: &'lex str,
-        type_definition: FunctionDefinition,
-        elements: Vec<Element<'lex>>,
-    },
-    Expression(Expression<'lex>), // import, exports
-}
-
-#[derive(Clone, Debug)]
-pub enum Expression<'lex> {
-    Value(Value<'lex>),
-    List(Vec<Expression<'lex>>),
-    Map(IndexMap<Expression<'lex>, Expression<'lex>>),
-    Identifier(&'lex str),
-    BinExp(
-        Box<Expression<'lex>>,
-        BinaryOperation,
-        Box<Expression<'lex>>,
-    ),
-    UnaryExp(UnaryOperation, Box<Expression<'lex>>),
-    FunctionCall(&'lex str, Vec<Expression<'lex>>),
-    ModuleCall(&'lex str, &'lex str, Vec<Expression<'lex>>),
-    Scope(Vec<Expression<'lex>>),
-}
-
-#[derive(Clone, Debug)]
-pub enum Element<'lex> {
-    Statement(Statement<'lex>),
-    Expression(Expression<'lex>),
-}
-
-macro_rules! gen_parser {
-    ($type:ident, $builder:ident, $init:expr) => {
-        impl<'lex> $type<'lex> {
-            pub fn parse_with_builder(
-                input: &'lex str,
-                builder: $builder<'lex>,
-            ) -> Result<VM<'lex>, LexingError> {
-                //pub fn parse_with_builder(input: &'lex str, builder: VMBuilder<'lex>) -> Result<VM<'lex>, LexingError> {
+impl<'lex> Parser<'lex> {
+// macro_rules! gen_parser {
+//     ($type:ident, $builder:ident, $init:expr) => {
+//         impl<'lex> $type<'lex> {
+//             pub fn parse_with_builder(
+//                 input: &'lex str,
+//                 builder: $builder<'lex>,
+//             ) -> Result<VM<'lex>, LexingError> {
+    pub fn parse_with_builder(input: &'lex str, builder: VMBuilder<'lex>) -> Result<VM<'lex>, LexingError> {
                 let lexer = TokenKind::lexer(input);
                 let mut parser = Self {
                     lexer,
                     builder,
+                    function_scopes: Default::default(),
                     function_declarations: HashMap::from([
                         (
-                            "puts".to_string(),
+                            "puts",
                             FunctionDefinition {
-                                arguments: vec![RigzType::Any],
+                                arguments: vec![FunctionArgument { name: None, rigz_type: RigzType::Any, default: None }] ,
                                 return_type: RigzType::None,
                             },
                         ),
                         (
-                            "eprint".to_string(),
+                            "eprint",
                             FunctionDefinition {
-                                arguments: vec![RigzType::Any],
+                                arguments: vec![FunctionArgument { name: None, rigz_type: RigzType::Any, default: None }],
                                 return_type: RigzType::None,
                             },
                         ),
@@ -121,9 +99,9 @@ macro_rules! gen_parser {
                     };
 
                     match element {
-                        None => {}
+                        None => {} // why dont i break here?
                         Some(e) => {
-                            parser.build_element(e);
+                            parser.build_element(e)?;
                         }
                     }
                 }
@@ -136,7 +114,8 @@ macro_rules! gen_parser {
             }
 
             pub fn parse(input: &'lex str) -> Result<VM<'lex>, LexingError> {
-                Self::parse_with_builder(input, $init())
+                //Self::parse_with_builder(input, $init())
+                Self::parse_with_builder(input, VMBuilder::new())
             }
 
             pub fn next_expression(
@@ -306,6 +285,34 @@ macro_rules! gen_parser {
                 }
             }
 
+            pub fn next_args(&mut self) -> Result<(Vec<FunctionArgument<'lex>>, Option<Token>), LexingError> {
+                let next = match self.next_token()? {
+                    None => return Ok((Vec::new(), None)),
+                    Some(t) => t
+                };
+
+                if next.kind != TokenKind::Lparen {
+                    return Ok((Vec::new(), Some(next)))
+                }
+
+                let mut args = Vec::new();
+                let mut last = None;
+                let mut next_type = RigzType::Any;
+                // fn foo(a, b, c: number = 1)
+                loop {
+                    let next = self.next_token()?;
+                    match next {
+                        None => return Err(LexingError::ParseError("Expected )".to_string())),
+                        Some(t) if t.kind == TokenKind::Rparen => break,
+                        Some(t) => {
+
+                        }
+                    }
+                }
+
+                Ok((args, None))
+            }
+
             pub fn next_element(
                 &mut self,
                 token: Token<'lex>,
@@ -336,14 +343,43 @@ macro_rules! gen_parser {
                     TokenKind::Period => Err(LexingError::ParseError("Unexpected .".to_string())),
                     TokenKind::Comma => Err(LexingError::ParseError("Unexpected ,".to_string())),
                     TokenKind::FunctionDef => {
-                        // fn <FunctionIdentifier> ( arg (:type)? ) (type)?
-                        //  statements*
-                        //  expression
-                        // end
-                        todo!()
+                        let next = match self.next_token()? {
+                            None => return Err(LexingError::ParseError("Expected FunctionIdentifier".to_string())),
+                            Some(s) => s
+                        };
+                        if let TokenKind::FunctionIdentifier(f) = next.kind {
+                            // store function def
+                            // list of statements
+                            // expression as return
+                            // end keyword, if no expression check last statement
+                            let (arguments, nextToken) = self.next_args()?;
+                            // check nextToken is : or end, otherwise treat as first statement/expression
+                            let return_type = RigzType::Any;
+                            let mut elements = Vec::new();
+                            loop {
+                                let next = self.next_token()?;
+                                match next {
+                                    None => return Err(LexingError::ParseError("Expected `end`".to_string())),
+                                    Some(t) if t.kind == TokenKind::End => break,
+                                    Some(t) => {
+                                        let next = self.next_element(t)?;
+                                        match next {
+                                            None => return Err(LexingError::ParseError("Expected `end`".to_string())),
+                                            Some(e) => elements.push(e)
+                                        }
+                                    }
+                                }
+                            }
+                            let type_definition = FunctionDefinition { arguments, return_type };
+                            self.function_declarations.insert(f, type_definition.clone());
+                            Ok(Some(Element::Statement(Statement::FunctionDefinition { name: f, type_definition, elements })))
+                        } else {
+                            Err(LexingError::ParseError(format!("Expected FunctionIdentifier received {:?}", next.kind)))
+                        }
                     }
                     TokenKind::Identifier(id) => self.handle_identifier(id),
                     TokenKind::FunctionIdentifier(id) => {
+                        // or module contains function
                         if self.function_declarations.contains_key(id) {
                             let mut args = Vec::new();
                             let mut last = None;
@@ -418,6 +454,7 @@ macro_rules! gen_parser {
                     }
                     TokenKind::Rbracket => Err(LexingError::ParseError("Unexpected ]".to_string())),
                     TokenKind::Do => {
+                        // allow do |v| end
                         // consume next element until End, special case for fn definition and inner scopes
                         todo!()
                     }
@@ -481,7 +518,7 @@ macro_rules! gen_parser {
                 }
             }
 
-            fn build_expression(&mut self, expression: Expression<'lex>) {
+            fn build_expression(&mut self, expression: Expression<'lex>) -> Result<(), LexingError>{
                 match expression {
                     Expression::Value(v) => self.load_value(v),
                     Expression::List(_) => {}
@@ -491,9 +528,9 @@ macro_rules! gen_parser {
                         self.builder.add_get_variable_instruction(i, next);
                     }
                     Expression::BinExp(lhs, op, rhs) => {
-                        self.build_expression(*lhs);
+                        self.build_expression(*lhs)?;
                         let lhs = self.last;
-                        self.build_expression(*rhs);
+                        self.build_expression(*rhs)?;
                         let rhs = self.last;
                         let next = self.next_register();
                         self.builder.add_instruction(Instruction::Binary(Binary {
@@ -504,7 +541,7 @@ macro_rules! gen_parser {
                         }));
                     }
                     Expression::UnaryExp(op, expression) => {
-                        self.build_expression(*expression);
+                        self.build_expression(*expression)?;
                         let from = self.last;
                         let output = self.next_register();
                         self.builder.add_instruction(Instruction::Unary(Unary {
@@ -545,21 +582,48 @@ macro_rules! gen_parser {
                             self.set_last(0);
                         }
                         // todo logging
-                        _ => {
-                            todo!()
+                        fun => {
+                            let f = match self.function_declarations.get(fun) {
+                                None => return Err(LexingError::ParseError(format!("Unknown function {}", fun))),
+                                Some(f) => f.clone(),
+                            };
+                            let s = match self.function_scopes.get(fun) {
+                                None => return Err(LexingError::ParseError(format!("function {} has not been stored in VM", fun))),
+                                Some(f) => f.clone()
+                            };
+                            let mut arg_index = 0;
+                            for arg in &s.args {
+                                let expression = &def[arg_index];
+                                match f.arguments[arg_index].name {
+                                    None => {
+                                        match expression {
+                                            Expression::Value(v) => {
+                                                self.builder.add_load_instruction(*arg, v.clone());
+                                            }
+                                            _ => todo!()
+                                        }
+                                    }
+                                    Some(n) => {
+                                        self.build_expression(expression.clone())?;
+                                        self.builder.add_load_let_instruction(n, self.last);
+                                    }
+                                };
+                                arg_index += 1;
+                            }
+                            self.builder.add_call_instruction(s.scope, s.output);
                         }
                     },
                     Expression::Scope(s) => {
                         self.builder.enter_scope();
                         for expr in s {
-                            self.build_expression(expr);
+                            self.build_expression(expr)?;
                         }
                         self.builder.exit_scope(self.last);
                     }
                     Expression::ModuleCall(m, f, args) => {
                         let mut reg_args = Vec::with_capacity(args.len());
                         for arg in args {
-                            self.build_expression(arg);
+                            self.build_expression(arg)?;
                             reg_args.push(self.last);
                         }
                         let output = self.next_register();
@@ -572,6 +636,7 @@ macro_rules! gen_parser {
                         }
                     }
                 }
+                Ok(())
             }
 
             fn build_assignment_value(
@@ -603,7 +668,7 @@ macro_rules! gen_parser {
                 }
             }
 
-            fn build_statement(&mut self, statement: Statement<'lex>) {
+            fn build_statement(&mut self, statement: Statement<'lex>) -> Result<(), LexingError> {
                 match statement {
                     Statement::Assignment {
                         name,
@@ -624,9 +689,9 @@ macro_rules! gen_parser {
                             Expression::BinExp(lhs, op, rhs) => {
                                 self.builder.enter_scope();
                                 let scope = self.builder.sp;
-                                self.build_expression(*lhs);
+                                self.build_expression(*lhs)?;
                                 let lhs = self.last;
-                                self.build_expression(*rhs);
+                                self.build_expression(*rhs)?;
                                 let rhs = self.last;
                                 let output = self.next_register();
                                 self.builder.add_instruction(Instruction::Binary(Binary {
@@ -641,7 +706,7 @@ macro_rules! gen_parser {
                             }
                             Expression::UnaryExp(op, expr) => {
                                 self.builder.enter_scope();
-                                self.build_expression(*expr);
+                                self.build_expression(*expr)?;
                                 self.builder.exit_scope(self.last);
                                 let from = self.last;
                                 let output = self.next_register();
@@ -658,20 +723,45 @@ macro_rules! gen_parser {
                             Expression::ModuleCall(_, _, _) => todo!(),
                         }
                     }
-                    Statement::FunctionDefinition { .. } => {}
-                    Statement::Expression(e) => self.build_expression(e),
+                    Statement::FunctionDefinition { name, type_definition, elements } => {
+                        self.build_function_definition(name, type_definition, elements)?;
+                    }
+                    Statement::Expression(e) => self.build_expression(e)?,
                 }
+                Ok(())
             }
 
-            fn build_element(&mut self, element: Element<'lex>) {
+    fn build_function_definition(&mut self, name: &'lex str, type_definition: FunctionDefinition<'lex>, elements: Vec<Element<'lex>>) -> Result<(), LexingError> {
+        let mut args = Vec::with_capacity(type_definition.arguments.len());
+        for _arg in type_definition.arguments {
+            args.push(self.next_register());
+        }
+        self.builder.enter_scope();
+        let scope = self.builder.sp;
+        for e in elements {
+            self.build_element(e)?;
+        }
+        let output = self.last;
+        self.builder.exit_scope(output);
+
+        let fd = FunctionCallDefinition {
+            scope,
+            args,
+            output,
+        };
+        self.function_scopes.insert(name, fd);
+        Ok(())
+    }
+
+    fn build_element(&mut self, element: Element<'lex>) -> Result<(), LexingError> {
                 match element {
                     Element::Statement(s) => self.build_statement(s),
                     Element::Expression(e) => self.build_expression(e),
                 }
             }
         }
-    };
-}
-
-gen_parser!(Parser, VMBuilder, VMBuilder::new);
-gen_parser!(VMParser, VM, VM::new);
+//     };
+// }
+//
+// gen_parser!(Parser, VMBuilder, VMBuilder::new);
+// gen_parser!(VMParser, VM, VM::new);

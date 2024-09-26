@@ -88,5 +88,15 @@ mod tests {
         assign_add "a = 1 + 2; a + 2" = Value::Number(5.into()),
         unary_not "!1" = Value::Number(Number::Int(!1)),
         vm_register "__VM.get_register 0" = Value::None,
+        define_function r#"
+            fn hello
+              "hi there"
+            end
+            hello"# = Value::String("hi there".into()),
+        define_function_args r#"
+            fn add(a, b, c)
+              a + b + c
+            end
+            add 1, 2, 3"# = Value::Number(Number::Int(6)),
     }
 }

@@ -11,6 +11,9 @@ pub enum LexingError {
     ParseError(String),
 }
 
+#[derive(Debug, PartialEq, Clone, Default)]
+pub struct ParseError(pub LexingError, pub usize, pub Span, pub String);
+
 impl From<std::num::ParseIntError> for LexingError {
     fn from(_: std::num::ParseIntError) -> Self {
         LexingError::NumberParseError
@@ -34,8 +37,8 @@ impl From<ParseBoolError> for LexingError {
 pub enum TokenKind<'lex> {
     #[token("\n")]
     Newline,
-    #[regex("-?[0-9]+", |lex| Value::Number(Number::Int(lex.slice().parse().unwrap())))]
-    #[regex("-?[0-9]+\\.[0-9]+", |lex| Value::Number(Number::Float(lex.slice().parse().unwrap())))]
+    #[regex("-?[0-9]+", |lex| Value::Number(Number(lex.slice().parse().unwrap())))]
+    #[regex("-?[0-9]+\\.[0-9]+", |lex| Value::Number(Number(lex.slice().parse().unwrap())))]
     #[token("none", |_| Value::None)]
     #[token("false", |_| Value::Bool(false))]
     #[token("true", |_| Value::Bool(true))]
@@ -45,6 +48,12 @@ pub enum TokenKind<'lex> {
     Assign,
     #[token(";")]
     Semi,
+    #[token(":")]
+    Colon,
+    #[token("->")]
+    Arrow,
+    #[token("...")]
+    Rest,
     #[token("let")]
     Let,
     #[token("mut")]
@@ -79,10 +88,10 @@ pub enum TokenKind<'lex> {
     Comma,
     #[token("fn")]
     FunctionDef,
-    #[regex("[A-Za-z_]+", |lex| lex.slice())]
+    #[regex("[A-Za-z_$]+", |lex| lex.slice())]
     Identifier(&'lex str),
-    #[regex("[A-Za-z_$]+", |lex| lex.slice(), priority=3)]
-    FunctionIdentifier(&'lex str),
+    #[regex(":[A-Za-z_]+", |lex| { let s = lex.slice(); &s[1..] })]
+    Symbol(&'lex str),
     #[token("(")]
     Lparen,
     #[token(")")]
@@ -99,13 +108,30 @@ pub enum TokenKind<'lex> {
     Do,
     #[token("end")]
     End,
+    #[token("return")]
+    Return,
+    #[token("if")]
+    If,
+    #[token("unless")]
+    Unless,
+    #[token("else")]
+    Else,
+    // Imports and Exports
+    // module keyword for rigz functions
 }
 
+#[allow(dead_code)] // span & slice aren't used directly right now but should be in debug output
 #[derive(Debug, Clone)]
 pub struct Token<'lex> {
     pub kind: TokenKind<'lex>,
     pub span: Span,
     pub slice: &'lex str,
+}
+
+impl <'lex> Token<'lex> {
+    pub(crate) fn terminal(&self) -> bool {
+        self.kind == TokenKind::Newline || self.kind == TokenKind::Semi
+    }
 }
 
 #[cfg(test)]
@@ -128,15 +154,15 @@ mod tests {
         assert_eq!(
             actual,
             vec![
-                TokenKind::FunctionIdentifier("a"),
+                TokenKind::Identifier("a"),
                 TokenKind::Assign,
-                TokenKind::Value(Value::Number(Number::Int(1))),
-                TokenKind::FunctionIdentifier("b"),
+                TokenKind::Value(Value::Number(Number(1.0))),
+                TokenKind::Identifier("b"),
                 TokenKind::Assign,
-                TokenKind::Value(Value::Number(Number::Int(2))),
-                TokenKind::FunctionIdentifier("a"),
+                TokenKind::Value(Value::Number(Number(2.0))),
+                TokenKind::Identifier("a"),
                 TokenKind::BinOp(BinaryOperation::Add),
-                TokenKind::FunctionIdentifier("b"),
+                TokenKind::Identifier("b"),
             ]
         )
     }

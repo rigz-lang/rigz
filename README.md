@@ -10,3 +10,65 @@ second is 9, (2 + 1) * 3.
 
 ## TODO
 - update parser to support repl, may require VM updates as well
+
+
+### lifecycles
+
+```
+@on("event")
+fn new_event(e) 
+end
+
+dispatch('event', {
+    something: 32
+})
+
+@plan
+fn foo
+end
+
+@apply
+fn foo
+end
+
+[parse, run]
+@plan = @after(@run)
+@apply = @after(@plan, @confirm)
+[parse, run, @plan, @confirm, @apply]
+
+@plan
+fn s3_bucket(name: string) 
+end
+
+@apply
+fn s3_bucket(name: string) 
+end
+
+s3_bucket foo
+```
+
+### polc
+
+```rigz
+allow data.external {
+    bin = "foo"
+}
+```
+
+
+### database migration
+
+```rigz
+create_table foo, do |t|
+    t.string bar 
+    t.column baz, :number
+    t.timestamps 
+end
+```
+
+
+let a = $('cat file')
+
+$```ruby
+
+```
