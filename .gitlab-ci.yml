@@ -16,6 +16,9 @@ stages:
 
 test:
   stage: test
+  cache:
+    <<: *global_cache
+    policy: pull-push
   script:
     - cargo test
 
