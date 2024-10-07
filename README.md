@@ -10,6 +10,7 @@ second is 9, (2 + 1) * 3.
 
 ## TODO
 - update parser to support repl, may require VM updates as well
+- Better error messages
 
 
 ### lifecycles

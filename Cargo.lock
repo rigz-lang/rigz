@@ -182,7 +182,7 @@ checksum = "7a66a03ae7c801facd77a29370b4faec201768915ac14a721ba36f20bc9c209b"
 
 [[package]]
 name = "rigz_runtime"
-version = "0.2.3"
+version = "0.3.0"
 dependencies = [
  "indexmap",
  "log",
@@ -193,16 +193,15 @@ dependencies = [
 
 [[package]]
 name = "rigz_vm"
-version = "0.15.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c18681be68c5de1fc31c6c9091be19792215ebde433dd34f62f40ccd3d8bf52"
+checksum = "476b6dc8047891d85a49e5b1ff1c61ea6e714eb556d5a1ed8cd84a49fd98dbba"
 dependencies = [
  "crossbeam",
  "dyn-clone",
  "indexmap",
  "log",
  "nohash-hasher",
- "once_cell",
 ]
 
 [[package]]

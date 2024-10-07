@@ -1,6 +1,7 @@
 use logos::{Logos, Span};
 use rigz_vm::{BinaryOperation, Number, Value};
 use std::str::ParseBoolError;
+use crate::ast::Expression;
 
 #[derive(Debug, PartialEq, Clone, Default)]
 pub enum LexingError {
@@ -12,7 +13,7 @@ pub enum LexingError {
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
-pub struct ParseError(pub LexingError, pub usize, pub Span, pub String);
+pub struct ParseError(pub LexingError, pub Option<(usize, Span, String)>);
 
 impl From<std::num::ParseIntError> for LexingError {
     fn from(_: std::num::ParseIntError) -> Self {
@@ -43,7 +44,7 @@ pub enum TokenKind<'lex> {
     #[token("false", |_| Value::Bool(false))]
     #[token("true", |_| Value::Bool(true))]
     #[regex("('[^'\n\r]+')|(\"[^\"\n\r]+\")|(`[^`\n\r]+`)", |lex| { let s = lex.slice(); Value::String(s[1..s.len()-1].to_string()) })]
-    Value(Value<'lex>),
+    Value(Value),
     #[token("=")]
     Assign,
     #[token(";")]
@@ -88,7 +89,8 @@ pub enum TokenKind<'lex> {
     Comma,
     #[token("fn")]
     FunctionDef,
-    #[regex("[A-Za-z_$]+", |lex| lex.slice())]
+    #[regex("\\$[A-Za-z_]*", |lex| lex.slice())]
+    #[regex("[A-Za-z_]+", |lex| lex.slice())]
     Identifier(&'lex str),
     #[regex(":[A-Za-z_]+", |lex| { let s = lex.slice(); &s[1..] })]
     Symbol(&'lex str),
@@ -116,19 +118,27 @@ pub enum TokenKind<'lex> {
     Unless,
     #[token("else")]
     Else,
-    // Imports and Exports
+    #[token("type")]
+    Type,
+    #[token("trait")]
+    Trait,
+    #[token("import")]
+    Import,
+    #[token("export")]
+    Export,
     // module keyword for rigz functions
 }
 
 #[allow(dead_code)] // span & slice aren't used directly right now but should be in debug output
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token<'lex> {
     pub kind: TokenKind<'lex>,
     pub span: Span,
     pub slice: &'lex str,
+    pub line: usize,
 }
 
-impl <'lex> Token<'lex> {
+impl<'lex> Token<'lex> {
     pub(crate) fn terminal(&self) -> bool {
         self.kind == TokenKind::Newline || self.kind == TokenKind::Semi
     }
