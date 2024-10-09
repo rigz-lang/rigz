@@ -6,7 +6,7 @@ pub struct Runtime<'vm> {
     vm: VM<'vm>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum RuntimeError {
     Lex(LexingError),
     Validation(ValidationError),
@@ -73,8 +73,8 @@ mod tests {
                  #[test]
                 fn $name() {
                     let input = $input;
-                    let v = eval(input).expect("Failed to parse input");
-                    assert_eq!(v, $expected)
+                    let v = eval(input);
+                    assert_eq!(v, Ok($expected), "Failed to parse input {}", input)
                 }
             )*
         };
@@ -86,8 +86,8 @@ mod tests {
                  #[test]
                 fn $name() {
                     let input = $input;
-                    let v = eval(input).expect_err("Successfully parsed invalid input");
-                    assert!(true)
+                    let v = eval(input);
+                    assert!(v.is_err(), "Successfully parsed invalid input: {}", input)
                 }
             )*
         };
@@ -107,9 +107,12 @@ mod tests {
         run_expected! {
             raw_value("'Hello World'" = Value::String("Hello World".to_string()))
             addition("2 + 2" = Value::Number(Number(4.0)))
-            ignore_precedence("2 + 1 * 3" = Value::Number(Number(6.0)))
-            paren_precedence("(2 + 1) * 3)" = Value::Number(Number(5.0)))
+            ignore_precedence("2 + 1 * 3" = Value::Number(Number(9.0)))
+            paren_precedence("2 + (1 * 3)" = Value::Number(Number(5.0)))
             assign("a = 3 * 2; a" = Value::Number(Number(6.0)))
+            assign_add("a = 1 + 2; a + 2" = Value::Number(5.into()))
+            // unary_not("!1" = Value::Number((!1).into())) todo fix ! for Number
+            // vm_register("__VM.get_register 0") = Value::None,
         }
     }
 }

@@ -1,12 +1,12 @@
 use rigz_vm::{Module, VMError, Value, VM};
 
 #[derive(Copy, Clone)]
-pub struct StdLibModule {}
+pub struct JsonModule {}
 
 #[allow(unused_variables)]
-impl<'vm> Module<'vm> for StdLibModule {
+impl<'vm> Module<'vm> for JsonModule {
     fn name(&self) -> &'vm str {
-        "STD"
+        "JSON"
     }
 
     fn call(&self, function: &'vm str, args: Vec<Value>) -> Result<Value, VMError> {
@@ -44,15 +44,10 @@ impl<'vm> Module<'vm> for StdLibModule {
     }
 
     fn trait_definition(&self) -> &'vm str {
-        r#"trait STD
-            fn Any.is_err -> Bool
-            fn Any.is_none -> Bool
-            fn Any.to_n -> Number!
-            fn Any.to_s -> String
+        r#"trait JSON
+            fn Any.to_json -> String!
 
-            fn format(template: String, var args) -> String
-            fn puts(var args)
-            fn printf(template: String, var args)
+            fn parse(input: String) -> Any!
         end"#
     }
 }

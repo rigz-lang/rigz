@@ -15,6 +15,7 @@ pub struct FunctionArgument<'vm> {
 }
 
 mod ast;
+mod modules;
 mod prepare;
 mod runtime;
 mod token;

@@ -1,7 +1,7 @@
 use logos::{Logos, Span};
 use rigz_vm::{BinaryOperation, Number, Value};
+use std::fmt::{Display, Formatter};
 use std::str::ParseBoolError;
-use crate::ast::Expression;
 
 #[derive(Debug, PartialEq, Clone, Default)]
 pub enum LexingError {
@@ -10,6 +10,17 @@ pub enum LexingError {
     NonAsciiError,
     BoolParseError,
     ParseError(String),
+}
+
+impl Display for LexingError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LexingError::NumberParseError => write!(f, "Invalid Number"),
+            LexingError::NonAsciiError => write!(f, "Invalid Character"),
+            LexingError::BoolParseError => write!(f, "Invalid Bool"),
+            LexingError::ParseError(s) => write!(f, "{}", s),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -33,18 +44,58 @@ impl From<ParseBoolError> for LexingError {
     }
 }
 
-#[derive(Logos, Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub struct Symbol<'lex>(pub(crate) &'lex str);
+
+impl Display for Symbol<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, ":{}", self.0)
+    }
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
+pub enum TokenValue<'lex> {
+    #[default]
+    None,
+    Bool(bool),
+    Number(Number),
+    String(&'lex str),
+}
+
+impl Display for TokenValue<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TokenValue::None => write!(f, "none"),
+            TokenValue::Bool(v) => write!(f, "{}", v),
+            TokenValue::Number(v) => write!(f, "{}", v),
+            TokenValue::String(v) => write!(f, "{}", v),
+        }
+    }
+}
+
+impl Into<Value> for TokenValue<'_> {
+    fn into(self) -> Value {
+        match self {
+            TokenValue::None => Value::None,
+            TokenValue::Bool(b) => Value::Bool(b),
+            TokenValue::Number(n) => Value::Number(n),
+            TokenValue::String(s) => Value::String(s.to_string())
+        }
+    }
+}
+
+#[derive(Logos, Copy, Debug, PartialEq, Clone)]
 #[logos(skip r"[ \t\f]+", error = LexingError)]
 pub enum TokenKind<'lex> {
     #[token("\n")]
     Newline,
-    #[regex("-?[0-9]+", |lex| Value::Number(Number(lex.slice().parse().unwrap())))]
-    #[regex("-?[0-9]+\\.[0-9]+", |lex| Value::Number(Number(lex.slice().parse().unwrap())))]
-    #[token("none", |_| Value::None)]
-    #[token("false", |_| Value::Bool(false))]
-    #[token("true", |_| Value::Bool(true))]
-    #[regex("('[^'\n\r]+')|(\"[^\"\n\r]+\")|(`[^`\n\r]+`)", |lex| { let s = lex.slice(); Value::String(s[1..s.len()-1].to_string()) })]
-    Value(Value),
+    #[token("none", |_| TokenValue::None)]
+    #[token("false", |_| TokenValue::Bool(false))]
+    #[token("true", |_| TokenValue::Bool(true))]
+    #[regex("-?[0-9]+(\\.[0-9]+)?", |lex| TokenValue::Number(Number(lex.slice().parse().unwrap())))]
+    // todo special logic to support string concat, probably as dedicated tokens
+    #[regex("('[^'\n\r]+')|(\"[^\"\n\r]+\")|(`[^`\n\r]+`)", |lex| { let s = lex.slice(); TokenValue::String(&s[1..s.len()-1]) })]
+    Value(TokenValue<'lex>),
     #[token("=")]
     Assign,
     #[token(";")]
@@ -53,8 +104,6 @@ pub enum TokenKind<'lex> {
     Colon,
     #[token("->")]
     Arrow,
-    #[token("...")]
-    Rest,
     #[token("let")]
     Let,
     #[token("mut")]
@@ -76,13 +125,16 @@ pub enum TokenKind<'lex> {
     #[token("&&", |_| BinaryOperation::And)]
     #[token("||", |_| BinaryOperation::Or)]
     #[token("&", |_| BinaryOperation::BitAnd)]
-    #[token("|", |_| BinaryOperation::BitOr)]
     #[token("^", |_| BinaryOperation::Xor)]
     BinOp(BinaryOperation),
     #[token("!")]
     Not,
+    #[regex("[A-Z][a-z_]+!?", |lex| lex.slice())]
+    TypeValue(&'lex str),
     #[token("-")]
     Minus,
+    #[token("|")]
+    Pipe,
     #[token(".")]
     Period,
     #[token(",")]
@@ -92,8 +144,8 @@ pub enum TokenKind<'lex> {
     #[regex("\\$[A-Za-z_]*", |lex| lex.slice())]
     #[regex("[A-Za-z_]+", |lex| lex.slice())]
     Identifier(&'lex str),
-    #[regex(":[A-Za-z_]+", |lex| { let s = lex.slice(); &s[1..] })]
-    Symbol(&'lex str),
+    #[regex(":[A-Za-z_]+", |lex| { let s = lex.slice(); Symbol(&s[1..]) })]
+    Symbol(Symbol<'lex>),
     #[token("(")]
     Lparen,
     #[token(")")]
@@ -110,8 +162,6 @@ pub enum TokenKind<'lex> {
     Do,
     #[token("end")]
     End,
-    #[token("return")]
-    Return,
     #[token("if")]
     If,
     #[token("unless")]
@@ -122,11 +172,81 @@ pub enum TokenKind<'lex> {
     Type,
     #[token("trait")]
     Trait,
+    // Reserved for future versions
+    #[token("return")]
+    Return,
     #[token("import")]
     Import,
     #[token("export")]
     Export,
-    // module keyword for rigz functions
+    #[token("var")]
+    VariableArgs,
+    #[token("mod")]
+    Module,
+    #[token("error")]
+    Error,
+    #[token("try")]
+    Try,
+    #[token("catch")]
+    Catch,
+    #[token("..")]
+    Range,
+    #[token("..=")]
+    RangeInclusive,
+    #[token("?")]
+    Optional,
+    // #[regex("[A-Z][a-z_]+\\??!?", |lex| lex.slice())]
+    // TypeValue(&'lex str),
+}
+
+impl Display for TokenKind<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TokenKind::Newline => write!(f, "\\n"),
+            TokenKind::Value(v) => write!(f, "{}", v),
+            TokenKind::Assign => write!(f, "="),
+            TokenKind::Semi => write!(f, ";"),
+            TokenKind::Colon => write!(f, ":"),
+            TokenKind::Arrow => write!(f, "->"),
+            TokenKind::Let => write!(f, "let"),
+            TokenKind::Mut => write!(f, "mut"),
+            TokenKind::As => write!(f, "as"),
+            TokenKind::BinOp(op) => write!(f, "{}", op),
+            TokenKind::Not => write!(f, "!"),
+            TokenKind::TypeValue(t) => write!(f, "{}", *t),
+            TokenKind::Minus => write!(f, "-"),
+            TokenKind::Pipe => write!(f, "|"),
+            TokenKind::Period => write!(f, "."),
+            TokenKind::Comma => write!(f, ","),
+            TokenKind::FunctionDef => write!(f, "fn"),
+            TokenKind::Identifier(id) => write!(f, "{}", id),
+            TokenKind::Symbol(s) => write!(f, "{}", s),
+            TokenKind::Lparen => write!(f, "("),
+            TokenKind::Rparen => write!(f, ")"),
+            TokenKind::Lcurly => write!(f, "{{"),
+            TokenKind::Rcurly => write!(f, "}}"),
+            TokenKind::Lbracket => write!(f, "["),
+            TokenKind::Rbracket => write!(f, "]"),
+            TokenKind::Do => write!(f, "do"),
+            TokenKind::End => write!(f, "end"),
+            TokenKind::Return => write!(f, "return"),
+            TokenKind::If => write!(f, "if"),
+            TokenKind::Unless => write!(f, "unless"),
+            TokenKind::Else => write!(f, "else"),
+            TokenKind::Type => write!(f, "type"),
+            TokenKind::Trait => write!(f, "trait"),
+            TokenKind::Import => write!(f, "import"),
+            TokenKind::Export => write!(f, "export"),
+            TokenKind::VariableArgs => write!(f, "var"),
+            TokenKind::Module => write!(f, "mod"),
+            TokenKind::Error => write!(f, "error"),
+            TokenKind::Try => write!(f, "try"),
+            TokenKind::Catch => write!(f, "catch"),
+            TokenKind::Range => write!(f, ".."),
+            TokenKind::RangeInclusive => write!(f, "..="),
+            TokenKind::Optional => write!(f, "?"),
+        }
+    }
 }
 
 #[allow(dead_code)] // span & slice aren't used directly right now but should be in debug output
@@ -166,10 +286,10 @@ mod tests {
             vec![
                 TokenKind::Identifier("a"),
                 TokenKind::Assign,
-                TokenKind::Value(Value::Number(Number(1.0))),
+                TokenKind::Value(TokenValue::Number(Number(1.0))),
                 TokenKind::Identifier("b"),
                 TokenKind::Assign,
-                TokenKind::Value(Value::Number(Number(2.0))),
+                TokenKind::Value(TokenValue::Number(Number(2.0))),
                 TokenKind::Identifier("a"),
                 TokenKind::BinOp(BinaryOperation::Add),
                 TokenKind::Identifier("b"),

@@ -1,6 +1,6 @@
 use crate::ast::{Element, Program};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ValidationError {
     MissingExpression(String),
 }

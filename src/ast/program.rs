@@ -24,6 +24,7 @@ pub enum Statement<'lex> {
         type_definition: FunctionDefinition<'lex>,
         elements: Vec<Element<'lex>>,
     },
+    // todo support later
     If {
         condition: Expression<'lex>,
         then: Program<'lex>,
@@ -52,7 +53,6 @@ pub enum Expression<'lex> {
     InstanceFunctionCall(Box<Expression<'lex>>, Vec<&'lex str>, Vec<Expression<'lex>>),
     Scope(Vec<Element<'lex>>),
     Cast(Box<Expression<'lex>>, RigzType),
-    Parens(Box<Expression<'lex>>),
     Symbol(&'lex str),
     If {
         condition: Box<Expression<'lex>>,
@@ -63,4 +63,11 @@ pub enum Expression<'lex> {
         condition: Box<Expression<'lex>>,
         then: Program<'lex>,
     },
+}
+
+impl <'lex> Expression<'lex> {
+    #[inline]
+    pub(crate) fn binary(lhs: Expression<'lex>, op: BinaryOperation, rhs: Expression<'lex>) -> Self {
+        Expression::BinExp(Box::new(lhs), op, Box::new(rhs))
+    }
 }
