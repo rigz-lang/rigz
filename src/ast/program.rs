@@ -125,10 +125,7 @@ impl<'lex> Expression<'lex> {
     }
 
     #[inline]
-    pub(crate) fn unary(
-        op: UnaryOperation,
-        ex: Expression<'lex>,
-    ) -> Self {
+    pub(crate) fn unary(op: UnaryOperation, ex: Expression<'lex>) -> Self {
         Expression::UnaryExp(op, Box::new(ex))
     }
 }

@@ -211,15 +211,20 @@ impl<'lex> Parser<'lex> {
                     branch,
                 }
             }
-            _ => return Err(ParsingError::ParseError(format!(
-                "Invalid Token for Expression {:?}",
-                next
-            ))),
+            _ => {
+                return Err(ParsingError::ParseError(format!(
+                    "Invalid Token for Expression {:?}",
+                    next
+                )))
+            }
         };
         self.parse_expression_suffix(exp)
     }
 
-    fn parse_expression_suffix(&mut self, exp: Expression<'lex>) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_expression_suffix(
+        &mut self,
+        exp: Expression<'lex>,
+    ) -> Result<Expression<'lex>, ParsingError> {
         match self.peek_token() {
             None => Ok(exp),
             Some(t) if t.terminal() => Ok(exp),
@@ -232,7 +237,7 @@ impl<'lex> Parser<'lex> {
                             elements: vec![exp.into()],
                         },
                     })
-                },
+                }
                 TokenKind::If => {
                     self.consume_token(TokenKind::If)?;
                     Ok(Expression::If {
@@ -242,7 +247,7 @@ impl<'lex> Parser<'lex> {
                         },
                         branch: None,
                     })
-                },
+                }
                 TokenKind::As => {
                     self.consume_token(TokenKind::As)?;
                     Ok(Expression::Cast(Box::new(exp), self.parse_rigz_type()?))
@@ -253,17 +258,21 @@ impl<'lex> Parser<'lex> {
                 }
                 TokenKind::Elvis => {
                     self.consume_token(TokenKind::Elvis)?;
-                    Ok(Expression::binary(exp, BinaryOperation::Or, self.parse_expression()?))
+                    Ok(Expression::binary(
+                        exp,
+                        BinaryOperation::Or,
+                        self.parse_expression()?,
+                    ))
                 }
-                _ => Ok(exp)
-            }
+                _ => Ok(exp),
+            },
         }
     }
 
     fn parse_assignment(&mut self, mutable: bool) -> Result<Statement<'lex>, ParsingError> {
-        let next = self.next_required_token().map_err(|e| {
-            ParsingError::ParseError(format!("Expected token for assignment: {e}"))
-        })?;
+        let next = self
+            .next_required_token()
+            .map_err(|e| ParsingError::ParseError(format!("Expected token for assignment: {e}")))?;
 
         if let TokenKind::Identifier(id) = next.kind {
             self.parse_assignment_definition(mutable, id)
@@ -347,13 +356,17 @@ impl<'lex> Parser<'lex> {
                         break
                     }
                     _ => return Err(ParsingError::ParseError(format!("Unexpected {:?} for inline expression", next)))
-                }
+                },
             }
         }
         Ok(res)
     }
 
-    fn parse_binary_expression(&mut self, lhs: Expression<'lex>, op: BinaryOperation) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_binary_expression(
+        &mut self,
+        lhs: Expression<'lex>,
+        op: BinaryOperation,
+    ) -> Result<Expression<'lex>, ParsingError> {
         let next = self.next_required_token()?;
         let rhs = match next.kind {
             TokenKind::Value(v) => v.into(),
@@ -364,7 +377,12 @@ impl<'lex> Parser<'lex> {
             TokenKind::Lcurly => self.parse_map()?,
             TokenKind::Lbracket => self.parse_list()?,
             TokenKind::Do => Expression::Scope(self.parse_scope()?),
-            _ => return Err(ParsingError::ParseError(format!("Unexpected {:?} for binary expression: {:?} {}", next, lhs, op)))
+            _ => {
+                return Err(ParsingError::ParseError(format!(
+                    "Unexpected {:?} for binary expression: {:?} {}",
+                    next, lhs, op
+                )))
+            }
         };
         Ok(Expression::binary(lhs, op, rhs))
     }
@@ -381,7 +399,12 @@ impl<'lex> Parser<'lex> {
                 vec![id]
             }
             // todo support a.0
-            _ => return Err(ParsingError::ParseError(format!("Unexpected {:?} for instance call", next)))
+            _ => {
+                return Err(ParsingError::ParseError(format!(
+                    "Unexpected {:?} for instance call",
+                    next
+                )))
+            }
         };
         //a.b a
         let mut needs_separator = true;
@@ -393,23 +416,32 @@ impl<'lex> Parser<'lex> {
                         if t.kind == TokenKind::Period {
                             self.consume_token(TokenKind::Period)?;
                             needs_separator = false;
-                            continue
+                            continue;
                         } else {
-                            break
+                            break;
                         }
                     } else {
                         if let TokenKind::Identifier(n) = t.kind {
                             self.consume_token(TokenKind::Identifier(n))?;
                             calls.push(n);
                             needs_separator = true;
-                            continue
+                            continue;
                         }
-                        return Err(ParsingError::ParseError(format!("Unexpected {:?} for instance call, {:?}.{}", t, lhs, calls.join("."))))
+                        return Err(ParsingError::ParseError(format!(
+                            "Unexpected {:?} for instance call, {:?}.{}",
+                            t,
+                            lhs,
+                            calls.join(".")
+                        )));
                     }
                 }
             }
         }
-        Ok(Expression::InstanceFunctionCall(Box::new(lhs), calls, self.parse_args()?))
+        Ok(Expression::InstanceFunctionCall(
+            Box::new(lhs),
+            calls,
+            self.parse_args()?,
+        ))
     }
 
     fn parse_value_expression(
