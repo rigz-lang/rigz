@@ -73,3 +73,9 @@ let a = $('cat file')
 $```ruby
 
 ```
+
+## todo
+- support multiple parsers
+    - default ignore precedence; 1 + 2 * 3 = 9
+    - right recursive precedence; 1 + 2 * 3 = 7
+    - pratt parser; 1 + 2 * 3 / 4 = 2.5

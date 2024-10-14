@@ -13,7 +13,7 @@ impl<'vm> Program<'vm> {
             )),
             Some(e) => match e {
                 Element::Statement(_) => Err(ValidationError::MissingExpression(
-                    "Invalid Program, file must end with expression".to_string(),
+                    "Invalid Program, must end with expression".to_string(),
                 )),
                 Element::Expression(_) => Ok(()),
             },

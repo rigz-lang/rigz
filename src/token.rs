@@ -1,10 +1,10 @@
 use logos::{Logos, Span};
 use rigz_vm::{BinaryOperation, Number, Value};
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::str::ParseBoolError;
 
 #[derive(Debug, PartialEq, Clone, Default)]
-pub enum LexingError {
+pub enum ParsingError {
     NumberParseError,
     #[default]
     NonAsciiError,
@@ -12,35 +12,32 @@ pub enum LexingError {
     ParseError(String),
 }
 
-impl Display for LexingError {
+impl Display for ParsingError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            LexingError::NumberParseError => write!(f, "Invalid Number"),
-            LexingError::NonAsciiError => write!(f, "Invalid Character"),
-            LexingError::BoolParseError => write!(f, "Invalid Bool"),
-            LexingError::ParseError(s) => write!(f, "{}", s),
+            ParsingError::NumberParseError => write!(f, "Invalid Number"),
+            ParsingError::NonAsciiError => write!(f, "Invalid Character"),
+            ParsingError::BoolParseError => write!(f, "Invalid Bool"),
+            ParsingError::ParseError(s) => write!(f, "{}", s),
         }
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Default)]
-pub struct ParseError(pub LexingError, pub Option<(usize, Span, String)>);
-
-impl From<std::num::ParseIntError> for LexingError {
+impl From<std::num::ParseIntError> for ParsingError {
     fn from(_: std::num::ParseIntError) -> Self {
-        LexingError::NumberParseError
+        ParsingError::NumberParseError
     }
 }
 
-impl From<std::num::ParseFloatError> for LexingError {
+impl From<std::num::ParseFloatError> for ParsingError {
     fn from(_: std::num::ParseFloatError) -> Self {
-        LexingError::NumberParseError
+        ParsingError::NumberParseError
     }
 }
 
-impl From<ParseBoolError> for LexingError {
+impl From<ParseBoolError> for ParsingError {
     fn from(_: ParseBoolError) -> Self {
-        LexingError::BoolParseError
+        ParsingError::BoolParseError
     }
 }
 
@@ -79,20 +76,21 @@ impl Into<Value> for TokenValue<'_> {
             TokenValue::None => Value::None,
             TokenValue::Bool(b) => Value::Bool(b),
             TokenValue::Number(n) => Value::Number(n),
-            TokenValue::String(s) => Value::String(s.to_string())
+            TokenValue::String(s) => Value::String(s.to_string()),
         }
     }
 }
 
 #[derive(Logos, Copy, Debug, PartialEq, Clone)]
-#[logos(skip r"[ \t\f]+", error = LexingError)]
+#[logos(skip r"[ \t\f]+", error = ParsingError)]
 pub enum TokenKind<'lex> {
     #[token("\n")]
     Newline,
     #[token("none", |_| TokenValue::None)]
     #[token("false", |_| TokenValue::Bool(false))]
     #[token("true", |_| TokenValue::Bool(true))]
-    #[regex("-?[0-9]+(\\.[0-9]+)?", |lex| TokenValue::Number(Number(lex.slice().parse().unwrap())))]
+    #[regex("-?[0-9]+", |lex| TokenValue::Number(Number::Int(lex.slice().parse().unwrap())))]
+    #[regex("-?[0-9]+\\.[0-9]+", |lex| TokenValue::Number(Number::Float(lex.slice().parse().unwrap())))]
     // todo special logic to support string concat, probably as dedicated tokens
     #[regex("('[^'\n\r]+')|(\"[^\"\n\r]+\")|(`[^`\n\r]+`)", |lex| { let s = lex.slice(); TokenValue::String(&s[1..s.len()-1]) })]
     Value(TokenValue<'lex>),
@@ -133,7 +131,7 @@ pub enum TokenKind<'lex> {
     TypeValue(&'lex str),
     #[token("-")]
     Minus,
-    #[token("|")]
+    #[token("|")] // todo support union types
     Pipe,
     #[token(".")]
     Period,
@@ -172,7 +170,20 @@ pub enum TokenKind<'lex> {
     Type,
     #[token("trait")]
     Trait,
+    #[regex("#[^\n]*")]
+    #[regex("/\\*(?:[^*]|\\*[^/])*\\*/")]
+    Comment, //todo support doc-tests
+    #[token("?:")]
+    Elvis,
     // Reserved for future versions
+    #[token("++")]
+    Increment,
+    #[token("--")]
+    Decrement,
+    #[token("self")]
+    This,
+    #[regex("\\$[0-9]+", |lex| { let s = lex.slice(); s[1..].parse::<usize>().unwrap() })]
+    Arg(usize),
     #[token("return")]
     Return,
     #[token("import")]
@@ -185,16 +196,21 @@ pub enum TokenKind<'lex> {
     Module,
     #[token("error")]
     Error,
-    #[token("try")]
-    Try,
-    #[token("catch")]
-    Catch,
+    #[token("=>")]
+    Into,
     #[token("..")]
     Range,
     #[token("..=")]
     RangeInclusive,
     #[token("?")]
     Optional,
+    #[token("!!")]
+    DoubleBang,
+    // todo support zig style try / catch
+    #[token("try")]
+    Try,
+    #[token("catch")]
+    Catch,
     // #[regex("[A-Z][a-z_]+\\??!?", |lex| lex.slice())]
     // TypeValue(&'lex str),
 }
@@ -208,6 +224,7 @@ impl Display for TokenKind<'_> {
             TokenKind::Semi => write!(f, ";"),
             TokenKind::Colon => write!(f, ":"),
             TokenKind::Arrow => write!(f, "->"),
+            TokenKind::Into => write!(f, "=>"),
             TokenKind::Let => write!(f, "let"),
             TokenKind::Mut => write!(f, "mut"),
             TokenKind::As => write!(f, "as"),
@@ -245,18 +262,25 @@ impl Display for TokenKind<'_> {
             TokenKind::Range => write!(f, ".."),
             TokenKind::RangeInclusive => write!(f, "..="),
             TokenKind::Optional => write!(f, "?"),
+            TokenKind::Elvis => write!(f, "?:"),
+            TokenKind::DoubleBang => write!(f, "!!"),
+            TokenKind::Comment => write!(f, "# comment"),
+            TokenKind::This => write!(f, "self"),
+            TokenKind::Arg(a) => write!(f, "${}", a),
+            TokenKind::Increment => write!(f, "++"),
+            TokenKind::Decrement => write!(f, "--"),
         }
     }
 }
 
-#[allow(dead_code)] // span & slice aren't used directly right now but should be in debug output
-#[derive(Debug, Clone, PartialEq)]
-pub struct Token<'lex> {
-    pub kind: TokenKind<'lex>,
-    pub span: Span,
-    pub slice: &'lex str,
-    pub line: usize,
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Token<'lex> {
+    pub(crate) kind: TokenKind<'lex>,
+    pub(crate) span: Span,
+    pub(crate) line: usize,
 }
+
+// todo custom debug impl
 
 impl<'lex> Token<'lex> {
     pub(crate) fn terminal(&self) -> bool {
@@ -286,10 +310,10 @@ mod tests {
             vec![
                 TokenKind::Identifier("a"),
                 TokenKind::Assign,
-                TokenKind::Value(TokenValue::Number(Number(1.0))),
+                TokenKind::Value(TokenValue::Number(1.into())),
                 TokenKind::Identifier("b"),
                 TokenKind::Assign,
-                TokenKind::Value(TokenValue::Number(Number(2.0))),
+                TokenKind::Value(TokenValue::Number(2.into())),
                 TokenKind::Identifier("a"),
                 TokenKind::BinOp(BinaryOperation::Add),
                 TokenKind::Identifier("b"),

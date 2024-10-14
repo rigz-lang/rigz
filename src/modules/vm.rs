@@ -5,7 +5,7 @@ pub struct VMModule {}
 
 #[allow(unused_variables)]
 impl<'vm> Module<'vm> for VMModule {
-    fn name(&self) -> &'vm str {
+    fn name(&self) -> &'static str {
         "VM"
     }
 
@@ -84,22 +84,11 @@ impl<'vm> Module<'vm> for VMModule {
         }
     }
 
-    fn extensions(&self) -> &'vm [&'vm str] {
-        &[]
-    }
-
-    fn functions(&self) -> &'vm [&'vm str] {
-        &[]
-    }
-
-    fn vm_extensions(&self) -> &'vm [&'vm str] {
-        &[]
-    }
-
-    fn trait_definition(&self) -> &'vm str {
+    fn trait_definition(&self) -> &'static str {
         r#"trait VM
             fn get_register(register: Number) -> Any!
             fn remove_register(register: Number) -> Any!
+            fn resolve_register(register: Number) -> Any!
         end"#
     }
 }

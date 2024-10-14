@@ -14,8 +14,8 @@ pub struct FunctionArgument<'vm> {
     pub rigz_type: RigzType,
 }
 
-mod ast;
-mod modules;
-mod prepare;
-mod runtime;
-mod token;
+pub mod ast;
+pub mod modules;
+pub mod prepare;
+pub mod runtime;
+pub mod token;

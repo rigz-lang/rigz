@@ -5,7 +5,7 @@ pub struct JsonModule {}
 
 #[allow(unused_variables)]
 impl<'vm> Module<'vm> for JsonModule {
-    fn name(&self) -> &'vm str {
+    fn name(&self) -> &'static str {
         "JSON"
     }
 
@@ -31,20 +31,8 @@ impl<'vm> Module<'vm> for JsonModule {
         todo!()
     }
 
-    fn extensions(&self) -> &'vm [&'vm str] {
-        todo!()
-    }
-
-    fn functions(&self) -> &'vm [&'vm str] {
-        todo!()
-    }
-
-    fn vm_extensions(&self) -> &'vm [&'vm str] {
-        &[]
-    }
-
-    fn trait_definition(&self) -> &'vm str {
-        r#"trait JSON
+    fn trait_definition(&self) -> &'static str {
+        r#"import trait JSON
             fn Any.to_json -> String!
 
             fn parse(input: String) -> Any!

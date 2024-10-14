@@ -1,17 +1,26 @@
-use crate::ast::{Element, Expression, Program, Statement};
-use crate::runtime::RuntimeError;
-use rigz_vm::{Register, VMBuilder, Value, VM};
+use crate::ast::{Element, Expression, Scope, Statement};
+use crate::modules::json::JsonModule;
+use crate::modules::std_lib::StdLibModule;
+use crate::modules::vm::VMModule;
+use rigz_vm::{Module, Register, VMBuilder, Value, VM};
 
-struct ProgramParser<'vm> {
+pub(crate) struct ProgramParser<'vm> {
     builder: VMBuilder<'vm>,
     current: Register,
     last: Register,
 }
 
+fn add_default_modules(builder: &mut VMBuilder) {
+    builder.register_module(VMModule {});
+    builder.register_module(StdLibModule {});
+    builder.register_module(JsonModule {});
+}
+
 impl<'vm> Default for ProgramParser<'vm> {
     fn default() -> Self {
+        let mut builder = VMBuilder::new();
         ProgramParser {
-            builder: Default::default(),
+            builder,
             current: 2, // 0 & 1 are reserved
             last: 0,
         }
@@ -19,11 +28,30 @@ impl<'vm> Default for ProgramParser<'vm> {
 }
 
 impl<'vm> ProgramParser<'vm> {
-    fn new() -> Self {
-        ProgramParser::default()
+    pub(crate) fn new() -> Self {
+        let mut p = ProgramParser::default();
+        add_default_modules(&mut p.builder);
+        p
     }
 
-    fn parse_statement(&mut self, statement: Statement<'vm>) {
+    // Does not include default modules
+    pub(crate) fn with_modules(modules: Vec<impl Module<'vm> + 'static>) -> Self {
+        let mut p = ProgramParser::default();
+        // todo program parser needs to evaluate m.trait_definition() to store available functions
+        for m in modules {
+            p.builder.register_module(m);
+        }
+        p
+    }
+
+    pub(crate) fn parse_element(&mut self, element: Element<'vm>) {
+        match element {
+            Element::Statement(s) => self.parse_statement(s),
+            Element::Expression(e) => self.parse_expression(e),
+        }
+    }
+
+    pub(crate) fn parse_statement(&mut self, statement: Statement<'vm>) {
         match statement {
             Statement::Assignment {
                 name,
@@ -37,17 +65,23 @@ impl<'vm> ProgramParser<'vm> {
                     self.builder.add_load_let_instruction(name, self.last);
                 }
             }
-            Statement::Return(e) => match e {
-                None => {
-                    self.builder.add_ret_instruction(0);
-                }
-                Some(_) => {}
-            },
-            _ => todo!(),
+            // Statement::Return(e) => match e {
+            //     None => {
+            //         self.builder.add_ret_instruction(0);
+            //     }
+            //     Some(_) => {}
+            // },
+            Statement::FunctionDefinition {
+                name,
+                type_definition,
+                body,
+            } => {
+                todo!()
+            }
         }
     }
 
-    fn parse_expression(&mut self, expression: Expression<'vm>) {
+    pub(crate) fn parse_expression(&mut self, expression: Expression<'vm>) {
         match expression {
             Expression::Value(v) => self.parse_value(v),
             // TODO use clear when appropriate
@@ -76,14 +110,14 @@ impl<'vm> ProgramParser<'vm> {
             } => {
                 self.parse_expression(*condition);
                 let cond = self.last;
-                let truthy = self.parse_program(then);
+                let truthy = self.parse_scope(then);
                 match branch {
                     None => {
                         let output = self.next_register();
                         self.builder.add_if_instruction(cond, truthy, output);
                     }
                     Some(p) => {
-                        let falsy = self.parse_program(p);
+                        let falsy = self.parse_scope(p);
                         let output = self.next_register();
                         self.builder
                             .add_if_else_instruction(cond, truthy, falsy, output);
@@ -93,11 +127,36 @@ impl<'vm> ProgramParser<'vm> {
             Expression::Unless { condition, then } => {
                 self.parse_expression(*condition);
                 let cond = self.last;
-                let unless = self.parse_program(then);
+                let unless = self.parse_scope(then);
                 let output = self.next_register();
                 self.builder.add_unless_instruction(cond, unless, output);
             }
-            _ => todo!(),
+            Expression::List(_) => {
+                // store static part of list first, values only, then modify
+            }
+            Expression::Map(_) => {
+                // store static part of map first, values only, then modify
+            }
+            Expression::FunctionCall(_, _) => {
+                todo!()
+            }
+            Expression::InstanceFunctionCall(_, _, _) => {
+                todo!()
+            }
+            Expression::Scope(s) => {
+                let _ = self.parse_scope(s);
+            }
+            Expression::Cast(e, t) => {
+                self.parse_expression(*e);
+                let output = self.next_register();
+                self.builder.add_cast_instruction(self.last, t, output);
+            }
+            Expression::Symbol(s) => {
+                let next = self.next_register();
+                // todo create a symbols cache
+                self.builder
+                    .add_load_instruction(next, Value::String(s.to_string()));
+            }
         }
     }
 
@@ -112,29 +171,19 @@ impl<'vm> ProgramParser<'vm> {
         self.next_register();
     }
 
-    fn parse_program(&mut self, program: Program<'vm>) -> usize {
-        todo!()
+    fn parse_scope(&mut self, scope: Scope<'vm>) -> usize {
+        self.builder.enter_scope();
+        let res = self.builder.sp;
+        for e in scope.elements {
+            self.parse_element(e);
+        }
+        let next = self.next_register();
+        self.builder.exit_scope(next);
+        res
     }
 
-    fn build(mut self) -> VM<'vm> {
+    pub(crate) fn build(mut self) -> VM<'vm> {
         self.builder.add_halt_instruction(self.last);
         self.builder.build()
-    }
-}
-
-impl<'l> TryInto<VM<'l>> for Program<'l> {
-    type Error = RuntimeError;
-
-    fn try_into(self) -> Result<VM<'l>, Self::Error> {
-        self.validate().map_err(|e| e.into())?;
-
-        let mut builder = ProgramParser::new();
-        for element in self.elements {
-            match element {
-                Element::Statement(s) => builder.parse_statement(s),
-                Element::Expression(e) => builder.parse_expression(e),
-            }
-        }
-        Ok(builder.build())
     }
 }
