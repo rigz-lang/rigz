@@ -73,17 +73,17 @@ pub enum Statement<'lex> {
         type_definition: FunctionDefinition<'lex>,
         body: Scope<'lex>,
     },
-    // todo support later
-    // If {
-    //     condition: Expression<'lex>,
-    //     then: Scope<'lex>,
-    //     branch: Option<Scope<'lex>>,
-    // },
-    // Unless {
-    //     condition: Expression<'lex>,
-    //     then: Scope<'lex>,
-    // },
-    // Return(Option<Expression<'lex>>), // import, exports
+    Trait(TraitDefinition<'lex>), // todo support later
+                                  // If {
+                                  //     condition: Expression<'lex>,
+                                  //     then: Scope<'lex>,
+                                  //     branch: Option<Scope<'lex>>,
+                                  // },
+                                  // Unless {
+                                  //     condition: Expression<'lex>,
+                                  //     then: Scope<'lex>,
+                                  // },
+                                  // Return(Option<Expression<'lex>>), // import, exports
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -128,4 +128,28 @@ impl<'lex> Expression<'lex> {
     pub(crate) fn unary(op: UnaryOperation, ex: Expression<'lex>) -> Self {
         Expression::UnaryExp(op, Box::new(ex))
     }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ModuleTraitDefinition<'lex> {
+    pub imported: bool,
+    pub definition: TraitDefinition<'lex>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum FunctionDeclaration<'lex> {
+    Declaration {
+        name: &'lex str,
+        type_definition: FunctionDefinition<'lex>,
+    },
+    Definition {
+        name: &'lex str,
+        type_definition: FunctionDefinition<'lex>,
+        body: Scope<'lex>,
+    },
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct TraitDefinition<'lex> {
+    pub name: &'lex str,
+    pub functions: Vec<FunctionDeclaration<'lex>>,
 }

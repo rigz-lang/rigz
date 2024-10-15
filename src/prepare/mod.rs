@@ -1,19 +1,20 @@
-use crate::ast::{Element, Expression, Scope, Statement};
-use crate::modules::json::JsonModule;
-use crate::modules::std_lib::StdLibModule;
-use crate::modules::vm::VMModule;
+use crate::ast::{
+    Element, Expression, FunctionDeclaration, ModuleTraitDefinition, Parser, Scope, Statement,
+    TraitDefinition,
+};
+use crate::modules::{JsonModule, StdLibModule, VMModule};
+use crate::FunctionDefinition;
+use indexmap::IndexMap;
+use log::warn;
 use rigz_vm::{Module, Register, VMBuilder, Value, VM};
+use std::collections::HashMap;
 
 pub(crate) struct ProgramParser<'vm> {
     builder: VMBuilder<'vm>,
     current: Register,
     last: Register,
-}
-
-fn add_default_modules(builder: &mut VMBuilder) {
-    builder.register_module(VMModule {});
-    builder.register_module(StdLibModule {});
-    builder.register_module(JsonModule {});
+    modules: HashMap<&'vm str, ModuleTraitDefinition<'vm>>,
+    function_scopes: IndexMap<&'vm str, Vec<(FunctionDefinition<'vm>, usize)>>,
 }
 
 impl<'vm> Default for ProgramParser<'vm> {
@@ -23,6 +24,8 @@ impl<'vm> Default for ProgramParser<'vm> {
             builder,
             current: 2, // 0 & 1 are reserved
             last: 0,
+            modules: HashMap::new(),
+            function_scopes: IndexMap::new(),
         }
     }
 }
@@ -30,8 +33,63 @@ impl<'vm> Default for ProgramParser<'vm> {
 impl<'vm> ProgramParser<'vm> {
     pub(crate) fn new() -> Self {
         let mut p = ProgramParser::default();
-        add_default_modules(&mut p.builder);
+        p.add_default_modules();
         p
+    }
+
+    fn add_default_modules(&mut self) {
+        self.register_module(VMModule {});
+        self.register_module(StdLibModule {});
+        self.register_module(JsonModule {});
+    }
+
+    fn register_module(&mut self, module: impl Module<'vm> + 'static) {
+        let def = module.trait_definition();
+        self.parse_module_trait_definition(module.name(), def);
+        self.builder.register_module(module);
+    }
+
+    fn parse_module_trait_definition(&mut self, name: &'static str, def: &'static str) {
+        let mut p = match Parser::prepare(def) {
+            Ok(p) => p,
+            Err(e) => panic!("Failed to read {} module definition: {e}", name),
+        };
+        let module = match p.parse_module_trait_definition() {
+            Ok(d) => d,
+            Err(e) => panic!("Failed to parse {} module definition: {e}", name),
+        };
+
+        if p.has_tokens() {
+            warn!("leftover tokens after parsing {} module definition", name);
+        }
+
+        if module.definition.functions.is_empty() {
+            warn!("empty function definitions for module {name}");
+        }
+
+        if name != module.definition.name {
+            warn!(
+                "mismatched name for module {name} != {}, using {name}",
+                module.definition.name
+            );
+        }
+
+        if module.imported {
+            self.parse_trait_definition(module.definition);
+            // trait definition is useless after import
+            self.modules.insert(
+                name,
+                ModuleTraitDefinition {
+                    imported: true,
+                    definition: TraitDefinition {
+                        name,
+                        functions: vec![],
+                    },
+                },
+            );
+        } else {
+            self.modules.insert(module.definition.name, module);
+        }
     }
 
     // Does not include default modules
@@ -39,7 +97,7 @@ impl<'vm> ProgramParser<'vm> {
         let mut p = ProgramParser::default();
         // todo program parser needs to evaluate m.trait_definition() to store available functions
         for m in modules {
-            p.builder.register_module(m);
+            p.register_module(m);
         }
         p
     }
@@ -65,6 +123,9 @@ impl<'vm> ProgramParser<'vm> {
                     self.builder.add_load_let_instruction(name, self.last);
                 }
             }
+            Statement::Trait(t) => {
+                self.parse_trait_definition(t);
+            }
             // Statement::Return(e) => match e {
             //     None => {
             //         self.builder.add_ret_instruction(0);
@@ -80,6 +141,8 @@ impl<'vm> ProgramParser<'vm> {
             }
         }
     }
+
+    pub(crate) fn parse_trait_definition(&mut self, trait_definition: TraitDefinition<'vm>) {}
 
     pub(crate) fn parse_expression(&mut self, expression: Expression<'vm>) {
         match expression {
@@ -131,16 +194,52 @@ impl<'vm> ProgramParser<'vm> {
                 let output = self.next_register();
                 self.builder.add_unless_instruction(cond, unless, output);
             }
-            Expression::List(_) => {
-                // store static part of list first, values only, then modify
+            Expression::List(list) => {
+                let mut base = Vec::new();
+                let mut remaining = Vec::new();
+                for v in list {
+                    match v {
+                        Expression::Value(v) => {
+                            base.push(v);
+                        }
+                        v => {
+                            remaining.push(v);
+                        }
+                    }
+                }
+                let r = self.next_register();
+                self.builder.add_load_instruction(r, Value::List(base));
+                if !remaining.is_empty() {
+                    todo!("expressions in list not supported yet")
+                }
             }
-            Expression::Map(_) => {
+            Expression::Map(map) => {
+                let mut base = IndexMap::new();
+                let mut remaining = Vec::new();
+                for (k, v) in map {
+                    match (k, v) {
+                        (Expression::Value(k), Expression::Value(v)) => {
+                            base.insert(k, v);
+                        }
+                        (Expression::Identifier(k), Expression::Value(v)) => {
+                            base.insert(Value::String(k.to_string()), v);
+                        }
+                        (k, v) => {
+                            remaining.push((k, v));
+                        }
+                    }
+                }
+                let r = self.next_register();
+                self.builder.add_load_instruction(r, Value::Map(base));
+                if !remaining.is_empty() {
+                    todo!("expressions in map not supported yet")
+                }
                 // store static part of map first, values only, then modify
             }
-            Expression::FunctionCall(_, _) => {
+            Expression::FunctionCall(name, args) => {
                 todo!()
             }
-            Expression::InstanceFunctionCall(_, _, _) => {
+            Expression::InstanceFunctionCall(exp, calls, args) => {
                 todo!()
             }
             Expression::Scope(s) => {

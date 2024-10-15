@@ -8,6 +8,7 @@ license = "MIT"
 repository = "https://gitlab.com/magicfoodhand/rigz_runtime"
 
 [dependencies]
+indexmap = "2.6.0"
 logos = "0.14"
 rigz_vm = { version = "0.18" }
 log = "0.4"

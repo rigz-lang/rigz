@@ -4,7 +4,10 @@ mod validate;
 use crate::token::{ParsingError, Symbol, Token, TokenKind, TokenValue};
 use crate::{FunctionArgument, FunctionDefinition};
 use logos::Logos;
-pub use program::{Element, Expression, Program, Scope, Statement};
+pub use program::{
+    Element, Expression, FunctionDeclaration, ModuleTraitDefinition, Program, Scope, Statement,
+    TraitDefinition,
+};
 use rigz_vm::{BinaryOperation, RigzType, UnaryOperation};
 use std::collections::VecDeque;
 use std::fmt::{format, Debug};
@@ -67,6 +70,32 @@ impl<'lex> Parser<'lex> {
         }
         Ok(Program { elements })
     }
+
+    pub(crate) fn parse_module_trait_definition(
+        &mut self,
+    ) -> Result<ModuleTraitDefinition<'lex>, ParsingError> {
+        let mut next = self.next_required_token()?;
+        let auto_import = if next.kind == TokenKind::Import {
+            next = self.next_required_token()?;
+            true
+        } else {
+            false
+        };
+
+        if next.kind != TokenKind::Trait {
+            return Err(ParsingError::ParseError(format!(
+                "Invalid trait, expected trait received {:?}",
+                next
+            )));
+        }
+
+        let definition = self.parse_trait_definition()?;
+
+        Ok(ModuleTraitDefinition {
+            definition,
+            imported: auto_import,
+        })
+    }
 }
 
 impl<'lex> From<TokenValue<'lex>> for Expression<'lex> {
@@ -109,7 +138,7 @@ impl<'lex> Parser<'lex> {
         self.tokens.front().cloned()
     }
 
-    fn has_tokens(&self) -> bool {
+    pub(crate) fn has_tokens(&self) -> bool {
         !self.tokens.is_empty()
     }
 
@@ -391,14 +420,12 @@ impl<'lex> Parser<'lex> {
         &mut self,
         lhs: Expression<'lex>,
     ) -> Result<Expression<'lex>, ParsingError> {
-        // a.b.c.d Instance{a,["b, c, d"]}
-        // a.b.c.d 1, 2, 3
         let next = self.next_required_token()?;
         let mut calls = match next.kind {
             TokenKind::Identifier(id) => {
                 vec![id]
             }
-            // todo support a.0
+            // todo support a.0.blah
             _ => {
                 return Err(ParsingError::ParseError(format!(
                     "Unexpected {:?} for instance call",
@@ -406,7 +433,6 @@ impl<'lex> Parser<'lex> {
                 )))
             }
         };
-        //a.b a
         let mut needs_separator = true;
         loop {
             match self.peek_token() {
@@ -537,6 +563,7 @@ impl<'lex> Parser<'lex> {
     fn parse_function_definition(&mut self) -> Result<Statement<'lex>, ParsingError> {
         self.consume_token(TokenKind::FunctionDef)?;
         let next = self.next_required_token()?;
+        // todo support mut & extension functions (Type.foo)
         if let TokenKind::Identifier(name) = next.kind {
             Ok(Statement::FunctionDefinition {
                 name,
@@ -581,6 +608,7 @@ impl<'lex> Parser<'lex> {
 
     fn parse_function_argument(&mut self) -> Result<FunctionArgument<'lex>, ParsingError> {
         let next = self.next_required_token()?;
+        // todo support var & mut
         if let TokenKind::Identifier(name) = next.kind {
             let rigz_type = match self.peek_required_token()?.kind.clone() {
                 TokenKind::Colon => {
@@ -592,7 +620,7 @@ impl<'lex> Parser<'lex> {
             Ok(FunctionArgument {
                 name: Some(name),
                 default: None,
-                rigz_type,
+                function_type: rigz_type.into(),
             })
         } else {
             Err(ParsingError::ParseError(format!(
@@ -643,6 +671,7 @@ impl<'lex> Parser<'lex> {
             arguments: self.parse_function_arguments()?,
             return_type: self.parse_return_type()?,
             positional: true,
+            self_type: None,
         })
     }
 
@@ -703,6 +732,30 @@ impl<'lex> Parser<'lex> {
             None
         };
         Ok((Scope { elements }, branch))
+    }
+
+    fn parse_trait_definition(&mut self) -> Result<TraitDefinition<'lex>, ParsingError> {
+        let next = self.next_required_token()?;
+        let name = if let TokenKind::Identifier(name) = next.kind {
+            name
+        } else {
+            return Err(ParsingError::ParseError(format!(
+                "Invalid trait, expected trait name received {:?}",
+                next
+            )));
+        };
+
+        let functions = self.parse_function_declarations()?;
+
+        Ok(TraitDefinition { name, functions })
+    }
+
+    fn parse_function_declarations(
+        &mut self,
+    ) -> Result<Vec<FunctionDeclaration<'lex>>, ParsingError> {
+        let all = Vec::new();
+
+        Ok(all)
     }
 }
 
@@ -839,10 +892,10 @@ mod tests {
             elements: vec![
                 Element::Expression(
                     Expression::BinExp(
-                        Box::new(Expression::BinExp(
-                            Box::new(Expression::Value(Value::Number(1.into()))),
+                        Box::new(Expression::binary(
+                            Expression::Value(Value::Number(1.into())),
                             BinaryOperation::Add,
-                            Box::new(Expression::Value(Value::Number(2.into())))
+                            Expression::Value(Value::Number(2.into()))
                         )),
                         BinaryOperation::Mul,
                         Box::new(Expression::Value(Value::Number(3.into())))
@@ -852,17 +905,15 @@ mod tests {
         },
         complex_parens "1 + (2 * 3)" = Program {
             elements: vec![
-                Element::Expression(
-                    Expression::BinExp(
-                        Box::new(Expression::Value(Value::Number(1.into()))),
-                        BinaryOperation::Add,
-                        Box::new(Expression::BinExp(
-                            Box::new(Expression::Value(Value::Number(2.into()))),
-                            BinaryOperation::Mul,
-                            Box::new(Expression::Value(Value::Number(3.into()))))
-                        )
+                Expression::binary(
+                    Expression::Value(Value::Number(1.into())),
+                    BinaryOperation::Add,
+                    Expression::binary(
+                        Expression::Value(Value::Number(2.into())),
+                        BinaryOperation::Mul,
+                        Expression::Value(Value::Number(3.into()))
                     )
-                ),
+                ).into(),
             ]
         },
         list "[1, '2', {a = 3}]" = Program {
@@ -900,7 +951,8 @@ mod tests {
                     type_definition: FunctionDefinition {
                         arguments: vec![],
                         positional: true,
-                        return_type: RigzType::Any
+                        return_type: RigzType::Any,
+                        self_type: None,
                     },
                     body: Scope {
                      elements: vec![
@@ -921,7 +973,8 @@ mod tests {
                     type_definition: FunctionDefinition {
                         arguments: vec![],
                         positional: true,
-                        return_type: RigzType::Any
+                        return_type: RigzType::Any,
+                        self_type: None,
                     },
                     body: Scope {
                         elements: vec![
@@ -943,7 +996,8 @@ mod tests {
                     type_definition: FunctionDefinition {
                         arguments: vec![],
                         positional: true,
-                        return_type: RigzType::Any
+                        return_type: RigzType::Any,
+                        self_type: None,
                     },
                     body: Scope {
                     elements: vec![
@@ -965,7 +1019,8 @@ mod tests {
                     type_definition: FunctionDefinition {
                         arguments: vec![],
                         positional: true,
-                        return_type: RigzType::String
+                        return_type: RigzType::String,
+                        self_type: None,
                     },
                     body: Scope {
                      elements: vec![
@@ -986,7 +1041,8 @@ mod tests {
                     type_definition: FunctionDefinition {
                         arguments: vec![],
                         positional: true,
-                        return_type: RigzType::String
+                        return_type: RigzType::String,
+                        self_type: None,
                     },
                     body: Scope {
                         elements: vec![
@@ -1011,20 +1067,21 @@ mod tests {
                             FunctionArgument {
                                 name: Some("a"),
                                 default: None,
-                                rigz_type: RigzType::Any,
+                                function_type: RigzType::Any.into(),
                             },
                             FunctionArgument {
                                 name: Some("b"),
                                 default: None,
-                                rigz_type: RigzType::Any,
+                                function_type: RigzType::Any.into(),
                             },
                             FunctionArgument {
                                 name: Some("c"),
                                 default: None,
-                                rigz_type: RigzType::Any,
+                                function_type: RigzType::Any.into(),
                             },
                         ],
-                        return_type: RigzType::Any
+                        return_type: RigzType::Any,
+                        self_type: None,
                     },
                     body: Scope {
                         elements: vec![
