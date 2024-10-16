@@ -18,6 +18,14 @@ pub trait Rev {
     fn rev(self) -> Self::Output;
 }
 
+pub trait Logical<Rhs> {
+    type Output;
+
+    fn and(self, rhs: Rhs) -> Self::Output;
+    fn or(self, rhs: Rhs) -> Self::Output;
+    fn xor(self, rhs: Rhs) -> Self::Output;
+}
+
 pub type Register = usize;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -28,6 +36,7 @@ pub enum VMError {
     InvalidPC(String),
     EmptyRegister(String),
     ConversionError(String),
+    ScopeDoesNotExist(String),
 }
 
 #[derive(Clone, Debug)]
@@ -35,7 +44,8 @@ pub enum UnaryOperation {
     Neg,
     Not,
     Rev,
-    Print
+    Print,
+    EPrint,
 }
 
 #[derive(Clone, Debug)]
@@ -59,6 +69,7 @@ pub enum BinaryOperation {
 
 #[derive(Clone, Debug)]
 pub enum Instruction {
+    Halt(Register),
     Unary {
         op: UnaryOperation,
         from: Register,
@@ -72,6 +83,8 @@ pub enum Instruction {
     },
     Load(Register, Value),
     Copy(Register, Register),
+    Call(usize),
+    Ret,
 }
 
 #[derive(Clone, Debug)]
@@ -128,18 +141,29 @@ pub struct VM {
     current: CallFrame,
     frames: Vec<CallFrame>,
     registers: IndexMap<usize, Value>,
-    bit_registers: IndexMap<usize, bool>,
 }
 
 impl VM {
+    pub fn insert_register(&mut self, register: Register, value: Value) {
+        if register == 0 {
+            return
+        }
+
+        self.registers.insert(register, value);
+    }
+
     pub fn remove_register(&mut self, register: &Register) -> Result<Value, VMError> {
+        if *register == 0 {
+            return Ok(Value::None)
+        }
+
         match self.registers.shift_remove(register) {
             None => Err(VMError::EmptyRegister(format!("R{} is empty", register))),
             Some(v) => Ok(v),
         }
     }
 
-    pub fn run(&mut self) -> Result<(), VMError> {
+    pub fn run(&mut self) -> Result<Value, VMError> {
         let mut frame = self.current.clone();
         let scope = frame.scope_id;
         let scope = match self.scopes.get(scope) {
@@ -149,11 +173,15 @@ impl VM {
         let len = scope.instructions.len();
         loop {
             if frame.pc >= len {
+                // TODO this should probably be an error requiring explicit halt, halt 0 returns none
                 break;
             }
 
             let instruction = frame.next_instruction(&scope);
             match instruction {
+                Instruction::Halt(r) => {
+                    return Ok(self.remove_register(&r)?)
+                }
                 Instruction::Unary { op, from, output } => {
                     let val = match self.registers.shift_remove(&from) {
                         None => return Err(VMError::EmptyRegister(format!("R{} is empty", from))),
@@ -161,17 +189,21 @@ impl VM {
                     };
                     match op {
                         UnaryOperation::Neg => {
-                            self.registers.insert(output, -val);
+                            self.insert_register(output, val);
                         }
                         UnaryOperation::Not => {
-                            self.registers.insert(output, !val);
+                            self.insert_register(output, val);
                         },
                         UnaryOperation::Print => {
                             println!("{}", val);
-                            self.registers.insert(output, val);
+                            self.insert_register(output, val);
+                        }
+                        UnaryOperation::EPrint => {
+                            eprintln!("{}", val);
+                            self.insert_register(output, val);
                         }
                         UnaryOperation::Rev => {
-                            self.registers.insert(output, val.rev());
+                            self.insert_register(output, val.rev());
                         }
                     }
                 }
@@ -180,29 +212,62 @@ impl VM {
                     let rhs = self.remove_register(&rhs)?;
                     let v = match op {
                         BinaryOperation::Add => lhs + rhs,
-                        _ => todo!()
+                        BinaryOperation::Sub => lhs - rhs,
+                        BinaryOperation::Shr => lhs >> rhs,
+                        BinaryOperation::Shl => lhs << rhs,
+                        BinaryOperation::Eq => Value::Bool(lhs == rhs),
+                        BinaryOperation::Neq => Value::Bool(lhs != rhs),
+                        BinaryOperation::Mul => lhs * rhs,
+                        BinaryOperation::Div => lhs / rhs,
+                        BinaryOperation::Rem => lhs % rhs,
+                        BinaryOperation::BitOr => lhs | rhs,
+                        BinaryOperation::BitAnd => lhs & rhs,
+                        BinaryOperation::BitXor => lhs ^ rhs,
+                        BinaryOperation::And => lhs.and(rhs),
+                        BinaryOperation::Or => lhs.or(rhs),
+                        BinaryOperation::Xor => lhs.xor(rhs)
                     };
-                    self.registers.insert(output, v);
+
+                    self.insert_register(output, v);
                 }
                 Instruction::Load(r, v) => {
-                    self.registers.insert(r, v);
+                    self.insert_register(r, v);
                 }
                 Instruction::Copy(from, to) => {
                     let copy = match self.registers.get(&from) {
                         None => return Err(VMError::EmptyRegister(format!("R{} is empty", from))),
                         Some(s) => s.clone()
                     };
-                    self.registers.insert(to, copy);
+                    self.insert_register(to, copy);
+                }
+                Instruction::Call(scope_index) => {
+                    if self.scopes.len() >= scope_index {
+                        return Err(VMError::ScopeDoesNotExist(format!("{} does not exist", scope_index)))
+                    }
+                    let current = self.current.to_owned();
+                    self.frames.push(current);
+                    self.current = CallFrame::child(scope_index, self.frames.len() - 1);
+                }
+                Instruction::Ret => {
+                    match self.frames.pop() {
+                        None => {
+                            return Err(VMError::FrameError("CallStack is empty".to_string()))
+                        }
+                        Some(c) => {
+                            self.current = c;
+                        }
+                    }
                 }
             }
         }
-        Ok(())
+        Ok(Value::None)
     }
 }
 
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
     use crate::VMBuilder;
     use crate::number::Number;
     use crate::value::Value;
@@ -251,5 +316,29 @@ mod tests {
             .build();
         vm.run().unwrap();
         assert_eq!(vm.registers.get(&37).unwrap().clone(), Value::Number(Number::Int(42)));
+    }
+
+    #[test]
+    fn shr_works_str_number() {
+        let mut builder = VMBuilder::new();
+        let mut vm = builder
+            .add_load_instruction(1, Value::String(String::from_str("abc").unwrap()))
+            .add_load_instruction(2, Value::Number(Number::Int(1)))
+            .add_shr_instruction(1, 2, 3)
+            .build();
+        vm.run().unwrap();
+        assert_eq!(vm.registers.get(&3).unwrap().clone(), Value::String(String::from_str("ab").unwrap()));
+    }
+
+    #[test]
+    fn shl_works_str_number() {
+        let mut builder = VMBuilder::new();
+        let mut vm = builder
+            .add_load_instruction(1, Value::String(String::from_str("abc").unwrap()))
+            .add_load_instruction(2, Value::Number(Number::Int(1)))
+            .add_shl_instruction(1, 2, 3)
+            .build();
+        vm.run().unwrap();
+        assert_eq!(vm.registers.get(&3).unwrap().clone(), Value::String(String::from_str("bc").unwrap()));
     }
 }

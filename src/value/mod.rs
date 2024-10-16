@@ -1,7 +1,17 @@
 mod add;
+mod bitand;
+mod bitor;
+mod bitxor;
+mod div;
+mod mul;
 mod not;
 mod neg;
+mod rem;
 mod rev;
+mod shl;
+mod shr;
+mod sub;
+mod logical;
 
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -17,7 +27,7 @@ pub enum Value {
     String(String),
     List(Vec<Value>),
     Map(IndexMap<Value, Value>),
-    Error(VMError)
+    Error(VMError),
 }
 
 impl Value {

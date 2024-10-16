@@ -1,4 +1,3 @@
-use indexmap::IndexMap;
 use crate::Rev;
 use crate::value::Value;
 
@@ -9,15 +8,16 @@ impl Rev for Value {
         match self {
             Value::Number(n) => Value::Number(n.rev()),
             Value::String(s) => {
-                let mut bytes = s.as_bytes();
-                bytes.reverse();
-                Value::String(String::from(bytes))
+                let s = s.chars().rev().collect();
+                Value::String(s)
             },
             Value::List(l) => {
-                Value::List(l.iter().rev().collect())
+                Value::List(l.iter().rev().map(|v| v.clone()).collect())
             }
             Value::Map(m) => {
-                Value::Map(IndexMap::from(m.iter().rev().collect()))
+                let mut r = m.clone();
+                r.reverse();
+                Value::Map(r)
             }
             v => v,
         }

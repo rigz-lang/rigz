@@ -1,4 +1,4 @@
-use std::ops::Shr;
+use std::ops::{Shl};
 use crate::number::Number;
 
 impl Shl for Number {

@@ -1,9 +1,17 @@
 mod add;
-mod sub;
+mod bitand;
+mod bitor;
+mod bitxor;
+mod div;
+mod mul;
 mod neg;
 mod not;
-mod shr;
+mod rem;
 mod rev;
+mod shl;
+mod shr;
+mod sub;
+mod logical;
 
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -124,6 +132,18 @@ impl Number {
             Number::Int(i) => *i as u64,
             Number::UInt(u) => *u,
             Number::Float(f) => *f as u64,
+        };
+        Ok(u)
+    }
+
+    pub fn to_usize(&self) -> Result<usize, VMError> {
+        if self.is_negative() {
+            return Err(VMError::ConversionError("Cannot convert negative to UINT".to_string()))
+        }
+        let u = match self {
+            Number::Int(i) => *i as usize,
+            Number::UInt(u) => *u as usize,
+            Number::Float(f) => *f as usize,
         };
         Ok(u)
     }

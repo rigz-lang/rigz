@@ -3,8 +3,8 @@ use crate::value::Value;
 
 #[derive(Clone, Debug)]
 pub struct VMBuilder {
-    fp: usize,
-    scopes: Vec<Scope>,
+    pub sp: usize,
+    pub scopes: Vec<Scope>,
 }
 
 macro_rules! generate_unary_op_methods {
@@ -42,16 +42,19 @@ impl VMBuilder {
     #[inline]
     pub fn new() -> Self {
         Self {
-            fp: 0,
+            sp: 0,
             scopes: vec![Scope::new()],
         }
     }
 
     generate_bin_op_methods! {
         add_add_instruction => Add,
-        add_and_instruction => BitAnd,
-        add_or_instruction => BitOr,
-        add_xor_instruction => BitXor,
+        add_bitand_instruction => BitAnd,
+        add_bitor_instruction => BitOr,
+        add_bitxor_instruction => BitXor,
+        add_and_instruction => And,
+        add_or_instruction => Or,
+        add_xor_instruction => Xor,
         add_div_instruction => Div,
         add_mul_instruction => Mul,
         add_rem_instruction => Rem,
@@ -63,12 +66,33 @@ impl VMBuilder {
     generate_unary_op_methods! {
         add_neg_instruction => Neg,
         add_not_instruction => Not,
-        add_print_instruction => Print
+        add_print_instruction => Print,
+        add_eprint_instruction => EPrint
+    }
+
+    //
+    pub fn enter_scope(&mut self) -> &mut Self {
+        self.scopes.push(Scope::new());
+        self.sp += 1;
+        self
+    }
+
+    pub fn exit_scope(&mut self) -> &mut Self {
+        self.sp -= 1;
+        self.add_instruction(Instruction::Ret)
     }
 
     pub fn add_instruction(&mut self, instruction: Instruction) -> &mut Self {
-        self.scopes[self.fp].instructions.push(instruction);
+        self.scopes[self.sp].instructions.push(instruction);
         self
+    }
+
+    pub fn add_call_instruction(&mut self, scope_id: usize) -> &mut Self {
+        self.add_instruction(Instruction::Call(scope_id))
+    }
+
+    pub fn add_halt_instruction(&mut self, register: Register) -> &mut Self {
+        self.add_instruction(Instruction::Halt(register))
     }
 
     pub fn add_copy_instruction(&mut self, from: Register, to: Register) -> &mut Self {
@@ -85,7 +109,6 @@ impl VMBuilder {
             current: CallFrame::main(),
             frames: vec![],
             registers: Default::default(),
-            bit_registers: Default::default(),
         }
     }
 
@@ -95,7 +118,6 @@ impl VMBuilder {
             current: CallFrame::main(),
             frames: vec![],
             registers: Default::default(),
-            bit_registers: Default::default(),
         };
         (vm, self)
     }
