@@ -97,6 +97,11 @@ macro_rules! generate_builder {
         }
 
         #[inline]
+        pub fn module_exists(&mut self, module: &'vm str) -> bool {
+            self.modules.contains_key(module)
+        }
+
+        #[inline]
         pub fn add_call_module_instruction(
             &mut self,
             module: &'vm str,
