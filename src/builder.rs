@@ -171,7 +171,7 @@ impl <'vm> VMBuilder<'vm> {
     }
 
     #[inline]
-    pub fn build(&mut self) -> VM {
+    pub fn build(&mut self) -> VM<'vm> {
         VM {
             scopes: std::mem::take(&mut self.scopes),
             current: CallFrame::main(),
@@ -182,7 +182,7 @@ impl <'vm> VMBuilder<'vm> {
     }
 
     #[inline]
-    pub fn build_multiple(&mut self) -> (VM, &mut Self) {
+    pub fn build_multiple(&mut self) -> (VM<'vm>, &mut Self) {
         let vm = VM {
             scopes: self.scopes.clone(),
             current: CallFrame::main(),
