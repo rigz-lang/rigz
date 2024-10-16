@@ -27,6 +27,11 @@ impl<'vm> Add for Value<'vm> {
                 result.push_str(b.to_string().as_str());
                 Value::String(result)
             }
+            (a, Value::String(b)) => {
+                let mut result = a.to_string();
+                result.push_str(b.as_str());
+                Value::String(result)
+            }
             (Value::List(a), Value::List(b)) => {
                 let mut result = a.clone();
                 result.extend(b);
