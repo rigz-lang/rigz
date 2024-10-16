@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use crate::instructions::Clear;
 use crate::{Logical, Register, VMError, Value, VM};
 
@@ -30,6 +31,32 @@ pub enum BinaryOperation {
     Gt,
     Lt,
     Lte,
+}
+
+impl Display for BinaryOperation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryOperation::Add => write!(f, "+"),
+            BinaryOperation::Sub => write!(f, "-"),
+            BinaryOperation::Mul => write!(f, "*"),
+            BinaryOperation::Div => write!(f, "/"),
+            BinaryOperation::Rem => write!(f, "%"),
+            BinaryOperation::Shr => write!(f, ">>"),
+            BinaryOperation::Shl => write!(f, "<<"),
+            BinaryOperation::BitOr => write!(f, "|"),
+            BinaryOperation::BitAnd => write!(f, "&"),
+            BinaryOperation::BitXor => write!(f, "^"),
+            BinaryOperation::Or => write!(f, "||"),
+            BinaryOperation::And => write!(f, "&&"),
+            BinaryOperation::Xor => write!(f, "^"),
+            BinaryOperation::Eq => write!(f, "=="),
+            BinaryOperation::Neq => write!(f, "!="),
+            BinaryOperation::Gte => write!(f, ">="),
+            BinaryOperation::Gt => write!(f, ">"),
+            BinaryOperation::Lt => write!(f, "<"),
+            BinaryOperation::Lte => write!(f, "<="),
+        }
+    }
 }
 
 impl<'vm> VM<'vm> {

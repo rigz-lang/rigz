@@ -176,10 +176,11 @@ impl Display for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::None => write!(f, "none"),
-            Value::Error(e) => write!(f, "{:?}", *e),
-            Value::Bool(v) => write!(f, "{}", *v),
-            Value::Number(v) => write!(f, "{}", *v),
-            Value::String(v) => write!(f, "{}", *v),
+            // todo dedicated to_string instead of debug
+            Value::Error(e) => write!(f, "{:?}", e),
+            Value::Bool(v) => write!(f, "{}", v),
+            Value::Number(v) => write!(f, "{}", v),
+            Value::String(v) => write!(f, "{}", v),
             Value::List(l) => {
                 let mut values = String::new();
                 let len = l.len();
@@ -204,7 +205,8 @@ impl Display for Value {
                 }
                 write!(f, "[{}]", values)
             }
-            Value::ScopeId(u, _) => write!(f, "0x{}", *u),
+            // todo improve this
+            Value::ScopeId(u, r) => write!(f, "s{} r{}", u, r),
         }
     }
 }

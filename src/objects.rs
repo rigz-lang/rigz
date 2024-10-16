@@ -12,3 +12,5 @@ pub enum RigzType {
     Error,
     Function(Vec<RigzType>, Box<RigzType>),
 }
+
+// todo create an object/class type and store type definitions in scope

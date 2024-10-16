@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use crate::instructions::Clear;
 use crate::{Register, Reverse, VMError, Value, VM};
 
@@ -17,6 +18,20 @@ pub enum UnaryOperation {
     EPrint,
     PrintLn,
     EPrintLn,
+}
+
+impl Display for UnaryOperation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UnaryOperation::Neg => write!(f, "-"),
+            UnaryOperation::Not => write!(f, "!"),
+            UnaryOperation::Reverse => write!(f, "rev"),
+            UnaryOperation::Print => write!(f, "print"),
+            UnaryOperation::EPrint => write!(f, "eprint"),
+            UnaryOperation::PrintLn => write!(f, "println"),
+            UnaryOperation::EPrintLn => write!(f, "eprintln"),
+        }
+    }
 }
 
 impl<'vm> VM<'vm> {
