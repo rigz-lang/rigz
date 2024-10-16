@@ -84,8 +84,9 @@ impl VMBuilder {
     }
 
     pub fn exit_scope(&mut self) -> &mut Self {
-        self.sp -= 1;
-        self.add_instruction(Instruction::Ret)
+        let mut s = self.add_instruction(Instruction::Ret);
+        s.sp -= 1;
+        s
     }
 
     pub fn add_instruction(&mut self, instruction: Instruction) -> &mut Self {

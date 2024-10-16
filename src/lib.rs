@@ -94,15 +94,19 @@ pub struct CallFrame {
     parent: Option<usize>
 }
 
+impl Default for CallFrame {
+    fn default() -> Self {
+        Self::main()
+    }
+}
+
 impl CallFrame {
     fn next_instruction(&mut self, scope: &Scope) -> Instruction {
         let instruction = scope.instructions[self.pc].clone();
         self.pc += 1;
         instruction
     }
-}
 
-impl CallFrame {
     pub fn main() -> Self {
         Self {
             scope_id: 0,
@@ -163,20 +167,19 @@ impl VM {
     }
 
     pub fn run(&mut self) -> Result<Value, VMError> {
-        let mut frame = self.current.clone();
-        let scope = frame.scope_id;
-        let scope = match self.scopes.get(scope) {
-            None => return Err(VMError::ScopeError(format!("Scope {} does not exist", scope))),
-            Some(s) => s.clone(),
-        };
-        let len = scope.instructions.len();
         loop {
-            if frame.pc >= len {
+            let scope = self.current.scope_id;
+            let scope = match self.scopes.get(scope) {
+                None => return Err(VMError::ScopeError(format!("Scope {} does not exist", scope))),
+                Some(s) => s.clone(),
+            };
+            let len = scope.instructions.len();
+            if self.current.pc >= len {
                 // TODO this should probably be an error requiring explicit halt, halt 0 returns none
                 break;
             }
 
-            let instruction = frame.next_instruction(&scope);
+            let instruction = self.current.next_instruction(&scope);
             match instruction {
                 Instruction::Halt(r) => {
                     return self.remove_register(&r)
@@ -240,10 +243,10 @@ impl VM {
                     self.insert_register(to, copy);
                 }
                 Instruction::Call(scope_index) => {
-                    if self.scopes.len() >= scope_index {
+                    if self.scopes.len() <= scope_index {
                         return Err(VMError::ScopeDoesNotExist(format!("{} does not exist", scope_index)))
                     }
-                    let current = self.current.to_owned();
+                    let current = std::mem::take(&mut self.current);
                     self.frames.push(current);
                     self.current = CallFrame::child(scope_index, self.frames.len() - 1);
                 }
@@ -339,5 +342,19 @@ mod tests {
             .build();
         vm.run().unwrap();
         assert_eq!(vm.registers.get(&3).unwrap().clone(), Value::String(String::from_str("bc").unwrap()));
+    }
+
+    #[test]
+    fn call_works() {
+        let mut builder = VMBuilder::new();
+        let mut vm = builder
+            .add_load_instruction(1, Value::String(String::from_str("abc").unwrap()))
+            .enter_scope()
+            .add_copy_instruction(1, 3)
+            .exit_scope()
+            .add_call_instruction(1)
+            .build();
+        vm.run().unwrap();
+        assert_eq!(vm.registers.get(&3).unwrap().clone(), Value::String(String::from_str("abc").unwrap()));
     }
 }
