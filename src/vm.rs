@@ -48,7 +48,7 @@ pub struct VM<'vm> {
     pub frames: Vec<CallFrame<'vm>>,
     pub registers: IndexMap<usize, Value, BuildNoHashHasher<usize>>,
     pub stack: Vec<Value>,
-    pub modules: IndexMap<&'vm str, Box<dyn Module<'vm>>>,
+    pub modules: IndexMap<&'static str, Box<dyn Module<'vm>>>,
     pub sp: usize,
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,

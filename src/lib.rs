@@ -39,7 +39,6 @@ pub enum VMError {
     ConversionError(String),
     ScopeDoesNotExist(String),
     UnsupportedOperation(String),
-    ParseError(String, usize, usize),
     VariableDoesNotExist(String),
     InvalidModule(String),
     InvalidModuleFunction(String),
@@ -178,7 +177,7 @@ mod tests {
 
     #[allow(unused_variables)]
     impl<'vm> Module<'vm> for TestModule {
-        fn name(&self) -> &'vm str {
+        fn name(&self) -> &'static str {
             "test"
         }
 
@@ -210,22 +209,10 @@ mod tests {
             Err(VMError::InvalidModuleFunction(function.to_string()))
         }
 
-        fn extensions(&self) -> &'vm [&'vm str] {
-            [].as_slice()
-        }
-
-        fn functions(&self) -> &'vm [&'vm str] {
-            ["hello"].as_slice()
-        }
-
-        fn vm_extensions(&self) -> &'vm [&'vm str] {
-            [].as_slice()
-        }
-
-        fn trait_definition(&self) -> &'vm str {
+        fn trait_definition(&self) -> &'static str {
             r#"
             trait test
-                fn hello
+                fn hello(var arg)
             end
             "#
         }

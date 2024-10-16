@@ -20,6 +20,7 @@ use log::trace;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::ops::Range;
 
 #[derive(Clone, Debug, Default)]
 pub enum Value {
@@ -31,7 +32,14 @@ pub enum Value {
     List(Vec<Value>),
     Map(IndexMap<Value, Value>),
     ScopeId(usize, Register),
+    // Range(ValueRange), todo support in later version
     Error(VMError),
+}
+
+#[derive(Clone, Debug)]
+pub enum ValueRange {
+    Int(Range<i64>),
+    Char(Range<char>),
 }
 
 impl_from! {

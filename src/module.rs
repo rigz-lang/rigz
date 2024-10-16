@@ -3,7 +3,7 @@ use dyn_clone::DynClone;
 
 /// modules will be cloned when used, until DynClone can be removed, ideally they're Copy + Clone
 pub trait Module<'vm>: DynClone {
-    fn name(&self) -> &'vm str; // todo should this be static?
+    fn name(&self) -> &'static str;
 
     fn call(&self, function: &'vm str, args: Vec<Value>) -> Result<Value, VMError>;
 
@@ -21,15 +21,8 @@ pub trait Module<'vm>: DynClone {
         args: Vec<Value>,
     ) -> Result<Value, VMError>;
 
-    // todo get rid of extensions, functions, and vm_extensions. use trait definition
-    fn extensions(&self) -> &'vm [&'vm str];
-
-    fn functions(&self) -> &'vm [&'vm str];
-
-    fn vm_extensions(&self) -> &'vm [&'vm str];
-
-    // todo create proc_macro that uses tree-sitter-rigz for syntax highlighting and compile time validation
-    fn trait_definition(&self) -> &'vm str; // todo should this be static?
+    // todo create proc_macro that uses tree-sitter-rigz for syntax highlighting and compile time syntax validation
+    fn trait_definition(&self) -> &'static str;
 }
 
 dyn_clone::clone_trait_object!(Module<'_>);

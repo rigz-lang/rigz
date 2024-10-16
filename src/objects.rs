@@ -10,6 +10,7 @@ pub enum RigzType {
     List,
     Map,
     Error,
+    This,
     Function(Vec<RigzType>, Box<RigzType>),
 }
 

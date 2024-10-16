@@ -12,7 +12,7 @@ use log::Level;
 pub struct VMBuilder<'vm> {
     pub sp: usize,
     pub scopes: Vec<Scope<'vm>>,
-    pub modules: IndexMap<&'vm str, Box<dyn Module<'vm>>>,
+    pub modules: IndexMap<&'static str, Box<dyn Module<'vm>>>,
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
 }
