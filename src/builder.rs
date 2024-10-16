@@ -1,10 +1,10 @@
-use crate::{BinaryOperation, UnaryOperation, CallFrame, Instruction, Register, Scope, VM};
+use crate::{BinaryOperation, UnaryOperation, CallFrame, Instruction, Register, Scope, VM, RigzType};
 use crate::value::Value;
 
 #[derive(Clone, Debug)]
-pub struct VMBuilder {
+pub struct VMBuilder<'vm> {
     pub sp: usize,
-    pub scopes: Vec<Scope>,
+    pub scopes: Vec<Scope<'vm>>,
 }
 
 macro_rules! generate_unary_op_methods {
@@ -38,13 +38,13 @@ macro_rules! generate_bin_op_methods {
     };
 }
 
-impl Default for VMBuilder {
+impl <'vm> Default  for VMBuilder<'vm> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl VMBuilder {
+impl <'vm> VMBuilder<'vm> {
     #[inline]
     pub fn new() -> Self {
         Self {
@@ -89,13 +89,17 @@ impl VMBuilder {
         s
     }
 
-    pub fn add_instruction(&mut self, instruction: Instruction) -> &mut Self {
+    pub fn add_instruction(&mut self, instruction: Instruction<'vm>) -> &mut Self {
         self.scopes[self.sp].instructions.push(instruction);
         self
     }
 
     pub fn add_call_instruction(&mut self, scope_id: usize) -> &mut Self {
         self.add_instruction(Instruction::Call(scope_id))
+    }
+
+    pub fn add_cast_instruction(&mut self, from: Register, rigz_type: RigzType, to: Register) -> &mut Self {
+        self.add_instruction(Instruction::Cast { from, rigz_type, to })
     }
 
     pub fn add_halt_instruction(&mut self, register: Register) -> &mut Self {
@@ -106,7 +110,7 @@ impl VMBuilder {
         self.add_instruction(Instruction::Copy(from, to))
     }
 
-    pub fn add_load_instruction(&mut self, reg: Register, value: Value) -> &mut Self {
+    pub fn add_load_instruction(&mut self, reg: Register, value: Value<'vm>) -> &mut Self {
         self.add_instruction(Instruction::Load(reg, value))
     }
 
@@ -116,6 +120,7 @@ impl VMBuilder {
             current: CallFrame::main(),
             frames: vec![],
             registers: Default::default(),
+            lifecycles: vec![],
         }
     }
 
@@ -125,6 +130,7 @@ impl VMBuilder {
             current: CallFrame::main(),
             frames: vec![],
             registers: Default::default(),
+            lifecycles: vec![],
         };
         (vm, self)
     }

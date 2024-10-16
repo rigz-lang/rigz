@@ -1,8 +1,8 @@
 use crate::Rev;
 use crate::value::Value;
 
-impl Rev for Value {
-    type Output = Value;
+impl <'vm> Rev for Value<'vm> {
+    type Output = Value<'vm>;
 
     fn rev(self) -> Self::Output {
         match self {

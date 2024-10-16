@@ -1,8 +1,8 @@
 use std::ops::Not;
 use crate::value::Value;
 
-impl Not for Value {
-    type Output = Value;
+impl <'vm> Not for Value<'vm> {
+    type Output = Value<'vm>;
 
     fn not(self) -> Self::Output {
         match self {

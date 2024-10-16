@@ -2,23 +2,19 @@ use std::ops::{BitAnd};
 use crate::value::Value;
 use crate::VMError;
 
-impl BitAnd for Value {
-    type Output = Value;
+impl <'vm> BitAnd for Value<'vm> {
+    type Output = Value<'vm>;
 
     fn bitand(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Value::Error(v), _) => Value::Error(v),
             (_, Value::Error(v)) => Value::Error(v),
             (Value::None, _) => Value::None,
-            (lhs, Value::None) => Value::Error(VMError::RuntimeError(format!("Cannot divide {} by 0/none", lhs))),
-            (Value::Bool(a), Value::Bool(b)) => Value::Bool(a | b),
-            (Value::Bool(a), b) => Value::Bool(a | b.to_bool()),
-            (b, Value::Bool(a)) => Value::Bool(a | b.to_bool()),
+            (_, Value::None) => Value::None,
+            (Value::Bool(a), Value::Bool(b)) => Value::Bool(a & b),
+            (Value::Bool(a), b) => Value::Bool(a & b.to_bool()),
+            (b, Value::Bool(a)) => Value::Bool(a & b.to_bool()),
             (Value::Number(a), Value::Number(b)) => {
-                if b.is_zero() {
-                    return Value::Error(VMError::RuntimeError(format!("Cannot divide {} by 0/none", a)))
-                }
-
                 match a & b {
                     Ok(n) => Value::Number(n),
                     Err(e) => Value::Error(e)
@@ -55,6 +51,26 @@ impl BitAnd for Value {
             //     Value::Map(result)
             // }
             _ => todo!()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::define_value_tests;
+    use crate::number::Number;
+    use crate::value::Value;
+
+    define_value_tests! {
+        & {
+            test_none_bitand_none => (Value::None, Value::None, Value::None);
+            test_none_bool_false_bitand_none => (Value::Bool(false), Value::None, Value::Bool(false));
+            test_bool_true_bitand_none => (Value::Bool(true), Value::None, Value::None);
+            test_none_bool_true_bitand_true => (Value::None, Value::Bool(true), Value::None);
+            test_false_bool_true_bitand_true => (Value::Bool(false), Value::Bool(true), Value::Bool(false));
+            test_false_0_bitand_true => (Value::Bool(false), Value::Number(Number::UInt(0)), Value::Bool(false));
+            test_true_0_bitand_true => (Value::Bool(true), Value::Number(Number::UInt(0)), Value::Bool(false));
+            // bitand more test cases here as needed
         }
     }
 }

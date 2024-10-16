@@ -1,8 +1,8 @@
 use std::ops::Add;
 use crate::value::Value;
 
-impl Add for Value {
-    type Output = Value;
+impl <'vm> Add for Value<'vm> {
+    type Output = Value<'vm>;
 
     fn add(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
@@ -50,6 +50,26 @@ impl Add for Value {
                 Value::Map(result)
             }
             _ => todo!()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::define_value_tests;
+    use crate::number::Number;
+    use crate::value::Value;
+
+    define_value_tests! {
+        + {
+            test_none_add_none => (Value::None, Value::None, Value::None);
+            test_none_bool_false_add_none => (Value::Bool(false), Value::None, Value::Bool(false));
+            test_bool_true_add_none => (Value::Bool(true), Value::None, Value::Bool(true));
+            test_none_bool_true_add_true => (Value::None, Value::Bool(true), Value::Bool(true));
+            test_false_bool_true_add_true => (Value::Bool(false), Value::Bool(true), Value::Bool(true));
+            test_false_0_add_true => (Value::Bool(false), Value::Number(Number::UInt(0)), Value::Bool(false));
+            test_true_0_add_true => (Value::Bool(true), Value::Number(Number::UInt(0)), Value::Number(Number::UInt(1)));
+            // Add more test cases here as needed
         }
     }
 }

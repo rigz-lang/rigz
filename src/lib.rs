@@ -3,10 +3,14 @@ extern crate core;
 mod builder;
 mod value;
 mod number;
+mod macros;
 
+use std::cell::LazyCell;
 use std::fmt::{Debug};
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
+use std::string::ToString;
 use indexmap::IndexMap;
+use once_cell::sync::Lazy;
 use crate::value::Value;
 
 pub use builder::VMBuilder;
@@ -67,7 +71,7 @@ pub enum BinaryOperation {
 }
 
 #[derive(Clone, Debug)]
-pub enum Instruction {
+pub enum Instruction<'vm> {
     Halt(Register),
     Unary {
         op: UnaryOperation,
@@ -80,28 +84,144 @@ pub enum Instruction {
         rhs: Register,
         output: Register,
     },
-    Load(Register, Value),
+    Load(Register, Value<'vm>),
     Copy(Register, Register),
     Call(usize),
     Ret,
+    Cast {
+        from: Register,
+        to: Register,
+        rigz_type: RigzType
+    },
+    // Import(),
+    // Export(),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum RigzType {
+    None,
+    Bool,
+    Int,
+    Float,
+    Number,
+    UInt,
+    String,
+    List,
+    Map,
+    Error,
+    Function(Vec<RigzType>, Box<RigzType>),
+    Object(RigzObjectDefinition)
+}
+
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct RigzObjectDefinition {
+    name: String,
+    fields: IndexMap<String, RigzType>,
+}
+
+static NONE: Lazy<RigzObjectDefinition> = Lazy::new(|| RigzObjectDefinition {
+    name: "None".to_string(),
+    fields: IndexMap::from([("value".to_string(), RigzType::None)]),
+});
+
+static BOOL: Lazy<RigzObjectDefinition> = Lazy::new(|| RigzObjectDefinition {
+    name: "Bool".to_string(),
+    fields: IndexMap::from([("value".to_string(), RigzType::Bool)]),
+});
+
+static NUMBER: Lazy<RigzObjectDefinition> = Lazy::new(|| RigzObjectDefinition {
+    name: "Number".to_string(),
+    fields: IndexMap::from([("value".to_string(), RigzType::Number)]),
+});
+
+static STRING: Lazy<RigzObjectDefinition> = Lazy::new(|| RigzObjectDefinition {
+    name: "String".to_string(),
+    fields: IndexMap::from([("value".to_string(), RigzType::String)]),
+});
+
+static ERROR: Lazy<RigzObjectDefinition> = Lazy::new(|| RigzObjectDefinition {
+    name: "Error".to_string(),
+    fields: IndexMap::from([("value".to_string(), RigzType::Error)]),
+});
+
+static LIST: Lazy<RigzObjectDefinition> = Lazy::new(|| RigzObjectDefinition {
+    name: "List".to_string(),
+    fields: IndexMap::from([("value".to_string(), RigzType::List)]),
+});
+
+static MAP: Lazy<RigzObjectDefinition> = Lazy::new(|| RigzObjectDefinition {
+    name: "Map".to_string(),
+    fields: IndexMap::from([("value".to_string(), RigzType::Map)]),
+});
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct RigzObject<'vm> {
+    fields: IndexMap<String, Value<'vm>>,
+    definition_index: &'vm RigzObjectDefinition,
+}
+
+impl<'vm> RigzObject<'vm> {
+    pub(crate) fn cast(&self, def: RigzObjectDefinition) -> Result<RigzObject<'vm>, VMError> {
+        if self.definition_index == &def {
+            return Ok(self.clone())
+        }
+
+        todo!()
+    }
+}
+
+impl <'vm> RigzObject<'vm> {
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.fields.is_empty()
+    }
+
+    pub fn equivalent(&self, other: &IndexMap<Value<'vm>, Value<'vm>>) -> bool {
+        for (k, v) in other {
+            let key = k.to_string();
+            if !self.fields.contains_key(&key) {
+                return false
+            }
+            match self.fields.get(&key) {
+                None => return false,
+                Some(o) => {
+                    if !o.eq(v) {
+                        return false
+                    }
+                }
+            };
+        }
+        return true
+    }
+}
+
+impl <'vm> Hash for RigzObject<'vm> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.definition_index.name.hash(state);
+        for (k, v) in &self.fields {
+            k.hash(state);
+            v.hash(state);
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
-pub struct CallFrame {
+pub struct CallFrame<'vm> {
     scope_id: usize,
     pc: usize,
-    variables: IndexMap<String, Value>, // TODO switch to intern strings
+    variables: IndexMap<String, Value<'vm>>, // TODO switch to intern strings
     parent: Option<usize>
 }
 
-impl Default for CallFrame {
+impl <'vm> Default for CallFrame<'vm> {
     fn default() -> Self {
         Self::main()
     }
 }
 
-impl CallFrame {
-    fn next_instruction(&mut self, scope: &Scope) -> Instruction {
+impl <'vm> CallFrame<'vm> {
+    fn next_instruction(&mut self, scope: &Scope<'vm>) -> Instruction<'vm> {
         let instruction = scope.instructions[self.pc].clone();
         self.pc += 1;
         instruction
@@ -127,11 +247,12 @@ impl CallFrame {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct Scope {
-    instructions: Vec<Instruction>
+pub struct Scope<'vm> {
+    instructions: Vec<Instruction<'vm>>,
+    type_definitions: IndexMap<String, RigzObjectDefinition>
 }
 
-impl Scope {
+impl <'vm> Scope<'vm> {
     #[inline]
     pub fn new() -> Self {
         Self::default()
@@ -139,15 +260,22 @@ impl Scope {
 }
 
 #[derive(Clone, Debug)]
-pub struct VM {
-    scopes: Vec<Scope>,
-    current: CallFrame,
-    frames: Vec<CallFrame>,
-    registers: IndexMap<usize, Value>,
+pub struct Lifecycle<'vm> {
+    name: String,
+    parent: Option<&'vm Lifecycle<'vm>>
 }
 
-impl VM {
-    pub fn insert_register(&mut self, register: Register, value: Value) {
+#[derive(Clone, Debug)]
+pub struct VM<'vm> {
+    scopes: Vec<Scope<'vm>>,
+    current: CallFrame<'vm>,
+    frames: Vec<CallFrame<'vm>>,
+    registers: IndexMap<usize, Value<'vm>>,
+    lifecycles: Vec<Lifecycle<'vm>>
+}
+
+impl <'vm> VM<'vm> {
+    pub fn insert_register(&mut self, register: Register, value: Value<'vm>) {
         if register == 0 {
             return
         }
@@ -155,7 +283,7 @@ impl VM {
         self.registers.insert(register, value);
     }
 
-    pub fn remove_register(&mut self, register: &Register) -> Result<Value, VMError> {
+    pub fn remove_register(&mut self, register: &Register) -> Result<Value<'vm>, VMError> {
         if *register == 0 {
             return Ok(Value::None)
         }
@@ -259,6 +387,10 @@ impl VM {
                             self.current = c;
                         }
                     }
+                }
+                Instruction::Cast { from, rigz_type, to } => {
+                    let value = self.remove_register(&from)?;
+                    self.insert_register(to, value.cast(rigz_type)?);
                 }
             }
         }

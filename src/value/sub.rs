@@ -1,8 +1,8 @@
 use std::ops::{Sub};
 use crate::value::Value;
 
-impl Sub for Value {
-    type Output = Value;
+impl <'vm> Sub for Value<'vm> {
+    type Output = Value<'vm>;
 
     fn sub(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
@@ -44,6 +44,26 @@ impl Sub for Value {
                 Value::Map(result)
             }
             _ => todo!()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::define_value_tests;
+    use crate::number::Number;
+    use crate::value::Value;
+
+    define_value_tests! {
+        - {
+            test_none_sub_none => (Value::None, Value::None, Value::None);
+            test_none_bool_false_sub_none => (Value::Bool(false), Value::None, Value::Bool(false));
+            test_bool_true_sub_none => (Value::Bool(true), Value::None, Value::Bool(true));
+            test_none_bool_true_sub_true => (Value::None, Value::Bool(true), Value::Bool(false));
+            test_false_bool_true_sub_true => (Value::Bool(false), Value::Bool(true), Value::Bool(true));
+            test_false_0_sub_true => (Value::Bool(false), Value::Number(Number::UInt(0)), Value::Bool(false));
+            test_true_0_sub_true => (Value::Bool(true), Value::Number(Number::UInt(0)), Value::Number(Number::UInt(1)));
+            // sub more test cases here as needed
         }
     }
 }

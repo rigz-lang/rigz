@@ -17,20 +17,21 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use indexmap::IndexMap;
 use crate::number::Number;
-use crate::VMError;
+use crate::{BOOL, ERROR, LIST, MAP, NONE, NUMBER, RigzObject, RigzObjectDefinition, RigzType, STRING, VMError};
 
 #[derive(Clone, Debug)]
-pub enum Value {
+pub enum Value<'vm> {
     None,
     Bool(bool),
     Number(Number),
     String(String),
-    List(Vec<Value>),
-    Map(IndexMap<Value, Value>),
+    List(Vec<Value<'vm>>),
+    Map(IndexMap<Value<'vm>, Value<'vm>>),
+    Object(RigzObject<'vm>),
     Error(VMError),
 }
 
-impl Value {
+impl <'vm> Value<'vm> {
     pub fn to_bool(&self) -> bool {
         match self {
             Value::None => false,
@@ -46,12 +47,153 @@ impl Value {
                 s.parse().unwrap_or(true)
             },
             Value::List(l) => !l.is_empty(),
-            Value::Map(m) => !m.is_empty()
+            Value::Map(m) => !m.is_empty(),
+            Value::Object(m) => !m.fields.is_empty()
         }
+    }
+
+    #[inline]
+    pub fn rigz_type(&self) -> RigzType {
+        match self {
+            Value::None => RigzType::None,
+            Value::Bool(_) => RigzType::Bool,
+            Value::Number(_) => RigzType::Number,
+            Value::String(_) => RigzType::String,
+            Value::List(_) => RigzType::List,
+            Value::Map(_) => RigzType::Map,
+            Value::Object(v) => RigzType::Object(v.definition_index.clone()),
+            Value::Error(_) => RigzType::Error,
+        }
+    }
+
+
+
+    #[inline]
+    pub fn to_object(&self) -> RigzObject<'vm> {
+        if let Value::Object(o) = self {
+            return o.clone();
+        }
+        let fields = IndexMap::from([("value".to_string(), self.clone())]);
+        match &self {
+            Value::None => RigzObject {
+                fields,
+                definition_index: &NONE,
+            },
+            Value::Bool(_) => RigzObject {
+                fields,
+                definition_index: &BOOL,
+            },
+            Value::Number(_) => RigzObject {
+                fields,
+                definition_index: &NUMBER,
+            },
+            Value::String(_) => RigzObject {
+                fields,
+                definition_index: &STRING,
+            },
+            Value::List(_) => RigzObject {
+                fields,
+                definition_index: &LIST,
+            },
+            Value::Map(_) => RigzObject {
+                fields,
+                definition_index: &MAP,
+            },
+            Value::Error(_) => RigzObject {
+                fields,
+                definition_index: &ERROR,
+            },
+            _ => unreachable!()
+        }
+    }
+
+    #[inline]
+    pub fn cast_to_object(&self, rigz_object_definition: RigzObjectDefinition) -> Result<RigzObject<'vm>, VMError> {
+        let object = self.to_object();
+        object.cast(rigz_object_definition)
+    }
+
+    #[inline]
+    pub fn cast(&self, rigz_type: RigzType) -> Result<Value<'vm>, VMError> {
+        let rigz_type = match rigz_type {
+            RigzType::None => return Ok(Value::None),
+            RigzType::Bool => return Ok(Value::Bool(self.to_bool())),
+            RigzType::String => return Ok(Value::String(self.to_string())),
+            RigzType::Object(o) => return Ok(Value::Object(self.cast_to_object(o)?)),
+            _ => rigz_type
+        };
+
+        let self_type = self.rigz_type();
+        if self_type == rigz_type {
+            return Ok(self.to_owned())
+        }
+
+        let v = match (self_type, rigz_type) {
+            (RigzType::None, RigzType::Number) => Value::Number(Number::Int(0)),
+            (RigzType::None, RigzType::Int) => Value::Number(Number::Int(0)),
+            (RigzType::None, RigzType::UInt) => Value::Number(Number::UInt(0)),
+            (RigzType::None, RigzType::Float) => Value::Number(Number::Float(0.0)),
+            (RigzType::None, RigzType::List) => Value::String(String::new()),
+            (RigzType::None, RigzType::Map) => Value::String(String::new()),
+            (RigzType::Bool, RigzType::Number) => {
+                if let Value::Bool(b) = self {
+                    let v = if *b { 1 } else { 0 };
+                    return Ok(Value::Number(Number::Int(v)))
+                }
+                unreachable!()
+            },
+            (RigzType::Bool, RigzType::Int) => {
+                if let Value::Bool(b) = self {
+                    let v = if *b { 1 } else { 0 };
+                    return Ok(Value::Number(Number::Int(v)))
+                }
+                unreachable!()
+            },
+            (RigzType::Bool, RigzType::UInt) => {
+                if let Value::Bool(b) = self {
+                    let v = if *b { 1 } else { 0 };
+                    return Ok(Value::Number(Number::UInt(v)))
+                }
+                unreachable!()
+            },
+            (RigzType::Bool, RigzType::Float) => {
+                if let Value::Bool(b) = self {
+                    let v = if *b { 1.0 } else { 0.0 };
+                    return Ok(Value::Number(Number::Float(v)))
+                }
+                unreachable!()
+            },
+            (RigzType::Number, RigzType::Int) => {
+                if let Value::Number(b) = self {
+                    return Ok(Value::Number(Number::Int(b.to_int())))
+                }
+                unreachable!()
+            }
+            (RigzType::Number, RigzType::UInt) => {
+                if let Value::Number(b) = self {
+                    return Ok(Value::Number(Number::UInt(b.to_uint()?)))
+                }
+                unreachable!()
+            }
+            (RigzType::Number, RigzType::Float) => {
+                if let Value::Number(b) = self {
+                    return Ok(Value::Number(Number::Float(b.to_float())))
+                }
+                unreachable!()
+            }
+            (RigzType::String, RigzType::List) => {
+                if let Value::String(s) = self {
+                    return Ok(Value::List(s.chars().map(|c| Value::String(c.to_string())).collect()))
+                }
+                unreachable!()
+            }
+            _ => unreachable!()
+        };
+        Ok(v)
     }
 }
 
-impl Display for Value {
+impl <'vm> Display for Value<'vm> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::None => write!(f, "none"),
@@ -83,13 +225,26 @@ impl Display for Value {
                 }
                 write!(f, "[{}]", values)
             }
+            Value::Object(o) => {
+                let mut values = String::new();
+                let len = o.fields.len();
+                for (index, (k, v)) in o.fields.iter().enumerate() {
+                    values.push_str(k.to_string().as_str());
+                    values.push_str(" = ");
+                    values.push_str(v.to_string().as_str());
+                    if index != len - 1 {
+                        values.push(',')
+                    }
+                }
+                write!(f, "{} {{ {} }}", o.definition_index.name, values)
+            }
         }
     }
 }
 
-impl Eq for Value {}
+impl <'vm> Eq for Value<'vm> {}
 
-impl Hash for Value {
+impl <'vm> Hash for Value<'vm> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             Value::None => 0.hash(state),
@@ -108,11 +263,12 @@ impl Hash for Value {
                     v.hash(state);
                 }
             }
+            Value::Object(m) => m.hash(state)
         }
     }
 }
 
-impl PartialEq for Value {
+impl <'vm> PartialEq for Value<'vm> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Value::None, Value::None) => true,
@@ -125,6 +281,8 @@ impl PartialEq for Value {
             (Value::None, Value::String(s)) => s.is_empty() || s.eq("none"),
             (Value::None, Value::List(v)) => v.is_empty(),
             (Value::None, Value::Map(m)) => m.is_empty(),
+            (Value::None, Value::Object(m)) => m.is_empty(),
+            (Value::Object(m), Value::None) => m.is_empty(),
             (Value::Bool(false), Value::String(s)) => s.is_empty() || s.eq("false"),
             (Value::Bool(false), Value::List(v)) => v.is_empty(),
             (Value::Bool(false), Value::Map(m)) => m.is_empty(),
@@ -159,7 +317,12 @@ impl PartialEq for Value {
             (Value::String(s), v) => s.eq(v.to_string().as_str()),
             (v, Value::String(s)) => s.eq(v.to_string().as_str()),
             (Value::List(a), Value::Map(b)) => a.is_empty() && b.is_empty(),
-            (Value::Map(a), Value::List(b)) => a.is_empty() && b.is_empty()
+            (Value::List(a), Value::Object(b)) => a.is_empty() && b.is_empty(),
+            (Value::Object(a), Value::List(b)) => a.is_empty() && b.is_empty(),
+            (Value::Map(a), Value::List(b)) => a.is_empty() && b.is_empty(),
+            (Value::Map(a), Value::Object(b)) => b.equivalent(a),
+            (Value::Object(a), Value::Map(b)) => a.equivalent(b),
+            (Value::Object(a), Value::Object(b)) => a == b,
         }
     }
 }

@@ -91,6 +91,11 @@ impl PartialEq for Number {
 
 impl Number {
     #[inline]
+    pub fn zero() -> Number {
+        Number::Int(0)
+    }
+
+    #[inline]
     pub fn is_one(self) -> bool {
         match self {
             Number::Int(i) => i == 1,
