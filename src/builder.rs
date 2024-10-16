@@ -75,8 +75,8 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        pub fn exit_scope(&mut self) -> &mut Self {
-            let s = self.add_instruction(Instruction::Ret);
+        pub fn exit_scope(&mut self, output: Register) -> &mut Self {
+            let s = self.add_instruction(Instruction::Ret(output));
             s.sp -= 1;
             s
         }
@@ -130,8 +130,8 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        pub fn add_call_instruction(&mut self, scope_id: usize) -> &mut Self {
-            self.add_instruction(Instruction::Call(scope_id))
+        pub fn add_call_instruction(&mut self, scope_id: usize, register: Register) -> &mut Self {
+            self.add_instruction(Instruction::Call(scope_id, register))
         }
 
         #[inline]
@@ -140,8 +140,9 @@ macro_rules! generate_builder {
             lhs: Register,
             rhs: Register,
             scope_id: usize,
+            register: Register,
         ) -> &mut Self {
-            self.add_instruction(Instruction::CallEq(lhs, rhs, scope_id))
+            self.add_instruction(Instruction::CallEq(lhs, rhs, scope_id, register))
         }
 
         #[inline]
@@ -150,8 +151,9 @@ macro_rules! generate_builder {
             lhs: Register,
             rhs: Register,
             scope_id: usize,
+            register: Register,
         ) -> &mut Self {
-            self.add_instruction(Instruction::CallNeq(lhs, rhs, scope_id))
+            self.add_instruction(Instruction::CallNeq(lhs, rhs, scope_id, register))
         }
 
         #[inline]
@@ -160,11 +162,13 @@ macro_rules! generate_builder {
             truthy: Register,
             if_scope: usize,
             else_scope: usize,
+            output: Register,
         ) -> &mut Self {
             self.add_instruction(Instruction::IfElse {
                 truthy,
                 if_scope,
                 else_scope,
+                output,
             })
         }
 
@@ -182,10 +186,6 @@ macro_rules! generate_builder {
             })
         }
 
-        #[inline]
-        pub fn add_halt_instruction(&mut self, register: Register) -> &mut Self {
-            self.add_instruction(Instruction::Halt(register))
-        }
 
         #[inline]
         pub fn add_copy_instruction(&mut self, from: Register, to: Register) -> &mut Self {

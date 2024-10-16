@@ -14,10 +14,7 @@ mod shr;
 mod sub;
 
 use crate::number::Number;
-use crate::{
-    RigzObject, RigzObjectDefinition, RigzType, VMError, BOOL, ERROR, LIST, MAP, NONE, NUMBER,
-    STRING,
-};
+use crate::{Register, RigzObject, RigzObjectDefinition, RigzType, VMError, BOOL, ERROR, LIST, MAP, NONE, NUMBER, STRING};
 use indexmap::IndexMap;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
@@ -32,7 +29,7 @@ pub enum Value<'vm> {
     List(Vec<Value<'vm>>),
     Map(IndexMap<Value<'vm>, Value<'vm>>),
     Object(RigzObject<'vm>),
-    ScopeId(usize),
+    ScopeId(usize, Register),
     Error(VMError),
 }
 
@@ -60,8 +57,8 @@ impl<'vm> PartialOrd for Value<'vm> {
             (Value::Map(_), _) => Some(Ordering::Less),
             (_, Value::Map(_)) => Some(Ordering::Greater),
             (_, Value::Object(_)) => Some(Ordering::Greater),
-            (Value::ScopeId(_), _) => todo!(),
-            (_, Value::ScopeId(_)) => todo!(),
+            (Value::ScopeId(_, _), _) => todo!(),
+            (_, Value::ScopeId(_, _)) => todo!(),
         }
     }
 }
@@ -84,7 +81,7 @@ impl<'vm> Value<'vm> {
             Value::List(l) => !l.is_empty(),
             Value::Map(m) => !m.is_empty(),
             Value::Object(m) => !m.fields.is_empty(),
-            Value::ScopeId(u) => todo!(),
+            Value::ScopeId(u, _) => todo!(),
         }
     }
 
@@ -99,7 +96,7 @@ impl<'vm> Value<'vm> {
             Value::Map(_) => RigzType::Map,
             Value::Object(v) => RigzType::Object(v.definition_index.clone()),
             Value::Error(_) => RigzType::Error,
-            Value::ScopeId(u) => todo!(),
+            Value::ScopeId(u, _) => todo!(),
         }
     }
 
@@ -278,7 +275,7 @@ impl<'vm> Display for Value<'vm> {
                 }
                 write!(f, "{} {{ {} }}", o.definition_index.name, values)
             }
-            Value::ScopeId(u) => write!(f, "0x{}", *u),
+            Value::ScopeId(u, _) => write!(f, "0x{}", *u),
         }
     }
 }
@@ -303,7 +300,7 @@ impl<'vm> Hash for Value<'vm> {
                 }
             }
             Value::Object(m) => m.hash(state),
-            Value::ScopeId(u) => u.hash(state),
+            Value::ScopeId(u, _) => u.hash(state),
         }
     }
 }
@@ -363,9 +360,9 @@ impl<'vm> PartialEq for Value<'vm> {
             (Value::Map(a), Value::Object(b)) => b.equivalent(a),
             (Value::Object(a), Value::Map(b)) => a.equivalent(b),
             (Value::Object(a), Value::Object(b)) => a == b,
-            (Value::ScopeId(a), Value::ScopeId(b)) => a == b,
-            (Value::ScopeId(_), _) => todo!(),
-            (_, Value::ScopeId(_)) => todo!(),
+            (Value::ScopeId(a, _), Value::ScopeId(b, _)) => a == b,
+            (Value::ScopeId(_, _), _) => todo!(),
+            (_, Value::ScopeId(_, _)) => todo!(),
         }
     }
 }
