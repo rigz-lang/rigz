@@ -7,15 +7,11 @@ impl Add for Value {
     #[inline]
     fn add(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (Value::Error(v), _) => Value::Error(v),
-            (_, Value::Error(v)) => Value::Error(v),
-            (Value::None, rhs) => rhs,
-            (lhs, Value::None) => lhs,
+            (Value::Error(v), _) | (_, Value::Error(v)) => Value::Error(v),
+            (Value::None, v) | (v, Value::None) => v,
             (Value::Bool(a), Value::Bool(b)) => Value::Bool(a | b),
-            (Value::Bool(a), b) => Value::Bool(a | b.to_bool()),
-            (b, Value::Bool(a)) => Value::Bool(a | b.to_bool()),
             (Value::Number(a), Value::Number(b)) => Value::Number(a + b),
-            (Value::Number(a), Value::String(b)) => {
+            (Value::Number(a), Value::String(b)) | (Value::String(b), Value::Number(a)) => {
                 let s = Value::String(b.clone());
                 match s.to_number() {
                     None => {
@@ -31,22 +27,12 @@ impl Add for Value {
                 result.push_str(b.as_str());
                 Value::String(result)
             }
-            (Value::String(a), b) => {
-                let mut result = a.clone();
-                result.push_str(b.to_string().as_str());
-                Value::String(result)
-            }
-            (a, Value::String(b)) => {
-                let mut result = a.to_string();
-                result.push_str(b.as_str());
-                Value::String(result)
-            }
             (Value::List(a), Value::List(b)) => {
                 let mut result = a.clone();
                 result.extend(b);
                 Value::List(result)
             }
-            (Value::List(a), b) => {
+            (Value::List(a), b) | (b, Value::List(a)) => {
                 let mut result = a.clone();
                 result.push(b);
                 Value::List(result)
@@ -56,12 +42,12 @@ impl Add for Value {
                 result.extend(b);
                 Value::Map(result)
             }
-            (Value::Map(a), b) => {
+            (Value::Map(a), b) | (b, Value::Map(a)) => {
                 let mut result = a.clone();
                 result.insert(b.clone(), b);
                 Value::Map(result)
             }
-            _ => todo!(),
+            (Value::Bool(a), b) | (b, Value::Bool(a)) => Value::Bool(a | b.to_bool()),
         }
     }
 }

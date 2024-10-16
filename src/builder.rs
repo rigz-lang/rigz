@@ -1,5 +1,5 @@
 use crate::lifecycle::Lifecycle;
-use crate::value::Value;
+use crate::vm::RegisterValue;
 use crate::vm::VMOptions;
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, Binary, BinaryOperation,

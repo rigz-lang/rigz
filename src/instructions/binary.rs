@@ -1,6 +1,6 @@
-use std::fmt::{Display, Formatter};
 use crate::instructions::Clear;
 use crate::{Logical, Register, VMError, Value, VM};
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Binary {
@@ -90,32 +90,30 @@ impl<'vm> VM<'vm> {
             BinaryOperation::Lte => Value::Bool(lhs <= rhs),
         };
 
-        self.insert_register(output, v);
+        self.insert_register(output, v.into());
     }
 
     #[inline]
-    pub fn handle_binary(&mut self, binary: Binary) -> Result<(), VMError> {
+    pub fn handle_binary(&mut self, binary: Binary) {
         let Binary {
             op,
             lhs,
             rhs,
             output,
         } = binary;
-        let lhs = self.resolve_register(lhs)?;
-        let rhs = self.resolve_register(rhs)?;
+        let lhs = self.resolve_register(lhs);
+        let rhs = self.resolve_register(rhs);
         self.apply_binary(op, lhs, rhs, output);
-        Ok(())
     }
 
-    pub fn handle_binary_assign(&mut self, binary: Binary) -> Result<(), VMError> {
+    pub fn handle_binary_assign(&mut self, binary: Binary) {
         let Binary { op, lhs, rhs, .. } = binary;
-        let v = self.resolve_register(lhs)?;
-        let rhs = self.resolve_register(rhs)?;
+        let v = self.resolve_register(lhs);
+        let rhs = self.resolve_register(rhs);
         self.apply_binary(op, v, rhs, lhs); // TODO measure cost of storing in same register vs impl *Assign trait
-        Ok(())
     }
 
-    pub fn handle_binary_clear(&mut self, binary: Binary, clear: Clear) -> Result<(), VMError> {
+    pub fn handle_binary_clear(&mut self, binary: Binary, clear: Clear) {
         let Binary {
             op,
             lhs,
@@ -139,26 +137,31 @@ impl<'vm> VM<'vm> {
                 self.remove_register_eval_scope(c2),
                 self.remove_register_eval_scope(c1),
             ),
-            Clear::One(c) => {
-                return Err(VMError::RuntimeError(format!(
+            Clear::One(c) => (
+                self.remove_register_eval_scope(c),
+                VMError::RuntimeError(format!(
                     "Invalid Register Passed to binary_clear: {} must be {} or {}",
                     c, lhs, rhs
-                )))
-            }
+                ))
+                .to_value(),
+            ),
             Clear::Two(c1, c2) => {
-                return Err(VMError::RuntimeError(format!(
+                let v = VMError::RuntimeError(format!(
                     "Invalid Registers Passed to binary_clear: {} and {} must be either {} or {}",
                     c1, c2, lhs, rhs
-                )))
+                ))
+                .to_value();
+                (v.clone(), v)
             }
             c => {
-                return Err(VMError::RuntimeError(format!(
+                let v = VMError::RuntimeError(format!(
                     "Invalid Option Passed to binary_clear: {:?}",
                     c
-                )))
+                ))
+                .to_value();
+                (v.clone(), v)
             }
         };
-        self.apply_binary(op, lhs?, rhs?, output);
-        Ok(())
+        self.apply_binary(op, lhs, rhs, output);
     }
 }

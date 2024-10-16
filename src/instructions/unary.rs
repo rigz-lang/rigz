@@ -1,6 +1,6 @@
-use std::fmt::{Display, Formatter};
 use crate::instructions::Clear;
 use crate::{Register, Reverse, VMError, Value, VM};
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Unary {
@@ -35,73 +35,55 @@ impl Display for UnaryOperation {
 }
 
 impl<'vm> VM<'vm> {
-    pub fn apply_unary(
-        &mut self,
-        unary_operation: UnaryOperation,
-        val: Value,
-        output: Register,
-    ) {
-        match unary_operation {
-            UnaryOperation::Neg => {
-                self.insert_register(output, -val);
-            }
-            UnaryOperation::Not => {
-                self.insert_register(output, !val);
-            }
+    pub fn apply_unary(&mut self, unary_operation: UnaryOperation, val: Value, output: Register) {
+        let val = match unary_operation {
+            UnaryOperation::Neg => -val,
+            UnaryOperation::Not => !val,
             UnaryOperation::PrintLn => {
                 println!("{}", val);
-                self.insert_register(output, val);
+                Value::None
             }
             UnaryOperation::EPrintLn => {
                 eprintln!("{}", val);
-                self.insert_register(output, val);
+                Value::None
             }
             UnaryOperation::Print => {
                 print!("{}", val);
-                self.insert_register(output, val);
+                Value::None
             }
             UnaryOperation::EPrint => {
                 eprint!("{}", val);
-                self.insert_register(output, val);
+                Value::None
             }
-            UnaryOperation::Reverse => {
-                self.insert_register(output, val.reverse());
-            }
-        }
+            UnaryOperation::Reverse => val.reverse(),
+        };
+        self.insert_register(output, val.into())
     }
 
-    pub fn handle_unary(&mut self, unary: Unary) -> Result<(), VMError> {
+    pub fn handle_unary(&mut self, unary: Unary) {
         let Unary { op, from, output } = unary;
-        let val = self.resolve_register(from)?;
+        let val = self.resolve_register(from);
         self.apply_unary(op, val, output);
-        Ok(())
     }
 
-    pub fn handle_unary_assign(&mut self, unary: Unary) -> Result<(), VMError> {
+    pub fn handle_unary_assign(&mut self, unary: Unary) {
         let Unary { op, from, .. } = unary;
-        let val = self.resolve_register(from)?;
+        let val = self.resolve_register(from);
         self.apply_unary(op, val, from);
-        Ok(())
     }
 
-    pub fn handle_unary_clear(&mut self, unary: Unary, clear: Clear) -> Result<(), VMError> {
+    pub fn handle_unary_clear(&mut self, unary: Unary, clear: Clear) {
         let Unary { op, from, output } = unary;
         let val = match clear {
-            Clear::One(c) if c != from => {
-                return Err(VMError::RuntimeError(format!(
-                    "Invalid Register Passed to unary_clear: {} != {}",
-                    c, from
-                )))
-            }
-            Clear::One(c) => self.remove_register_eval_scope(c)?,
-            c => {
-                return Err(VMError::RuntimeError(format!(
-                    "Invalid Option Passed to unary_clear: {:?}",
-                    c
-                )))
-            }
+            Clear::One(c) if c != from => VMError::RuntimeError(format!(
+                "Invalid Register Passed to unary_clear: {} != {}",
+                c, from
+            ))
+            .to_value(),
+            Clear::One(c) => self.remove_register_eval_scope(c),
+            c => VMError::RuntimeError(format!("Invalid Option Passed to unary_clear: {:?}", c))
+                .to_value(),
         };
         self.apply_unary(op, val, output);
-        Ok(())
     }
 }

@@ -16,7 +16,7 @@ impl BitXor for Value {
             (Value::Bool(a), Value::Bool(b)) => Value::Bool(a ^ b),
             (Value::Bool(a), b) => Value::Bool(a ^ b.to_bool()),
             (b, Value::Bool(a)) => Value::Bool(a ^ b.to_bool()),
-            (Value::Number(a), Value::Number(b)) => Value::Number(a ^ b ),
+            (Value::Number(a), Value::Number(b)) => Value::Number(a ^ b),
             (Value::Number(a), Value::String(b)) => {
                 let s = Value::String(b.clone());
                 match s.to_number() {

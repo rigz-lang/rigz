@@ -35,17 +35,6 @@ impl_from_cast! {
     f32 as f64, Number, Number::Float;
 }
 
-impl From<bool> for Number {
-    #[inline]
-    fn from(value: bool) -> Self {
-        if value {
-            Number::one()
-        } else {
-            Number::zero()
-        }
-    }
-}
-
 impl Hash for Number {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
@@ -139,6 +128,14 @@ impl Number {
         match self {
             Number::Int(i) => i,
             Number::Float(f) => f as i64,
+        }
+    }
+
+    #[inline]
+    pub fn to_bits(self) -> u64 {
+        match self {
+            Number::Int(i) => u64::from_le_bytes(i.to_le_bytes()),
+            Number::Float(f) => f.to_bits(), // this could panic, may need to switch to le_bytes
         }
     }
 

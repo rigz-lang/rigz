@@ -13,7 +13,16 @@ pub enum RigzType {
     Map,
     Error,
     This,
+    VM,
+    Type(Box<RigzType>),
     Function(Vec<RigzType>, Box<RigzType>),
+    Custom(CustomType),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CustomType {
+    pub name: String,
+    pub fields: Vec<(String, RigzType)>,
 }
 
 // todo create an object/class type and store type definitions in scope

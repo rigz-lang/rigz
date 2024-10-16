@@ -14,7 +14,7 @@ mod shr;
 mod sub;
 
 use crate::number::Number;
-use crate::{impl_from, impl_from_into, Register, RigzType, VMError};
+use crate::{impl_from, RigzType, VMError};
 use indexmap::IndexMap;
 use log::trace;
 use std::cmp::Ordering;
@@ -31,7 +31,6 @@ pub enum Value {
     String(String),
     List(Vec<Value>),
     Map(IndexMap<Value, Value>),
-    ScopeId(usize, Register),
     // Range(ValueRange), todo support in later version
     Error(VMError),
 }
@@ -45,16 +44,16 @@ pub enum ValueRange {
 impl_from! {
     bool, Value, Value::Bool;
     String, Value, Value::String;
+    VMError, Value, Value::Error;
     Vec<Value>, Value, Value::List;
     IndexMap<Value, Value>, Value, Value::Map;
 }
 
-impl_from_into! {
-    i32, Value, Value::Number;
-    i64, Value, Value::Number;
-    u32, Value, Value::Number;
-    f32, Value, Value::Number;
-    f64, Value, Value::Number;
+impl<T: Into<Number>> From<T> for Value {
+    #[inline]
+    fn from(value: T) -> Self {
+        Value::Number(value.into())
+    }
 }
 
 impl Eq for Value {}
@@ -78,9 +77,7 @@ impl PartialOrd for Value {
             (_, Value::String(_)) => Some(Ordering::Greater),
             (Value::List(_), _) => Some(Ordering::Less),
             (_, Value::List(_)) => Some(Ordering::Greater),
-            (Value::Map(_), _) => Some(Ordering::Less),
             (_, Value::Map(_)) => Some(Ordering::Greater),
-            (Value::ScopeId(_, _), _) => Some(Ordering::Greater),
         }
     }
 }
@@ -106,6 +103,14 @@ impl Value {
         }
     }
 
+    pub fn to_float(&self) -> Option<f64> {
+        self.to_number().map(|n| n.to_float())
+    }
+
+    pub fn to_int(&self) -> Option<i64> {
+        self.to_number().map(|n| n.to_int())
+    }
+
     #[inline]
     pub fn to_bool(&self) -> bool {
         match self {
@@ -123,7 +128,64 @@ impl Value {
             }
             Value::List(l) => !l.is_empty(),
             Value::Map(m) => !m.is_empty(),
-            Value::ScopeId(_u, _) => todo!(),
+        }
+    }
+
+    pub fn to_list(&self) -> Vec<Value> {
+        match self {
+            Value::None => vec![],
+            Value::Bool(b) => {
+                if *b {
+                    vec![Value::Bool(*b)]
+                } else {
+                    vec![]
+                }
+            }
+            Value::Number(n) => {
+                vec![(*n).into()]
+            }
+            Value::String(s) => s.chars().map(|c| Value::String(c.to_string())).collect(),
+            Value::List(l) => l.clone(),
+            Value::Map(m) => {
+                let mut result = Vec::with_capacity(m.len());
+                for (k, v) in m {
+                    match k {
+                        Value::Number(i) => match i.to_usize() {
+                            Ok(index) => {
+                                result.insert(index, v.clone());
+                            }
+                            Err(_) => return vec![Value::Map(m.clone())],
+                        },
+                        _ => return vec![Value::Map(m.clone())],
+                    }
+                }
+                result
+            }
+            Value::Error(e) => vec![Value::Error(e.clone())],
+        }
+    }
+
+    pub fn to_map(&self) -> IndexMap<Value, Value> {
+        match self {
+            Value::None => IndexMap::new(),
+            Value::Bool(b) => {
+                if *b {
+                    IndexMap::from([(Value::Bool(*b), Value::Bool(*b))])
+                } else {
+                    IndexMap::new()
+                }
+            }
+            Value::Number(n) => IndexMap::from([((*n).into(), (*n).into())]),
+            Value::String(s) => {
+                let s = s.clone();
+                IndexMap::from([(s.clone().into(), s.into())])
+            }
+            Value::List(l) => l.iter().map(|v| (v.clone(), v.clone())).collect(),
+            Value::Map(m) => m.clone(),
+            Value::Error(e) => {
+                let e = e.clone();
+                IndexMap::from([(e.clone().into(), e.into())])
+            }
         }
     }
 
@@ -137,72 +199,53 @@ impl Value {
             Value::List(_) => RigzType::List,
             Value::Map(_) => RigzType::Map,
             Value::Error(_) => RigzType::Error,
-            Value::ScopeId(_u, _) => todo!(),
         }
     }
 
     #[inline]
-    pub fn cast(&self, rigz_type: RigzType) -> Result<Value, VMError> {
-        let rigz_type = match rigz_type {
-            RigzType::None => return Ok(Value::None),
-            RigzType::Bool => return Ok(Value::Bool(self.to_bool())),
-            RigzType::String => return Ok(Value::String(self.to_string())),
-            _ => rigz_type,
-        };
-
-        let self_type = self.rigz_type();
-        if self_type == rigz_type {
-            return Ok(self.to_owned());
+    pub fn cast(self, rigz_type: RigzType) -> Value {
+        match (self, rigz_type) {
+            (_, RigzType::None) => Value::None,
+            (v, RigzType::Bool) => Value::Bool(v.to_bool()),
+            (v, RigzType::String) => Value::String(v.to_string()),
+            (v, RigzType::Number) => match v.to_number() {
+                None => {
+                    VMError::ConversionError(format!("Cannot convert {} to Number", v)).to_value()
+                }
+                Some(n) => Value::Number(n),
+            },
+            (s, RigzType::Any) => s,
+            (v, RigzType::Int) => match v.to_int() {
+                None => VMError::ConversionError(format!("Cannot convert {} to Int", v)).to_value(),
+                Some(n) => Value::Number(n.into()),
+            },
+            (v, RigzType::Float) => match v.to_float() {
+                None => {
+                    VMError::ConversionError(format!("Cannot convert {} to Float", v)).to_value()
+                }
+                Some(n) => Value::Number(n.into()),
+            },
+            (v, RigzType::List) => Value::List(v.to_list()),
+            (v, RigzType::Map) => Value::Map(v.to_map()),
+            (v, RigzType::Custom(def)) => {
+                let mut res = v.to_map();
+                for (field, rigz_type) in def.fields {
+                    match res.get_mut(&Value::String(field.clone())) {
+                        None => {
+                            return VMError::ConversionError(format!(
+                                "Cannot convert value {} to {}, missing {}",
+                                v, def.name, field
+                            ))
+                            .to_value()
+                        }
+                        Some(current) => *current = current.clone().cast(rigz_type),
+                    }
+                }
+                Value::Map(res)
+            }
+            (v, t) => VMError::ConversionError(format!("Cannot convert value {} to {:?}", v, t))
+                .to_value(),
         }
-
-        let v = match (self_type, rigz_type) {
-            (RigzType::None, RigzType::Number) => Value::Number(Number::Int(0)),
-            (RigzType::None, RigzType::Int) => Value::Number(Number::Int(0)),
-            (RigzType::None, RigzType::Float) => Value::Number(Number::Float(0.0)),
-            (RigzType::None, RigzType::List) => Value::String(String::new()),
-            (RigzType::None, RigzType::Map) => Value::String(String::new()),
-            (RigzType::Bool, RigzType::Number) => {
-                if let &Value::Bool(b) = self {
-                    return Ok(Value::Number(b.into()));
-                }
-                unreachable!()
-            }
-            (RigzType::Bool, RigzType::Int) => {
-                if let &Value::Bool(b) = self {
-                    return Ok(Value::Number(b.into()));
-                }
-                unreachable!()
-            }
-            (RigzType::Bool, RigzType::Float) => {
-                if let &Value::Bool(b) = self {
-                    let v = if b { 1.0 } else { 0.0 };
-                    return Ok(Value::Number(Number::Float(v)));
-                }
-                unreachable!()
-            }
-            (RigzType::Number, RigzType::Int) => {
-                if let Value::Number(b) = self {
-                    return Ok(Value::Number(Number::Int(b.to_int())));
-                }
-                unreachable!()
-            }
-            (RigzType::Number, RigzType::Float) => {
-                if let Value::Number(b) = self {
-                    return Ok(Value::Number(Number::Float(b.to_float())));
-                }
-                unreachable!()
-            }
-            (RigzType::String, RigzType::List) => {
-                if let Value::String(s) = self {
-                    return Ok(Value::List(
-                        s.chars().map(|c| Value::String(c.to_string())).collect(),
-                    ));
-                }
-                unreachable!()
-            }
-            _ => unreachable!(),
-        };
-        Ok(v)
     }
 }
 
@@ -239,8 +282,6 @@ impl Display for Value {
                 }
                 write!(f, "[{}]", values)
             }
-            // todo improve this
-            Value::ScopeId(u, r) => write!(f, "s{} r{}", u, r),
         }
     }
 }
@@ -264,7 +305,6 @@ impl Hash for Value {
                     v.hash(state);
                 }
             }
-            Value::ScopeId(u, _) => u.hash(state),
         }
     }
 }
@@ -317,9 +357,22 @@ impl PartialEq for Value {
             (v, Value::String(s)) => s.eq(v.to_string().as_str()),
             (Value::List(a), Value::Map(b)) => a.is_empty() && b.is_empty(),
             (Value::Map(a), Value::List(b)) => a.is_empty() && b.is_empty(),
-            (Value::ScopeId(a, _), Value::ScopeId(b, _)) => a == b,
-            (Value::ScopeId(_, _), _) => todo!(),
-            (_, Value::ScopeId(_, _)) => todo!(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Number, Value};
+
+    #[test]
+    fn value_eq() {
+        assert_eq!(Value::None, Value::None);
+        assert_eq!(Value::None, Value::Bool(false));
+        assert_eq!(Value::None, Value::Number(Number::Int(0)));
+        assert_eq!(Value::None, Value::Number(Number::Float(0.0)));
+        assert_eq!(Value::None, Value::String(String::new()));
+        assert_eq!(Value::Bool(false), Value::String(String::new()));
+        assert_eq!(Value::Number(Number::Int(0)), Value::String(String::new()));
     }
 }

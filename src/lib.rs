@@ -32,9 +32,6 @@ pub type Register = usize;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum VMError {
     RuntimeError(String),
-    FrameError(String),
-    ScopeError(String),
-    InvalidPC(String),
     EmptyRegister(String),
     ConversionError(String),
     ScopeDoesNotExist(String),
@@ -55,30 +52,19 @@ impl VMError {
 mod tests {
     use crate::number::Number;
     use crate::value::Value;
+    use crate::vm::RegisterValue;
     use crate::{Module, RigzType, VMBuilder, VMError, VM};
     use std::str::FromStr;
 
     #[test]
-    fn value_eq() {
-        assert_eq!(Value::None, Value::None);
-        assert_eq!(Value::None, Value::Bool(false));
-        assert_eq!(Value::None, Value::Number(Number::Int(0)));
-        assert_eq!(Value::None, Value::Number(Number::Float(0.0)));
-        assert_eq!(Value::None, Value::String(String::new()));
-        assert_eq!(Value::Bool(false), Value::String(String::new()));
-        assert_eq!(Value::Number(Number::Int(0)), Value::String(String::new()));
-    }
-
-    #[test]
     fn load_works() {
         let mut builder = VMBuilder::new();
-        builder
-            .add_load_instruction(4, Value::Number(Number::Int(42)));
+        builder.add_load_instruction(4, Value::Number(Number::Int(42)).into());
         let mut vm = builder.build();
-        vm.run().unwrap();
+        vm.eval().unwrap();
         assert_eq!(
             vm.registers.get(&4).unwrap().clone(),
-            Value::Number(Number::Int(42))
+            Value::Number(Number::Int(42)).into()
         );
     }
 
@@ -86,13 +72,13 @@ mod tests {
     fn cast_works() {
         let mut builder = VMBuilder::new();
         builder
-            .add_load_instruction(4, Value::Number(Number::Int(42)))
+            .add_load_instruction(4, Value::Number(Number::Int(42)).into())
             .add_cast_instruction(4, RigzType::String, 7);
         let mut vm = builder.build();
-        vm.run().unwrap();
+        vm.eval().unwrap();
         assert_eq!(
             vm.registers.get(&7).unwrap().clone(),
-            Value::String(42.to_string())
+            Value::String(42.to_string()).into()
         );
     }
 
@@ -100,14 +86,14 @@ mod tests {
     fn add_works() {
         let mut builder = VMBuilder::new();
         builder
-            .add_load_instruction(4, Value::Number(Number::Int(42)))
+            .add_load_instruction(4, Value::Number(Number::Int(42)).into())
             .add_copy_instruction(4, 37)
             .add_add_instruction(4, 37, 82);
         let mut vm = builder.build();
-        vm.run().unwrap();
+        vm.eval().unwrap();
         assert_eq!(
             vm.registers.get(&82).unwrap().clone(),
-            Value::Number(Number::Int(84))
+            Value::Number(Number::Int(84)).into()
         );
     }
 
@@ -115,13 +101,13 @@ mod tests {
     fn copy_works() {
         let mut builder = VMBuilder::new();
         builder
-            .add_load_instruction(4, Value::Number(Number::Int(42)))
+            .add_load_instruction(4, Value::Number(Number::Int(42)).into())
             .add_copy_instruction(4, 37);
         let mut vm = builder.build();
-        vm.run().unwrap();
+        vm.eval().unwrap();
         assert_eq!(
             vm.registers.get(&37).unwrap().clone(),
-            Value::Number(Number::Int(42))
+            Value::Number(Number::Int(42)).into()
         );
     }
 
@@ -129,14 +115,14 @@ mod tests {
     fn shr_works_str_number() {
         let mut builder = VMBuilder::new();
         builder
-            .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()))
-            .add_load_instruction(3, Value::Number(Number::Int(1)))
+            .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()).into())
+            .add_load_instruction(3, Value::Number(Number::Int(1)).into())
             .add_shr_instruction(2, 3, 4);
         let mut vm = builder.build();
-        vm.run().unwrap();
+        vm.eval().unwrap();
         assert_eq!(
             vm.registers.get(&4).unwrap().clone(),
-            Value::String(String::from_str("ab").unwrap())
+            Value::String(String::from_str("ab").unwrap()).into()
         );
     }
 
@@ -144,14 +130,14 @@ mod tests {
     fn shl_works_str_number() {
         let mut builder = VMBuilder::new();
         builder
-            .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()))
-            .add_load_instruction(3, Value::Number(Number::Int(1)))
+            .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()).into())
+            .add_load_instruction(3, Value::Number(Number::Int(1)).into())
             .add_shl_instruction(2, 3, 4);
         let mut vm = builder.build();
-        vm.run().unwrap();
+        vm.eval().unwrap();
         assert_eq!(
             vm.registers.get(&4).unwrap().clone(),
-            Value::String(String::from_str("bc").unwrap())
+            Value::String(String::from_str("bc").unwrap()).into()
         );
     }
 
@@ -159,16 +145,16 @@ mod tests {
     fn call_works() {
         let mut builder = VMBuilder::new();
         builder
-            .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()))
+            .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()).into())
             .enter_scope()
             .add_copy_instruction(2, 3)
             .exit_scope(3)
             .add_call_instruction(1, 3);
         let mut vm = builder.build();
-        vm.run().unwrap();
+        vm.eval().unwrap();
         assert_eq!(
             vm.registers.get(&3).unwrap().clone(),
-            Value::String(String::from_str("abc").unwrap())
+            Value::String(String::from_str("abc").unwrap()).into()
         );
     }
 
@@ -224,11 +210,11 @@ mod tests {
         let module = TestModule {};
         builder
             .register_module(module)
-            .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()))
+            .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()).into())
             .add_call_module_instruction("test", "hello", vec![2], 3);
         let mut vm = builder.build();
-        vm.run().unwrap();
-        assert_eq!(vm.registers.get(&3).unwrap().clone(), Value::None);
+        vm.eval().unwrap();
+        assert_eq!(vm.registers.get(&3).unwrap().clone(), Value::None.into());
     }
 
     #[test]
@@ -238,19 +224,19 @@ mod tests {
         // a = 1 + 2; a + 2
         builder
             .enter_scope()
-            .add_load_instruction(2, Value::Number(Number::Int(1)))
-            .add_load_instruction(3, Value::Number(Number::Int(2)))
+            .add_load_instruction(2, Value::Number(Number::Int(1)).into())
+            .add_load_instruction(3, Value::Number(Number::Int(2)).into())
             .add_add_instruction(2, 3, 4)
             .exit_scope(4)
-            .add_load_instruction(5, Value::ScopeId(1, 4))
+            .add_load_instruction(5, RegisterValue::ScopeId(1, 4))
             .add_load_let_instruction("a", 5)
             .add_get_variable_instruction("a", 6)
-            .add_load_instruction(7, Value::Number(Number::Int(2)))
+            .add_load_instruction(7, Value::Number(Number::Int(2)).into())
             .add_add_instruction(6, 7, 8)
             .add_halt_instruction(8);
 
         let mut vm = builder.build();
-        let v = vm.run().unwrap();
+        let v = vm.eval().unwrap();
         assert_eq!(v, Value::Number(Number::Int(5)))
     }
 
@@ -259,11 +245,11 @@ mod tests {
         let mut builder = VMBuilder::new();
         builder
             .enter_scope()
-            .add_load_instruction(2, Value::String("hello".to_string()))
+            .add_load_instruction(2, Value::String("hello".to_string()).into())
             .exit_scope(2)
-            .add_load_instruction(4, Value::ScopeId(1, 2))
+            .add_load_instruction(4, RegisterValue::ScopeId(1, 2))
             .add_halt_instruction(4);
         let mut vm = builder.build();
-        assert_eq!(vm.run().unwrap(), Value::String("hello".to_string()))
+        assert_eq!(vm.eval().unwrap(), Value::String("hello".to_string()))
     }
 }

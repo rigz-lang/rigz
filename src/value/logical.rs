@@ -16,7 +16,7 @@ impl Logical<Value> for Value {
     #[inline]
     fn or(self, rhs: Value) -> Self::Output {
         match (self, rhs) {
-            (Value::None, _) => Value::None,
+            (Value::None, rhs) => rhs,
             (lhs, Value::None) => lhs,
             (_, rhs) => rhs,
         }
@@ -25,9 +25,9 @@ impl Logical<Value> for Value {
     #[inline]
     fn xor(self, rhs: Value) -> Self::Output {
         match (self, rhs) {
-            (Value::None, _) => Value::None,
+            (Value::None, rhs) => rhs,
             (lhs, Value::None) => lhs,
-            (_, rhs) => rhs,
+            (_, _) => Value::None,
         }
     }
 }
