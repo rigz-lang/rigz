@@ -1,7 +1,5 @@
-use std::ops::{Add, Sub};
-use crate::number::Number;
+use std::ops::{Sub};
 use crate::value::Value;
-use crate::VMError;
 
 impl Sub for Value {
     type Output = Value;
@@ -37,7 +35,7 @@ impl Sub for Value {
             }
             (Value::Map(a), Value::Map(b)) => {
                 let mut result = a.clone();
-                result.retain(|k, v| !b.contains_key(k));
+                result.retain(|k, _| !b.contains_key(k));
                 Value::Map(result)
             }
             (Value::Map(a), b) => {

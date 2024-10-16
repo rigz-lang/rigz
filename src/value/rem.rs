@@ -1,7 +1,5 @@
-use std::ops::{Add, Rem, Sub};
-use crate::number::Number;
+use std::ops::{Rem};
 use crate::value::Value;
-use crate::VMError;
 
 impl Rem for Value {
     type Output = Value;

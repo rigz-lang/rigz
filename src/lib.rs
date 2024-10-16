@@ -4,9 +4,8 @@ mod builder;
 mod value;
 mod number;
 
-use std::fmt::{Debug, Display};
-use std::hash::{Hash, Hasher};
-use std::ops::Index;
+use std::fmt::{Debug};
+use std::hash::Hash;
 use indexmap::IndexMap;
 use crate::value::Value;
 
@@ -271,7 +270,7 @@ mod tests {
     use crate::VMBuilder;
     use crate::number::Number;
     use crate::value::Value;
-    use super::*;
+    
 
     #[test]
     fn value_eq() {

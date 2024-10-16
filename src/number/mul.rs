@@ -1,4 +1,4 @@
-use std::ops::{Add, Mul};
+use std::ops::{Mul};
 use crate::number::Number;
 use crate::VMError;
 

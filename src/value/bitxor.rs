@@ -1,5 +1,4 @@
-use std::ops::{Add, BitAnd, BitOr, BitXor, Div};
-use crate::number::Number;
+use std::ops::{BitXor};
 use crate::value::Value;
 use crate::VMError;
 
@@ -10,7 +9,7 @@ impl BitXor for Value {
         match (self, rhs) {
             (Value::Error(v), _) => Value::Error(v),
             (_, Value::Error(v)) => Value::Error(v),
-            (Value::None, rhs) => Value::None,
+            (Value::None, _) => Value::None,
             (lhs, Value::None) => Value::Error(VMError::RuntimeError(format!("Cannot divide {} by 0/none", lhs))),
             (Value::Bool(a), Value::Bool(b)) => Value::Bool(a | b),
             (Value::Bool(a), b) => Value::Bool(a | b.to_bool()),

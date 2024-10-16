@@ -1,7 +1,5 @@
 use std::ops::Add;
-use crate::number::Number;
 use crate::value::Value;
-use crate::VMError;
 
 impl Add for Value {
     type Output = Value;

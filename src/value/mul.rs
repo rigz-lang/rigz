@@ -1,7 +1,5 @@
-use std::ops::{Add, Mul};
-use crate::number::Number;
+use std::ops::{Mul};
 use crate::value::Value;
-use crate::VMError;
 
 impl Mul for Value {
     type Output = Value;
@@ -10,8 +8,8 @@ impl Mul for Value {
         match (self, rhs) {
             (Value::Error(v), _) => Value::Error(v),
             (_, Value::Error(v)) => Value::Error(v),
-            (Value::None, rhs) => Value::None,
-            (lhs, Value::None) => Value::None,
+            (Value::None, _) => Value::None,
+            (_, Value::None) => Value::None,
             (Value::Bool(a), Value::Bool(b)) => Value::Bool(a | b),
             (Value::Bool(a), b) => Value::Bool(a | b.to_bool()),
             (b, Value::Bool(a)) => Value::Bool(a | b.to_bool()),

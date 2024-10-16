@@ -1,4 +1,4 @@
-use std::ops::{Add, BitAnd};
+use std::ops::{BitAnd};
 use crate::number::Number;
 use crate::VMError;
 
