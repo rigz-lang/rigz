@@ -12,6 +12,7 @@ mod scope;
 mod traits;
 mod value;
 mod vm;
+mod value_range;
 
 use std::fmt::Debug;
 use std::hash::Hash;

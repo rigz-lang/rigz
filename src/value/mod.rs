@@ -20,7 +20,7 @@ use log::trace;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
-use std::ops::Range;
+use crate::value_range::ValueRange;
 
 #[derive(Clone, Debug, Default)]
 pub enum Value {
@@ -31,14 +31,9 @@ pub enum Value {
     String(String),
     List(Vec<Value>),
     Map(IndexMap<Value, Value>),
-    // Range(ValueRange), todo support in later version
+    Range(ValueRange),
     Error(VMError),
-}
-
-#[derive(Clone, Debug)]
-pub enum ValueRange {
-    Int(Range<i64>),
-    Char(Range<char>),
+    // todo create dedicated object value to avoid map usage everywhere, might need to be a trait
 }
 
 impl_from! {
@@ -46,6 +41,7 @@ impl_from! {
     String, Value, Value::String;
     VMError, Value, Value::Error;
     Vec<Value>, Value, Value::List;
+    ValueRange, Value, Value::Range;
     IndexMap<Value, Value>, Value, Value::Map;
 }
 
@@ -73,6 +69,8 @@ impl PartialOrd for Value {
             (_, Value::Bool(_)) => Some(Ordering::Greater),
             (Value::Number(_), _) => Some(Ordering::Less),
             (_, Value::Number(_)) => Some(Ordering::Greater),
+            (Value::Range(_), _) => Some(Ordering::Less),
+            (_, Value::Range(_)) => Some(Ordering::Greater),
             (Value::String(_), _) => Some(Ordering::Less),
             (_, Value::String(_)) => Some(Ordering::Greater),
             (Value::List(_), _) => Some(Ordering::Less),
@@ -128,6 +126,7 @@ impl Value {
             }
             Value::List(l) => !l.is_empty(),
             Value::Map(m) => !m.is_empty(),
+            Value::Range(r) => !r.is_empty(),
         }
     }
 
@@ -161,6 +160,7 @@ impl Value {
                 }
                 result
             }
+            Value::Range(r) => r.to_list(),
             Value::Error(e) => vec![Value::Error(e.clone())],
         }
     }
@@ -186,19 +186,7 @@ impl Value {
                 let e = e.clone();
                 IndexMap::from([(e.clone().into(), e.into())])
             }
-        }
-    }
-
-    #[inline]
-    pub fn rigz_type(&self) -> RigzType {
-        match self {
-            Value::None => RigzType::None,
-            Value::Bool(_) => RigzType::Bool,
-            Value::Number(_) => RigzType::Number,
-            Value::String(_) => RigzType::String,
-            Value::List(_) => RigzType::List,
-            Value::Map(_) => RigzType::Map,
-            Value::Error(_) => RigzType::Error,
+            Value::Range(r) => r.to_map(),
         }
     }
 
@@ -258,6 +246,7 @@ impl Display for Value {
             Value::Bool(v) => write!(f, "{}", v),
             Value::Number(v) => write!(f, "{}", v),
             Value::String(v) => write!(f, "{}", v),
+            Value::Range(v) => write!(f, "{}", v),
             Value::List(l) => {
                 let mut values = String::new();
                 let len = l.len();
@@ -294,6 +283,7 @@ impl Hash for Value {
             Value::Bool(b) => b.hash(state),
             Value::Number(n) => n.hash(state),
             Value::String(s) => s.hash(state),
+            Value::Range(s) => s.hash(state),
             Value::List(l) => {
                 for v in l {
                     v.hash(state);
@@ -342,6 +332,8 @@ impl PartialEq for Value {
             (Value::Number(n), Value::Bool(true)) => n.is_one(),
             (_, Value::Bool(_)) => false,
             (&Value::Number(a), &Value::Number(b)) => a == b,
+            (Value::Range(a), Value::Range(b)) => a == b,
+            (Value::Range(_), _) | (_, Value::Range(_)) => false,
             (Value::String(a), Value::String(b)) => *a == *b,
             (Value::List(a), Value::List(b)) => *a == *b,
             (Value::Map(a), Value::Map(b)) => *a == *b,

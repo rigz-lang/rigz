@@ -14,6 +14,7 @@ pub enum RigzType {
     Error,
     This,
     VM,
+    Range,
     Type(Box<RigzType>),
     Function(Vec<RigzType>, Box<RigzType>),
     Custom(CustomType),

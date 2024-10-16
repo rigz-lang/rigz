@@ -10,6 +10,7 @@ impl Neg for Value {
             Value::None => Value::None,
             Value::Bool(b) => Value::Bool(!b),
             Value::Number(n) => Value::Number(-n),
+            Value::Range(n) => Value::Range(-n),
             v => v,
         }
     }
