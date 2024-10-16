@@ -3,6 +3,9 @@ default:
   cache: &global_cache
     policy: pull
     unprotect: true
+    key:
+      files:
+        - Cargo.lock
     paths:
       - target/
     when: on_success
@@ -13,14 +16,14 @@ stages:
 
 test:
   stage: test
-  cache:
-    <<: *global_cache
-    policy: pull-push
   script:
     - cargo test
 
 benchmarks:
   stage: test
+  cache:
+    <<: *global_cache
+    policy: pull-push
   script:
     - cargo bench
 
