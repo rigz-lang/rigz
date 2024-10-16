@@ -30,6 +30,16 @@ impl<'vm> Div for Value<'vm> {
                     Err(e) => Value::Error(e),
                 }
             }
+            (Value::Number(a), Value::String(b)) => {
+                let s = Value::String(b.clone());
+                match s.to_number() {
+                    None => VMError::UnsupportedOperation(format!("{} / {}", a, b)).to_value(),
+                    Some(r) => match a / r {
+                        Ok(n) => Value::Number(n),
+                        Err(e) => Value::Error(e),
+                    },
+                }
+            }
             (Value::String(a), Value::String(b)) => {
                 let result = a.split(b.as_str());
                 Value::List(result.map(|s| Value::String(s.to_string())).collect())

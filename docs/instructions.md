@@ -9,6 +9,22 @@ R1 - Value::Number(Number::Int(1))
 
 Halt the VM and return the value from Register
 
+## Puts
+
+Print a list of values, separated by a comma with a trailing newline
+
+### Arguments:
+args - The values to print
+
+## Log
+
+Log a template string followed by a list of values, requires `enable_logging` to be set. Disabled by default.
+
+### Arguments:
+level - log level (uses log built-ins)
+args - The values to log
+
+
 ### Arguments:
 Register - The register to return a value from
 
@@ -17,18 +33,22 @@ Register - The register to return a value from
 Apply a unary operation to the value in `from` and save the result in `to`.
 
 ### Arguments: 
-op: UnaryOperation - The unary operation
-from: Register - The register with the source value
-output: Register - the output register
+Unary {
+    op: UnaryOperation - The unary operation
+    from: Register - The register with the source value
+    output: Register - the output register
+}
 
 ## Binary
 Apply a binary operation to the values in lhs and rhs, save the result in output 
 
 ### Arguments:
-op: BinaryOperation - The binary operation to apply
-lhs: Register - The left hand side
-rhs: Register - The right hand side of the binary operation
-output: Register - The output register 
+Binary {
+    op: BinaryOperation - The binary operation to apply
+    lhs: Register - The left hand side
+    rhs: Register - The right hand side of the binary operation
+    output: Register - The output register
+}
 
 
 ## Load

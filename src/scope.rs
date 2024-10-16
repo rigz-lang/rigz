@@ -1,5 +1,5 @@
+use crate::{Instruction, RigzObjectDefinition};
 use indexmap::IndexMap;
-use crate::{Instruction, Register, RigzObjectDefinition, VMError, Value, VM};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Scope<'vm> {

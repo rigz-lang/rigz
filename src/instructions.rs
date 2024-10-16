@@ -1,19 +1,5 @@
 use crate::{Register, RigzType, Value};
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Unary {
-    pub op: UnaryOperation,
-    pub from: Register,
-    pub output: Register,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Binary {
-    pub op: BinaryOperation,
-    pub lhs: Register,
-    pub rhs: Register,
-    pub output: Register,
-}
+use log::Level;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Instruction<'vm> {
@@ -23,6 +9,8 @@ pub enum Instruction<'vm> {
     Load(Register, Value<'vm>),
     Copy(Register, Register),
     Call(usize, Register),
+    Log(Level, &'vm str, Vec<Value<'vm>>),
+    Puts(Vec<Value<'vm>>),
     CallModule {
         module: &'vm str,
         function: &'vm str,
@@ -42,7 +30,7 @@ pub enum Instruction<'vm> {
         truthy: Register,
         if_scope: usize,
         else_scope: usize,
-        output: Register
+        output: Register,
     },
     Cast {
         from: Register,
@@ -58,12 +46,29 @@ pub enum Instruction<'vm> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Unary {
+    pub op: UnaryOperation,
+    pub from: Register,
+    pub output: Register,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum UnaryOperation {
     Neg,
     Not,
     Rev,
     Print,
     EPrint,
+    PrintLn,
+    EPrintLn,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Binary {
+    pub op: BinaryOperation,
+    pub lhs: Register,
+    pub rhs: Register,
+    pub output: Register,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

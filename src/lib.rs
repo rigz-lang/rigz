@@ -12,18 +12,18 @@ mod vm;
 
 use indexmap::IndexMap;
 use std::fmt::Debug;
-use std::hash::{Hash, Hasher};
-use std::string::ToString;
+use std::hash::Hash;
 
 pub(crate) use objects::{BOOL, ERROR, LIST, MAP, NONE, NUMBER, STRING};
 
 pub use builder::VMBuilder;
-pub use instructions::{Binary, Instruction, BinaryOperation, Unary, UnaryOperation};
+pub use instructions::{Binary, BinaryOperation, Instruction, Unary, UnaryOperation};
 pub use number::Number;
-pub use objects::{RigzType, RigzObject, RigzObjectDefinition};
+pub use objects::{RigzObject, RigzObjectDefinition, RigzType};
 pub use scope::Scope;
-pub use traits::{Rev, Logical};
+pub use traits::{Logical, Rev};
 pub use value::Value;
+pub use vm::VM;
 
 pub type Register = usize;
 
@@ -41,6 +41,12 @@ pub enum VMError {
     VariableDoesNotExist(String),
     InvalidModule(String),
     InvalidModuleFunction(String),
+}
+
+impl<'vm> VMError {
+    pub fn to_value(self) -> Value<'vm> {
+        Value::Error(self)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -80,12 +86,6 @@ impl Default for CallFrame {
 }
 
 impl<'vm> CallFrame {
-    fn next_instruction(&mut self, scope: &Scope<'vm>) -> Instruction<'vm> {
-        let instruction = scope.instructions[self.pc].clone();
-        self.pc += 1;
-        instruction
-    }
-
     pub fn main() -> Self {
         Self {
             output: 0,
@@ -114,17 +114,6 @@ pub struct Lifecycle<'vm> {
 }
 
 #[derive(Clone, Debug)]
-pub struct VM<'vm> {
-    pub scopes: Vec<Scope<'vm>>,
-    pub current: CallFrame,
-    pub frames: Vec<CallFrame>,
-    pub registers: IndexMap<usize, Value<'vm>>,
-    pub lifecycles: Vec<Lifecycle<'vm>>,
-    pub modules: IndexMap<&'vm str, Module<'vm>>,
-    pub sp: usize,
-}
-
-#[derive(Clone, Debug)]
 pub struct Module<'vm> {
     pub name: &'vm str,
     pub functions: IndexMap<&'vm str, fn(Vec<Value<'vm>>) -> Value<'vm>>,
@@ -132,21 +121,13 @@ pub struct Module<'vm> {
         IndexMap<RigzType, IndexMap<&'vm str, fn(Value<'vm>, Vec<Value<'vm>>) -> Value<'vm>>>,
 }
 
-impl<'vm> Default for VM<'vm> {
-    fn default() -> Self {
-        VM::new()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::number::Number;
-    use crate::number::Number::Int;
     use crate::value::Value;
     use crate::{Module, RigzType, VMBuilder};
     use indexmap::IndexMap;
     use std::str::FromStr;
-    use log::{log_enabled, LevelFilter};
 
     #[test]
     fn value_eq() {
@@ -292,7 +273,8 @@ mod tests {
         pretty_env_logger::init();
         let mut builder = VMBuilder::new();
         // a = 1 + 2; a + 2
-        builder.enter_scope()
+        builder
+            .enter_scope()
             .add_load_instruction(2, Value::Number(Number::Int(1)))
             .add_load_instruction(3, Value::Number(Number::Int(2)))
             .add_add_instruction(2, 3, 4)
@@ -312,7 +294,8 @@ mod tests {
     #[test]
     fn simple_scope() {
         let mut builder = VMBuilder::new();
-        builder.enter_scope()
+        builder
+            .enter_scope()
             .add_load_instruction(2, Value::String("hello".to_string()))
             .exit_scope(2)
             .add_load_instruction(4, Value::ScopeId(1, 2))

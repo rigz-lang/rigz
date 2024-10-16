@@ -14,8 +14,12 @@ mod shr;
 mod sub;
 
 use crate::number::Number;
-use crate::{Register, RigzObject, RigzObjectDefinition, RigzType, VMError, BOOL, ERROR, LIST, MAP, NONE, NUMBER, STRING};
+use crate::{
+    Register, RigzObject, RigzObjectDefinition, RigzType, VMError, BOOL, ERROR, LIST, MAP, NONE,
+    NUMBER, STRING,
+};
 use indexmap::IndexMap;
+use log::trace;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -64,6 +68,25 @@ impl<'vm> PartialOrd for Value<'vm> {
 }
 
 impl<'vm> Value<'vm> {
+    pub fn to_number(&self) -> Option<Number> {
+        match self {
+            Value::None => Some(Number::zero()),
+            Value::Bool(b) => {
+                let n = if *b { Number::Int(1) } else { Number::zero() };
+                Some(n)
+            }
+            Value::Number(n) => Some(*n),
+            Value::String(s) => match s.parse() {
+                Ok(n) => Some(n),
+                Err(e) => {
+                    trace!("Failed to convert {} to number: {}", s, e);
+                    None
+                }
+            },
+            _ => None,
+        }
+    }
+
     pub fn to_bool(&self) -> bool {
         match self {
             Value::None => false,
@@ -81,7 +104,7 @@ impl<'vm> Value<'vm> {
             Value::List(l) => !l.is_empty(),
             Value::Map(m) => !m.is_empty(),
             Value::Object(m) => !m.fields.is_empty(),
-            Value::ScopeId(u, _) => todo!(),
+            Value::ScopeId(_u, _) => todo!(),
         }
     }
 
@@ -96,7 +119,7 @@ impl<'vm> Value<'vm> {
             Value::Map(_) => RigzType::Map,
             Value::Object(v) => RigzType::Object(v.definition_index.clone()),
             Value::Error(_) => RigzType::Error,
-            Value::ScopeId(u, _) => todo!(),
+            Value::ScopeId(_u, _) => todo!(),
         }
     }
 

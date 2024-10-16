@@ -1,7 +1,7 @@
-use std::hash::{Hash, Hasher};
+use crate::{VMError, Value};
 use indexmap::IndexMap;
 use once_cell::sync::Lazy;
-use crate::{VMError, Value};
+use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RigzType {

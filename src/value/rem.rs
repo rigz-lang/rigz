@@ -1,4 +1,6 @@
 use crate::value::Value;
+use crate::VMError;
+use log::warn;
 use std::ops::Rem;
 
 impl<'vm> Rem for Value<'vm> {
@@ -17,7 +19,20 @@ impl<'vm> Rem for Value<'vm> {
                 Ok(n) => Value::Number(n),
                 Err(e) => Value::Error(e),
             },
-            (a, b) => a - b,
+            (Value::Number(a), Value::String(b)) => {
+                let s = Value::String(b.clone());
+                match s.to_number() {
+                    None => VMError::UnsupportedOperation(format!("{} % {}", a, b)).to_value(),
+                    Some(r) => match a % r {
+                        Ok(n) => Value::Number(n),
+                        Err(e) => Value::Error(e),
+                    },
+                }
+            }
+            (a, b) => {
+                warn!("{a} % {b} not implemented, defaulting to a - b");
+                a - b
+            }
         }
     }
 }
@@ -27,7 +42,6 @@ mod tests {
     use crate::define_value_tests;
     use crate::number::Number;
     use crate::value::Value;
-    use crate::VMError::RuntimeError;
 
     define_value_tests! {
         % {

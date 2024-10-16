@@ -1,4 +1,5 @@
 use crate::value::Value;
+use crate::VMError;
 use std::ops::BitAnd;
 
 impl<'vm> BitAnd for Value<'vm> {
@@ -17,6 +18,16 @@ impl<'vm> BitAnd for Value<'vm> {
                 Ok(n) => Value::Number(n),
                 Err(e) => Value::Error(e),
             },
+            (Value::Number(a), Value::String(b)) => {
+                let s = Value::String(b.clone());
+                match s.to_number() {
+                    None => VMError::UnsupportedOperation(format!("{} & {}", a, b)).to_value(),
+                    Some(r) => match a & r {
+                        Ok(n) => Value::Number(n),
+                        Err(e) => Value::Error(e),
+                    },
+                }
+            }
             // (Value::String(a), Value::String(b)) => {
             //     let mut result = a.clone();
             //     result.push_str(b.as_str());

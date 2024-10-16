@@ -19,13 +19,24 @@ impl<'vm> Mul for Value<'vm> {
                 Ok(n) => Value::Number(n),
                 Err(e) => Value::Error(e),
             },
+            (Value::Number(a), Value::String(b)) => {
+                let s = Value::String(b.clone());
+                match s.to_number() {
+                    None => VMError::UnsupportedOperation(format!("{} * {}", a, b)).to_value(),
+                    Some(r) => match a * r {
+                        Ok(n) => Value::Number(n),
+                        Err(e) => Value::Error(e),
+                    },
+                }
+            }
             (Value::String(a), Value::Number(n)) => {
                 if n.is_negative() {
-                    return Value::Error(VMError::RuntimeError(format!(
+                    return VMError::RuntimeError(format!(
                         "Cannot multiply {} by negatives: {}",
                         a,
                         n.to_string()
-                    )));
+                    ))
+                    .to_value();
                 }
 
                 let s = match n {
@@ -76,7 +87,6 @@ mod tests {
     use crate::define_value_tests;
     use crate::number::Number;
     use crate::value::Value;
-    use crate::VMError::RuntimeError;
 
     define_value_tests! {
         * {

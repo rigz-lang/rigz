@@ -1,5 +1,6 @@
 use crate::number::Number;
 use crate::value::Value;
+use crate::VMError;
 use std::ops::Shl;
 
 impl<'vm> Shl for Value<'vm> {
@@ -24,6 +25,13 @@ impl<'vm> Shl for Value<'vm> {
                 }
             }
             (Value::Number(lhs), Value::Number(rhs)) => Value::Number(lhs << rhs),
+            (Value::Number(a), Value::String(b)) => {
+                let s = Value::String(b.clone());
+                match s.to_number() {
+                    None => VMError::UnsupportedOperation(format!("{} << {}", a, b)).to_value(),
+                    Some(r) => Value::Number(a << r),
+                }
+            }
             (Value::String(lhs), Value::Number(rhs)) => {
                 let lhs = lhs.as_str();
                 let s = if rhs.is_negative() {

@@ -16,6 +16,7 @@ mod sub;
 use crate::VMError;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::str::FromStr;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Number {
@@ -79,6 +80,44 @@ impl PartialEq for Number {
             }
             (&Number::Float(a), &Number::Int(b)) => a == b as f64,
             (&Number::Float(a), &Number::UInt(b)) => a == b as f64,
+        }
+    }
+}
+
+impl FromStr for Number {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            _ if s.contains(".") => match s.parse() {
+                Ok(f) => Ok(Number::Float(f)),
+                Err(e) => Err(e.to_string()),
+            },
+            _ if s.ends_with("u") => {
+                let s = s[..s.len() - 1].to_string();
+                match s.parse() {
+                    Ok(u) => Ok(Number::UInt(u)),
+                    Err(e) => Err(e.to_string()),
+                }
+            }
+            _ if s.ends_with("f") => {
+                let s = s[..s.len() - 1].to_string();
+                match s.parse() {
+                    Ok(u) => Ok(Number::Float(u)),
+                    Err(e) => Err(e.to_string()),
+                }
+            }
+            _ if s.ends_with("i") => {
+                let s = s[..s.len() - 1].to_string();
+                match s.parse() {
+                    Ok(u) => Ok(Number::Int(u)),
+                    Err(e) => Err(e.to_string()),
+                }
+            }
+            _ => match s.parse() {
+                Ok(i) => Ok(Number::Int(i)),
+                Err(e) => Err(e.to_string()),
+            },
         }
     }
 }

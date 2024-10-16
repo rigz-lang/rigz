@@ -1,7 +1,8 @@
 use crate::value::Value;
+use crate::vm::VMOptions;
 use crate::{
-    Binary, Unary,
-    BinaryOperation, CallFrame, Instruction, Module, Register, RigzType, Scope, UnaryOperation, VM,
+    Binary, BinaryOperation, CallFrame, Instruction, Module, Register, RigzType, Scope, Unary,
+    UnaryOperation, VM,
 };
 use indexmap::IndexMap;
 
@@ -85,6 +86,12 @@ macro_rules! generate_builder {
         #[inline]
         pub fn register_module(&mut self, module: Module<'vm>) -> &mut Self {
             self.modules.insert(module.name, module);
+            self
+        }
+
+        #[inline]
+        pub fn with_options(&mut self, options: VMOptions) -> &mut Self {
+            self.options = options;
             self
         }
 
@@ -197,7 +204,6 @@ macro_rules! generate_builder {
             })
         }
 
-
         #[inline]
         pub fn add_copy_instruction(&mut self, from: Register, to: Register) -> &mut Self {
             self.add_instruction(Instruction::Copy(from, to))
@@ -234,6 +240,7 @@ pub struct VMBuilder<'vm> {
     pub sp: usize,
     pub scopes: Vec<Scope<'vm>>,
     pub modules: IndexMap<&'vm str, Module<'vm>>,
+    pub options: VMOptions,
 }
 
 impl<'vm> Default for VMBuilder<'vm> {
@@ -249,6 +256,7 @@ impl<'vm> VMBuilder<'vm> {
             sp: 0,
             scopes: vec![Scope::new()],
             modules: IndexMap::new(),
+            options: VMOptions::default(),
         }
     }
 
@@ -264,6 +272,7 @@ impl<'vm> VMBuilder<'vm> {
             lifecycles: vec![],
             modules: std::mem::take(&mut self.modules),
             sp: 0,
+            options: std::mem::take(&mut self.options),
         }
     }
 
@@ -277,6 +286,7 @@ impl<'vm> VMBuilder<'vm> {
             lifecycles: vec![],
             modules: self.modules.clone(),
             sp: 0,
+            options: self.options.clone(),
         };
         (vm, self)
     }
