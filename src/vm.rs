@@ -33,11 +33,11 @@ impl VMOptions {
     }
 
     fn from_byte(byte: u8) -> Self {
-        let mut result = VMOptions::default();
-        result.enable_logging = (byte & 1) == 1;
-        result.disable_modules = (byte & 1 << 1) == 2;
-        result.disable_variable_cleanup = (byte & 1 << 2) == 4;
-        result
+        VMOptions {
+            enable_logging: (byte & 1) == 1,
+            disable_modules: (byte & 1 << 1) == 2,
+            disable_variable_cleanup: (byte & 1 << 2) == 4,
+        }
     }
 }
 

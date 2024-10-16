@@ -18,7 +18,7 @@ use std::hash::Hash;
 
 pub use builder::VMBuilder;
 pub use call_frame::{CallFrame, Variable};
-pub use instructions::{Binary, BinaryOperation, Instruction, Unary, UnaryOperation};
+pub use instructions::{Binary, BinaryOperation, Instruction, Unary, UnaryOperation, Clear};
 pub use module::Module;
 pub use number::Number;
 pub use objects::{RigzObject, RigzObjectDefinition, RigzType};
