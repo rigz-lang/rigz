@@ -66,7 +66,11 @@ impl <'vm> VMBuilder<'vm> {
         add_rem_instruction => Rem,
         add_shl_instruction => Shl,
         add_shr_instruction => Shr,
-        add_sub_instruction => Sub
+        add_sub_instruction => Sub,
+        add_gt_instruction => Gt,
+        add_gte_instruction => Gte,
+        add_lt_instruction => Lt,
+        add_lte_instruction => Lte
     }
 
     generate_unary_op_methods! {
@@ -76,7 +80,6 @@ impl <'vm> VMBuilder<'vm> {
         add_eprint_instruction => EPrint
     }
 
-    //
     pub fn enter_scope(&mut self) -> &mut Self {
         self.scopes.push(Scope::new());
         self.sp += 1;
@@ -84,7 +87,7 @@ impl <'vm> VMBuilder<'vm> {
     }
 
     pub fn exit_scope(&mut self) -> &mut Self {
-        let mut s = self.add_instruction(Instruction::Ret);
+        let s = self.add_instruction(Instruction::Ret);
         s.sp -= 1;
         s
     }
@@ -96,6 +99,18 @@ impl <'vm> VMBuilder<'vm> {
 
     pub fn add_call_instruction(&mut self, scope_id: usize) -> &mut Self {
         self.add_instruction(Instruction::Call(scope_id))
+    }
+
+    pub fn add_call_eq_instruction(&mut self, lhs: Register, rhs: Register, scope_id: usize) -> &mut Self {
+        self.add_instruction(Instruction::CallEq(lhs, rhs, scope_id))
+    }
+
+    pub fn add_call_neq_instruction(&mut self, lhs: Register, rhs: Register, scope_id: usize) -> &mut Self {
+        self.add_instruction(Instruction::CallNeq(lhs, rhs, scope_id))
+    }
+
+    pub fn add_if_else_instruction(&mut self, truthy: Register, if_scope: usize, else_scope: usize) -> &mut Self {
+        self.add_instruction(Instruction::IfElse { truthy, if_scope, else_scope })
     }
 
     pub fn add_cast_instruction(&mut self, from: Register, rigz_type: RigzType, to: Register) -> &mut Self {

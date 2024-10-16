@@ -19,7 +19,7 @@ impl <'vm> Rem for Value<'vm> {
                     Err(e) => Value::Error(e)
                 }
             },
-            _ => todo!()
+            (a, b) => a - b,
         }
     }
 }

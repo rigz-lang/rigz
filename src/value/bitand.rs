@@ -1,6 +1,5 @@
 use std::ops::{BitAnd};
 use crate::value::Value;
-use crate::VMError;
 
 impl <'vm> BitAnd for Value<'vm> {
     type Output = Value<'vm>;

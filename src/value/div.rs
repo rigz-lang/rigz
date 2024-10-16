@@ -24,16 +24,15 @@ impl <'vm> Div for Value<'vm> {
                     Err(e) => Value::Error(e)
                 }
             },
-            // (Value::String(a), Value::String(b)) => {
-            //     let mut result = a.clone();
-            //     result.push_str(b.as_str());
-            //     Value::String(result)
-            // }
-            // (Value::String(a), b) => {
-            //     let mut result = a.clone();
-            //     result.push_str(b.to_string().as_str());
-            //     Value::String(result)
-            // }
+            (Value::String(a), Value::String(b)) => {
+                let result = a.split(b.as_str());
+                Value::List(result.map(|s| Value::String(s.to_string())).collect())
+            }
+            (Value::String(a), b) => {
+                let b = b.to_string();
+                let result = a.split(b.as_str());
+                Value::List(result.map(|s| Value::String(s.to_string())).collect())
+            }
             // (Value::List(a), Value::List(b)) => {
             //     let mut result = a.clone();
             //     result.extend(b);

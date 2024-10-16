@@ -1,7 +1,11 @@
 [package]
 name = "rigz_vm"
-version = "0.1.0"
+description = "Register based VM for rigz"
+version = "0.0.1"
 edition = "2021"
+readme = "README.md"
+license = "MIT"
+repository = "https://gitlab.com/magicfoodhand/rigz_vm"
 
 [dependencies]
 indexmap = "2.3.0"

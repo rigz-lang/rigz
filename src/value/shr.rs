@@ -33,6 +33,11 @@ impl <'vm> Shr for Value<'vm> {
                 };
                 Value::String(s)
             }
+            (Value::String(lhs), Value::String(rhs)) => {
+                let mut res = rhs.clone();
+                res.push_str(lhs.as_str());
+                Value::String(res)
+            }
             _ => todo!()
         }
     }
@@ -53,6 +58,7 @@ mod tests {
             test_false_bool_true_shr_true => (Value::Bool(false), Value::Bool(true), Value::Number(Number::Int(0)));
             test_false_0_shr_true => (Value::Bool(false), Value::Number(Number::UInt(0)), Value::Number(Number::UInt(0)));
             test_true_0_shr_true => (Value::Bool(true), Value::Number(Number::UInt(0)), Value::Number(Number::UInt(1)));
+            append_to_from => (Value::String("abc".into()), Value::String("123".into()), Value::String("123abc".into()));
             // shr more test cases here as needed
         }
     }

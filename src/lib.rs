@@ -5,7 +5,6 @@ mod value;
 mod number;
 mod macros;
 
-use std::cell::LazyCell;
 use std::fmt::{Debug};
 use std::hash::{Hash, Hasher};
 use std::string::ToString;
@@ -14,6 +13,7 @@ use once_cell::sync::Lazy;
 use crate::value::Value;
 
 pub use builder::VMBuilder;
+use crate::number::Number;
 
 pub trait Rev {
     type Output;
@@ -68,6 +68,10 @@ pub enum BinaryOperation {
     Xor,
     Eq,
     Neq,
+    Gte,
+    Gt,
+    Lt,
+    Lte,
 }
 
 #[derive(Clone, Debug)]
@@ -87,7 +91,13 @@ pub enum Instruction<'vm> {
     Load(Register, Value<'vm>),
     Copy(Register, Register),
     Call(usize),
-    Ret,
+    CallEq(Register, Register, usize),
+    CallNeq(Register, Register, usize),
+    IfElse {
+        truthy: Register,
+        if_scope: usize,
+        else_scope: usize
+    },
     Cast {
         from: Register,
         to: Register,
@@ -95,6 +105,7 @@ pub enum Instruction<'vm> {
     },
     // Import(),
     // Export(),
+    Ret,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -276,7 +287,7 @@ pub struct VM<'vm> {
 
 impl <'vm> VM<'vm> {
     pub fn insert_register(&mut self, register: Register, value: Value<'vm>) {
-        if register == 0 {
+        if register <= 1 {
             return
         }
 
@@ -288,19 +299,27 @@ impl <'vm> VM<'vm> {
             return Ok(Value::None)
         }
 
+        if *register == 1 {
+            return Ok(Value::Number(Number::Int(1)))
+        }
+
         match self.registers.shift_remove(register) {
             None => Err(VMError::EmptyRegister(format!("R{} is empty", register))),
             Some(v) => Ok(v),
         }
     }
 
+    fn current_scope(&mut self) -> Result<Scope<'vm>, VMError> {
+        let scope_id = self.current.scope_id;
+        match self.scopes.get(scope_id) {
+            None => Err(VMError::ScopeError(format!("Scope {} does not exist", scope_id))),
+            Some(s) => Ok(s.clone()),
+        }
+    }
+
     pub fn run(&mut self) -> Result<Value, VMError> {
         loop {
-            let scope = self.current.scope_id;
-            let scope = match self.scopes.get(scope) {
-                None => return Err(VMError::ScopeError(format!("Scope {} does not exist", scope))),
-                Some(s) => s.clone(),
-            };
+            let scope = self.current_scope()?;
             let len = scope.instructions.len();
             if self.current.pc >= len {
                 // TODO this should probably be an error requiring explicit halt, halt 0 returns none
@@ -355,7 +374,11 @@ impl <'vm> VM<'vm> {
                         BinaryOperation::BitXor => lhs ^ rhs,
                         BinaryOperation::And => lhs.and(rhs),
                         BinaryOperation::Or => lhs.or(rhs),
-                        BinaryOperation::Xor => lhs.xor(rhs)
+                        BinaryOperation::Xor => lhs.xor(rhs),
+                        BinaryOperation::Gt => Value::Bool(lhs > rhs),
+                        BinaryOperation::Gte => Value::Bool(lhs >= rhs),
+                        BinaryOperation::Lt => Value::Bool(lhs < rhs),
+                        BinaryOperation::Lte => Value::Bool(lhs <= rhs),
                     };
 
                     self.insert_register(output, v);
@@ -371,12 +394,7 @@ impl <'vm> VM<'vm> {
                     self.insert_register(to, copy);
                 }
                 Instruction::Call(scope_index) => {
-                    if self.scopes.len() <= scope_index {
-                        return Err(VMError::ScopeDoesNotExist(format!("{} does not exist", scope_index)))
-                    }
-                    let current = std::mem::take(&mut self.current);
-                    self.frames.push(current);
-                    self.current = CallFrame::child(scope_index, self.frames.len() - 1);
+                    self.call_frame(scope_index)?;
                 }
                 Instruction::Ret => {
                     match self.frames.pop() {
@@ -392,9 +410,40 @@ impl <'vm> VM<'vm> {
                     let value = self.remove_register(&from)?;
                     self.insert_register(to, value.cast(rigz_type)?);
                 }
+                Instruction::CallEq(a, b, scope_index) => {
+                    let a = self.remove_register(&a)?;
+                    let b = self.remove_register(&b)?;
+                    if a == b {
+                        self.call_frame(scope_index)?;
+                    }
+                }
+                Instruction::CallNeq(a, b, scope_index) => {
+                    let a = self.remove_register(&a)?;
+                    let b = self.remove_register(&b)?;
+                    if a != b {
+                        self.call_frame(scope_index)?;
+                    }
+                }
+                Instruction::IfElse { truthy, if_scope, else_scope } => {
+                    if self.remove_register(&truthy)?.to_bool() {
+                        self.call_frame(if_scope)?;
+                    } else {
+                        self.call_frame(else_scope)?;
+                    }
+                }
             }
         }
         Ok(Value::None)
+    }
+
+    fn call_frame(&mut self, scope_index: usize) -> Result<(), VMError> {
+        if self.scopes.len() <= scope_index {
+            return Err(VMError::ScopeDoesNotExist(format!("{} does not exist", scope_index)))
+        }
+        let current = std::mem::take(&mut self.current);
+        self.frames.push(current);
+        self.current = CallFrame::child(scope_index, self.frames.len() - 1);
+        Ok(())
     }
 }
 
@@ -404,8 +453,8 @@ mod tests {
     use std::str::FromStr;
     use crate::{RigzType, VMBuilder};
     use crate::number::Number;
+    use crate::number::Number::Int;
     use crate::value::Value;
-    
 
     #[test]
     fn value_eq() {
@@ -468,37 +517,52 @@ mod tests {
     fn shr_works_str_number() {
         let mut builder = VMBuilder::new();
         let mut vm = builder
-            .add_load_instruction(1, Value::String(String::from_str("abc").unwrap()))
-            .add_load_instruction(2, Value::Number(Number::Int(1)))
-            .add_shr_instruction(1, 2, 3)
+            .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()))
+            .add_load_instruction(3, Value::Number(Number::Int(1)))
+            .add_shr_instruction(2, 3, 4)
             .build();
         vm.run().unwrap();
-        assert_eq!(vm.registers.get(&3).unwrap().clone(), Value::String(String::from_str("ab").unwrap()));
+        assert_eq!(vm.registers.get(&4).unwrap().clone(), Value::String(String::from_str("ab").unwrap()));
     }
 
     #[test]
     fn shl_works_str_number() {
         let mut builder = VMBuilder::new();
         let mut vm = builder
-            .add_load_instruction(1, Value::String(String::from_str("abc").unwrap()))
-            .add_load_instruction(2, Value::Number(Number::Int(1)))
-            .add_shl_instruction(1, 2, 3)
+            .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()))
+            .add_load_instruction(3, Value::Number(Number::Int(1)))
+            .add_shl_instruction(2, 3, 4)
             .build();
         vm.run().unwrap();
-        assert_eq!(vm.registers.get(&3).unwrap().clone(), Value::String(String::from_str("bc").unwrap()));
+        assert_eq!(vm.registers.get(&4).unwrap().clone(), Value::String(String::from_str("bc").unwrap()));
     }
 
     #[test]
     fn call_works() {
         let mut builder = VMBuilder::new();
         let mut vm = builder
-            .add_load_instruction(1, Value::String(String::from_str("abc").unwrap()))
+            .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()))
             .enter_scope()
-            .add_copy_instruction(1, 3)
+            .add_copy_instruction(2, 3)
             .exit_scope()
             .add_call_instruction(1)
             .build();
         vm.run().unwrap();
         assert_eq!(vm.registers.get(&3).unwrap().clone(), Value::String(String::from_str("abc").unwrap()));
+    }
+
+    #[test]
+    fn add_fn_works() {
+        let mut builder = VMBuilder::new();
+        let mut vm = builder
+            .enter_scope()
+            .add_add_instruction(2, 3, 4)
+            .exit_scope()
+            .add_load_instruction(2, Value::Number(Number::Int(2)))
+            .add_load_instruction(3, Value::Number(Number::Int(4)))
+            .add_call_instruction(1)
+            .build();
+        vm.run().unwrap();
+        assert_eq!(vm.registers.get(&4).unwrap().clone(), Value::Number(Int(6)));
     }
 }

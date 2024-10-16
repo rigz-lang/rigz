@@ -1,5 +1,7 @@
 use std::ops::{Mul};
+use crate::number::Number;
 use crate::value::Value;
+use crate::VMError;
 
 impl <'vm> Mul for Value<'vm> {
     type Output = Value<'vm>;
@@ -19,11 +21,24 @@ impl <'vm> Mul for Value<'vm> {
                     Err(e) => Value::Error(e)
                 }
             },
-            // (Value::String(a), Value::String(b)) => {
-            //     let mut result = a.clone();
-            //     result.push_str(b.as_str());
-            //     Value::String(result)
-            // }
+            (Value::String(a), Value::Number(n)) => {
+                if n.is_negative() {
+                    return Value::Error(VMError::RuntimeError(format!("Cannot multiply {} by negatives: {}", a, n.to_string())))
+                }
+
+                let s = match n {
+                    Number::Int(_) | Number::UInt(_) => a.repeat(n.to_usize().unwrap()),
+                    Number::Float(f) => {
+                        let mut result = a.repeat(n.to_usize().unwrap());
+                        result.push_str(&a[..(f.fract() * a.len() as f64) as usize]);
+                        result
+                    }
+                };
+                Value::String(s)
+            }
+            (Value::String(a), Value::String(b)) => {
+                Value::List(vec![Value::String(a)]) * Value::String(b)
+            }
             // (Value::String(a), b) => {
             //     let mut result = a.clone();
             //     result.push_str(b.to_string().as_str());
@@ -70,6 +85,7 @@ mod tests {
             test_false_bool_true_mul_true => (Value::Bool(false), Value::Bool(true), Value::Bool(true));
             test_false_0_mul_true => (Value::Bool(false), Value::Number(Number::UInt(0)), Value::Bool(false));
             test_true_0_mul_true => (Value::Bool(true), Value::Number(Number::UInt(0)), Value::Number(Number::UInt(1)));
+            test_str_f64_str => (Value::String("abc".to_string()), Value::Number(Number::Float(2.5)), Value::String("abcabca".to_string()));
             // mul more test cases here as needed
         }
     }

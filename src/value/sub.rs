@@ -20,7 +20,7 @@ impl <'vm> Sub for Value<'vm> {
                 }
             },
             (Value::String(a), Value::String(b)) => {
-                let result = a.replacen(b.as_str(), "", 1);
+                let result = a.replace(b.as_str(), "");
                 Value::String(result)
             }
             (Value::List(a), Value::List(b)) => {

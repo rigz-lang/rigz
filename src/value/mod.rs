@@ -13,6 +13,7 @@ mod shr;
 mod sub;
 mod logical;
 
+use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use indexmap::IndexMap;
@@ -29,6 +30,32 @@ pub enum Value<'vm> {
     Map(IndexMap<Value<'vm>, Value<'vm>>),
     Object(RigzObject<'vm>),
     Error(VMError),
+}
+
+impl <'vm> PartialOrd for Value<'vm> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self.eq(other) {
+            return Some(Ordering::Equal)
+        }
+
+        match (self, other) {
+            (Value::Error(_), _) => Some(Ordering::Less),
+            (_, Value::Error(_)) => Some(Ordering::Greater),
+            (Value::None, _) => Some(Ordering::Less),
+            (_, Value::None) => Some(Ordering::Greater),
+            (Value::Bool(_), _) => Some(Ordering::Less),
+            (_, Value::Bool(_)) => Some(Ordering::Greater),
+            (Value::Number(_), _) => Some(Ordering::Less),
+            (_, Value::Number(_)) => Some(Ordering::Greater),
+            (Value::String(_), _) => Some(Ordering::Less),
+            (_, Value::String(_)) => Some(Ordering::Greater),
+            (Value::List(_), _) => Some(Ordering::Less),
+            (_, Value::List(_)) => Some(Ordering::Greater),
+            (Value::Map(_), _) => Some(Ordering::Less),
+            (_, Value::Map(_)) => Some(Ordering::Greater),
+            (_, Value::Object(_)) => Some(Ordering::Greater),
+        }
+    }
 }
 
 impl <'vm> Value<'vm> {

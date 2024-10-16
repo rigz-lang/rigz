@@ -33,6 +33,12 @@ impl <'vm> Shl for Value<'vm> {
                 };
                 Value::String(s)
             }
+            (Value::String(lhs), Value::String(rhs)) => {
+                let mut res = lhs.clone();
+                res.push_str(rhs.as_str());
+                Value::String(res)
+            }
+
             _ => todo!()
         }
     }
@@ -53,6 +59,7 @@ mod tests {
             test_false_bool_true_shl_true => (Value::Bool(false), Value::Bool(true), Value::Number(Number::zero()));
             test_false_0_shl_true => (Value::Bool(false), Value::Number(Number::UInt(0)), Value::Bool(false));
             test_true_0_shl_true => (Value::Bool(true), Value::Number(Number::UInt(0)), Value::Number(Number::UInt(1)));
+            push_to_end => (Value::String("abc".into()), Value::String("123".into()), Value::String("abc123".into()));
             // shl more test cases here as needed
         }
     }

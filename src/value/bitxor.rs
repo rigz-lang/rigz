@@ -1,6 +1,5 @@
 use std::ops::{BitXor};
 use crate::value::Value;
-use crate::VMError;
 
 impl <'vm> BitXor for Value<'vm> {
     type Output = Value<'vm>;
