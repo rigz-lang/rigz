@@ -210,7 +210,7 @@ impl <'vm> RigzObject<'vm> {
                 }
             };
         }
-        return true
+        true
     }
 }
 
@@ -419,7 +419,12 @@ impl <'vm> VM<'vm> {
                     self.insert_register(output, v);
                 }
                 Instruction::Load(r, v) => {
-                    self.insert_register(r, v);
+                    if let Value::Scope(s) = v {
+                        self.insert_register(r, Value::ScopeId(self.scopes.len()));
+                        self.scopes.push(s);
+                    } else {
+                        self.insert_register(r, v);
+                    }
                 }
                 Instruction::LoadLetRegister(name, register) => {
                     let value = self.remove_register(&register)?;
@@ -491,7 +496,15 @@ impl <'vm> VM<'vm> {
         Ok(Value::None)
     }
 
-    fn load_mut(&mut self, name: String, v: Value) -> Result<(), VMError> {
+    fn load_mut(&mut self, name: String, v: Value<'vm>) -> Result<(), VMError> {
+        let value = if let Value::Scope(s) = v {
+            let v = Value::ScopeId(self.scopes.len());
+            self.scopes.push(s);
+            v
+        } else {
+            v
+        };
+
         match self.current.variables.entry(name) {
             Entry::Occupied(mut var) => {
                 match var.get() {
@@ -499,24 +512,32 @@ impl <'vm> VM<'vm> {
                         return Err(VMError::UnsupportedOperation(format!("Cannot overwrite let variable: {}", *var.key())))
                     }
                     Variable::Mut(e) => {
-                        var.insert(Variable::Mut(v));
+                        var.insert(Variable::Mut(value));
                     }
                 }
             }
             Entry::Vacant(e) => {
-                e.insert(Variable::Mut(v));
+                e.insert(Variable::Mut(value));
             }
         }
         Ok(())
     }
 
-    fn load_let(&mut self, name: String, v: Value) -> Result<(), VMError> {
+    fn load_let(&mut self, name: String, v: Value<'vm>) -> Result<(), VMError> {
+        let value = if let Value::Scope(s) = v {
+            let v = Value::ScopeId(self.scopes.len());
+            self.scopes.push(s);
+            v
+        } else {
+            v
+        };
+
         match self.current.variables.entry(name) {
             Entry::Occupied(v) => {
                 return Err(VMError::UnsupportedOperation(format!("Cannot overwrite let variable: {}", *v.key())))
             },
             Entry::Vacant(e) => {
-                e.insert(Variable::Let(v));
+                e.insert(Variable::Let(value));
             }
         }
         Ok(())
@@ -636,30 +657,4 @@ mod tests {
         vm.run().unwrap();
         assert_eq!(vm.registers.get(&3).unwrap().clone(), Value::String(String::from_str("abc").unwrap()));
     }
-
-    // #[test]
-    // fn fib_fn_works() {
-    //     /*
-    //       fn fib(n) int
-    //         if n <= 1
-    //             return 1
-    //         end
-    //         a = fib n - 1
-    //         b = fib n - 2
-    //         a + b
-    //       end
-    //
-    //       fib 3
-    //      */
-    //     let mut builder = VMBuilder::new();
-    //     let mut vm = builder
-    //         .add_load_instruction(42, Value::Number(Number::Int(3)))
-    //         .enter_scope()
-    //         .add_load_let_instruction("n", 42)
-    //         .add_call_eq_instruction()
-    //         .exit_scope()
-    //         .build();
-    //     vm.run().unwrap();
-    //     assert_eq!(vm.registers.get(&4).unwrap().clone(), Value::Number(Int(6)));
-    // }
 }
