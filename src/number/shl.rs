@@ -4,6 +4,7 @@ use std::ops::Shl;
 impl Shl for Number {
     type Output = Number;
 
+    #[inline]
     fn shl(self, rhs: Self) -> Self::Output {
         let shift = match rhs {
             Number::Int(i) => i,

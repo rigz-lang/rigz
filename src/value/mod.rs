@@ -85,6 +85,7 @@ impl<'vm> PartialOrd for Value<'vm> {
 }
 
 impl<'vm> Value<'vm> {
+    #[inline]
     pub fn to_number(&self) -> Option<Number> {
         match self {
             Value::None => Some(Number::zero()),
@@ -104,6 +105,7 @@ impl<'vm> Value<'vm> {
         }
     }
 
+    #[inline]
     pub fn to_bool(&self) -> bool {
         match self {
             Value::None => false,

@@ -5,6 +5,7 @@ use std::ops::Add;
 impl Add for Number {
     type Output = Result<Number, VMError>;
 
+    #[inline]
     fn add(self, rhs: Self) -> Self::Output {
         let v = match (self, rhs) {
             (Number::Int(i), rhs) => Number::Int(i + rhs.to_int()),

@@ -6,6 +6,7 @@ use std::ops::Shr;
 impl<'vm> Shr for Value<'vm> {
     type Output = Value<'vm>;
 
+    #[inline]
     fn shr(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Value::None, _) => Value::None,

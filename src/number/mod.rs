@@ -38,6 +38,7 @@ impl_from_cast! {
 }
 
 impl From<bool> for Number {
+    #[inline]
     fn from(value: bool) -> Self {
         if value {
             Number::one()
@@ -76,6 +77,7 @@ impl Display for Number {
 impl Eq for Number {}
 
 impl PartialEq for Number {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (&Number::Int(a), &Number::Int(b)) => a == b,

@@ -74,9 +74,9 @@ mod tests {
     #[test]
     fn load_works() {
         let mut builder = VMBuilder::new();
-        let mut vm = builder
-            .add_load_instruction(4, Value::Number(Number::Int(42)))
-            .build();
+        builder
+            .add_load_instruction(4, Value::Number(Number::Int(42)));
+        let mut vm = builder.build();
         vm.run().unwrap();
         assert_eq!(
             vm.registers.get(&4).unwrap().clone(),
@@ -87,10 +87,10 @@ mod tests {
     #[test]
     fn cast_works() {
         let mut builder = VMBuilder::new();
-        let mut vm = builder
+        builder
             .add_load_instruction(4, Value::Number(Number::Int(42)))
-            .add_cast_instruction(4, RigzType::String, 7)
-            .build();
+            .add_cast_instruction(4, RigzType::String, 7);
+        let mut vm = builder.build();
         vm.run().unwrap();
         assert_eq!(
             vm.registers.get(&7).unwrap().clone(),
@@ -101,11 +101,11 @@ mod tests {
     #[test]
     fn add_works() {
         let mut builder = VMBuilder::new();
-        let mut vm = builder
+        builder
             .add_load_instruction(4, Value::Number(Number::Int(42)))
             .add_copy_instruction(4, 37)
-            .add_add_instruction(4, 37, 82)
-            .build();
+            .add_add_instruction(4, 37, 82);
+        let mut vm = builder.build();
         vm.run().unwrap();
         assert_eq!(
             vm.registers.get(&82).unwrap().clone(),
@@ -116,10 +116,10 @@ mod tests {
     #[test]
     fn copy_works() {
         let mut builder = VMBuilder::new();
-        let mut vm = builder
+        builder
             .add_load_instruction(4, Value::Number(Number::Int(42)))
-            .add_copy_instruction(4, 37)
-            .build();
+            .add_copy_instruction(4, 37);
+        let mut vm = builder.build();
         vm.run().unwrap();
         assert_eq!(
             vm.registers.get(&37).unwrap().clone(),
@@ -130,11 +130,11 @@ mod tests {
     #[test]
     fn shr_works_str_number() {
         let mut builder = VMBuilder::new();
-        let mut vm = builder
+        builder
             .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()))
             .add_load_instruction(3, Value::Number(Number::Int(1)))
-            .add_shr_instruction(2, 3, 4)
-            .build();
+            .add_shr_instruction(2, 3, 4);
+        let mut vm = builder.build();
         vm.run().unwrap();
         assert_eq!(
             vm.registers.get(&4).unwrap().clone(),
@@ -145,11 +145,11 @@ mod tests {
     #[test]
     fn shl_works_str_number() {
         let mut builder = VMBuilder::new();
-        let mut vm = builder
+        builder
             .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()))
             .add_load_instruction(3, Value::Number(Number::Int(1)))
-            .add_shl_instruction(2, 3, 4)
-            .build();
+            .add_shl_instruction(2, 3, 4);
+        let mut vm = builder.build();
         vm.run().unwrap();
         assert_eq!(
             vm.registers.get(&4).unwrap().clone(),
@@ -160,13 +160,13 @@ mod tests {
     #[test]
     fn call_works() {
         let mut builder = VMBuilder::new();
-        let mut vm = builder
+        builder
             .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()))
             .enter_scope()
             .add_copy_instruction(2, 3)
             .exit_scope(3)
-            .add_call_instruction(1, 3)
-            .build();
+            .add_call_instruction(1, 3);
+        let mut vm = builder.build();
         vm.run().unwrap();
         assert_eq!(
             vm.registers.get(&3).unwrap().clone(),
@@ -228,11 +228,11 @@ mod tests {
     fn module_works<'vm>() {
         let mut builder = VMBuilder::new();
         let module = TestModule {};
-        let mut vm = builder
+        builder
             .register_module(module)
             .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()))
-            .add_call_module_instruction("test", "hello", vec![2], 3)
-            .build();
+            .add_call_module_instruction("test", "hello", vec![2], 3);
+        let mut vm = builder.build();
         vm.run().unwrap();
         assert_eq!(vm.registers.get(&3).unwrap().clone(), Value::None);
     }

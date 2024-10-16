@@ -5,6 +5,7 @@ use std::ops::Rem;
 impl Rem for Number {
     type Output = Result<Number, VMError>;
 
+    #[inline]
     fn rem(self, rhs: Self) -> Self::Output {
         let v = match (self, rhs) {
             (Number::Int(i), rhs) => Number::Int(i % rhs.to_int()),

@@ -5,6 +5,7 @@ use std::ops::Sub;
 impl Sub for Number {
     type Output = Result<Number, VMError>;
 
+    #[inline]
     fn sub(self, rhs: Self) -> Self::Output {
         let v = match (self, rhs) {
             (Number::Int(i), rhs) => Number::Int(i - rhs.to_int()),

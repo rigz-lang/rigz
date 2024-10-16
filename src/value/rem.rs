@@ -6,6 +6,7 @@ use std::ops::Rem;
 impl<'vm> Rem for Value<'vm> {
     type Output = Value<'vm>;
 
+    #[inline]
     fn rem(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Value::Error(v), _) => Value::Error(v),

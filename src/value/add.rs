@@ -4,6 +4,7 @@ use std::ops::Add;
 impl<'vm> Add for Value<'vm> {
     type Output = Value<'vm>;
 
+    #[inline]
     fn add(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Value::Error(v), _) => Value::Error(v),

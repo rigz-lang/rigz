@@ -5,6 +5,7 @@ use std::ops::Div;
 impl<'vm> Div for Value<'vm> {
     type Output = Value<'vm>;
 
+    #[inline]
     fn div(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Value::Error(v), _) => Value::Error(v),

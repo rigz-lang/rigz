@@ -31,13 +31,8 @@ impl<'vm> CallFrame<'vm> {
     }
 }
 
-impl<'vm> Default for CallFrame<'vm> {
-    fn default() -> Self {
-        Self::main()
-    }
-}
-
 impl<'vm> CallFrame<'vm> {
+    #[inline]
     pub fn main() -> Self {
         Self {
             output: 0,
@@ -48,6 +43,7 @@ impl<'vm> CallFrame<'vm> {
         }
     }
 
+    #[inline]
     pub fn child(scope_id: usize, parent: usize, output: Register) -> Self {
         Self {
             scope_id,

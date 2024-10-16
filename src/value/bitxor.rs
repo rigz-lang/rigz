@@ -5,6 +5,7 @@ use std::ops::BitXor;
 impl<'vm> BitXor for Value<'vm> {
     type Output = Value<'vm>;
 
+    #[inline]
     fn bitxor(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Value::Error(v), _) => Value::Error(v),

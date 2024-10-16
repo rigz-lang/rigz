@@ -4,6 +4,7 @@ use crate::Logical;
 impl Logical<Number> for Number {
     type Output = Number;
 
+    #[inline]
     fn and(self, rhs: Number) -> Self::Output {
         match (self.is_zero(), rhs.is_zero()) {
             (true, true) => rhs,
@@ -13,6 +14,7 @@ impl Logical<Number> for Number {
         }
     }
 
+    #[inline]
     fn or(self, rhs: Number) -> Self::Output {
         match (self.is_zero(), rhs.is_zero()) {
             (true, true) => self,
@@ -22,6 +24,7 @@ impl Logical<Number> for Number {
         }
     }
 
+    #[inline]
     fn xor(self, rhs: Number) -> Self::Output {
         match (self.is_zero(), rhs.is_zero()) {
             (true, true) => Number::UInt(0),

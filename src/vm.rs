@@ -1,7 +1,7 @@
 use crate::instructions::{Binary, Unary};
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation,
-    CallFrame, Instruction, Module, Number, Register, RigzType, Scope, UnaryOperation, VMError,
+    CallFrame, Instruction, Module, Register, RigzType, Scope, UnaryOperation, VMError,
     Value, Variable,
 };
 use indexmap::map::Entry;
@@ -38,7 +38,7 @@ impl<'vm> Default for VM<'vm> {
     fn default() -> Self {
         Self {
             scopes: vec![Scope::new()],
-            current: Default::default(),
+            current: CallFrame::main(),
             frames: vec![],
             stack: vec![],
             registers: Default::default(),
@@ -57,24 +57,13 @@ impl<'vm> VM<'vm> {
 
     generate_builder!();
 
+    #[inline]
     pub fn insert_register(&mut self, register: Register, value: Value<'vm>) {
-        if register <= 1 {
-            return;
-        }
-
         self.registers.insert(register, value);
     }
 
     #[inline]
     pub fn get_register(&mut self, register: Register) -> Result<Value<'vm>, VMError> {
-        if register == 0 {
-            return Ok(Value::None);
-        }
-
-        if register == 1 {
-            return Ok(Value::Number(Number::Int(1)));
-        }
-
         match self.registers.get(&register) {
             None => Err(VMError::EmptyRegister(format!("R{} is empty", register))),
             Some(v) => Ok(v.clone()),
@@ -95,14 +84,6 @@ impl<'vm> VM<'vm> {
 
     #[inline]
     pub fn resolve_register(&mut self, register: Register) -> Result<Value<'vm>, VMError> {
-        if register == 0 {
-            return Ok(Value::None);
-        }
-
-        if register == 1 {
-            return Ok(Value::Number(Number::Int(1)));
-        }
-
         let v = self.get_register(register)?;
 
         if let Value::ScopeId(scope, output) = v {
@@ -155,7 +136,6 @@ impl<'vm> VM<'vm> {
             None => Err(VMError::EmptyRegister(format!("R{} is empty", register))),
             Some(v) => {
                 let value = std::mem::take(v);
-                *v = Value::None;
                 Ok(value)
             }
         }
@@ -213,6 +193,7 @@ impl<'vm> VM<'vm> {
         Ok(())
     }
 
+    #[inline]
     pub fn process_instruction(
         &mut self,
         instruction: Instruction<'vm>,
@@ -237,18 +218,16 @@ impl<'vm> VM<'vm> {
         }
     }
 
+    #[inline]
+    /// scope_id must be valid when this is called, otherwise function will panic
     fn next_instruction(&self) -> Result<Option<Instruction<'vm>>, VMError> {
         let scope_id = self.sp;
-        match self.scopes.get(scope_id) {
-            None => Err(VMError::ScopeError(format!(
-                "Scope {} does not exist",
-                scope_id
-            ))),
-            Some(s) => match s.instructions.get(self.current.pc) {
-                None => Ok(None),
-                // TODO delay cloning until instruction is being used (some instructions can be copied with &)
-                Some(s) => Ok(Some(s.clone())),
-            },
+        // TODO move &Scope to callframe
+        let scope = &self.scopes[scope_id];
+        match scope.instructions.get(self.current.pc) {
+            None => Ok(None),
+            // TODO delay cloning until instruction is being used (some instructions can be copied with &)
+            Some(s) => Ok(Some(s.clone())),
         }
     }
 
@@ -323,6 +302,7 @@ impl<'vm> VM<'vm> {
         Ok(())
     }
 
+    #[inline]
     pub fn call_frame(&mut self, scope_index: usize, output: Register) -> Result<(), VMError> {
         if self.scopes.len() <= scope_index {
             return Err(VMError::ScopeDoesNotExist(format!(
@@ -330,10 +310,9 @@ impl<'vm> VM<'vm> {
                 scope_index
             )));
         }
-        let current = std::mem::take(&mut self.current);
+        let current = std::mem::replace(&mut self.current, CallFrame::child(scope_index, self.frames.len(), output));
         self.frames.push(current);
         self.sp = scope_index;
-        self.current = CallFrame::child(scope_index, self.frames.len() - 1, output);
         Ok(())
     }
 

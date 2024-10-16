@@ -5,6 +5,7 @@ use std::ops::BitOr;
 impl<'vm> BitOr for Value<'vm> {
     type Output = Value<'vm>;
 
+    #[inline]
     fn bitor(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Value::Error(v), _) => Value::Error(v),

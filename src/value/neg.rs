@@ -4,6 +4,7 @@ use std::ops::Neg;
 impl<'vm> Neg for Value<'vm> {
     type Output = Value<'vm>;
 
+    #[inline]
     fn neg(self) -> Self::Output {
         match self {
             Value::None => Value::None,

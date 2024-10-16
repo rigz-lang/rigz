@@ -7,6 +7,7 @@ use crate::{
 use indexmap::IndexMap;
 use log::Level;
 
+#[derive(Clone)]
 pub struct VMBuilder<'vm> {
     pub sp: usize,
     pub scopes: Vec<Scope<'vm>>,
@@ -15,6 +16,7 @@ pub struct VMBuilder<'vm> {
 }
 
 impl<'vm> Default for VMBuilder<'vm> {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -34,16 +36,16 @@ impl<'vm> VMBuilder<'vm> {
     generate_builder!();
 
     #[inline]
-    pub fn build(&mut self) -> VM<'vm> {
+    pub fn build(self) -> VM<'vm> {
         VM {
-            scopes: std::mem::take(&mut self.scopes),
+            scopes: self.scopes,
             current: CallFrame::main(),
             frames: vec![],
             stack: vec![],
             registers: Default::default(),
-            modules: std::mem::take(&mut self.modules),
+            modules: self.modules,
             sp: 0,
-            options: std::mem::take(&mut self.options),
+            options: self.options,
         }
     }
 }

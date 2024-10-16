@@ -5,6 +5,7 @@ use std::ops::BitOr;
 impl BitOr for Number {
     type Output = Result<Number, VMError>;
 
+    #[inline]
     fn bitor(self, rhs: Self) -> Self::Output {
         let v = match (self, rhs) {
             (Number::Int(i), rhs) => Number::Int(i | rhs.to_int()),

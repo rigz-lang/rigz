@@ -4,6 +4,7 @@ use crate::Reverse;
 impl<'vm> Reverse for Value<'vm> {
     type Output = Value<'vm>;
 
+    #[inline]
     fn reverse(&self) -> Self::Output {
         match self {
             Value::Number(n) => Value::Number(n.reverse()),

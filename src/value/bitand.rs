@@ -5,6 +5,7 @@ use std::ops::BitAnd;
 impl<'vm> BitAnd for Value<'vm> {
     type Output = Value<'vm>;
 
+    #[inline]
     fn bitand(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Value::Error(v), _) => Value::Error(v),

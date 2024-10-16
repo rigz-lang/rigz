@@ -109,6 +109,7 @@ impl<'vm> VM<'vm> {
         Ok(())
     }
 
+    #[inline]
     pub fn process_core_instruction(
         &mut self,
         instruction: Instruction<'vm>,

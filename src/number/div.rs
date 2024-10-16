@@ -5,6 +5,7 @@ use std::ops::Div;
 impl Div for Number {
     type Output = Result<Number, VMError>;
 
+    #[inline]
     fn div(self, rhs: Self) -> Self::Output {
         let v = match (self, rhs) {
             (Number::Int(i), rhs) => Number::Int(i / rhs.to_int()),

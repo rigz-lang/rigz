@@ -4,6 +4,7 @@ use std::ops::Not;
 impl Not for Number {
     type Output = Number;
 
+    #[inline]
     fn not(self) -> Self::Output {
         match self {
             Number::Int(v) => Number::Int(!v),

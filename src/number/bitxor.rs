@@ -5,6 +5,7 @@ use std::ops::BitXor;
 impl BitXor for Number {
     type Output = Result<Number, VMError>;
 
+    #[inline]
     fn bitxor(self, rhs: Self) -> Self::Output {
         let v = match (self, rhs) {
             (Number::Int(i), rhs) => Number::Int(i ^ rhs.to_int()),

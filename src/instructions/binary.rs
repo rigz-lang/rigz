@@ -33,6 +33,7 @@ pub enum BinaryOperation {
 }
 
 impl<'vm> VM<'vm> {
+    #[inline]
     pub fn apply_binary(
         &mut self,
         binary_operation: BinaryOperation,
@@ -66,6 +67,7 @@ impl<'vm> VM<'vm> {
         Ok(())
     }
 
+    #[inline]
     pub fn handle_binary(&mut self, binary: Binary) -> Result<(), VMError> {
         let Binary {
             op,
