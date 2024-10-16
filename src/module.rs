@@ -17,8 +17,8 @@ pub struct Module<'vm> {
     pub name: &'vm str,
     pub functions: Function<'vm>,
     pub extension_functions: IndexMap<RigzType, ExtensionFunction<'vm>>,
-    pub mutable_functions: Function<'vm>,
-    pub mutable_extension_functions: IndexMap<RigzType, ExtensionFunction<'vm>>,
+    pub mutable_functions: MutableFunction<'vm>,
+    pub mutable_extension_functions: IndexMap<RigzType, MutableExtensionFunction<'vm>>,
 }
 
 impl<'vm> Debug for Module<'vm> {
