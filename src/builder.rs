@@ -1,3 +1,4 @@
+use crate::instructions::Clear;
 use crate::value::Value;
 use crate::vm::VMOptions;
 use crate::{
@@ -66,7 +67,10 @@ macro_rules! generate_builder {
             add_neg_instruction => Neg,
             add_not_instruction => Not,
             add_print_instruction => Print,
-            add_eprint_instruction => EPrint
+            add_eprint_instruction => EPrint,
+            add_println_instruction => PrintLn,
+            add_eprintln_instruction => EPrintLn,
+            add_reverse_instruction => Reverse
         }
 
         #[inline]
@@ -215,19 +219,27 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        pub fn add_load_let_instruction(&mut self, name: String, register: Register) -> &mut Self {
+        pub fn add_load_let_instruction(
+            &mut self,
+            name: &'vm str,
+            register: Register,
+        ) -> &mut Self {
             self.add_instruction(Instruction::LoadLetRegister(name, register))
         }
 
         #[inline]
-        pub fn add_load_mut_instruction(&mut self, name: String, register: Register) -> &mut Self {
+        pub fn add_load_mut_instruction(
+            &mut self,
+            name: &'vm str,
+            register: Register,
+        ) -> &mut Self {
             self.add_instruction(Instruction::LoadMutRegister(name, register))
         }
 
         #[inline]
         pub fn add_get_variable_instruction(
             &mut self,
-            name: String,
+            name: &'vm str,
             register: Register,
         ) -> &mut Self {
             self.add_instruction(Instruction::GetVariable(name, register))

@@ -11,17 +11,16 @@ mod value;
 mod vm;
 
 use indexmap::IndexMap;
+pub(crate) use objects::{BOOL, ERROR, LIST, MAP, NONE, NUMBER, STRING};
 use std::fmt::Debug;
 use std::hash::Hash;
-
-pub(crate) use objects::{BOOL, ERROR, LIST, MAP, NONE, NUMBER, STRING};
 
 pub use builder::VMBuilder;
 pub use instructions::{Binary, BinaryOperation, Instruction, Unary, UnaryOperation};
 pub use number::Number;
 pub use objects::{RigzObject, RigzObjectDefinition, RigzType};
 pub use scope::Scope;
-pub use traits::{Logical, Rev};
+pub use traits::{Logical, Reverse};
 pub use value::Value;
 pub use vm::VM;
 
@@ -56,16 +55,16 @@ pub enum Variable {
 }
 
 #[derive(Clone, Debug)]
-pub struct CallFrame {
+pub struct CallFrame<'vm> {
     pub scope_id: usize,
     pub pc: usize,
-    pub variables: IndexMap<String, Variable>, // TODO switch to intern strings
+    pub variables: IndexMap<&'vm str, Variable>, // TODO switch to intern strings
     pub parent: Option<usize>,
     pub output: Register,
 }
 
-impl<'vm> CallFrame {
-    pub(crate) fn get_variable(&self, name: &String, vm: &VM<'vm>) -> Option<Register> {
+impl<'vm> CallFrame<'vm> {
+    pub(crate) fn get_variable(&self, name: &'vm str, vm: &VM<'vm>) -> Option<Register> {
         match self.variables.get(name) {
             None => match self.parent {
                 None => None,
@@ -79,13 +78,13 @@ impl<'vm> CallFrame {
     }
 }
 
-impl Default for CallFrame {
+impl<'vm> Default for CallFrame<'vm> {
     fn default() -> Self {
         Self::main()
     }
 }
 
-impl<'vm> CallFrame {
+impl<'vm> CallFrame<'vm> {
     pub fn main() -> Self {
         Self {
             output: 0,
@@ -113,12 +112,14 @@ pub struct Lifecycle<'vm> {
     pub parent: Option<&'vm Lifecycle<'vm>>,
 }
 
+pub type Function<'vm> = IndexMap<&'vm str, fn(Vec<Value<'vm>>) -> Value<'vm>>;
+pub type ExtensionFunction<'vm> = IndexMap<&'vm str, fn(Value<'vm>, Vec<Value<'vm>>) -> Value<'vm>>;
+
 #[derive(Clone, Debug)]
 pub struct Module<'vm> {
     pub name: &'vm str,
-    pub functions: IndexMap<&'vm str, fn(Vec<Value<'vm>>) -> Value<'vm>>,
-    pub extension_functions:
-        IndexMap<RigzType, IndexMap<&'vm str, fn(Value<'vm>, Vec<Value<'vm>>) -> Value<'vm>>>,
+    pub functions: Function<'vm>,
+    pub extension_functions: IndexMap<RigzType, ExtensionFunction<'vm>>,
 }
 
 #[cfg(test)]
@@ -280,8 +281,8 @@ mod tests {
             .add_add_instruction(2, 3, 4)
             .exit_scope(4)
             .add_load_instruction(5, Value::ScopeId(1, 4))
-            .add_load_let_instruction("a".to_string(), 5)
-            .add_get_variable_instruction("a".to_string(), 6)
+            .add_load_let_instruction("a", 5)
+            .add_get_variable_instruction("a", 6)
             .add_load_instruction(7, Value::Number(Number::Int(2)))
             .add_add_instruction(6, 7, 8)
             .add_halt_instruction(8);

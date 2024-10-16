@@ -1,12 +1,12 @@
 use crate::value::Value;
-use crate::Rev;
+use crate::Reverse;
 
-impl<'vm> Rev for Value<'vm> {
+impl<'vm> Reverse for Value<'vm> {
     type Output = Value<'vm>;
 
-    fn rev(self) -> Self::Output {
+    fn reverse(self) -> Self::Output {
         match self {
-            Value::Number(n) => Value::Number(n.rev()),
+            Value::Number(n) => Value::Number(n.reverse()),
             Value::String(s) => {
                 let s = s.chars().rev().collect();
                 Value::String(s)

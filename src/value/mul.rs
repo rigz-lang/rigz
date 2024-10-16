@@ -33,8 +33,7 @@ impl<'vm> Mul for Value<'vm> {
                 if n.is_negative() {
                     return VMError::RuntimeError(format!(
                         "Cannot multiply {} by negatives: {}",
-                        a,
-                        n.to_string()
+                        a, n
                     ))
                     .to_value();
                 }

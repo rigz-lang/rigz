@@ -1,10 +1,10 @@
 use crate::number::Number;
-use crate::Rev;
+use crate::Reverse;
 
-impl Rev for Number {
+impl Reverse for Number {
     type Output = Number;
 
-    fn rev(self) -> Self::Output {
+    fn reverse(self) -> Self::Output {
         match self {
             Number::Int(i) => Number::Int(i.reverse_bits()),
             Number::UInt(u) => Number::UInt(u.reverse_bits()),

@@ -8,15 +8,15 @@ mod mul;
 mod neg;
 mod not;
 mod rem;
-mod rev;
+mod reverse;
 mod shl;
 mod shr;
 mod sub;
 
 use crate::number::Number;
 use crate::{
-    Register, RigzObject, RigzObjectDefinition, RigzType, VMError, BOOL, ERROR, LIST, MAP, NONE,
-    NUMBER, STRING,
+    impl_from_into_lifetime, impl_from_lifetime, Register, RigzObject, RigzObjectDefinition,
+    RigzType, VMError, BOOL, ERROR, LIST, MAP, NONE, NUMBER, STRING,
 };
 use indexmap::IndexMap;
 use log::trace;
@@ -35,6 +35,22 @@ pub enum Value<'vm> {
     Object(RigzObject<'vm>),
     ScopeId(usize, Register),
     Error(VMError),
+}
+
+impl_from_lifetime! {
+    bool, Value, Value::Bool;
+    String, Value, Value::String;
+    Vec<Value<'a>>, Value, Value::List;
+    IndexMap<Value<'a>, Value<'a>>, Value, Value::Map;
+}
+
+impl_from_into_lifetime! {
+    i32, Value, Value::Number;
+    i64, Value, Value::Number;
+    u32, Value, Value::Number;
+    u64, Value, Value::Number;
+    f32, Value, Value::Number;
+    f64, Value, Value::Number;
 }
 
 impl<'vm> Eq for Value<'vm> {}
@@ -72,7 +88,7 @@ impl<'vm> Value<'vm> {
         match self {
             Value::None => Some(Number::zero()),
             Value::Bool(b) => {
-                let n = if *b { Number::Int(1) } else { Number::zero() };
+                let n = if *b { Number::one() } else { Number::zero() };
                 Some(n)
             }
             Value::Number(n) => Some(*n),
@@ -194,29 +210,27 @@ impl<'vm> Value<'vm> {
             (RigzType::None, RigzType::List) => Value::String(String::new()),
             (RigzType::None, RigzType::Map) => Value::String(String::new()),
             (RigzType::Bool, RigzType::Number) => {
-                if let Value::Bool(b) = self {
-                    let v = if *b { 1 } else { 0 };
-                    return Ok(Value::Number(Number::Int(v)));
+                if let &Value::Bool(b) = self {
+                    return Ok(Value::Number(b.into()));
                 }
                 unreachable!()
             }
             (RigzType::Bool, RigzType::Int) => {
-                if let Value::Bool(b) = self {
-                    let v = if *b { 1 } else { 0 };
-                    return Ok(Value::Number(Number::Int(v)));
+                if let &Value::Bool(b) = self {
+                    return Ok(Value::Number(b.into()));
                 }
                 unreachable!()
             }
             (RigzType::Bool, RigzType::UInt) => {
-                if let Value::Bool(b) = self {
-                    let v = if *b { 1 } else { 0 };
+                if let &Value::Bool(b) = self {
+                    let v = if b { 1 } else { 0 };
                     return Ok(Value::Number(Number::UInt(v)));
                 }
                 unreachable!()
             }
             (RigzType::Bool, RigzType::Float) => {
-                if let Value::Bool(b) = self {
-                    let v = if *b { 1.0 } else { 0.0 };
+                if let &Value::Bool(b) = self {
+                    let v = if b { 1.0 } else { 0.0 };
                     return Ok(Value::Number(Number::Float(v)));
                 }
                 unreachable!()
@@ -349,7 +363,7 @@ impl<'vm> PartialEq for Value<'vm> {
             (Value::Bool(true), Value::String(s)) => s.eq("true"),
             (Value::Bool(true), Value::Number(n)) => n.is_one(),
             (Value::Bool(false), Value::None) => true,
-            (Value::Bool(a), Value::Bool(b)) => *a == *b,
+            (&Value::Bool(a), &Value::Bool(b)) => a == b,
             (Value::Bool(_), _) => false,
             (Value::Number(n), Value::None) => n.is_zero(),
             (Value::Number(n), Value::Bool(false)) => n.is_zero(),
@@ -362,7 +376,7 @@ impl<'vm> PartialEq for Value<'vm> {
             (Value::String(s), Value::Bool(true)) => s.eq("true"),
             (Value::Number(n), Value::Bool(true)) => n.is_one(),
             (_, Value::Bool(_)) => false,
-            (Value::Number(a), Value::Number(b)) => *a == *b,
+            (&Value::Number(a), &Value::Number(b)) => a == b,
             (Value::String(a), Value::String(b)) => *a == *b,
             (Value::List(a), Value::List(b)) => *a == *b,
             (Value::Map(a), Value::Map(b)) => *a == *b,

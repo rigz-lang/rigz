@@ -1,7 +1,7 @@
-use crate::instructions::{Binary, Unary};
+use crate::instructions::{Binary, Clear, Unary};
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation,
-    CallFrame, Instruction, Lifecycle, Logical, Module, Number, Register, Rev, RigzType, Scope,
+    CallFrame, Instruction, Lifecycle, Logical, Module, Number, Register, Reverse, RigzType, Scope,
     UnaryOperation, VMError, Value, Variable,
 };
 use indexmap::map::Entry;
@@ -23,8 +23,8 @@ pub struct VMOptions {
 #[derive(Clone, Debug)]
 pub struct VM<'vm> {
     pub scopes: Vec<Scope<'vm>>,
-    pub current: CallFrame,
-    pub frames: Vec<CallFrame>,
+    pub current: CallFrame<'vm>,
+    pub frames: Vec<CallFrame<'vm>>,
     pub registers: IndexMap<usize, Value<'vm>>,
     pub lifecycles: Vec<Lifecycle<'vm>>,
     pub modules: IndexMap<&'vm str, Module<'vm>>,
@@ -145,8 +145,8 @@ impl<'vm> VM<'vm> {
                 eprint!("{}", val);
                 self.insert_register(output, val);
             }
-            UnaryOperation::Rev => {
-                self.insert_register(output, val.rev());
+            UnaryOperation::Reverse => {
+                self.insert_register(output, val.reverse());
             }
         }
         Ok(())
@@ -158,7 +158,24 @@ impl<'vm> VM<'vm> {
     ) -> Result<VMState<'vm>, VMError> {
         match instruction {
             Instruction::Halt(r) => return Ok(VMState::Done(self.get_register(r)?)),
-            Instruction::Unary(u) => self.handle_unary(u)?,
+            Instruction::Unary(u, clear) => {
+                self.handle_unary(u)?;
+                match clear {
+                    Clear::None => {}
+                    Clear::One(r) => {
+                        self.registers.shift_remove(&r);
+                    }
+                    Clear::Two(r1, r2) => {
+                        self.registers.shift_remove(&r1);
+                        self.registers.shift_remove(&r2);
+                    }
+                    Clear::Many(many) => {
+                        for r in many {
+                            self.registers.shift_remove(&r);
+                        }
+                    }
+                }
+            }
             Instruction::Binary(b) => self.handle_binary(b)?,
             Instruction::Load(r, v) => self.insert_register(r, v),
             Instruction::LoadLetRegister(name, register) => self.load_let(name, register)?,
@@ -226,8 +243,15 @@ impl<'vm> VM<'vm> {
             } => {
                 if self.options.disable_modules {
                     error!("Modules are disabled");
-                    self.insert_register(output, VMError::UnsupportedOperation(format!("Modules are disabled: Failed to call module {}.{}", module, function)).to_value());
-                    return Ok(VMState::Running)
+                    self.insert_register(
+                        output,
+                        VMError::UnsupportedOperation(format!(
+                            "Modules are disabled: Failed to call module {}.{}",
+                            module, function
+                        ))
+                        .to_value(),
+                    );
+                    return Ok(VMState::Running);
                 }
                 let f = match self.modules.get(module) {
                     None => {
@@ -262,8 +286,15 @@ impl<'vm> VM<'vm> {
             } => {
                 if self.options.disable_modules {
                     error!("Modules are disabled");
-                    self.insert_register(output, VMError::UnsupportedOperation(format!("Modules are disabled: Failed to call extension {}::{}.{}", module, this, function)).to_value());
-                    return Ok(VMState::Running)
+                    self.insert_register(
+                        output,
+                        VMError::UnsupportedOperation(format!(
+                            "Modules are disabled: Failed to call extension {}::{}.{}",
+                            module, this, function
+                        ))
+                        .to_value(),
+                    );
+                    return Ok(VMState::Running);
                 }
                 let m = match self.modules.get(module) {
                     None => {
@@ -400,7 +431,7 @@ impl<'vm> VM<'vm> {
                     }
                 };
             }
-            ins => return Ok(self.process_core_instruction(ins)?),
+            ins => return self.process_core_instruction(ins),
         };
         Ok(VMState::Running)
     }
@@ -456,7 +487,7 @@ impl<'vm> VM<'vm> {
         }
     }
 
-    pub fn load_mut(&mut self, name: String, reg: Register) -> Result<(), VMError> {
+    pub fn load_mut(&mut self, name: &'vm str, reg: Register) -> Result<(), VMError> {
         match self.current.variables.entry(name) {
             Entry::Occupied(mut var) => match var.get() {
                 Variable::Let(_) => {
@@ -476,7 +507,7 @@ impl<'vm> VM<'vm> {
         Ok(())
     }
 
-    pub fn load_let(&mut self, name: String, reg: Register) -> Result<(), VMError> {
+    pub fn load_let(&mut self, name: &'vm str, reg: Register) -> Result<(), VMError> {
         match self.current.variables.entry(name) {
             Entry::Occupied(v) => {
                 return Err(VMError::UnsupportedOperation(format!(

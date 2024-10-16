@@ -13,7 +13,7 @@ mod shl;
 mod shr;
 mod sub;
 
-use crate::VMError;
+use crate::{impl_from, impl_from_cast, VMError};
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
@@ -23,6 +23,28 @@ pub enum Number {
     Int(i64),
     UInt(u64),
     Float(f64),
+}
+
+impl_from! {
+    i64, Number, Number::Int;
+    u64, Number, Number::UInt;
+    f64, Number, Number::Float;
+}
+
+impl_from_cast! {
+    i32 as i64, Number, Number::Int;
+    u32 as u64, Number, Number::UInt;
+    f32 as f64, Number, Number::Float;
+}
+
+impl From<bool> for Number {
+    fn from(value: bool) -> Self {
+        if value {
+            Number::one()
+        } else {
+            Number::zero()
+        }
+    }
 }
 
 impl Hash for Number {
@@ -89,33 +111,33 @@ impl FromStr for Number {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            _ if s.contains(".") => match s.parse() {
-                Ok(f) => Ok(Number::Float(f)),
+            _ if s.contains(".") => match s.parse::<f64>() {
+                Ok(f) => Ok(f.into()),
                 Err(e) => Err(e.to_string()),
             },
             _ if s.ends_with("u") => {
                 let s = s[..s.len() - 1].to_string();
-                match s.parse() {
-                    Ok(u) => Ok(Number::UInt(u)),
+                match s.parse::<u64>() {
+                    Ok(u) => Ok(u.into()),
                     Err(e) => Err(e.to_string()),
                 }
             }
             _ if s.ends_with("f") => {
                 let s = s[..s.len() - 1].to_string();
-                match s.parse() {
-                    Ok(u) => Ok(Number::Float(u)),
+                match s.parse::<f64>() {
+                    Ok(u) => Ok(u.into()),
                     Err(e) => Err(e.to_string()),
                 }
             }
             _ if s.ends_with("i") => {
                 let s = s[..s.len() - 1].to_string();
-                match s.parse() {
-                    Ok(u) => Ok(Number::Int(u)),
+                match s.parse::<i64>() {
+                    Ok(u) => Ok(u.into()),
                     Err(e) => Err(e.to_string()),
                 }
             }
-            _ => match s.parse() {
-                Ok(i) => Ok(Number::Int(i)),
+            _ => match s.parse::<i64>() {
+                Ok(i) => Ok(i.into()),
                 Err(e) => Err(e.to_string()),
             },
         }
@@ -126,6 +148,11 @@ impl Number {
     #[inline]
     pub fn zero() -> Number {
         Number::Int(0)
+    }
+
+    #[inline]
+    pub fn one() -> Number {
+        Number::Int(1)
     }
 
     #[inline]
@@ -146,6 +173,7 @@ impl Number {
         }
     }
 
+    #[inline]
     pub fn to_float(self) -> f64 {
         match self {
             Number::Int(i) => i as f64,
@@ -154,6 +182,7 @@ impl Number {
         }
     }
 
+    #[inline]
     pub fn to_int(self) -> i64 {
         match self {
             Number::Int(i) => i,
@@ -162,6 +191,7 @@ impl Number {
         }
     }
 
+    #[inline]
     pub fn to_uint(self) -> Result<u64, VMError> {
         if self.is_negative() {
             return Err(VMError::ConversionError(
@@ -176,6 +206,7 @@ impl Number {
         Ok(u)
     }
 
+    #[inline]
     pub fn to_usize(self) -> Result<usize, VMError> {
         if self.is_negative() {
             return Err(VMError::ConversionError(
@@ -190,6 +221,7 @@ impl Number {
         Ok(u)
     }
 
+    #[inline]
     pub fn is_negative(&self) -> bool {
         match self {
             Number::Int(i) => i.is_negative(),

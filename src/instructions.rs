@@ -40,9 +40,9 @@ pub enum Instruction<'vm> {
     // Import(),
     // Export(),
     Ret(Register),
-    GetVariable(String, Register),
-    LoadLetRegister(String, Register),
-    LoadMutRegister(String, Register),
+    GetVariable(&'vm str, Register),
+    LoadLetRegister(&'vm str, Register),
+    LoadMutRegister(&'vm str, Register),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -56,7 +56,7 @@ pub struct Unary {
 pub enum UnaryOperation {
     Neg,
     Not,
-    Rev,
+    Reverse,
     Print,
     EPrint,
     PrintLn,
