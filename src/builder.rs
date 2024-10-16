@@ -6,6 +6,7 @@ use crate::{
 };
 use indexmap::IndexMap;
 use log::Level;
+use crate::lifecycle::Lifecycle;
 
 #[derive(Clone)]
 pub struct VMBuilder<'vm> {
@@ -13,6 +14,7 @@ pub struct VMBuilder<'vm> {
     pub scopes: Vec<Scope<'vm>>,
     pub modules: IndexMap<&'vm str, Box<dyn Module<'vm>>>,
     pub options: VMOptions,
+    pub lifecycles: Vec<Lifecycle>,
 }
 
 impl<'vm> Default for VMBuilder<'vm> {
@@ -29,7 +31,8 @@ impl<'vm> VMBuilder<'vm> {
             sp: 0,
             scopes: vec![Scope::new()],
             modules: IndexMap::new(),
-            options: VMOptions::default(),
+            options: Default::default(),
+            lifecycles: Default::default(),
         }
     }
 
@@ -46,6 +49,7 @@ impl<'vm> VMBuilder<'vm> {
             modules: self.modules,
             sp: 0,
             options: self.options,
+            lifecycles: self.lifecycles,
         }
     }
 }

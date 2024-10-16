@@ -5,6 +5,7 @@ use indexmap::IndexMap;
 use log::{trace, warn, Level};
 use nohash_hasher::BuildNoHashHasher;
 use std::fmt::{Debug, Formatter};
+use crate::lifecycle::Lifecycle;
 
 pub enum VMState {
     Running,
@@ -46,11 +47,12 @@ pub struct VM<'vm> {
     pub modules: IndexMap<&'vm str, Box<dyn Module<'vm>>>,
     pub sp: usize,
     pub options: VMOptions,
+    pub lifecycles: Vec<Lifecycle>,
 }
 
 impl<'vm> Debug for VM<'vm> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "VM(current={:?},scopes={:?},frames={:?},registers={:?},stack={:?},modules={:?},sp={},options={:?})",
+        write!(f, "VM(current={:?},scopes={:?},frames={:?},registers={:?},stack={:?},modules={:?},sp={},options={:?},lifecycles={:?})",
                self.current,
                self.scopes,
                self.frames,
@@ -58,7 +60,8 @@ impl<'vm> Debug for VM<'vm> {
                self.stack,
                self.modules.keys(),
                self.sp,
-               self.options
+               self.options,
+               self.lifecycles
         )
     }
 }
@@ -75,6 +78,7 @@ impl<'vm> Default for VM<'vm> {
             modules: Default::default(),
             sp: 0,
             options: Default::default(),
+            lifecycles: Default::default(),
         }
     }
 }
@@ -272,6 +276,11 @@ impl<'vm> VM<'vm> {
         }
     }
 
+    /// Generally this should be used instead of run. It will evaluate the VM & start lifecycles
+    pub fn eval(&mut self) -> Result<Value, VMError> {
+        self.run()
+    }
+
     pub fn run(&mut self) -> Result<Value, VMError> {
         loop {
             let instruction = match self.next_instruction()? {
@@ -293,7 +302,7 @@ impl<'vm> VM<'vm> {
         }
     }
 
-    pub fn run_scope(&mut self) -> Result<VMState, VMError> {
+    fn run_scope(&mut self) -> Result<VMState, VMError> {
         loop {
             let instruction = match self.next_instruction()? {
                 // TODO this should probably be an error requiring explicit halt, result would be none

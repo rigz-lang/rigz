@@ -11,6 +11,7 @@ mod scope;
 mod traits;
 mod value;
 mod vm;
+mod lifecycle;
 
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -209,16 +210,24 @@ mod tests {
             Err(VMError::InvalidModuleFunction(function.to_string()))
         }
 
-        fn extensions(&self) -> &[&str] {
+        fn extensions(&self) -> &'vm [&'vm str] {
             [].as_slice()
         }
 
-        fn functions(&self) -> &[&str] {
+        fn functions(&self) -> &'vm [&'vm str] {
             ["hello"].as_slice()
         }
 
-        fn vm_extensions(&self) -> &[&str] {
+        fn vm_extensions(&self) -> &'vm [&'vm str] {
             [].as_slice()
+        }
+
+        fn trait_definition(&self) -> &'vm str {
+            r#"
+            trait test
+                fn hello
+            end
+            "#
         }
     }
 
