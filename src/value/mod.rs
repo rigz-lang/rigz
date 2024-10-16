@@ -34,6 +34,8 @@ pub enum Value<'vm> {
     // TODO add scope here
 }
 
+impl <'vm> Eq for Value<'vm> {}
+
 impl <'vm> PartialOrd for Value<'vm> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         if self.eq(other) {
@@ -275,8 +277,6 @@ impl <'vm> Display for Value<'vm> {
         }
     }
 }
-
-impl <'vm> Eq for Value<'vm> {}
 
 impl <'vm> Hash for Value<'vm> {
     fn hash<H: Hasher>(&self, state: &mut H) {

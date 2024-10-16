@@ -45,7 +45,7 @@ pub enum VMError {
     ParseError(String, usize, usize),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum UnaryOperation {
     Neg,
     Not,
@@ -54,7 +54,7 @@ pub enum UnaryOperation {
     EPrint,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BinaryOperation {
     Add,
     Sub,
@@ -77,7 +77,7 @@ pub enum BinaryOperation {
     Lte,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Instruction<'vm> {
     Halt(Register),
     Unary {
@@ -116,7 +116,7 @@ pub enum Instruction<'vm> {
     LoadMutRegister(String, Register),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RigzType {
     None,
     Bool,
@@ -133,7 +133,7 @@ pub enum RigzType {
 }
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RigzObjectDefinition {
     pub name: String,
     pub fields: IndexMap<String, RigzType>,
@@ -297,7 +297,7 @@ impl <'vm> CallFrame<'vm> {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Scope<'vm> {
     pub instructions: Vec<Instruction<'vm>>,
     pub type_definitions: IndexMap<String, RigzObjectDefinition>
