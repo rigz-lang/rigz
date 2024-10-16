@@ -102,16 +102,6 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        pub fn add_load_let_instruction(&mut self, name: String, value: Value<'vm>) -> &mut Self {
-            self.add_instruction(Instruction::LoadLet(name, value))
-        }
-
-        #[inline]
-        pub fn add_load_mut_instruction(&mut self, name: String, value: Value<'vm>) -> &mut Self {
-            self.add_instruction(Instruction::LoadMut(name, value))
-        }
-
-        #[inline]
         pub fn add_load_let_reg_instruction(&mut self, name: String, register: Register) -> &mut Self {
             self.add_instruction(Instruction::LoadLetRegister(name, register))
         }
@@ -119,11 +109,6 @@ macro_rules! generate_builder {
         #[inline]
         pub fn add_load_mut_reg_instruction(&mut self, name: String, register: Register) -> &mut Self {
             self.add_instruction(Instruction::LoadMutRegister(name, register))
-        }
-
-        #[inline]
-        pub fn add_get_variable_instruction(&mut self, name: String, register: Register) -> &mut Self {
-            self.add_instruction(Instruction::GetVariable(name, register))
         }
     }
 }

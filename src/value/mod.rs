@@ -18,7 +18,7 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use indexmap::IndexMap;
 use crate::number::Number;
-use crate::{BOOL, ERROR, LIST, MAP, NONE, NUMBER, RigzObject, RigzObjectDefinition, RigzType, STRING, VMError, Scope};
+use crate::{BOOL, ERROR, LIST, MAP, NONE, NUMBER, RigzObject, RigzObjectDefinition, RigzType, STRING, VMError, Scope, Register};
 
 #[derive(Clone, Debug)]
 pub enum Value<'vm> {
@@ -31,7 +31,6 @@ pub enum Value<'vm> {
     Object(RigzObject<'vm>),
     ScopeId(usize),
     Error(VMError),
-    // TODO add scope here
 }
 
 impl <'vm> Eq for Value<'vm> {}

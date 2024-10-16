@@ -43,6 +43,7 @@ pub enum VMError {
     ScopeDoesNotExist(String),
     UnsupportedOperation(String),
     ParseError(String, usize, usize),
+    VariableDoesNotExist(String),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -109,8 +110,6 @@ pub enum Instruction<'vm> {
     // Import(),
     // Export(),
     Ret, // TODO this should return a register
-    LoadLet(String, Value<'vm>),
-    LoadMut(String, Value<'vm>),
     GetVariable(String, Register),
     LoadLetRegister(String, Register),
     LoadMutRegister(String, Register),
@@ -231,21 +230,21 @@ impl <'vm> Hash for RigzObject<'vm> {
 }
 
 #[derive(Clone, Debug)]
-pub enum Variable<'vm> {
-    Let(Value<'vm>),
-    Mut(Value<'vm>),
+pub enum Variable {
+    Let(Register),
+    Mut(Register),
 }
 
 #[derive(Clone, Debug)]
-pub struct CallFrame<'vm> {
+pub struct CallFrame {
     pub scope_id: usize,
     pub pc: usize,
-    pub variables: IndexMap<String, Variable<'vm>>, // TODO switch to intern strings
+    pub variables: IndexMap<String, Variable>, // TODO switch to intern strings
     pub parent: Option<usize>
 }
 
-impl<'vm> CallFrame<'vm> {
-    pub(crate) fn get_variable(&self, name: &String, vm: &VM<'vm>) -> Option<Value<'vm>> {
+impl<'vm> CallFrame {
+    pub(crate) fn get_variable(&self, name: &String, vm: &VM<'vm>) -> Option<Register> {
         match self.variables.get(name) {
             None => {
                 match self.parent {
@@ -256,23 +255,22 @@ impl<'vm> CallFrame<'vm> {
                 }
             }
             Some(v) => {
-                let v = match v {
-                    Variable::Let(v) => v.clone(),
-                    Variable::Mut(v) => v.clone()
-                };
-                Some(v)
+                match v {
+                    Variable::Let(v) => Some(*v),
+                    Variable::Mut(v) => Some(*v)
+                }
             }
         }
     }
 }
 
-impl <'vm> Default for CallFrame<'vm> {
+impl Default for CallFrame {
     fn default() -> Self {
         Self::main()
     }
 }
 
-impl <'vm> CallFrame<'vm> {
+impl <'vm> CallFrame {
     fn next_instruction(&mut self, scope: &Scope<'vm>) -> Instruction<'vm> {
         let instruction = scope.instructions[self.pc].clone();
         self.pc += 1;
@@ -320,8 +318,8 @@ pub struct Lifecycle<'vm> {
 #[derive(Clone, Debug)]
 pub struct VM<'vm> {
     pub scopes: Vec<Scope<'vm>>,
-    pub current: CallFrame<'vm>,
-    pub frames: Vec<CallFrame<'vm>>,
+    pub current: CallFrame,
+    pub frames: Vec<CallFrame>,
     pub registers: IndexMap<usize, Value<'vm>>,
     pub lifecycles: Vec<Lifecycle<'vm>>
 }
@@ -428,18 +426,10 @@ impl <'vm> VM<'vm> {
                     self.insert_register(r, v);
                 }
                 Instruction::LoadLetRegister(name, register) => {
-                    let value = self.remove_register(&register)?;
-                    self.load_let(name, value)?;
+                    self.load_let(name, register)?;
                 }
                 Instruction::LoadMutRegister(name, register) => {
-                    let value = self.remove_register(&register)?;
-                    self.load_mut(name, value)?;
-                }
-                Instruction::LoadLet(name, v) => {
-                    self.load_let(name, v)?;
-                }
-                Instruction::LoadMut(name, v) => {
-                    self.load_mut(name, v)?;
+                    self.load_mut(name, register)?;
                 }
                 Instruction::Copy(from, to) => {
                     let copy = match self.registers.get(&from) {
@@ -457,6 +447,13 @@ impl <'vm> VM<'vm> {
                             return Err(VMError::FrameError("CallStack is empty".to_string()))
                         }
                         Some(c) => {
+                            let variables = std::mem::take(&mut self.current.variables);
+                            for reg in variables.values() {
+                                let _ = match reg {
+                                    Variable::Let(r) => self.remove_register(r)?,
+                                    Variable::Mut(r) => self.remove_register(r)?
+                                };
+                            }
                             self.current = c;
                         }
                     }
@@ -488,16 +485,23 @@ impl <'vm> VM<'vm> {
                 }
                 Instruction::GetVariable(name, reg) => {
                     match self.current.get_variable(&name, self) {
-                        None => return Err(VMError::RuntimeError(format!("Variable {} does not exist", name))),
-                        Some(value) => self.insert_register(reg, value)
-                    };
+                        None => return Err(VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))),
+                        Some(s) => {
+                            match self.registers.get(&s) {
+                                None => return Err(VMError::EmptyRegister(format!("Register {} does not exist", s))),
+                                Some(v) => {
+                                    self.insert_register(reg, v.clone())
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
         Ok(Value::None)
     }
 
-    pub fn load_mut(&mut self, name: String, value: Value<'vm>) -> Result<(), VMError> {
+    pub fn load_mut(&mut self, name: String, reg: Register) -> Result<(), VMError> {
         match self.current.variables.entry(name) {
             Entry::Occupied(mut var) => {
                 match var.get() {
@@ -505,24 +509,24 @@ impl <'vm> VM<'vm> {
                         return Err(VMError::UnsupportedOperation(format!("Cannot overwrite let variable: {}", *var.key())))
                     }
                     Variable::Mut(e) => {
-                        var.insert(Variable::Mut(value));
+                        var.insert(Variable::Mut(reg));
                     }
                 }
             }
             Entry::Vacant(e) => {
-                e.insert(Variable::Mut(value));
+                e.insert(Variable::Mut(reg));
             }
         }
         Ok(())
     }
 
-    pub fn load_let(&mut self, name: String, value: Value<'vm>) -> Result<(), VMError> {
+    pub fn load_let(&mut self, name: String, reg: Register) -> Result<(), VMError> {
         match self.current.variables.entry(name) {
             Entry::Occupied(v) => {
                 return Err(VMError::UnsupportedOperation(format!("Cannot overwrite let variable: {}", *v.key())))
             },
             Entry::Vacant(e) => {
-                e.insert(Variable::Let(value));
+                e.insert(Variable::Let(reg));
             }
         }
         Ok(())
