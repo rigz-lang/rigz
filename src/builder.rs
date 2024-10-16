@@ -5,6 +5,7 @@ use crate::{
     UnaryOperation, VM,
 };
 use indexmap::IndexMap;
+use log::Level;
 
 #[macro_export]
 macro_rules! generate_unary_op_methods {
@@ -242,6 +243,24 @@ macro_rules! generate_builder {
             register: Register,
         ) -> &mut Self {
             self.add_instruction(Instruction::GetVariable(name, register))
+        }
+
+        #[inline]
+        pub fn add_puts_instruction(
+            &mut self,
+            values: Vec<Value<'vm>>,
+        ) -> &mut Self {
+            self.add_instruction(Instruction::Puts(values))
+        }
+
+        #[inline]
+        pub fn add_log_instruction(
+            &mut self,
+            level: Level,
+            template: &'vm str,
+            values: Vec<Value<'vm>>
+        ) -> &mut Self {
+            self.add_instruction(Instruction::Log(level, template, values))
         }
     };
 }

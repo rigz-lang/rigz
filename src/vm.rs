@@ -6,7 +6,7 @@ use crate::{
 };
 use indexmap::map::Entry;
 use indexmap::IndexMap;
-use log::{error, log, trace};
+use log::{error, log, trace, Level};
 
 pub enum VMState<'vm> {
     Running,
