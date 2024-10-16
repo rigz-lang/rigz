@@ -10,7 +10,7 @@ pub struct Binary {
     pub output: Register,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum BinaryOperation {
     Add,
     Sub,
@@ -67,7 +67,7 @@ impl<'vm> VM<'vm> {
         lhs: Value,
         rhs: Value,
         output: Register,
-    ) -> Result<(), VMError> {
+    ) {
         let v = match binary_operation {
             BinaryOperation::Add => lhs + rhs,
             BinaryOperation::Sub => lhs - rhs,
@@ -91,7 +91,6 @@ impl<'vm> VM<'vm> {
         };
 
         self.insert_register(output, v);
-        Ok(())
     }
 
     #[inline]
@@ -104,14 +103,16 @@ impl<'vm> VM<'vm> {
         } = binary;
         let lhs = self.resolve_register(lhs)?;
         let rhs = self.resolve_register(rhs)?;
-        self.apply_binary(op, lhs, rhs, output)
+        self.apply_binary(op, lhs, rhs, output);
+        Ok(())
     }
 
     pub fn handle_binary_assign(&mut self, binary: Binary) -> Result<(), VMError> {
         let Binary { op, lhs, rhs, .. } = binary;
         let v = self.resolve_register(lhs)?;
         let rhs = self.resolve_register(rhs)?;
-        self.apply_binary(op, v, rhs, lhs) // TODO measure cost of storing in same register vs impl *Assign trait
+        self.apply_binary(op, v, rhs, lhs); // TODO measure cost of storing in same register vs impl *Assign trait
+        Ok(())
     }
 
     pub fn handle_binary_clear(&mut self, binary: Binary, clear: Clear) -> Result<(), VMError> {
@@ -157,6 +158,7 @@ impl<'vm> VM<'vm> {
                 )))
             }
         };
-        self.apply_binary(op, lhs?, rhs?, output)
+        self.apply_binary(op, lhs?, rhs?, output);
+        Ok(())
     }
 }

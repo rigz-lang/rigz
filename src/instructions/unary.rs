@@ -9,7 +9,7 @@ pub struct Unary {
     pub output: Register,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum UnaryOperation {
     Neg,
     Not,
@@ -40,7 +40,7 @@ impl<'vm> VM<'vm> {
         unary_operation: UnaryOperation,
         val: Value,
         output: Register,
-    ) -> Result<(), VMError> {
+    ) {
         match unary_operation {
             UnaryOperation::Neg => {
                 self.insert_register(output, -val);
@@ -68,19 +68,20 @@ impl<'vm> VM<'vm> {
                 self.insert_register(output, val.reverse());
             }
         }
-        Ok(())
     }
 
     pub fn handle_unary(&mut self, unary: Unary) -> Result<(), VMError> {
         let Unary { op, from, output } = unary;
         let val = self.resolve_register(from)?;
-        self.apply_unary(op, val, output)
+        self.apply_unary(op, val, output);
+        Ok(())
     }
 
     pub fn handle_unary_assign(&mut self, unary: Unary) -> Result<(), VMError> {
         let Unary { op, from, .. } = unary;
         let val = self.resolve_register(from)?;
-        self.apply_unary(op, val, from)
+        self.apply_unary(op, val, from);
+        Ok(())
     }
 
     pub fn handle_unary_clear(&mut self, unary: Unary, clear: Clear) -> Result<(), VMError> {
@@ -100,6 +101,7 @@ impl<'vm> VM<'vm> {
                 )))
             }
         };
-        self.apply_unary(op, val, output)
+        self.apply_unary(op, val, output);
+        Ok(())
     }
 }

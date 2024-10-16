@@ -87,6 +87,7 @@ impl<'vm> Default for VM<'vm> {
     }
 }
 
+// todo all functions that return results should be mapped to Value::Error instead (when possible)
 impl<'vm> VM<'vm> {
     #[inline]
     pub fn new() -> Self {

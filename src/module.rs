@@ -1,7 +1,7 @@
 use crate::{VMError, Value, VM};
 use dyn_clone::DynClone;
 
-/// modules will be cloned when used, until DynClone can be removed
+/// modules will be cloned when used, until DynClone can be removed, ideally they're Copy + Clone
 pub trait Module<'vm>: DynClone {
     fn name(&self) -> &'vm str; // todo should this be static?
 
