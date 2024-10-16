@@ -119,6 +119,7 @@ pub enum Instruction<'vm> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RigzType {
     None,
+    Any,
     Bool,
     Int,
     Float,
