@@ -79,8 +79,8 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        pub fn register_module(&mut self, module: Module<'vm>) -> &mut Self {
-            self.modules.insert(module.name, module);
+        pub fn register_module(&mut self, module: impl Module<'vm> + 'static) -> &mut Self {
+            self.modules.insert(module.name(), Box::new(module));
             self
         }
 
@@ -99,14 +99,14 @@ macro_rules! generate_builder {
         #[inline]
         pub fn add_call_module_instruction(
             &mut self,
-            name: &'vm str,
-            function: &'vm str,
+            module: &'vm str,
+            func: &'vm str,
             args: Vec<Register>,
             output: Register,
         ) -> &mut Self {
             self.add_instruction(Instruction::CallModule {
-                module: name,
-                function,
+                module,
+                func,
                 args,
                 output,
             });
@@ -116,16 +116,33 @@ macro_rules! generate_builder {
         #[inline]
         pub fn add_call_extension_module_instruction(
             &mut self,
-            name: &'vm str,
-            function: &'vm str,
+            module: &'vm str,
+            func: &'vm str,
             this: Register,
             args: Vec<Register>,
             output: Register,
         ) -> &mut Self {
-            self.add_instruction(Instruction::CallExtensionModule {
-                module: name,
-                function,
+            self.add_instruction(Instruction::CallExtension {
+                module,
+                func,
                 this,
+                args,
+                output,
+            });
+            self
+        }
+
+        #[inline]
+        pub fn add_call_vm_extension_module_instruction(
+            &mut self,
+            name: &'vm str,
+            func: &'vm str,
+            args: Vec<Register>,
+            output: Register,
+        ) -> &mut Self {
+            self.add_instruction(Instruction::CallVMExtension {
+                module: name,
+                func,
                 args,
                 output,
             });

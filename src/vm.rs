@@ -1,12 +1,13 @@
 use crate::instructions::{Binary, Unary};
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation,
-    CallFrame, Instruction, Lifecycle, Module, Number, Register, RigzType, Scope, UnaryOperation,
-    VMError, Value, Variable,
+    CallFrame, Instruction, Module, Number, Register, RigzType, Scope, UnaryOperation, VMError,
+    Value, Variable,
 };
 use indexmap::map::Entry;
 use indexmap::IndexMap;
 use log::{trace, Level};
+use nohash_hasher::IntMap;
 
 pub enum VMState<'vm> {
     Running,
@@ -18,18 +19,16 @@ pub enum VMState<'vm> {
 pub struct VMOptions {
     pub enable_logging: bool,
     pub disable_modules: bool,
-    pub disable_lifecyles: bool,
     pub disable_variable_cleanup: bool,
 }
 
-#[derive(Clone, Debug)]
 pub struct VM<'vm> {
     pub scopes: Vec<Scope<'vm>>,
     pub current: CallFrame<'vm>,
     pub frames: Vec<CallFrame<'vm>>,
-    pub registers: IndexMap<usize, Value<'vm>>,
-    pub lifecycles: IndexMap<&'vm str, Lifecycle<'vm>>,
-    pub modules: IndexMap<&'vm str, Module<'vm>>,
+    pub registers: IntMap<usize, Value<'vm>>,
+    pub stack: Vec<Value<'vm>>,
+    pub modules: IndexMap<&'vm str, Box<dyn Module<'vm>>>,
     pub sp: usize,
     pub options: VMOptions,
 }
@@ -41,8 +40,8 @@ impl<'vm> Default for VM<'vm> {
             scopes: vec![Scope::new()],
             current: Default::default(),
             frames: vec![],
+            stack: vec![],
             registers: Default::default(),
-            lifecycles: Default::default(),
             modules: Default::default(),
             sp: 0,
             options: Default::default(),
@@ -66,15 +65,6 @@ impl<'vm> VM<'vm> {
         self.registers.insert(register, value);
     }
 
-    pub fn get_registers(&mut self, registers: Vec<Register>) -> Result<Vec<Value<'vm>>, VMError> {
-        let len = registers.len();
-        let mut result = Vec::with_capacity(len);
-        for register in registers {
-            result.push(self.get_register(register)?);
-        }
-        Ok(result)
-    }
-
     #[inline]
     pub fn get_register(&mut self, register: Register) -> Result<Value<'vm>, VMError> {
         if register == 0 {
@@ -85,10 +75,35 @@ impl<'vm> VM<'vm> {
             return Ok(Value::Number(Number::Int(1)));
         }
 
-        let v = match self.registers.get(&register) {
-            None => return Err(VMError::EmptyRegister(format!("R{} is empty", register))),
-            Some(v) => v.clone(),
-        };
+        match self.registers.get(&register) {
+            None => Err(VMError::EmptyRegister(format!("R{} is empty", register))),
+            Some(v) => Ok(v.clone()),
+        }
+    }
+
+    pub fn resolve_registers(
+        &mut self,
+        registers: Vec<Register>,
+    ) -> Result<Vec<Value<'vm>>, VMError> {
+        let len = registers.len();
+        let mut result = Vec::with_capacity(len);
+        for register in registers {
+            result.push(self.resolve_register(register)?);
+        }
+        Ok(result)
+    }
+
+    #[inline]
+    pub fn resolve_register(&mut self, register: Register) -> Result<Value<'vm>, VMError> {
+        if register == 0 {
+            return Ok(Value::None);
+        }
+
+        if register == 1 {
+            return Ok(Value::Number(Number::Int(1)));
+        }
+
+        let v = self.get_register(register)?;
 
         if let Value::ScopeId(scope, output) = v {
             self.handle_scope(scope, register, output)
@@ -97,11 +112,15 @@ impl<'vm> VM<'vm> {
         }
     }
 
+    pub fn get_module_clone(&self, module: &'vm str) -> Result<Box<dyn Module<'vm>>, VMError> {
+        match self.modules.get(&module) {
+            None => Err(VMError::InvalidModule(module.to_string())),
+            Some(m) => Ok(m.clone()),
+        }
+    }
+
     #[inline]
-    pub fn get_register_mut(
-        &'vm mut self,
-        register: Register,
-    ) -> Result<&'vm mut Value<'vm>, VMError> {
+    pub fn get_register_mut(&mut self, register: Register) -> Result<&mut Value<'vm>, VMError> {
         match self.registers.get_mut(&register) {
             None => Err(VMError::EmptyRegister(format!("R{} is empty", register))),
             Some(v) => Ok(v),
@@ -125,7 +144,7 @@ impl<'vm> VM<'vm> {
         }
     }
 
-    /// Value is replaced with None, shifting the registers breaks the program. Scopes are not evaluated, use `remove_register_eval_scope` instead.
+    /// Value is replaced with None, shifting the registers can break the program. Scopes are not evaluated, use `remove_register_eval_scope` instead.
     pub fn remove_register(&mut self, register: Register) -> Result<Value<'vm>, VMError> {
         self.remove_register_value(register)
     }
@@ -163,7 +182,7 @@ impl<'vm> VM<'vm> {
         process: Option<fn(value: Value<'vm>) -> VMState<'vm>>,
     ) -> Result<VMState<'vm>, VMError> {
         let current = self.current.output;
-        let source = self.get_register(current)?;
+        let source = self.resolve_register(current)?;
         self.insert_register(output, source.clone());
         match self.frames.pop() {
             None => return Ok(VMState::Done(source)),
@@ -213,7 +232,7 @@ impl<'vm> VM<'vm> {
         trace!("Running {:?} (scope)", instruction);
         self.current.pc += 1;
         match instruction {
-            Instruction::Ret(output) => self.process_ret(output, Some(|s| VMState::Ran(s))),
+            Instruction::Ret(output) => self.process_ret(output, Some(VMState::Ran)),
             ins => self.process_core_instruction(ins),
         }
     }
@@ -316,15 +335,6 @@ impl<'vm> VM<'vm> {
         self.sp = scope_index;
         self.current = CallFrame::child(scope_index, self.frames.len() - 1, output);
         Ok(())
-    }
-
-    pub fn run_lifecycles(&mut self) -> IndexMap<String, ()> {
-        let mut futures = IndexMap::with_capacity(self.lifecycles.len());
-        for (name, l) in &mut self.lifecycles {
-            trace!("Starting Lifecycle: {}", name);
-            futures.insert(name.to_string(), l.run());
-        }
-        futures
     }
 
     /// Snapshots can't include modules or messages from in progress lifecycles

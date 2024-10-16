@@ -1,7 +1,7 @@
 [package]
 name = "rigz_vm"
 description = "Register based VM for rigz"
-version = "0.13.0"
+version = "0.14.0"
 edition = "2021"
 readme = "README.md"
 license = "MIT"
@@ -9,8 +9,10 @@ repository = "https://gitlab.com/magicfoodhand/rigz_vm"
 
 [dependencies]
 crossbeam = "0.8"
+dyn-clone = "1.0.17"
 indexmap = "2.3.0"
 log = "0.4.22"
+nohash-hasher = "0.2.0"
 once_cell = "1.19.0"
 
 [dev-dependencies]

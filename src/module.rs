@@ -1,40 +1,31 @@
-use crate::{RigzType, VMError, Value};
-use indexmap::IndexMap;
-use std::fmt::{Debug, Formatter};
+use crate::{VMError, Value, VM};
+use dyn_clone::DynClone;
 
-pub type Function<'vm> =
-    IndexMap<&'vm str, &'vm dyn Fn(Vec<Value<'vm>>) -> Result<Value<'vm>, VMError>>;
-pub type ExtensionFunction<'vm> =
-    IndexMap<&'vm str, &'vm dyn Fn(Value<'vm>, Vec<Value<'vm>>) -> Result<Value<'vm>, VMError>>;
+/// modules will be cloned when used, until DynClone can be removed
+pub trait Module<'vm>: DynClone {
+    fn name(&self) -> &'vm str;
 
-pub type MutableFunction<'vm> =
-    IndexMap<&'vm str, &'vm dyn FnMut(Vec<Value<'vm>>) -> Result<Value<'vm>, VMError>>;
-pub type MutableExtensionFunction<'vm> =
-    IndexMap<&'vm str, &'vm dyn FnMut(Value<'vm>, Vec<Value<'vm>>) -> Result<Value<'vm>, VMError>>;
+    fn call(&self, function: &'vm str, args: Vec<Value<'vm>>) -> Result<Value<'vm>, VMError>;
 
-#[derive(Clone, Default)]
-pub struct Module<'vm> {
-    pub name: &'vm str,
-    pub functions: Function<'vm>,
-    pub extension_functions: IndexMap<RigzType, ExtensionFunction<'vm>>,
-    pub mutable_functions: MutableFunction<'vm>,
-    pub mutable_extension_functions: IndexMap<RigzType, MutableExtensionFunction<'vm>>,
+    fn call_extension(
+        &self,
+        value: Value,
+        function: &'vm str,
+        args: Vec<Value<'vm>>,
+    ) -> Result<Value<'vm>, VMError>;
+
+    fn vm_extension(
+        &self,
+        vm: &mut VM<'vm>,
+        function: &'vm str,
+        args: Vec<Value<'vm>>,
+    ) -> Result<Value<'vm>, VMError>;
+
+    fn extensions(&self) -> &[&str];
+
+    fn functions(&self) -> &[&str];
+
+    fn vm_extensions(&self) -> &[&str];
 }
 
-impl<'vm> Debug for Module<'vm> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut extension_debug = String::new();
-        for (k, v) in &self.extension_functions {
-            extension_debug
-                .push_str(format!("type={:?}, functions={:?}", k.clone(), v.keys()).as_str());
-            extension_debug.push(';');
-        }
-        write!(
-            f,
-            "Module {{name={}, functions={:?}, extension_functions={}}}",
-            self.name,
-            self.functions.keys(),
-            extension_debug
-        )
-    }
-}
+dyn_clone::clone_trait_object!(Module<'_>);

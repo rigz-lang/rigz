@@ -1,6 +1,4 @@
 mod binary;
-mod lifecycles;
-mod modules;
 mod unary;
 
 pub use binary::{Binary, BinaryOperation};
@@ -50,20 +48,24 @@ pub enum Instruction<'vm> {
     // requires modules, enabled by default
     CallModule {
         module: &'vm str,
-        function: &'vm str,
-        args: Vec<Register>,
-        output: Register,
+        func: &'vm str,
+        args: Vec<usize>,
+        output: usize,
     },
-    CallExtensionModule {
+    CallExtension {
         module: &'vm str,
-        function: &'vm str,
-        this: Register,
-        args: Vec<Register>,
-        output: Register,
+        this: usize,
+        func: &'vm str,
+        args: Vec<usize>,
+        output: usize,
     },
-    // requires Lifecycles, enabled by default
-    Publish(Register),
-    PublishEvent(&'vm str, Register),
+    /// This instruction will clone your module, ideally modules implement Copy + Clone
+    CallVMExtension {
+        module: &'vm str,
+        func: &'vm str,
+        args: Vec<usize>,
+        output: usize,
+    },
     /// Danger Zone, use these instructions at your own risk (sorted by risk)
     /// in the right situations these will be fantastic, otherwise avoid them
 
@@ -120,43 +122,61 @@ impl<'vm> VM<'vm> {
             Instruction::BinaryAssign(b) => self.handle_binary_assign(b)?,
             Instruction::UnaryClear(u, clear) => self.handle_unary_clear(u, clear)?,
             Instruction::BinaryClear(b, clear) => self.handle_binary_clear(b, clear)?,
-            Instruction::Push(v) => match self.registers.len() {
-                0 => self.insert_register(2, v),
-                k => self.insert_register(k, v),
-            },
-            Instruction::Pop(r) => match self.registers.pop() {
+            Instruction::Push(v) => self.stack.push(v),
+            Instruction::Pop(r) => match self.stack.pop() {
                 None => {
                     return Err(VMError::RuntimeError(format!(
                         "Pop called on empty registers with {}",
                         r
                     )))
                 }
-                Some((_, v)) => self.insert_register(r, v),
+                Some(v) => self.insert_register(r, v),
             },
             Instruction::Load(r, v) => self.insert_register(r, v),
             Instruction::LoadLetRegister(name, register) => self.load_let(name, register)?,
             Instruction::LoadMutRegister(name, register) => self.load_mut(name, register)?,
             Instruction::Call(scope_index, register) => self.call_frame(scope_index, register)?,
-            Instruction::Publish(value) => return self.publish(value),
-            Instruction::PublishEvent(message, value) => return self.publish_event(message, value),
             Instruction::CallModule {
                 module,
-                function,
-                args,
-                output,
-            } => return self.handle_call_module_instruction(module, function, args, output),
-            Instruction::CallExtensionModule {
-                module,
-                function,
-                this,
+                func,
                 args,
                 output,
             } => {
-                return self
-                    .handle_call_extension_module_instruction(module, function, this, args, output)
+                let module = self.get_module_clone(module)?;
+                let args = self.resolve_registers(args)?;
+                let v = module.call(func, args).unwrap_or_else(|e| e.to_value());
+                self.insert_register(output, v);
+            }
+            Instruction::CallExtension {
+                module,
+                this,
+                func,
+                args,
+                output,
+            } => {
+                let module = self.get_module_clone(module)?;
+                let this = self.resolve_register(this)?;
+                let args = self.resolve_registers(args)?;
+                let v = module
+                    .call_extension(this, func, args)
+                    .unwrap_or_else(|e| e.to_value());
+                self.insert_register(output, v);
+            }
+            Instruction::CallVMExtension {
+                module,
+                func,
+                args,
+                output,
+            } => {
+                let module = self.get_module_clone(module)?;
+                let args = self.resolve_registers(args)?;
+                let value = module
+                    .vm_extension(self, func, args)
+                    .unwrap_or_else(|e| e.to_value());
+                self.insert_register(output, value)
             }
             Instruction::Copy(from, to) => {
-                let copy = self.get_register(from)?;
+                let copy = self.resolve_register(from)?;
                 self.insert_register(to, copy);
             }
             Instruction::Cast {
@@ -164,19 +184,19 @@ impl<'vm> VM<'vm> {
                 rigz_type,
                 to,
             } => {
-                let value = self.get_register(from)?;
+                let value = self.resolve_register(from)?;
                 self.insert_register(to, value.cast(rigz_type)?);
             }
             Instruction::CallEq(a, b, scope_index, output) => {
-                let a = self.get_register(a)?;
-                let b = self.get_register(b)?;
+                let a = self.resolve_register(a)?;
+                let b = self.resolve_register(b)?;
                 if a == b {
                     self.call_frame(scope_index, output)?;
                 }
             }
             Instruction::CallNeq(a, b, scope_index, output) => {
-                let a = self.get_register(a)?;
-                let b = self.get_register(b)?;
+                let a = self.resolve_register(a)?;
+                let b = self.resolve_register(b)?;
                 if a != b {
                     self.call_frame(scope_index, output)?;
                 }
@@ -187,7 +207,7 @@ impl<'vm> VM<'vm> {
                 else_scope,
                 output,
             } => {
-                if self.get_register(truthy)?.to_bool() {
+                if self.resolve_register(truthy)?.to_bool() {
                     self.call_frame(if_scope, output)?;
                 } else {
                     self.call_frame(else_scope, output)?;
@@ -217,7 +237,7 @@ impl<'vm> VM<'vm> {
 
                 let mut res = (*tmpl).to_string();
                 for arg in args {
-                    let l = self.get_register(arg)?.to_string();
+                    let l = self.resolve_register(arg)?.to_string();
                     res = res.replacen("{}", l.as_str(), 1);
                 }
                 log!(level, "{}", res)
@@ -225,7 +245,7 @@ impl<'vm> VM<'vm> {
             Instruction::Puts(args) => {
                 let mut puts = String::new();
                 for r in args {
-                    let arg = self.get_register(r)?;
+                    let arg = self.resolve_register(r)?;
                     puts.push_str(", ");
                     puts.push_str(arg.to_string().as_str());
                 }

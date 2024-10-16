@@ -73,16 +73,16 @@ impl<'vm> VM<'vm> {
             rhs,
             output,
         } = binary;
-        let lhs = self.get_register(lhs)?;
-        let rhs = self.get_register(rhs)?;
+        let lhs = self.resolve_register(lhs)?;
+        let rhs = self.resolve_register(rhs)?;
         self.apply_binary(op, lhs, rhs, output)
     }
 
     pub fn handle_binary_assign(&mut self, binary: Binary) -> Result<(), VMError> {
         let Binary { op, lhs, rhs, .. } = binary;
-        let v = self.get_register(lhs)?;
-        let rhs = self.get_register(rhs)?;
-        self.apply_binary(op, v, rhs, lhs)
+        let v = self.resolve_register(lhs)?;
+        let rhs = self.resolve_register(rhs)?;
+        self.apply_binary(op, v, rhs, lhs) // TODO measure cost of storing in same register vs impl *Assign trait
     }
 
     pub fn handle_binary_clear(&mut self, binary: Binary, clear: Clear) -> Result<(), VMError> {
@@ -93,12 +93,14 @@ impl<'vm> VM<'vm> {
             output,
         } = binary;
         let (lhs, rhs) = match clear {
-            Clear::One(c) if c == rhs => {
-                (self.get_register(lhs), self.remove_register_eval_scope(c))
-            }
-            Clear::One(c) if c == lhs => {
-                (self.remove_register_eval_scope(lhs), self.get_register(c))
-            }
+            Clear::One(c) if c == rhs => (
+                self.resolve_register(lhs),
+                self.remove_register_eval_scope(c),
+            ),
+            Clear::One(c) if c == lhs => (
+                self.remove_register_eval_scope(lhs),
+                self.resolve_register(c),
+            ),
             Clear::Two(c1, c2) if c1 == lhs && c2 == rhs => (
                 self.remove_register_eval_scope(c1),
                 self.remove_register_eval_scope(c2),

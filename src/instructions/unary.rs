@@ -58,13 +58,13 @@ impl<'vm> VM<'vm> {
 
     pub fn handle_unary(&mut self, unary: Unary) -> Result<(), VMError> {
         let Unary { op, from, output } = unary;
-        let val = self.get_register(from)?;
+        let val = self.resolve_register(from)?;
         self.apply_unary(op, val, output)
     }
 
     pub fn handle_unary_assign(&mut self, unary: Unary) -> Result<(), VMError> {
         let Unary { op, from, .. } = unary;
-        let val = self.get_register(from)?;
+        let val = self.resolve_register(from)?;
         self.apply_unary(op, val, from)
     }
 

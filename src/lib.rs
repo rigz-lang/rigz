@@ -3,7 +3,6 @@ extern crate core;
 mod builder;
 mod call_frame;
 mod instructions;
-mod lifecycle;
 mod macros;
 mod module;
 mod number;
@@ -20,8 +19,7 @@ use std::hash::Hash;
 pub use builder::VMBuilder;
 pub use call_frame::{CallFrame, Variable};
 pub use instructions::{Binary, BinaryOperation, Instruction, Unary, UnaryOperation};
-pub use lifecycle::{Lifecycle, Message};
-pub use module::{ExtensionFunction, Function, Module, MutableExtensionFunction, MutableFunction};
+pub use module::Module;
 pub use number::Number;
 pub use objects::{RigzObject, RigzObjectDefinition, RigzType};
 pub use scope::Scope;
@@ -58,8 +56,7 @@ impl<'vm> VMError {
 mod tests {
     use crate::number::Number;
     use crate::value::Value;
-    use crate::{Module, RigzType, VMBuilder, VMError};
-    use indexmap::IndexMap;
+    use crate::{Module, RigzType, VMBuilder, VMError, VM};
     use std::str::FromStr;
 
     #[test]
@@ -177,24 +174,60 @@ mod tests {
         );
     }
 
+    #[derive(Clone)]
+    struct TestModule {}
+
+    #[allow(unused_variables)]
+    impl<'vm> Module<'vm> for TestModule {
+        fn name(&self) -> &'vm str {
+            "test"
+        }
+
+        fn call(&self, function: &'vm str, args: Vec<Value<'vm>>) -> Result<Value<'vm>, VMError> {
+            match function {
+                "hello" => {
+                    println!("{}", Value::List(args));
+                    Ok(Value::None)
+                }
+                f => Err(VMError::InvalidModuleFunction(f.to_string())),
+            }
+        }
+
+        fn call_extension(
+            &self,
+            value: Value,
+            function: &'vm str,
+            args: Vec<Value<'vm>>,
+        ) -> Result<Value<'vm>, VMError> {
+            Err(VMError::InvalidModuleFunction(function.to_string()))
+        }
+
+        fn vm_extension(
+            &self,
+            vm: &mut VM<'vm>,
+            function: &'vm str,
+            args: Vec<Value<'vm>>,
+        ) -> Result<Value<'vm>, VMError> {
+            Err(VMError::InvalidModuleFunction(function.to_string()))
+        }
+
+        fn extensions(&self) -> &[&str] {
+            [].as_slice()
+        }
+
+        fn functions(&self) -> &[&str] {
+            ["hello"].as_slice()
+        }
+
+        fn vm_extensions(&self) -> &[&str] {
+            [].as_slice()
+        }
+    }
+
     #[test]
     fn module_works<'vm>() {
         let mut builder = VMBuilder::new();
-        fn hello(args: Vec<Value>) -> Result<Value, VMError> {
-            println!("{}", Value::List(args));
-            Ok(Value::None)
-        }
-        let mut functions: IndexMap<
-            &'vm str,
-            &dyn Fn(Vec<Value<'vm>>) -> Result<Value<'vm>, VMError>,
-        > = IndexMap::new();
-        functions.insert("hello", &hello);
-
-        let module = Module {
-            name: "test",
-            functions,
-            ..Default::default()
-        };
+        let module = TestModule {};
         let mut vm = builder
             .register_module(module)
             .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()))
