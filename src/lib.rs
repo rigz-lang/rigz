@@ -45,7 +45,7 @@ pub enum VMError {
     LifecycleError(String),
 }
 
-impl<'vm> VMError {
+impl VMError {
     pub fn to_value(self) -> Value {
         Value::Error(self)
     }

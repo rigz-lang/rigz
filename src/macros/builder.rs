@@ -79,6 +79,26 @@ macro_rules! generate_builder {
         }
 
         #[inline]
+        pub fn add_unary_instruction(&mut self, op: UnaryOperation, from: Register, output: Register) -> &mut Self {
+            self.add_instruction(Instruction::Unary(Unary {
+                op,
+                from,
+                output
+            }))
+        }
+
+
+        #[inline]
+        pub fn add_binary_instruction(&mut self, op: BinaryOperation, lhs: Register, rhs: Register, output: Register) -> &mut Self {
+            self.add_instruction(Instruction::Binary(Binary {
+                op,
+                lhs,
+                rhs,
+                output
+            }))
+        }
+
+        #[inline]
         pub fn register_module(&mut self, module: impl Module<'vm> + 'static) -> &mut Self {
             self.modules.insert(module.name(), Box::new(module));
             self

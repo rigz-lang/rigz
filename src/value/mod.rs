@@ -14,7 +14,7 @@ mod shr;
 mod sub;
 
 use crate::number::Number;
-use crate::{impl_from, impl_from_into, impl_from_into_lifetime, impl_from_lifetime, Register, RigzType, VMError};
+use crate::{impl_from, impl_from_into, Register, RigzType, VMError};
 use indexmap::IndexMap;
 use log::trace;
 use std::cmp::Ordering;
@@ -73,9 +73,7 @@ impl PartialOrd for Value {
             (_, Value::List(_)) => Some(Ordering::Greater),
             (Value::Map(_), _) => Some(Ordering::Less),
             (_, Value::Map(_)) => Some(Ordering::Greater),
-            // (_, Value::Object(_)) => Some(Ordering::Greater),
-            (Value::ScopeId(_, _), _) => todo!(),
-            (_, Value::ScopeId(_, _)) => todo!(),
+            (Value::ScopeId(_, _), _) => Some(Ordering::Greater),
         }
     }
 }
