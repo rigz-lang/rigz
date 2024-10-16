@@ -1,5 +1,6 @@
 use crate::value::Value;
 use crate::{
+    Binary, Unary,
     BinaryOperation, CallFrame, Instruction, Module, Register, RigzType, Scope, UnaryOperation, VM,
 };
 use indexmap::IndexMap;
@@ -10,11 +11,11 @@ macro_rules! generate_unary_op_methods {
         $(
             #[inline]
             pub fn $name(&mut self, from: Register, output: Register) -> &mut Self {
-                self.add_instruction(Instruction::Unary {
+                self.add_instruction(Instruction::Unary(Unary {
                     op: UnaryOperation::$variant,
                     from,
                     output
-                })
+                }))
             }
         )*
     };
@@ -26,12 +27,12 @@ macro_rules! generate_bin_op_methods {
         $(
             #[inline]
             pub fn $name(&mut self, lhs: Register, rhs: Register, output: Register) -> &mut Self {
-                self.add_instruction(Instruction::Binary {
+                self.add_instruction(Instruction::Binary(Binary {
                     op: BinaryOperation::$variant,
                     lhs,
                     rhs,
                     output
-                })
+                }))
             }
         )*
     };

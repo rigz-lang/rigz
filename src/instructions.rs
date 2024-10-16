@@ -1,19 +1,25 @@
 use crate::{Register, RigzType, Value};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Unary {
+    pub op: UnaryOperation,
+    pub from: Register,
+    pub output: Register,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Binary {
+    pub op: BinaryOperation,
+    pub lhs: Register,
+    pub rhs: Register,
+    pub output: Register,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Instruction<'vm> {
     Halt(Register),
-    Unary {
-        op: UnaryOperation,
-        from: Register,
-        output: Register,
-    },
-    Binary {
-        op: BinaryOperation,
-        lhs: Register,
-        rhs: Register,
-        output: Register,
-    },
+    Unary(Unary),
+    Binary(Binary),
     Load(Register, Value<'vm>),
     Copy(Register, Register),
     Call(usize, Register),
