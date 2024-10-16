@@ -29,7 +29,6 @@ pub enum Value<'vm> {
     List(Vec<Value<'vm>>),
     Map(IndexMap<Value<'vm>, Value<'vm>>),
     Object(RigzObject<'vm>),
-    Scope(Scope<'vm>),
     ScopeId(usize),
     Error(VMError),
     // TODO add scope here
@@ -57,8 +56,6 @@ impl <'vm> PartialOrd for Value<'vm> {
             (Value::Map(_), _) => Some(Ordering::Less),
             (_, Value::Map(_)) => Some(Ordering::Greater),
             (_, Value::Object(_)) => Some(Ordering::Greater),
-            (Value::Scope(_), _) => unreachable!(),
-            (_, Value::Scope(_)) => unreachable!(),
             (Value::ScopeId(_), _) => todo!(),
             (_, Value::ScopeId(_)) => todo!(),
         }
@@ -83,7 +80,6 @@ impl <'vm> Value<'vm> {
             Value::List(l) => !l.is_empty(),
             Value::Map(m) => !m.is_empty(),
             Value::Object(m) => !m.fields.is_empty(),
-            Value::Scope(_) => unreachable!(),
             Value::ScopeId(u) => todo!(),
         }
     }
@@ -99,7 +95,6 @@ impl <'vm> Value<'vm> {
             Value::Map(_) => RigzType::Map,
             Value::Object(v) => RigzType::Object(v.definition_index.clone()),
             Value::Error(_) => RigzType::Error,
-            Value::Scope(_) => unreachable!(),
             Value::ScopeId(u) => todo!(),
         }
     }
@@ -276,7 +271,6 @@ impl <'vm> Display for Value<'vm> {
                 }
                 write!(f, "{} {{ {} }}", o.definition_index.name, values)
             }
-            Value::Scope(_) => unreachable!(),
             Value::ScopeId(u) => todo!(),
         }
     }
@@ -304,7 +298,6 @@ impl <'vm> Hash for Value<'vm> {
                 }
             }
             Value::Object(m) => m.hash(state),
-            Value::Scope(_) => unreachable!(),
             Value::ScopeId(u) => todo!(),
         }
     }
@@ -365,8 +358,6 @@ impl <'vm> PartialEq for Value<'vm> {
             (Value::Map(a), Value::Object(b)) => b.equivalent(a),
             (Value::Object(a), Value::Map(b)) => a.equivalent(b),
             (Value::Object(a), Value::Object(b)) => a == b,
-            (Value::Scope(_), _) => unreachable!(),
-            (_, Value::Scope(_)) => unreachable!(),
             (Value::ScopeId(a), Value::ScopeId(b)) => a == b,
             (Value::ScopeId(a), b) => todo!(),
             (a, Value::ScopeId(b)) => todo!(),

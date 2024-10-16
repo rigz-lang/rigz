@@ -42,6 +42,7 @@ pub enum VMError {
     ConversionError(String),
     ScopeDoesNotExist(String),
     UnsupportedOperation(String),
+    ParseError(String, usize, usize),
 }
 
 #[derive(Clone, Debug)]
@@ -419,12 +420,7 @@ impl <'vm> VM<'vm> {
                     self.insert_register(output, v);
                 }
                 Instruction::Load(r, v) => {
-                    if let Value::Scope(s) = v {
-                        self.insert_register(r, Value::ScopeId(self.scopes.len()));
-                        self.scopes.push(s);
-                    } else {
-                        self.insert_register(r, v);
-                    }
+                    self.insert_register(r, v);
                 }
                 Instruction::LoadLetRegister(name, register) => {
                     let value = self.remove_register(&register)?;
@@ -496,15 +492,7 @@ impl <'vm> VM<'vm> {
         Ok(Value::None)
     }
 
-    fn load_mut(&mut self, name: String, v: Value<'vm>) -> Result<(), VMError> {
-        let value = if let Value::Scope(s) = v {
-            let v = Value::ScopeId(self.scopes.len());
-            self.scopes.push(s);
-            v
-        } else {
-            v
-        };
-
+    fn load_mut(&mut self, name: String, value: Value<'vm>) -> Result<(), VMError> {
         match self.current.variables.entry(name) {
             Entry::Occupied(mut var) => {
                 match var.get() {
@@ -523,15 +511,7 @@ impl <'vm> VM<'vm> {
         Ok(())
     }
 
-    fn load_let(&mut self, name: String, v: Value<'vm>) -> Result<(), VMError> {
-        let value = if let Value::Scope(s) = v {
-            let v = Value::ScopeId(self.scopes.len());
-            self.scopes.push(s);
-            v
-        } else {
-            v
-        };
-
+    fn load_let(&mut self, name: String, value: Value<'vm>) -> Result<(), VMError> {
         match self.current.variables.entry(name) {
             Entry::Occupied(v) => {
                 return Err(VMError::UnsupportedOperation(format!("Cannot overwrite let variable: {}", *v.key())))
