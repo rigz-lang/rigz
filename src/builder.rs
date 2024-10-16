@@ -2,6 +2,7 @@ use indexmap::IndexMap;
 use crate::{BinaryOperation, UnaryOperation, CallFrame, Instruction, Register, Scope, VM, RigzType, Module};
 use crate::value::Value;
 
+#[macro_export]
 macro_rules! generate_unary_op_methods {
     ($($name:ident => $variant:ident),*) => {
         $(
@@ -17,6 +18,7 @@ macro_rules! generate_unary_op_methods {
     };
 }
 
+#[macro_export]
 macro_rules! generate_bin_op_methods {
     ($($name:ident => $variant:ident),*) => {
         $(
@@ -33,6 +35,7 @@ macro_rules! generate_bin_op_methods {
     };
 }
 
+#[macro_export]
 macro_rules! generate_builder {
     () => {
         generate_bin_op_methods! {
@@ -60,6 +63,55 @@ macro_rules! generate_builder {
             add_not_instruction => Not,
             add_print_instruction => Print,
             add_eprint_instruction => EPrint
+        }
+
+        #[inline]
+        pub fn enter_scope(&mut self) -> &mut Self {
+            self.scopes.push(Scope::new());
+            self.sp += 1;
+            self
+        }
+
+        #[inline]
+        pub fn exit_scope(&mut self) -> &mut Self {
+            let s = self.add_instruction(Instruction::Ret);
+            s.sp -= 1;
+            s
+        }
+
+        #[inline]
+        pub fn register_module(&mut self, module: Module<'vm>) -> &mut Self {
+            self.modules.insert(module.name, module);
+            self
+        }
+
+        #[inline]
+        pub fn add_instruction(&mut self, instruction: Instruction<'vm>) -> &mut Self {
+            self.scopes[self.sp].instructions.push(instruction);
+            self
+        }
+
+        #[inline]
+        pub fn add_call_module_instruction(&mut self, name: &'vm str, function: &'vm str, args: Vec<Register>, output: Register) -> &mut Self {
+            self.add_instruction(Instruction::CallModule {
+                module: name,
+                function,
+                args,
+                output,
+            });
+            self
+        }
+
+        #[inline]
+        pub fn add_call_extension_module_instruction(&mut self, name: &'vm str, function: &'vm str, this: Register, args: Vec<Register>, output: Register) -> &mut Self {
+            self.add_instruction(Instruction::CallExtensionModule {
+                module: name,
+                function,
+                this,
+                args,
+                output,
+            });
+            self
         }
 
         #[inline]
@@ -145,54 +197,6 @@ impl <'vm> VMBuilder<'vm> {
     generate_builder!();
 
     #[inline]
-    pub fn enter_scope(&mut self) -> &mut Self {
-        self.scopes.push(Scope::new());
-        self.sp += 1;
-        self
-    }
-
-    #[inline]
-    pub fn exit_scope(&mut self) -> &mut Self {
-        let s = self.add_instruction(Instruction::Ret);
-        s.sp -= 1;
-        s
-    }
-
-    #[inline]
-    pub fn register_module(&mut self, module: Module<'vm>) -> &mut Self {
-        self.modules.insert(module.name, module);
-        self
-    }
-
-    #[inline]
-    pub fn add_call_module_instruction(&mut self, name: &'vm str, function: &'vm str, args: Vec<Register>, output: Register) -> &mut Self {
-        self.add_instruction(Instruction::CallModule {
-            module: name,
-            function,
-            args,
-            output,
-        });
-        self
-    }
-
-    #[inline]
-    pub fn add_call_extension_module_instruction(&mut self, name: &'vm str, function: &'vm str, this: Register, args: Vec<Register>, output: Register) -> &mut Self {
-        self.add_instruction(Instruction::CallExtensionModule {
-            module: name,
-            function,
-            this,
-            args,
-            output,
-        });
-        self
-    }
-
-    pub fn add_instruction(&mut self, instruction: Instruction<'vm>) -> &mut Self {
-        self.scopes[self.sp].instructions.push(instruction);
-        self
-    }
-
-    #[inline]
     pub fn build(&mut self) -> VM<'vm> {
         VM {
             scopes: std::mem::take(&mut self.scopes),
@@ -200,7 +204,8 @@ impl <'vm> VMBuilder<'vm> {
             frames: vec![],
             registers: Default::default(),
             lifecycles: vec![],
-            modules: std::mem::take(&mut self.modules)
+            modules: std::mem::take(&mut self.modules),
+            sp: 0
         }
     }
 
@@ -212,7 +217,8 @@ impl <'vm> VMBuilder<'vm> {
             frames: vec![],
             registers: Default::default(),
             lifecycles: vec![],
-            modules: self.modules.clone()
+            modules: self.modules.clone(),
+            sp: 0
         };
         (vm, self)
     }

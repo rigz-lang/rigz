@@ -348,7 +348,8 @@ pub struct VM<'vm> {
     pub frames: Vec<CallFrame>,
     pub registers: IndexMap<usize, Value<'vm>>,
     pub lifecycles: Vec<Lifecycle<'vm>>,
-    pub modules: IndexMap<&'vm str, Module<'vm>>
+    pub modules: IndexMap<&'vm str, Module<'vm>>,
+    sp: usize
 }
 
 #[derive(Clone, Debug)]
@@ -359,6 +360,8 @@ pub struct Module<'vm> {
 }
 
 impl <'vm> VM<'vm> {
+    generate_builder!();
+
     pub fn insert_register(&mut self, register: Register, value: Value<'vm>) {
         if register <= 1 {
             return
