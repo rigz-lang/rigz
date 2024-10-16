@@ -1,3 +1,4 @@
+use crate::lifecycle::Lifecycle;
 use crate::value::Value;
 use crate::vm::VMOptions;
 use crate::{
@@ -6,7 +7,6 @@ use crate::{
 };
 use indexmap::IndexMap;
 use log::Level;
-use crate::lifecycle::Lifecycle;
 
 #[derive(Clone)]
 pub struct VMBuilder<'vm> {

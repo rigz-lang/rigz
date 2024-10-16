@@ -3,6 +3,7 @@ extern crate core;
 mod builder;
 mod call_frame;
 mod instructions;
+mod lifecycle;
 mod macros;
 mod module;
 mod number;
@@ -11,7 +12,6 @@ mod scope;
 mod traits;
 mod value;
 mod vm;
-mod lifecycle;
 
 use std::fmt::Debug;
 use std::hash::Hash;

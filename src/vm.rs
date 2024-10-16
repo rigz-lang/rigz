@@ -1,11 +1,15 @@
 use crate::instructions::{Binary, Unary};
-use crate::{generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation, CallFrame, Instruction, Module, Number, Register, RigzType, Scope, UnaryOperation, VMError, Value, Variable};
+use crate::lifecycle::Lifecycle;
+use crate::{
+    generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation,
+    CallFrame, Instruction, Module, Number, Register, RigzType, Scope, UnaryOperation, VMError,
+    Value, Variable,
+};
 use indexmap::map::Entry;
 use indexmap::IndexMap;
 use log::{trace, warn, Level};
 use nohash_hasher::BuildNoHashHasher;
 use std::fmt::{Debug, Formatter};
-use crate::lifecycle::Lifecycle;
 
 pub enum VMState {
     Running,
@@ -108,12 +112,10 @@ impl<'vm> VM<'vm> {
         match register {
             0 => Ok(Value::None),
             1 => Ok(Value::Number(Number::one())),
-            register => {
-                match self.registers.get(&register) {
-                    None => Err(VMError::EmptyRegister(format!("R{} is empty", register))),
-                    Some(v) => Ok(v.clone()),
-                }
-            }
+            register => match self.registers.get(&register) {
+                None => Err(VMError::EmptyRegister(format!("R{} is empty", register))),
+                Some(v) => Ok(v.clone()),
+            },
         }
     }
 
@@ -174,7 +176,7 @@ impl<'vm> VM<'vm> {
         match register {
             0 => Ok(Value::None),
             1 => Ok(Value::Number(Number::one())),
-            register => self.remove_register_value(register)
+            register => self.remove_register_value(register),
         }
     }
 

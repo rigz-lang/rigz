@@ -1,6 +1,5 @@
 use crate::{Instruction, Register};
 
-
 /**
 todo need to know whether scope is function, root, or expression for returns
 for functions, return value
