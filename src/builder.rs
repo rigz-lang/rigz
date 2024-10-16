@@ -130,6 +130,16 @@ macro_rules! generate_builder {
         }
 
         #[inline]
+        pub fn add_halt_instruction(&mut self, register: Register) -> &mut Self {
+            self.add_instruction(Instruction::Halt(register))
+        }
+
+        #[inline]
+        pub fn add_ret_instruction(&mut self, register: Register) -> &mut Self {
+            self.add_instruction(Instruction::Ret(register))
+        }
+
+        #[inline]
         pub fn add_call_instruction(&mut self, scope_id: usize, register: Register) -> &mut Self {
             self.add_instruction(Instruction::Call(scope_id, register))
         }

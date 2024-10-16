@@ -343,6 +343,7 @@ impl<'vm> VM<'vm> {
 
     pub fn process_instruction(&mut self, instruction: Instruction<'vm>) -> Result<VMState<'vm>, VMError> {
         match instruction {
+            Instruction::Halt(r) => return Ok(VMState::Done(self.get_register(r)?)),
             Instruction::Unary { op, from, output } => {
                 let val = match self.registers.shift_remove(&from) {
                     None => return Err(VMError::EmptyRegister(format!("R{} is empty", from))),

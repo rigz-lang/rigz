@@ -2,6 +2,7 @@ use crate::{Register, RigzType, Value};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Instruction<'vm> {
+    Halt(Register),
     Unary {
         op: UnaryOperation,
         from: Register,
