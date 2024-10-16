@@ -1,4 +1,4 @@
-use crate::instructions::{Binary, Clear, Unary};
+use crate::instructions::{Binary, Unary};
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation,
     CallFrame, Instruction, Lifecycle, Logical, Module, Number, Register, Reverse, RigzType, Scope,
@@ -158,24 +158,7 @@ impl<'vm> VM<'vm> {
     ) -> Result<VMState<'vm>, VMError> {
         match instruction {
             Instruction::Halt(r) => return Ok(VMState::Done(self.get_register(r)?)),
-            Instruction::Unary(u, clear) => {
-                self.handle_unary(u)?;
-                match clear {
-                    Clear::None => {}
-                    Clear::One(r) => {
-                        self.registers.shift_remove(&r);
-                    }
-                    Clear::Two(r1, r2) => {
-                        self.registers.shift_remove(&r1);
-                        self.registers.shift_remove(&r2);
-                    }
-                    Clear::Many(many) => {
-                        for r in many {
-                            self.registers.shift_remove(&r);
-                        }
-                    }
-                }
-            }
+            Instruction::Unary(u) => self.handle_unary(u)?,
             Instruction::Binary(b) => self.handle_binary(b)?,
             Instruction::Load(r, v) => self.insert_register(r, v),
             Instruction::LoadLetRegister(name, register) => self.load_let(name, register)?,

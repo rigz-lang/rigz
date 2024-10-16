@@ -1,4 +1,3 @@
-use crate::instructions::Clear;
 use crate::value::Value;
 use crate::vm::VMOptions;
 use crate::{
