@@ -402,7 +402,7 @@ impl <'vm> VM<'vm> {
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
-    use crate::VMBuilder;
+    use crate::{RigzType, VMBuilder};
     use crate::number::Number;
     use crate::value::Value;
     
@@ -427,6 +427,18 @@ mod tests {
             .build();
         vm.run().unwrap();
         assert_eq!(vm.registers.get(&4).unwrap().clone(), Value::Number(Number::Int(42)));
+    }
+
+    #[test]
+    fn cast_works() {
+        let mut builder = VMBuilder::new();
+        let mut vm = builder
+            .add_load_instruction(4, Value::Number(Number::Int(42)))
+            .add_cast_instruction(4, RigzType::String, 7)
+            .build();
+        vm.run().unwrap();
+        assert_eq!(vm.registers.get(&4), None);
+        assert_eq!(vm.registers.get(&7).unwrap().clone(), Value::String(42.to_string()));
     }
 
     #[test]
