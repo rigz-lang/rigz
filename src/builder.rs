@@ -129,6 +129,26 @@ impl <'vm> VMBuilder<'vm> {
         self.add_instruction(Instruction::Load(reg, value))
     }
 
+    pub fn add_load_let_instruction(&mut self, name: String, value: Value<'vm>) -> &mut Self {
+        self.add_instruction(Instruction::LoadLet(name, value))
+    }
+
+    pub fn add_load_mut_instruction(&mut self, name: String, value: Value<'vm>) -> &mut Self {
+        self.add_instruction(Instruction::LoadMut(name, value))
+    }
+
+    pub fn add_load_let_reg_instruction(&mut self, name: String, register: Register) -> &mut Self {
+        self.add_instruction(Instruction::LoadLetRegister(name, register))
+    }
+
+    pub fn add_load_mut_reg_instruction(&mut self, name: String, register: Register) -> &mut Self {
+        self.add_instruction(Instruction::LoadMutRegister(name, register))
+    }
+
+    pub fn add_get_variable_instruction(&mut self, name: String, register: Register) -> &mut Self {
+        self.add_instruction(Instruction::GetVariable(name, register))
+    }
+
     pub fn build(&mut self) -> VM {
         VM {
             scopes: std::mem::take(&mut self.scopes),

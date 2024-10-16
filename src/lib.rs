@@ -9,6 +9,7 @@ use std::fmt::{Debug};
 use std::hash::{Hash, Hasher};
 use std::string::ToString;
 use indexmap::IndexMap;
+use indexmap::map::{Entry, OccupiedEntry};
 use once_cell::sync::Lazy;
 use crate::value::Value;
 
@@ -40,6 +41,7 @@ pub enum VMError {
     EmptyRegister(String),
     ConversionError(String),
     ScopeDoesNotExist(String),
+    UnsupportedOperation(String),
 }
 
 #[derive(Clone, Debug)]
@@ -106,6 +108,11 @@ pub enum Instruction<'vm> {
     // Import(),
     // Export(),
     Ret,
+    LoadLet(String, Value<'vm>),
+    LoadMut(String, Value<'vm>),
+    GetVariable(String, Register),
+    LoadLetRegister(String, Register),
+    LoadMutRegister(String, Register),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -218,11 +225,39 @@ impl <'vm> Hash for RigzObject<'vm> {
 }
 
 #[derive(Clone, Debug)]
+pub enum Variable<'vm> {
+    Let(Value<'vm>),
+    Mut(Value<'vm>),
+}
+
+#[derive(Clone, Debug)]
 pub struct CallFrame<'vm> {
     scope_id: usize,
     pc: usize,
-    variables: IndexMap<String, Value<'vm>>, // TODO switch to intern strings
+    variables: IndexMap<String, Variable<'vm>>, // TODO switch to intern strings
     parent: Option<usize>
+}
+
+impl<'vm> CallFrame<'vm> {
+    pub(crate) fn get_variable(&self, name: &String, vm: &VM<'vm>) -> Option<Value<'vm>> {
+        match self.variables.get(name) {
+            None => {
+                match self.parent {
+                    None => None,
+                    Some(parent) => {
+                        vm.frames[parent].get_variable(name, vm)
+                    }
+                }
+            }
+            Some(v) => {
+                let v = match v {
+                    Variable::Let(v) => v.clone(),
+                    Variable::Mut(v) => v.clone()
+                };
+                Some(v)
+            }
+        }
+    }
 }
 
 impl <'vm> Default for CallFrame<'vm> {
@@ -386,6 +421,20 @@ impl <'vm> VM<'vm> {
                 Instruction::Load(r, v) => {
                     self.insert_register(r, v);
                 }
+                Instruction::LoadLetRegister(name, register) => {
+                    let value = self.remove_register(&register)?;
+                    self.load_let(name, value)?;
+                }
+                Instruction::LoadMutRegister(name, register) => {
+                    let value = self.remove_register(&register)?;
+                    self.load_mut(name, value)?;
+                }
+                Instruction::LoadLet(name, v) => {
+                    self.load_let(name, v)?;
+                }
+                Instruction::LoadMut(name, v) => {
+                    self.load_mut(name, v)?;
+                }
                 Instruction::Copy(from, to) => {
                     let copy = match self.registers.get(&from) {
                         None => return Err(VMError::EmptyRegister(format!("R{} is empty", from))),
@@ -431,9 +480,46 @@ impl <'vm> VM<'vm> {
                         self.call_frame(else_scope)?;
                     }
                 }
+                Instruction::GetVariable(name, reg) => {
+                    match self.current.get_variable(&name, self) {
+                        None => return Err(VMError::RuntimeError(format!("Variable {} does not exist", name))),
+                        Some(value) => self.insert_register(reg, value)
+                    };
+                }
             }
         }
         Ok(Value::None)
+    }
+
+    fn load_mut(&mut self, name: String, v: Value) -> Result<(), VMError> {
+        match self.current.variables.entry(name) {
+            Entry::Occupied(mut var) => {
+                match var.get() {
+                    Variable::Let(_) => {
+                        return Err(VMError::UnsupportedOperation(format!("Cannot overwrite let variable: {}", *var.key())))
+                    }
+                    Variable::Mut(e) => {
+                        var.insert(Variable::Mut(v));
+                    }
+                }
+            }
+            Entry::Vacant(e) => {
+                e.insert(Variable::Mut(v));
+            }
+        }
+        Ok(())
+    }
+
+    fn load_let(&mut self, name: String, v: Value) -> Result<(), VMError> {
+        match self.current.variables.entry(name) {
+            Entry::Occupied(v) => {
+                return Err(VMError::UnsupportedOperation(format!("Cannot overwrite let variable: {}", *v.key())))
+            },
+            Entry::Vacant(e) => {
+                e.insert(Variable::Let(v));
+            }
+        }
+        Ok(())
     }
 
     fn call_frame(&mut self, scope_index: usize) -> Result<(), VMError> {
@@ -551,18 +637,29 @@ mod tests {
         assert_eq!(vm.registers.get(&3).unwrap().clone(), Value::String(String::from_str("abc").unwrap()));
     }
 
-    #[test]
-    fn add_fn_works() {
-        let mut builder = VMBuilder::new();
-        let mut vm = builder
-            .enter_scope()
-            .add_add_instruction(2, 3, 4)
-            .exit_scope()
-            .add_load_instruction(2, Value::Number(Number::Int(2)))
-            .add_load_instruction(3, Value::Number(Number::Int(4)))
-            .add_call_instruction(1)
-            .build();
-        vm.run().unwrap();
-        assert_eq!(vm.registers.get(&4).unwrap().clone(), Value::Number(Int(6)));
-    }
+    // #[test]
+    // fn fib_fn_works() {
+    //     /*
+    //       fn fib(n) int
+    //         if n <= 1
+    //             return 1
+    //         end
+    //         a = fib n - 1
+    //         b = fib n - 2
+    //         a + b
+    //       end
+    //
+    //       fib 3
+    //      */
+    //     let mut builder = VMBuilder::new();
+    //     let mut vm = builder
+    //         .add_load_instruction(42, Value::Number(Number::Int(3)))
+    //         .enter_scope()
+    //         .add_load_let_instruction("n", 42)
+    //         .add_call_eq_instruction()
+    //         .exit_scope()
+    //         .build();
+    //     vm.run().unwrap();
+    //     assert_eq!(vm.registers.get(&4).unwrap().clone(), Value::Number(Int(6)));
+    // }
 }

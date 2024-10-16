@@ -30,6 +30,7 @@ pub enum Value<'vm> {
     Map(IndexMap<Value<'vm>, Value<'vm>>),
     Object(RigzObject<'vm>),
     Error(VMError),
+    // TODO add scope here
 }
 
 impl <'vm> PartialOrd for Value<'vm> {
