@@ -14,10 +14,7 @@ impl<'vm> Add for Value<'vm> {
             (Value::Bool(a), Value::Bool(b)) => Value::Bool(a | b),
             (Value::Bool(a), b) => Value::Bool(a | b.to_bool()),
             (b, Value::Bool(a)) => Value::Bool(a | b.to_bool()),
-            (Value::Number(a), Value::Number(b)) => match a + b {
-                Ok(n) => Value::Number(n),
-                Err(e) => Value::Error(e),
-            },
+            (Value::Number(a), Value::Number(b)) => Value::Number(a + b),
             (Value::Number(a), Value::String(b)) => {
                 let s = Value::String(b.clone());
                 match s.to_number() {
@@ -26,10 +23,7 @@ impl<'vm> Add for Value<'vm> {
                         res.push_str(b.as_str());
                         Value::String(res)
                     }
-                    Some(r) => match a + r {
-                        Ok(n) => Value::Number(n),
-                        Err(e) => Value::Error(e),
-                    },
+                    Some(r) => Value::Number(a + r),
                 }
             }
             (Value::String(a), Value::String(b)) => {
@@ -85,8 +79,8 @@ mod tests {
             test_bool_true_add_none => (Value::Bool(true), Value::None, Value::Bool(true));
             test_none_bool_true_add_true => (Value::None, Value::Bool(true), Value::Bool(true));
             test_false_bool_true_add_true => (Value::Bool(false), Value::Bool(true), Value::Bool(true));
-            test_false_0_add_true => (Value::Bool(false), Value::Number(Number::UInt(0)), Value::Bool(false));
-            test_true_0_add_true => (Value::Bool(true), Value::Number(Number::UInt(0)), Value::Number(Number::UInt(1)));
+            test_false_0_add_true => (Value::Bool(false), Value::Number(Number::zero()), Value::Bool(false));
+            test_true_0_add_true => (Value::Bool(true), Value::Number(Number::zero()), Value::Number(Number::one()));
             // Add more test cases here as needed
         }
     }

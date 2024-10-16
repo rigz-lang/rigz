@@ -6,10 +6,6 @@ impl Neg for Number {
 
     #[inline]
     fn neg(self) -> Self::Output {
-        match self {
-            Number::Int(i) => Number::Int(-i),
-            Number::UInt(i) => Number::UInt(!i + 1),
-            Number::Float(f) => Number::Float(-f),
-        }
+        Number(-self.0)
     }
 }

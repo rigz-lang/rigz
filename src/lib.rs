@@ -63,24 +63,24 @@ mod tests {
     fn value_eq() {
         assert_eq!(Value::None, Value::None);
         assert_eq!(Value::None, Value::Bool(false));
-        assert_eq!(Value::None, Value::Number(Number::Int(0)));
-        assert_eq!(Value::None, Value::Number(Number::Float(0.0)));
-        assert_eq!(Value::None, Value::Number(Number::UInt(0)));
+        assert_eq!(Value::None, Value::Number(Number(0.0)));
+        assert_eq!(Value::None, Value::Number(Number(0.0)));
+        assert_eq!(Value::None, Value::Number(Number(0.0)));
         assert_eq!(Value::None, Value::String(String::new()));
         assert_eq!(Value::Bool(false), Value::String(String::new()));
-        assert_eq!(Value::Number(Number::UInt(0)), Value::String(String::new()));
+        assert_eq!(Value::Number(Number(0.0)), Value::String(String::new()));
     }
 
     #[test]
     fn load_works() {
         let mut builder = VMBuilder::new();
         builder
-            .add_load_instruction(4, Value::Number(Number::Int(42)));
+            .add_load_instruction(4, Value::Number(Number(42.0)));
         let mut vm = builder.build();
         vm.run().unwrap();
         assert_eq!(
             vm.registers.get(&4).unwrap().clone(),
-            Value::Number(Number::Int(42))
+            Value::Number(Number(42.0))
         );
     }
 
@@ -88,7 +88,7 @@ mod tests {
     fn cast_works() {
         let mut builder = VMBuilder::new();
         builder
-            .add_load_instruction(4, Value::Number(Number::Int(42)))
+            .add_load_instruction(4, Value::Number(Number(42.0)))
             .add_cast_instruction(4, RigzType::String, 7);
         let mut vm = builder.build();
         vm.run().unwrap();
@@ -102,14 +102,14 @@ mod tests {
     fn add_works() {
         let mut builder = VMBuilder::new();
         builder
-            .add_load_instruction(4, Value::Number(Number::Int(42)))
+            .add_load_instruction(4, Value::Number(Number(42.0)))
             .add_copy_instruction(4, 37)
             .add_add_instruction(4, 37, 82);
         let mut vm = builder.build();
         vm.run().unwrap();
         assert_eq!(
             vm.registers.get(&82).unwrap().clone(),
-            Value::Number(Number::Int(84))
+            Value::Number(Number(84.0))
         );
     }
 
@@ -117,13 +117,13 @@ mod tests {
     fn copy_works() {
         let mut builder = VMBuilder::new();
         builder
-            .add_load_instruction(4, Value::Number(Number::Int(42)))
+            .add_load_instruction(4, Value::Number(Number(42.0)))
             .add_copy_instruction(4, 37);
         let mut vm = builder.build();
         vm.run().unwrap();
         assert_eq!(
             vm.registers.get(&37).unwrap().clone(),
-            Value::Number(Number::Int(42))
+            Value::Number(Number(42.0))
         );
     }
 
@@ -132,7 +132,7 @@ mod tests {
         let mut builder = VMBuilder::new();
         builder
             .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()))
-            .add_load_instruction(3, Value::Number(Number::Int(1)))
+            .add_load_instruction(3, Value::Number(Number(1.0)))
             .add_shr_instruction(2, 3, 4);
         let mut vm = builder.build();
         vm.run().unwrap();
@@ -147,7 +147,7 @@ mod tests {
         let mut builder = VMBuilder::new();
         builder
             .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()))
-            .add_load_instruction(3, Value::Number(Number::Int(1)))
+            .add_load_instruction(3, Value::Number(Number(1.0)))
             .add_shl_instruction(2, 3, 4);
         let mut vm = builder.build();
         vm.run().unwrap();
@@ -244,20 +244,20 @@ mod tests {
         // a = 1 + 2; a + 2
         builder
             .enter_scope()
-            .add_load_instruction(2, Value::Number(Number::Int(1)))
-            .add_load_instruction(3, Value::Number(Number::Int(2)))
+            .add_load_instruction(2, Value::Number(Number(1.0)))
+            .add_load_instruction(3, Value::Number(Number(2.0)))
             .add_add_instruction(2, 3, 4)
             .exit_scope(4)
             .add_load_instruction(5, Value::ScopeId(1, 4))
             .add_load_let_instruction("a", 5)
             .add_get_variable_instruction("a", 6)
-            .add_load_instruction(7, Value::Number(Number::Int(2)))
+            .add_load_instruction(7, Value::Number(Number(2.0)))
             .add_add_instruction(6, 7, 8)
             .add_halt_instruction(8);
 
         let mut vm = builder.build();
         let v = vm.run().unwrap();
-        assert_eq!(v, Value::Number(Number::Int(5)))
+        assert_eq!(v, Value::Number(Number(5.0)))
     }
 
     #[test]

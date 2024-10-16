@@ -26,19 +26,13 @@ impl<'vm> Div for Value<'vm> {
                     )));
                 }
 
-                match a / b {
-                    Ok(n) => Value::Number(n),
-                    Err(e) => Value::Error(e),
-                }
+                Value::Number(a / b)
             }
             (Value::Number(a), Value::String(b)) => {
                 let s = Value::String(b.clone());
                 match s.to_number() {
                     None => VMError::UnsupportedOperation(format!("{} / {}", a, b)).to_value(),
-                    Some(r) => match a / r {
-                        Ok(n) => Value::Number(n),
-                        Err(e) => Value::Error(e),
-                    },
+                    Some(r) => Value::Number(a / r),
                 }
             }
             (Value::String(a), Value::String(b)) => {
@@ -89,8 +83,8 @@ mod tests {
             test_bool_true_div_none => (Value::Bool(true), Value::None, Value::Error(RuntimeError("Cannot divide true by 0/none".to_string())));
             test_none_bool_true_div_true => (Value::None, Value::Bool(true), Value::None);
             test_false_bool_true_div_true => (Value::Bool(false), Value::Bool(true), Value::Bool(true));
-            test_false_0_div_true => (Value::Bool(false), Value::Number(Number::UInt(0)), Value::Bool(false));
-            test_true_0_div_true => (Value::Bool(true), Value::Number(Number::UInt(0)), Value::Number(Number::UInt(1)));
+            test_false_0_div_true => (Value::Bool(false), Value::Number(Number::zero()), Value::Bool(false));
+            test_true_0_div_true => (Value::Bool(true), Value::Number(Number::zero()), Value::Number(Number::one()));
             // div more test cases here as needed
         }
     }

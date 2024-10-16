@@ -7,7 +7,7 @@ use crate::{
 use indexmap::map::Entry;
 use indexmap::IndexMap;
 use log::{trace, Level};
-use nohash_hasher::IntMap;
+use nohash_hasher::BuildNoHashHasher;
 
 pub enum VMState<'vm> {
     Running,
@@ -26,7 +26,7 @@ pub struct VM<'vm> {
     pub scopes: Vec<Scope<'vm>>,
     pub current: CallFrame<'vm>,
     pub frames: Vec<CallFrame<'vm>>,
-    pub registers: IntMap<usize, Value<'vm>>,
+    pub registers: IndexMap<usize, Value<'vm>, BuildNoHashHasher<usize>>,
     pub stack: Vec<Value<'vm>>,
     pub modules: IndexMap<&'vm str, Box<dyn Module<'vm>>>,
     pub sp: usize,

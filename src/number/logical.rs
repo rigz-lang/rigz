@@ -27,8 +27,8 @@ impl Logical<Number> for Number {
     #[inline]
     fn xor(self, rhs: Number) -> Self::Output {
         match (self.is_zero(), rhs.is_zero()) {
-            (true, true) => Number::UInt(0),
-            (false, false) => Number::UInt(0),
+            (true, true) => Number::zero(),
+            (false, false) => Number::zero(),
             (false, true) => rhs,
             (true, false) => self,
         }

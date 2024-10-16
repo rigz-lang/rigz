@@ -3,18 +3,10 @@ use crate::VMError;
 use std::ops::Mul;
 
 impl Mul for Number {
-    type Output = Result<Number, VMError>;
+    type Output = Number;
 
     #[inline]
     fn mul(self, rhs: Self) -> Self::Output {
-        let v = match (self, rhs) {
-            (Number::Int(i), rhs) => Number::Int(i * rhs.to_int()),
-            (Number::UInt(u), rhs) => match rhs.to_uint() {
-                Ok(rhs) => Number::UInt(u * rhs),
-                Err(e) => return Err(e),
-            },
-            (Number::Float(f), rhs) => Number::Float(f * rhs.to_float()),
-        };
-        Ok(v)
+        Number(self.0 * rhs.0)
     }
 }

@@ -3,20 +3,10 @@ use crate::VMError;
 use std::ops::BitOr;
 
 impl BitOr for Number {
-    type Output = Result<Number, VMError>;
+    type Output = Number;
 
     #[inline]
     fn bitor(self, rhs: Self) -> Self::Output {
-        let v = match (self, rhs) {
-            (Number::Int(i), rhs) => Number::Int(i | rhs.to_int()),
-            (Number::UInt(u), rhs) => match rhs.to_uint() {
-                Ok(rhs) => Number::UInt(u | rhs),
-                Err(e) => return Err(e),
-            },
-            (Number::Float(f), rhs) => {
-                Number::Float(f64::from_bits(f.to_bits() | rhs.to_float().to_bits()))
-            }
-        };
-        Ok(v)
+        Number(f64::from_bits(self.0.to_bits() | rhs.0.to_bits()))
     }
 }

@@ -3,7 +3,7 @@
 ## Special Registers
 The following registers are special and cannot be written to, they will always return the following values.
 R0 - Value::None
-R1 - Value::Number(Number::Int(1))
+R1 - Value::Number(Number(1.0))
 
 ## Halt
 

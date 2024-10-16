@@ -13,16 +13,16 @@ impl<'vm> Shl for Value<'vm> {
             (lhs, Value::None) => lhs,
             (rhs, Value::Bool(b)) => {
                 if b {
-                    rhs << Value::Number(Number::Int(1))
+                    rhs << Value::Number(Number(1.0))
                 } else {
                     rhs
                 }
             }
             (Value::Bool(lhs), Value::Number(rhs)) => {
                 if lhs {
-                    Value::Number(Number::Int(1) >> rhs)
+                    Value::Number(Number(1.0) >> rhs)
                 } else {
-                    Value::Number(Number::Int(0))
+                    Value::Number(Number(0.0))
                 }
             }
             (Value::Number(lhs), Value::Number(rhs)) => Value::Number(lhs << rhs),
@@ -66,8 +66,8 @@ mod tests {
             test_bool_true_shl_none => (Value::Bool(true), Value::None, Value::Bool(true));
             test_none_bool_true_shl_true => (Value::None, Value::Bool(true), Value::None);
             test_false_bool_true_shl_true => (Value::Bool(false), Value::Bool(true), Value::Number(Number::zero()));
-            test_false_0_shl_true => (Value::Bool(false), Value::Number(Number::UInt(0)), Value::Bool(false));
-            test_true_0_shl_true => (Value::Bool(true), Value::Number(Number::UInt(0)), Value::Number(Number::UInt(1)));
+            test_false_0_shl_true => (Value::Bool(false), Value::Number(Number::zero()), Value::Bool(false));
+            test_true_0_shl_true => (Value::Bool(true), Value::Number(Number::zero()), Value::Number(Number::one()));
             push_to_end => (Value::String("abc".into()), Value::String("123".into()), Value::String("abc123".into()));
             // shl more test cases here as needed
         }

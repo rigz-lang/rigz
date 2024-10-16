@@ -16,18 +16,12 @@ impl<'vm> Mul for Value<'vm> {
             (Value::Bool(a), Value::Bool(b)) => Value::Bool(a | b),
             (Value::Bool(a), b) => Value::Bool(a | b.to_bool()),
             (b, Value::Bool(a)) => Value::Bool(a | b.to_bool()),
-            (Value::Number(a), Value::Number(b)) => match a * b {
-                Ok(n) => Value::Number(n),
-                Err(e) => Value::Error(e),
-            },
+            (Value::Number(a), Value::Number(b)) => Value::Number(a * b),
             (Value::Number(a), Value::String(b)) => {
                 let s = Value::String(b.clone());
                 match s.to_number() {
                     None => VMError::UnsupportedOperation(format!("{} * {}", a, b)).to_value(),
-                    Some(r) => match a * r {
-                        Ok(n) => Value::Number(n),
-                        Err(e) => Value::Error(e),
-                    },
+                    Some(r) => Value::Number(a * r),
                 }
             }
             (Value::String(a), Value::Number(n)) => {
@@ -40,8 +34,7 @@ impl<'vm> Mul for Value<'vm> {
                 }
 
                 let s = match n {
-                    Number::Int(_) | Number::UInt(_) => a.repeat(n.to_usize().unwrap()),
-                    Number::Float(f) => {
+                    Number(f) => {
                         let mut result = a.repeat(n.to_usize().unwrap());
                         result.push_str(&a[..(f.fract() * a.len() as f64) as usize]);
                         result
@@ -95,9 +88,9 @@ mod tests {
             test_bool_true_mul_none => (Value::Bool(true), Value::None, Value::None);
             test_none_bool_true_mul_true => (Value::None, Value::Bool(true), Value::None);
             test_false_bool_true_mul_true => (Value::Bool(false), Value::Bool(true), Value::Bool(true));
-            test_false_0_mul_true => (Value::Bool(false), Value::Number(Number::UInt(0)), Value::Bool(false));
-            test_true_0_mul_true => (Value::Bool(true), Value::Number(Number::UInt(0)), Value::Number(Number::UInt(1)));
-            test_str_f64_str => (Value::String("abc".to_string()), Value::Number(Number::Float(2.5)), Value::String("abcabca".to_string()));
+            test_false_0_mul_true => (Value::Bool(false), Value::Number(Number::zero()), Value::Bool(false));
+            test_true_0_mul_true => (Value::Bool(true), Value::Number(Number::zero()), Value::Number(Number::one()));
+            test_str_f64_str => (Value::String("abc".to_string()), Value::Number(Number(2.5)), Value::String("abcabca".to_string()));
             // mul more test cases here as needed
         }
     }
