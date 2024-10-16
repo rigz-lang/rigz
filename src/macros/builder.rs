@@ -79,22 +79,28 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        pub fn add_unary_instruction(&mut self, op: UnaryOperation, from: Register, output: Register) -> &mut Self {
-            self.add_instruction(Instruction::Unary(Unary {
-                op,
-                from,
-                output
-            }))
+        pub fn add_unary_instruction(
+            &mut self,
+            op: UnaryOperation,
+            from: Register,
+            output: Register,
+        ) -> &mut Self {
+            self.add_instruction(Instruction::Unary(Unary { op, from, output }))
         }
 
-
         #[inline]
-        pub fn add_binary_instruction(&mut self, op: BinaryOperation, lhs: Register, rhs: Register, output: Register) -> &mut Self {
+        pub fn add_binary_instruction(
+            &mut self,
+            op: BinaryOperation,
+            lhs: Register,
+            rhs: Register,
+            output: Register,
+        ) -> &mut Self {
             self.add_instruction(Instruction::Binary(Binary {
                 op,
                 lhs,
                 rhs,
-                output
+                output,
             }))
         }
 

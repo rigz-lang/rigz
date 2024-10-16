@@ -17,7 +17,7 @@ use std::hash::Hash;
 
 pub use builder::VMBuilder;
 pub use call_frame::{CallFrame, Variable};
-pub use instructions::{Binary, BinaryOperation, Instruction, Unary, UnaryOperation, Clear};
+pub use instructions::{Binary, BinaryOperation, Clear, Instruction, Unary, UnaryOperation};
 pub use module::Module;
 pub use number::Number;
 pub use objects::RigzType;
@@ -73,8 +73,7 @@ mod tests {
     #[test]
     fn load_works() {
         let mut builder = VMBuilder::new();
-        builder
-            .add_load_instruction(4, Value::Number(Number(42.0)));
+        builder.add_load_instruction(4, Value::Number(Number(42.0)));
         let mut vm = builder.build();
         vm.run().unwrap();
         assert_eq!(

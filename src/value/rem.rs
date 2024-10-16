@@ -34,8 +34,8 @@ impl Rem for Value {
 
 #[cfg(test)]
 mod tests {
-    use crate::{define_value_tests, Number};
     use crate::value::Value;
+    use crate::{define_value_tests, Number};
 
     define_value_tests! {
         % {

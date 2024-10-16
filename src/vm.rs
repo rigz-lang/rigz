@@ -1,14 +1,14 @@
-use std::fmt::{Debug, Formatter};
 use crate::instructions::{Binary, Unary};
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation,
-    CallFrame, Instruction, Module, Register, RigzType, Scope, UnaryOperation, VMError,
-    Value, Variable,
+    CallFrame, Instruction, Module, Register, RigzType, Scope, UnaryOperation, VMError, Value,
+    Variable,
 };
 use indexmap::map::Entry;
 use indexmap::IndexMap;
 use log::{trace, Level};
 use nohash_hasher::BuildNoHashHasher;
+use std::fmt::{Debug, Formatter};
 
 pub enum VMState {
     Running,
@@ -52,7 +52,7 @@ pub struct VM<'vm> {
     pub options: VMOptions,
 }
 
-impl <'vm> Debug for VM<'vm> {
+impl<'vm> Debug for VM<'vm> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "VM(current={:?},scopes={:?},frames={:?},registers={:?},stack={:?},modules={:?},sp={},options={:?})",
                self.current,
@@ -104,10 +104,7 @@ impl<'vm> VM<'vm> {
         }
     }
 
-    pub fn resolve_registers(
-        &mut self,
-        registers: Vec<Register>,
-    ) -> Result<Vec<Value>, VMError> {
+    pub fn resolve_registers(&mut self, registers: Vec<Register>) -> Result<Vec<Value>, VMError> {
         let len = registers.len();
         let mut result = Vec::with_capacity(len);
         for register in registers {
@@ -177,10 +174,7 @@ impl<'vm> VM<'vm> {
 
     /// Value is replaced with None, shifting the registers breaks the program.
 
-    pub fn remove_register_eval_scope(
-        &mut self,
-        register: Register,
-    ) -> Result<Value, VMError> {
+    pub fn remove_register_eval_scope(&mut self, register: Register) -> Result<Value, VMError> {
         let value = self.remove_register_value(register)?;
 
         if let Value::ScopeId(scope, output) = value {
@@ -344,7 +338,10 @@ impl<'vm> VM<'vm> {
                 scope_index
             )));
         }
-        let current = std::mem::replace(&mut self.current, CallFrame::child(scope_index, self.frames.len(), output));
+        let current = std::mem::replace(
+            &mut self.current,
+            CallFrame::child(scope_index, self.frames.len(), output),
+        );
         self.frames.push(current);
         self.sp = scope_index;
         Ok(())
@@ -372,8 +369,8 @@ impl<'vm> VM<'vm> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{VMBuilder, Value, VM};
     use crate::vm::VMOptions;
+    use crate::{VMBuilder, Value, VM};
 
     #[test]
     fn options_snapshot() {
