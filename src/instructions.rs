@@ -49,6 +49,8 @@ pub enum Instruction<'vm> {
     InsertAtInstruction(usize, usize, Box<Instruction<'vm>>),
     UpdateInstruction(usize, usize, Box<Instruction<'vm>>),
     RemoveInstruction(usize, usize),
+    Publish(Register),
+    PublishEvent(&'vm str, Register),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

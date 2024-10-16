@@ -1,3 +1,6 @@
+use std::future::Future;
+use std::thread::JoinHandle;
+use crossbeam::channel::unbounded;
 use crate::instructions::{Binary, Unary};
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation,
@@ -26,24 +29,32 @@ pub struct VM<'vm> {
     pub current: CallFrame<'vm>,
     pub frames: Vec<CallFrame<'vm>>,
     pub registers: IndexMap<usize, Value<'vm>>,
-    pub lifecycles: Vec<Lifecycle<'vm>>,
+    pub lifecycles: IndexMap<&'vm str, Lifecycle<'vm>>,
     pub modules: IndexMap<&'vm str, Module<'vm>>,
     pub sp: usize,
     pub options: VMOptions,
 }
 
-impl<'vm> VM<'vm> {
-    pub fn new() -> Self {
+impl <'vm> Default for VM<'vm> {
+    #[inline]
+    fn default() -> Self {
         Self {
             scopes: vec![Scope::new()],
             current: Default::default(),
             frames: vec![],
             registers: Default::default(),
-            lifecycles: vec![],
+            lifecycles: Default::default(),
             modules: Default::default(),
             sp: 0,
             options: Default::default(),
         }
+    }
+}
+
+impl<'vm> VM<'vm> {
+    #[inline]
+    pub fn new() -> Self {
+        Self::default()
     }
 
     generate_builder!();
@@ -201,7 +212,7 @@ impl<'vm> VM<'vm> {
                     self.call_frame(else_scope, output)?;
                 }
             }
-            Instruction::GetVariable(name, reg) => match self.current.get_variable(&name, self) {
+            Instruction::GetVariable(name, reg) => match self.current.get_variable(name, self) {
                 None => {
                     return Err(VMError::VariableDoesNotExist(format!(
                         "Variable {} does not exist",
@@ -232,7 +243,7 @@ impl<'vm> VM<'vm> {
                             "Modules are disabled: Failed to call module {}.{}",
                             module, function
                         ))
-                        .to_value(),
+                            .to_value(),
                     );
                     return Ok(VMState::Running);
                 }
@@ -250,7 +261,7 @@ impl<'vm> VM<'vm> {
                                 module, function
                             )))
                         }
-                        Some(f) => f.clone(),
+                        Some(f) => *f,
                     },
                 };
                 let mut inner_args = Vec::with_capacity(args.len());
@@ -275,7 +286,7 @@ impl<'vm> VM<'vm> {
                             "Modules are disabled: Failed to call extension {}::{}.{}",
                             module, this, function
                         ))
-                        .to_value(),
+                            .to_value(),
                     );
                     return Ok(VMState::Running);
                 }
@@ -305,7 +316,7 @@ impl<'vm> VM<'vm> {
                                     module, function
                                 )))
                             }
-                            Some(f) => f.clone(),
+                            Some(f) => *f,
                         },
                     },
                     Some(def) => match def.get(function) {
@@ -315,7 +326,7 @@ impl<'vm> VM<'vm> {
                                 module, function
                             )))
                         }
-                        Some(f) => f.clone(),
+                        Some(f) => f,
                     },
                 };
                 let mut inner_args = Vec::with_capacity(args.len());
@@ -345,7 +356,7 @@ impl<'vm> VM<'vm> {
                     puts.push_str(arg.to_string().as_str());
                 }
                 println!("{}", puts)
-            },
+            }
             Instruction::Call(scope_index, register) => self.call_frame(scope_index, register)?,
             Instruction::Ret(r) => {
                 return Err(VMError::UnsupportedOperation(format!(
@@ -354,22 +365,20 @@ impl<'vm> VM<'vm> {
                 )))
             }
             Instruction::Goto(scope_id, index) => {
-                self.current.scope_id = scope_id;
+                self.sp = scope_id;
                 self.current.pc = index;
             }
-            Instruction::AddInstruction(scope, instruction) => {
-                match self.scopes.get_mut(scope) {
-                    None => {
-                        return Err(VMError::ScopeDoesNotExist(format!(
-                            "Scope does not exist: {}",
-                            scope
-                        )))
-                    }
-                    Some(s) => {
-                        s.instructions.push(*instruction);
-                    }
+            Instruction::AddInstruction(scope, instruction) => match self.scopes.get_mut(scope) {
+                None => {
+                    return Err(VMError::ScopeDoesNotExist(format!(
+                        "Scope does not exist: {}",
+                        scope
+                    )))
                 }
-            }
+                Some(s) => {
+                    s.instructions.push(*instruction);
+                }
+            },
             Instruction::InsertAtInstruction(scope, index, new_instruction) => {
                 match self.scopes.get_mut(scope) {
                     None => {
@@ -378,9 +387,7 @@ impl<'vm> VM<'vm> {
                             scope
                         )))
                     }
-                    Some(s) => {
-                        s.instructions.insert(index, *new_instruction)
-                    }
+                    Some(s) => s.instructions.insert(index, *new_instruction),
                 }
             }
             Instruction::UpdateInstruction(scope, index, new_instruction) => {
@@ -391,37 +398,55 @@ impl<'vm> VM<'vm> {
                             scope
                         )))
                     }
-                    Some(s) => {
-                        match s.instructions.get_mut(index) {
-                            None => {
-                                return Err(VMError::ScopeDoesNotExist(format!(
-                                    "Scope does not exist: {}",
-                                    scope
-                                )))
-                            }
-                            Some(i) => {
-                                *i = *new_instruction;
-                            }
+                    Some(s) => match s.instructions.get_mut(index) {
+                        None => {
+                            return Err(VMError::ScopeDoesNotExist(format!(
+                                "Scope does not exist: {}",
+                                scope
+                            )))
                         }
+                        Some(i) => {
+                            *i = *new_instruction;
+                        }
+                    },
+                }
+            }
+            Instruction::RemoveInstruction(scope, index) => match self.scopes.get_mut(scope) {
+                None => {
+                    return Err(VMError::ScopeDoesNotExist(format!(
+                        "Scope does not exist: {}",
+                        scope
+                    )))
+                }
+                Some(s) => {
+                    if index >= s.instructions.len() {
+                        return Err(VMError::UnsupportedOperation(format!(
+                            "Instruction does not exist: {}#{}",
+                            scope, index
+                        )));
+                    }
+                    s.instructions.remove(index);
+                }
+            },
+            Instruction::Publish(value) => {
+                let value = self.get_register(value)?;
+                match self.lifecycles.get_mut("on") {
+                    None => {
+                        return Err(VMError::LifecycleError("Lifecycle does not exist: `on`".to_string()))
+                    }
+                    Some(l) => {
+                        l.send(value)?;
                     }
                 }
             }
-            Instruction::RemoveInstruction(scope, index) => {
-                match self.scopes.get_mut(scope) {
+            Instruction::PublishEvent(message, value) => {
+                let value = self.get_register(value)?;
+                match self.lifecycles.get_mut("on") {
                     None => {
-                        return Err(VMError::ScopeDoesNotExist(format!(
-                            "Scope does not exist: {}",
-                            scope
-                        )))
+                        return Err(VMError::LifecycleError("Lifecycle does not exist: `on`".to_string()))
                     }
-                    Some(s) => {
-                        if index >=  s.instructions.len() {
-                            return Err(VMError::UnsupportedOperation(format!(
-                                "Instruction does not exist: {}#{}",
-                                scope, index
-                            )))
-                        }
-                        s.instructions.remove(index);
+                    Some(l) => {
+                        l.send_event(message, value)?;
                     }
                 }
             }
@@ -444,6 +469,7 @@ impl<'vm> VM<'vm> {
                     None => return Ok(VMState::Done(source)),
                     Some(c) => {
                         self.clear_frame()?;
+                        self.sp = c.scope_id;
                         self.current = c;
                     }
                 }
@@ -480,6 +506,7 @@ impl<'vm> VM<'vm> {
                     None => Ok(VMState::Done(source)),
                     Some(c) => {
                         self.clear_frame()?;
+                        self.sp = c.scope_id;
                         self.current = c;
                         Ok(VMState::Ran(source))
                     }
@@ -491,7 +518,7 @@ impl<'vm> VM<'vm> {
     }
 
     fn next_instruction(&self) -> Result<Option<Instruction<'vm>>, VMError> {
-        let scope_id = self.current.scope_id;
+        let scope_id = self.sp;
         match self.scopes.get(scope_id) {
             None => Err(VMError::ScopeError(format!(
                 "Scope {} does not exist",
@@ -585,13 +612,17 @@ impl<'vm> VM<'vm> {
         }
         let current = std::mem::take(&mut self.current);
         self.frames.push(current);
+        self.sp = scope_index;
         self.current = CallFrame::child(scope_index, self.frames.len() - 1, output);
         Ok(())
     }
-}
 
-impl<'vm> Default for VM<'vm> {
-    fn default() -> Self {
-        VM::new()
+    pub fn run_lifecycles(&mut self) -> IndexMap<String, ()> {
+        let mut futures = IndexMap::with_capacity(self.lifecycles.len());
+        for (name, l) in &mut self.lifecycles {
+            trace!("Starting Lifecycle: {}", name);
+            futures.insert(name.to_string(), l.run());
+        }
+        futures
     }
 }

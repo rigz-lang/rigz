@@ -111,25 +111,25 @@ impl FromStr for Number {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            _ if s.contains(".") => match s.parse::<f64>() {
+            _ if s.contains('.') => match s.parse::<f64>() {
                 Ok(f) => Ok(f.into()),
                 Err(e) => Err(e.to_string()),
             },
-            _ if s.ends_with("u") => {
+            _ if s.ends_with('u') => {
                 let s = s[..s.len() - 1].to_string();
                 match s.parse::<u64>() {
                     Ok(u) => Ok(u.into()),
                     Err(e) => Err(e.to_string()),
                 }
             }
-            _ if s.ends_with("f") => {
+            _ if s.ends_with('f') => {
                 let s = s[..s.len() - 1].to_string();
                 match s.parse::<f64>() {
                     Ok(u) => Ok(u.into()),
                     Err(e) => Err(e.to_string()),
                 }
             }
-            _ if s.ends_with("i") => {
+            _ if s.ends_with('i') => {
                 let s = s[..s.len() - 1].to_string();
                 match s.parse::<i64>() {
                     Ok(u) => Ok(u.into()),

@@ -1,4 +1,3 @@
-
 #[macro_export]
 macro_rules! generate_unary_op_methods {
     ($($name:ident => $variant:ident),*) => {
@@ -78,6 +77,8 @@ macro_rules! generate_builder {
             s.sp -= 1;
             s
         }
+
+
 
         #[inline]
         pub fn register_module(&mut self, module: Module<'vm>) -> &mut Self {
@@ -238,10 +239,7 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        pub fn add_puts_instruction(
-            &mut self,
-            values: Vec<Register>,
-        ) -> &mut Self {
+        pub fn add_puts_instruction(&mut self, values: Vec<Register>) -> &mut Self {
             self.add_instruction(Instruction::Puts(values))
         }
 
@@ -250,7 +248,7 @@ macro_rules! generate_builder {
             &mut self,
             level: Level,
             template: &'vm str,
-            values: Vec<Register>
+            values: Vec<Register>,
         ) -> &mut Self {
             self.add_instruction(Instruction::Log(level, template, values))
         }

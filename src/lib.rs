@@ -1,8 +1,11 @@
 extern crate core;
 
 mod builder;
+mod call_frame;
 mod instructions;
+mod lifecycle;
 mod macros;
+mod module;
 mod number;
 mod objects;
 mod scope;
@@ -10,13 +13,15 @@ mod traits;
 mod value;
 mod vm;
 
-use indexmap::IndexMap;
 pub(crate) use objects::{BOOL, ERROR, LIST, MAP, NONE, NUMBER, STRING};
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 use std::hash::Hash;
 
 pub use builder::VMBuilder;
+pub use call_frame::{CallFrame, Variable};
 pub use instructions::{Binary, BinaryOperation, Instruction, Unary, UnaryOperation};
+pub use lifecycle::{Message, Lifecycle};
+pub use module::{Function, ExtensionFunction, Module};
 pub use number::Number;
 pub use objects::{RigzObject, RigzObjectDefinition, RigzType};
 pub use scope::Scope;
@@ -40,6 +45,7 @@ pub enum VMError {
     VariableDoesNotExist(String),
     InvalidModule(String),
     InvalidModuleFunction(String),
+    LifecycleError(String),
 }
 
 impl<'vm> VMError {
@@ -48,96 +54,11 @@ impl<'vm> VMError {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum Variable {
-    Let(Register),
-    Mut(Register),
-}
-
-#[derive(Clone, Debug)]
-pub struct CallFrame<'vm> {
-    pub scope_id: usize,
-    pub pc: usize,
-    pub variables: IndexMap<&'vm str, Variable>, // TODO switch to intern strings
-    pub parent: Option<usize>,
-    pub output: Register,
-}
-
-impl<'vm> CallFrame<'vm> {
-    pub(crate) fn get_variable(&self, name: &'vm str, vm: &VM<'vm>) -> Option<Register> {
-        match self.variables.get(name) {
-            None => match self.parent {
-                None => None,
-                Some(parent) => vm.frames[parent].get_variable(name, vm),
-            },
-            Some(v) => match v {
-                Variable::Let(v) => Some(*v),
-                Variable::Mut(v) => Some(*v),
-            },
-        }
-    }
-}
-
-impl<'vm> Default for CallFrame<'vm> {
-    fn default() -> Self {
-        Self::main()
-    }
-}
-
-impl<'vm> CallFrame<'vm> {
-    pub fn main() -> Self {
-        Self {
-            output: 0,
-            scope_id: 0,
-            pc: 0,
-            variables: Default::default(),
-            parent: None,
-        }
-    }
-
-    pub fn child(scope_id: usize, parent: usize, output: Register) -> Self {
-        Self {
-            scope_id,
-            output,
-            pc: 0,
-            variables: Default::default(),
-            parent: Some(parent),
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Lifecycle<'vm> {
-    pub name: String,
-    pub parent: Option<&'vm Lifecycle<'vm>>,
-}
-
-pub type Function<'vm> = IndexMap<&'vm str, &'vm dyn Fn(Vec<Value<'vm>>) -> Value<'vm>>;
-pub type ExtensionFunction<'vm> = IndexMap<&'vm str, &'vm dyn Fn(Value<'vm>, Vec<Value<'vm>>) -> Value<'vm>>;
-
-#[derive(Clone)]
-pub struct Module<'vm> {
-    pub name: &'vm str,
-    pub functions: Function<'vm>,
-    pub extension_functions: IndexMap<RigzType, ExtensionFunction<'vm>>,
-}
-
-impl <'vm> Debug for Module<'vm> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut extension_debug = String::new();
-        for (k,v) in &self.extension_functions {
-            extension_debug.push_str(format!("type={:?}, functions={:?}", k.clone(), v.keys()).as_str());
-            extension_debug.push(';');
-        }
-        write!(f, "Module {{name={}, functions={:?}, extension_functions={}}}", self.name, self.functions.keys(), extension_debug)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::number::Number;
     use crate::value::Value;
-    use crate::{ExtensionFunction, Function, Module, RigzType, VMBuilder};
+    use crate::{Module, RigzType, VMBuilder};
     use indexmap::IndexMap;
     use std::str::FromStr;
 
@@ -263,7 +184,8 @@ mod tests {
             println!("{}", Value::List(args));
             Value::None
         }
-        let mut functions: IndexMap<&'vm str, &dyn Fn(Vec<Value<'vm>>) -> Value<'vm>> = IndexMap::new();
+        let mut functions: IndexMap<&'vm str, &dyn Fn(Vec<Value<'vm>>) -> Value<'vm>> =
+            IndexMap::new();
         functions.insert("hello", &hello);
 
         let module = Module {
