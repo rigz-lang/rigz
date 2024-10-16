@@ -43,6 +43,12 @@ pub enum Instruction<'vm> {
     GetVariable(&'vm str, Register),
     LoadLetRegister(&'vm str, Register),
     LoadMutRegister(&'vm str, Register),
+    // in the right situations these will be fantastic, otherwise avoid them
+    Goto(usize, usize),
+    AddInstruction(usize, Box<Instruction<'vm>>),
+    InsertAtInstruction(usize, usize, Box<Instruction<'vm>>),
+    UpdateInstruction(usize, usize, Box<Instruction<'vm>>),
+    RemoveInstruction(usize, usize),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -353,6 +353,78 @@ impl<'vm> VM<'vm> {
                     r
                 )))
             }
+            Instruction::Goto(scope_id, index) => {
+                self.current.scope_id = scope_id;
+                self.current.pc = index;
+            }
+            Instruction::AddInstruction(scope, instruction) => {
+                match self.scopes.get_mut(scope) {
+                    None => {
+                        return Err(VMError::ScopeDoesNotExist(format!(
+                            "Scope does not exist: {}",
+                            scope
+                        )))
+                    }
+                    Some(s) => {
+                        s.instructions.push(*instruction);
+                    }
+                }
+            }
+            Instruction::InsertAtInstruction(scope, index, new_instruction) => {
+                match self.scopes.get_mut(scope) {
+                    None => {
+                        return Err(VMError::ScopeDoesNotExist(format!(
+                            "Scope does not exist: {}",
+                            scope
+                        )))
+                    }
+                    Some(s) => {
+                        s.instructions.insert(index, *new_instruction)
+                    }
+                }
+            }
+            Instruction::UpdateInstruction(scope, index, new_instruction) => {
+                match self.scopes.get_mut(scope) {
+                    None => {
+                        return Err(VMError::ScopeDoesNotExist(format!(
+                            "Scope does not exist: {}",
+                            scope
+                        )))
+                    }
+                    Some(s) => {
+                        match s.instructions.get_mut(index) {
+                            None => {
+                                return Err(VMError::ScopeDoesNotExist(format!(
+                                    "Scope does not exist: {}",
+                                    scope
+                                )))
+                            }
+                            Some(i) => {
+                                *i = *new_instruction;
+                            }
+                        }
+                    }
+                }
+            }
+            Instruction::RemoveInstruction(scope, index) => {
+                match self.scopes.get_mut(scope) {
+                    None => {
+                        return Err(VMError::ScopeDoesNotExist(format!(
+                            "Scope does not exist: {}",
+                            scope
+                        )))
+                    }
+                    Some(s) => {
+                        if index >=  s.instructions.len() {
+                            return Err(VMError::UnsupportedOperation(format!(
+                                "Instruction does not exist: {}#{}",
+                                scope, index
+                            )))
+                        }
+                        s.instructions.remove(index);
+                    }
+                }
+            }
         };
         Ok(VMState::Running)
     }
