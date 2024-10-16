@@ -107,10 +107,10 @@ impl<'vm> VM<'vm> {
         let val = self.get_register(from)?;
         match op {
             UnaryOperation::Neg => {
-                self.insert_register(output, val);
+                self.insert_register(output, -val);
             }
             UnaryOperation::Not => {
-                self.insert_register(output, val);
+                self.insert_register(output, !val);
             }
             UnaryOperation::Print => {
                 println!("{}", val);
