@@ -232,6 +232,8 @@ impl<'vm> VM<'vm> {
             } => {
                 if self.resolve_register(truthy)?.to_bool() {
                     self.call_frame(if_scope, output)?;
+                } else {
+                    self.insert_register(output, Value::None)
                 }
             }
             Instruction::Unless {
@@ -241,6 +243,8 @@ impl<'vm> VM<'vm> {
             } => {
                 if !self.resolve_register(truthy)?.to_bool() {
                     self.call_frame(unless_scope, output)?;
+                } else {
+                    self.insert_register(output, Value::None)
                 }
             }
             Instruction::GetVariable(name, reg) => match self.current.get_variable(name, self) {
