@@ -344,7 +344,7 @@ pub struct VM<'vm> {
     pub registers: IndexMap<usize, Value<'vm>>,
     pub lifecycles: Vec<Lifecycle<'vm>>,
     pub modules: IndexMap<&'vm str, Module<'vm>>,
-    sp: usize,
+    pub sp: usize,
 }
 
 #[derive(Clone, Debug)]
