@@ -11,10 +11,10 @@ use std::string::ToString;
 use indexmap::IndexMap;
 use indexmap::map::Entry;
 use once_cell::sync::Lazy;
-use crate::value::Value;
+pub use crate::value::Value;
 
 pub use builder::VMBuilder;
-use crate::number::Number;
+pub use crate::number::Number;
 
 pub trait Rev {
     type Output;
