@@ -332,21 +332,20 @@ impl<'vm> VM<'vm> {
 
                 let mut res = (*tmpl).to_string();
                 for arg in args {
-                    let l = arg.to_string();
+                    let l = self.get_register(arg)?.to_string();
                     res = res.replacen("{}", l.as_str(), 1);
                 }
                 log!(level, "{}", res)
             }
-            Instruction::Puts(args) => println!(
-                "{}",
-                args.iter()
-                    .map(|v| v.to_string())
-                    .fold(String::new(), |mut a, b| {
-                        a.push_str(", ");
-                        a.push_str(b.as_str());
-                        a
-                    })
-            ),
+            Instruction::Puts(args) => {
+                let mut puts = String::new();
+                for r in args {
+                    let arg = self.get_register(r)?;
+                    puts.push_str(", ");
+                    puts.push_str(arg.to_string().as_str());
+                }
+                println!("{}", puts)
+            },
             Instruction::Call(scope_index, register) => self.call_frame(scope_index, register)?,
             Instruction::Ret(r) => {
                 return Err(VMError::UnsupportedOperation(format!(

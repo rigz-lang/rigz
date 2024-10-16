@@ -248,7 +248,7 @@ macro_rules! generate_builder {
         #[inline]
         pub fn add_puts_instruction(
             &mut self,
-            values: Vec<Value<'vm>>,
+            values: Vec<Register>,
         ) -> &mut Self {
             self.add_instruction(Instruction::Puts(values))
         }
@@ -258,7 +258,7 @@ macro_rules! generate_builder {
             &mut self,
             level: Level,
             template: &'vm str,
-            values: Vec<Value<'vm>>
+            values: Vec<Register>
         ) -> &mut Self {
             self.add_instruction(Instruction::Log(level, template, values))
         }

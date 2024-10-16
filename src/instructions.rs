@@ -9,8 +9,8 @@ pub enum Instruction<'vm> {
     Load(Register, Value<'vm>),
     Copy(Register, Register),
     Call(usize, Register),
-    Log(Level, &'vm str, Vec<Value<'vm>>),
-    Puts(Vec<Value<'vm>>),
+    Log(Level, &'vm str, Vec<Register>),
+    Puts(Vec<Register>),
     CallModule {
         module: &'vm str,
         function: &'vm str,
