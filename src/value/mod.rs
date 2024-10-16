@@ -53,7 +53,6 @@ impl_from_into! {
     i32, Value, Value::Number;
     i64, Value, Value::Number;
     u32, Value, Value::Number;
-    u64, Value, Value::Number;
     f32, Value, Value::Number;
     f64, Value, Value::Number;
 }
@@ -157,12 +156,39 @@ impl Value {
         }
 
         let v = match (self_type, rigz_type) {
-            (RigzType::None, RigzType::Number) => Value::Number(Number(0.0)),
+            (RigzType::None, RigzType::Number) => Value::Number(Number::Int(0)),
+            (RigzType::None, RigzType::Int) => Value::Number(Number::Int(0)),
+            (RigzType::None, RigzType::Float) => Value::Number(Number::Float(0.0)),
             (RigzType::None, RigzType::List) => Value::String(String::new()),
             (RigzType::None, RigzType::Map) => Value::String(String::new()),
             (RigzType::Bool, RigzType::Number) => {
                 if let &Value::Bool(b) = self {
                     return Ok(Value::Number(b.into()));
+                }
+                unreachable!()
+            }
+            (RigzType::Bool, RigzType::Int) => {
+                if let &Value::Bool(b) = self {
+                    return Ok(Value::Number(b.into()));
+                }
+                unreachable!()
+            }
+            (RigzType::Bool, RigzType::Float) => {
+                if let &Value::Bool(b) = self {
+                    let v = if b { 1.0 } else { 0.0 };
+                    return Ok(Value::Number(Number::Float(v)));
+                }
+                unreachable!()
+            }
+            (RigzType::Number, RigzType::Int) => {
+                if let Value::Number(b) = self {
+                    return Ok(Value::Number(Number::Int(b.to_int())));
+                }
+                unreachable!()
+            }
+            (RigzType::Number, RigzType::Float) => {
+                if let Value::Number(b) = self {
+                    return Ok(Value::Number(Number::Float(b.to_float())));
                 }
                 unreachable!()
             }

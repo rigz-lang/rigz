@@ -15,7 +15,7 @@ impl BitOr for Value {
             (Value::Bool(a), Value::Bool(b)) => Value::Bool(a | b),
             (Value::Bool(a), b) => Value::Bool(a | b.to_bool()),
             (b, Value::Bool(a)) => Value::Bool(a | b.to_bool()),
-            (Value::Number(a), Value::Number(b)) => Value::Number(a | b),
+            (Value::Number(a), Value::Number(b)) => Value::Number(a | b ),
             (Value::Number(a), Value::String(b)) => {
                 let s = Value::String(b.clone());
                 match s.to_number() {
@@ -71,8 +71,8 @@ mod tests {
             test_bool_true_bitor_none => (Value::Bool(true), Value::None, Value::Bool(true));
             test_none_bool_true_bitor_true => (Value::None, Value::Bool(true), Value::Bool(true));
             test_false_bool_true_bitor_true => (Value::Bool(false), Value::Bool(true), Value::Bool(true));
-            test_false_0_bitor_true => (Value::Bool(false), Value::Number(Number::zero()), Value::Bool(false));
-            test_true_0_bitor_true => (Value::Bool(true), Value::Number(Number::zero()), Value::Number(Number::one()));
+            test_false_0_bitor_true => (Value::Bool(false), Value::Number(Number::Int(0)), Value::Bool(false));
+            test_true_0_bitor_true => (Value::Bool(true), Value::Number(Number::Int(0)), Value::Number(Number::Int(1)));
             // bitor more test cases here as needed
         }
     }

@@ -5,6 +5,8 @@ pub enum RigzType {
     None,
     Any,
     Bool,
+    Int,
+    Float,
     Number,
     String,
     List,

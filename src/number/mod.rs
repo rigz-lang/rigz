@@ -13,34 +13,26 @@ mod shl;
 mod shr;
 mod sub;
 
-use crate::{impl_from_cast, VMError};
+use crate::{impl_from, impl_from_cast, VMError};
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Number(pub f64);
-
-impl Number {
-    #[inline]
-    pub fn new(v: f64) -> Self {
-        Number(v)
-    }
+#[derive(Copy, Clone, Debug)]
+pub enum Number {
+    Int(i64),
+    Float(f64),
 }
 
-impl From<f64> for Number {
-    #[inline]
-    fn from(value: f64) -> Self {
-        Number(value)
-    }
+impl_from! {
+    i64, Number, Number::Int;
+    f64, Number, Number::Float;
 }
 
 impl_from_cast! {
-    i32 as f64, Number, Number::new;
-    i64 as f64, Number, Number::new;
-    u32 as f64, Number, Number::new;
-    u64 as f64, Number, Number::new;
-    f32 as f64, Number, Number::new;
+    i32 as i64, Number, Number::Int;
+    u32 as i64, Number, Number::Int;
+    f32 as f64, Number, Number::Float;
 }
 
 impl From<bool> for Number {
@@ -56,17 +48,39 @@ impl From<bool> for Number {
 
 impl Hash for Number {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.to_bits().hash(state)
+        match self {
+            Number::Int(v) => v.hash(state),
+            Number::Float(v) => v.to_bits().hash(state),
+        }
     }
 }
 
 impl Display for Number {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        match self {
+            Number::Int(i) => {
+                write!(f, "{}", *i)
+            }
+            Number::Float(v) => {
+                write!(f, "{}", *v)
+            }
+        }
     }
 }
 
 impl Eq for Number {}
+
+impl PartialEq for Number {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (&Number::Int(a), &Number::Int(b)) => a == b,
+            (&Number::Float(a), &Number::Float(b)) => a == b,
+            (&Number::Int(a), &Number::Float(b)) => a as f64 == b,
+            (&Number::Float(a), &Number::Int(b)) => a == b as f64,
+        }
+    }
+}
 
 impl FromStr for Number {
     type Err = String;
@@ -88,42 +102,44 @@ impl FromStr for Number {
 impl Number {
     #[inline]
     pub fn zero() -> Number {
-        Number(0.0)
+        Number::Int(0)
     }
 
     #[inline]
     pub fn one() -> Number {
-        Number(1.0)
+        Number::Int(1)
     }
 
     #[inline]
     pub fn is_one(self) -> bool {
-        self.0 == 1.0
+        match self {
+            Number::Int(i) => i == 1,
+            Number::Float(f) => f == 1.0,
+        }
     }
 
     #[inline]
     pub fn is_zero(self) -> bool {
-        self.0 == 0.0
+        match self {
+            Number::Int(i) => i == 0,
+            Number::Float(f) => f == 0.0,
+        }
     }
 
     #[inline]
     pub fn to_float(self) -> f64 {
-        self.0
+        match self {
+            Number::Int(i) => i as f64,
+            Number::Float(f) => f,
+        }
     }
 
     #[inline]
     pub fn to_int(self) -> i64 {
-        self.0 as i64
-    }
-
-    #[inline]
-    pub fn to_uint(self) -> Result<u64, VMError> {
-        if self.is_negative() {
-            return Err(VMError::ConversionError(
-                "Cannot convert negative to UINT".to_string(),
-            ));
+        match self {
+            Number::Int(i) => i,
+            Number::Float(f) => f as i64,
         }
-        Ok(self.0 as u64)
     }
 
     #[inline]
@@ -133,11 +149,18 @@ impl Number {
                 "Cannot convert negative to UINT".to_string(),
             ));
         }
-        Ok(self.0 as usize)
+        let u = match self {
+            Number::Int(i) => i as usize,
+            Number::Float(f) => f as usize,
+        };
+        Ok(u)
     }
 
     #[inline]
     pub fn is_negative(&self) -> bool {
-        self.0.is_sign_negative()
+        match self {
+            Number::Int(i) => i.is_negative(),
+            Number::Float(f) => f.is_sign_negative(),
+        }
     }
 }

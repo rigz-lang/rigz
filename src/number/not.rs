@@ -6,6 +6,9 @@ impl Not for Number {
 
     #[inline]
     fn not(self) -> Self::Output {
-        Number(f64::from_bits(!self.0.to_bits()))
+        match self {
+            Number::Int(v) => Number::Int(!v),
+            Number::Float(v) => Number::Float(f64::from_bits(!v.to_bits())),
+        }
     }
 }

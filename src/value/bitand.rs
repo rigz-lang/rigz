@@ -71,8 +71,8 @@ mod tests {
             test_bool_true_bitand_none => (Value::Bool(true), Value::None, Value::None);
             test_none_bool_true_bitand_true => (Value::None, Value::Bool(true), Value::None);
             test_false_bool_true_bitand_true => (Value::Bool(false), Value::Bool(true), Value::Bool(false));
-            test_false_0_bitand_true => (Value::Bool(false), Value::Number(Number::zero()), Value::Bool(false));
-            test_true_0_bitand_true => (Value::Bool(true), Value::Number(Number::zero()), Value::Bool(false));
+            test_false_0_bitand_true => (Value::Bool(false), Value::Number(Number::Int(0)), Value::Bool(false));
+            test_true_0_bitand_true => (Value::Bool(true), Value::Number(Number::Int(0)), Value::Bool(false));
             // bitand more test cases here as needed
         }
     }

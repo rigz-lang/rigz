@@ -20,7 +20,7 @@ impl Sub for Value {
                 let s = Value::String(b.clone());
                 match s.to_number() {
                     None => VMError::UnsupportedOperation(format!("{} - {}", a, b)).to_value(),
-                    Some(r) => Value::Number(a - r),
+                    Some(r) => Value::Number(a / r),
                 }
             }
             (Value::String(a), Value::String(b)) => {
@@ -65,8 +65,8 @@ mod tests {
             test_bool_true_sub_none => (Value::Bool(true), Value::None, Value::Bool(true));
             test_none_bool_true_sub_true => (Value::None, Value::Bool(true), Value::Bool(false));
             test_false_bool_true_sub_true => (Value::Bool(false), Value::Bool(true), Value::Bool(true));
-            test_false_0_sub_true => (Value::Bool(false), Value::Number(Number::zero()), Value::Bool(false));
-            test_true_0_sub_true => (Value::Bool(true), Value::Number(Number::zero()), Value::Number(Number::one()));
+            test_false_0_sub_true => (Value::Bool(false), Value::Number(Number::Int(0)), Value::Bool(false));
+            test_true_0_sub_true => (Value::Bool(true), Value::Number(Number::Int(0)), Value::Number(Number::Int(1)));
             // sub more test cases here as needed
         }
     }

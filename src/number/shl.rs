@@ -6,6 +6,14 @@ impl Shl for Number {
 
     #[inline]
     fn shl(self, rhs: Self) -> Self::Output {
-        Number(((self.0 as i64) << rhs.to_int()) as f64)
+        let shift = match rhs {
+            Number::Int(i) => i,
+            Number::Float(f) => f as i64,
+        };
+
+        match self {
+            Number::Int(i) => Number::Int(i << shift),
+            Number::Float(f) => Number::Float(f64::from_bits(f.to_bits() << shift)),
+        }
     }
 }

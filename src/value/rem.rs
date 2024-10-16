@@ -44,8 +44,8 @@ mod tests {
             test_bool_true_rem_none => (Value::Bool(true), Value::None, Value::Bool(true));
             test_none_bool_true_rem_true => (Value::None, Value::Bool(true), Value::None);
             test_false_bool_true_rem_true => (Value::Bool(false), Value::Bool(true), Value::Bool(true));
-            test_false_0_rem_true => (Value::Bool(false), Value::Number(Number::zero()), Value::Bool(false));
-            test_true_0_rem_true => (Value::Bool(true), Value::Number(Number::zero()), Value::Number(Number::one()));
+            test_false_0_rem_true => (Value::Bool(false), Value::Number(Number::Int(0)), Value::Bool(false));
+            test_true_0_rem_true => (Value::Bool(true), Value::Number(Number::Int(0)), Value::Number(Number::Int(1)));
             // rem more test cases here as needed
         }
     }

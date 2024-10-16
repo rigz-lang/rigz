@@ -6,6 +6,9 @@ impl Add for Number {
 
     #[inline]
     fn add(self, rhs: Self) -> Self::Output {
-        Number(self.0 + rhs.0)
+        match (self, rhs) {
+            (Number::Int(i), rhs) => Number::Int(i + rhs.to_int()),
+            (Number::Float(f), rhs) => Number::Float(f + rhs.to_float()),
+        }
     }
 }

@@ -1,5 +1,11 @@
 # Instructions
 
+=======
+## Special Registers
+The following registers are special and cannot be written to, they will always return the following values.
+R0 - Value::None
+R1 - Value::Number(Number::Int(1))
+
 ## Halt
 
 Halt the VM and return the value from Register
