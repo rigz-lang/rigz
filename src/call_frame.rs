@@ -1,5 +1,5 @@
-use indexmap::IndexMap;
 use crate::{Register, VM};
+use indexmap::IndexMap;
 
 #[derive(Clone, Debug)]
 pub enum Variable {

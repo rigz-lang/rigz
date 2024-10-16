@@ -1,7 +1,7 @@
 pub trait Reverse {
     type Output;
 
-    fn reverse(self) -> Self::Output;
+    fn reverse(&self) -> Self::Output;
 }
 
 pub trait Logical<Rhs> {

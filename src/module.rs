@@ -1,10 +1,11 @@
-use std::fmt::{Debug, Formatter};
+use crate::{RigzType, VMError, Value};
 use indexmap::IndexMap;
-use crate::{RigzType, Value};
+use std::fmt::{Debug, Formatter};
 
-pub type Function<'vm> = IndexMap<&'vm str, &'vm dyn Fn(Vec<Value<'vm>>) -> Value<'vm>>;
+pub type Function<'vm> =
+    IndexMap<&'vm str, &'vm dyn Fn(Vec<Value<'vm>>) -> Result<Value<'vm>, VMError>>;
 pub type ExtensionFunction<'vm> =
-IndexMap<&'vm str, &'vm dyn Fn(Value<'vm>, Vec<Value<'vm>>) -> Value<'vm>>;
+    IndexMap<&'vm str, &'vm dyn Fn(Value<'vm>, Vec<Value<'vm>>) -> Result<Value<'vm>, VMError>>;
 
 #[derive(Clone)]
 pub struct Module<'vm> {

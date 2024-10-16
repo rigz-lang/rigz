@@ -1,15 +1,12 @@
-use std::future::Future;
-use std::thread::JoinHandle;
-use crossbeam::channel::unbounded;
 use crate::instructions::{Binary, Unary};
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation,
-    CallFrame, Instruction, Lifecycle, Logical, Module, Number, Register, Reverse, RigzType, Scope,
+    CallFrame, Instruction, Lifecycle, Module, Number, Register, RigzType, Scope,
     UnaryOperation, VMError, Value, Variable,
 };
 use indexmap::map::Entry;
 use indexmap::IndexMap;
-use log::{error, log, trace, Level};
+use log::{trace, Level};
 
 pub enum VMState<'vm> {
     Running,
@@ -19,8 +16,10 @@ pub enum VMState<'vm> {
 
 #[derive(Clone, Debug, Default)]
 pub struct VMOptions {
-    enable_logging: bool,
-    disable_modules: bool,
+    pub enable_logging: bool,
+    pub disable_modules: bool,
+    pub disable_lifecyles: bool,
+    pub disable_variable_cleanup: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -35,7 +34,7 @@ pub struct VM<'vm> {
     pub options: VMOptions,
 }
 
-impl <'vm> Default for VM<'vm> {
+impl<'vm> Default for VM<'vm> {
     #[inline]
     fn default() -> Self {
         Self {
@@ -67,6 +66,16 @@ impl<'vm> VM<'vm> {
         self.registers.insert(register, value);
     }
 
+    pub fn get_registers(&mut self, registers: Vec<Register>) -> Result<Vec<Value<'vm>>, VMError> {
+        let len = registers.len();
+        let mut result = Vec::with_capacity(len);
+        for register in registers {
+            result.push(self.get_register(register)?);
+        }
+        Ok(result)
+    }
+
+    #[inline]
     pub fn get_register(&mut self, register: Register) -> Result<Value<'vm>, VMError> {
         if register == 0 {
             return Ok(Value::None);
@@ -82,376 +91,104 @@ impl<'vm> VM<'vm> {
         };
 
         if let Value::ScopeId(scope, output) = v {
-            self.call_frame(scope, output)?;
-            match self.run_scope()? {
-                VMState::Running => unreachable!(),
-                VMState::Done(v) | VMState::Ran(v) => {
-                    self.insert_register(register, v.clone());
-                    Ok(v)
-                }
-            }
+            self.handle_scope(scope, register, output)
         } else {
             Ok(v)
         }
     }
 
-    fn handle_binary(&mut self, binary: Binary) -> Result<(), VMError> {
-        let Binary {
-            op,
-            lhs,
-            rhs,
-            output,
-        } = binary;
-        let lhs = self.get_register(lhs)?;
-        let rhs = self.get_register(rhs)?;
-        let v = match op {
-            BinaryOperation::Add => lhs + rhs,
-            BinaryOperation::Sub => lhs - rhs,
-            BinaryOperation::Shr => lhs >> rhs,
-            BinaryOperation::Shl => lhs << rhs,
-            BinaryOperation::Eq => Value::Bool(lhs == rhs),
-            BinaryOperation::Neq => Value::Bool(lhs != rhs),
-            BinaryOperation::Mul => lhs * rhs,
-            BinaryOperation::Div => lhs / rhs,
-            BinaryOperation::Rem => lhs % rhs,
-            BinaryOperation::BitOr => lhs | rhs,
-            BinaryOperation::BitAnd => lhs & rhs,
-            BinaryOperation::BitXor => lhs ^ rhs,
-            BinaryOperation::And => lhs.and(rhs),
-            BinaryOperation::Or => lhs.or(rhs),
-            BinaryOperation::Xor => lhs.xor(rhs),
-            BinaryOperation::Gt => Value::Bool(lhs > rhs),
-            BinaryOperation::Gte => Value::Bool(lhs >= rhs),
-            BinaryOperation::Lt => Value::Bool(lhs < rhs),
-            BinaryOperation::Lte => Value::Bool(lhs <= rhs),
-        };
-
-        self.insert_register(output, v);
-        Ok(())
+    #[inline]
+    pub fn get_register_mut(&'vm mut self, register: Register) -> Result<&'vm mut Value<'vm>, VMError> {
+        match self.registers.get_mut(&register) {
+            None => Err(VMError::EmptyRegister(format!("R{} is empty", register))),
+            Some(v) => Ok(v),
+        }
     }
 
-    fn handle_unary(&mut self, unary: Unary) -> Result<(), VMError> {
-        let Unary { op, from, output } = unary;
-        let val = self.get_register(from)?;
-        match op {
-            UnaryOperation::Neg => {
-                self.insert_register(output, -val);
-            }
-            UnaryOperation::Not => {
-                self.insert_register(output, !val);
-            }
-            UnaryOperation::PrintLn => {
-                println!("{}", val);
-                self.insert_register(output, val);
-            }
-            UnaryOperation::EPrintLn => {
-                eprintln!("{}", val);
-                self.insert_register(output, val);
-            }
-            UnaryOperation::Print => {
-                print!("{}", val);
-                self.insert_register(output, val);
-            }
-            UnaryOperation::EPrint => {
-                eprint!("{}", val);
-                self.insert_register(output, val);
-            }
-            UnaryOperation::Reverse => {
-                self.insert_register(output, val.reverse());
+    #[inline]
+    pub fn handle_scope(
+        &mut self,
+        scope: usize,
+        original: Register,
+        output: Register,
+    ) -> Result<Value<'vm>, VMError> {
+        self.call_frame(scope, output)?;
+        match self.run_scope()? {
+            VMState::Running => unreachable!(),
+            VMState::Done(v) | VMState::Ran(v) => {
+                self.insert_register(original, v.clone());
+                Ok(v)
             }
         }
-        Ok(())
     }
 
-    pub fn process_core_instruction(
-        &mut self,
-        instruction: Instruction<'vm>,
-    ) -> Result<VMState<'vm>, VMError> {
-        match instruction {
-            Instruction::Halt(r) => return Ok(VMState::Done(self.get_register(r)?)),
-            Instruction::Unary(u) => self.handle_unary(u)?,
-            Instruction::Binary(b) => self.handle_binary(b)?,
-            Instruction::Load(r, v) => self.insert_register(r, v),
-            Instruction::LoadLetRegister(name, register) => self.load_let(name, register)?,
-            Instruction::LoadMutRegister(name, register) => self.load_mut(name, register)?,
-            Instruction::Copy(from, to) => {
-                let copy = self.get_register(from)?;
-                self.insert_register(to, copy);
-            }
-            Instruction::Cast {
-                from,
-                rigz_type,
-                to,
-            } => {
-                let value = self.get_register(from)?;
-                self.insert_register(to, value.cast(rigz_type)?);
-            }
-            Instruction::CallEq(a, b, scope_index, output) => {
-                let a = self.get_register(a)?;
-                let b = self.get_register(b)?;
-                if a == b {
-                    self.call_frame(scope_index, output)?;
-                }
-            }
-            Instruction::CallNeq(a, b, scope_index, output) => {
-                let a = self.get_register(a)?;
-                let b = self.get_register(b)?;
-                if a != b {
-                    self.call_frame(scope_index, output)?;
-                }
-            }
-            Instruction::IfElse {
-                truthy,
-                if_scope,
-                else_scope,
-                output,
-            } => {
-                if self.get_register(truthy)?.to_bool() {
-                    self.call_frame(if_scope, output)?;
-                } else {
-                    self.call_frame(else_scope, output)?;
-                }
-            }
-            Instruction::GetVariable(name, reg) => match self.current.get_variable(name, self) {
-                None => {
-                    return Err(VMError::VariableDoesNotExist(format!(
-                        "Variable {} does not exist",
-                        name
-                    )))
-                }
-                Some(s) => match self.registers.get(&s) {
-                    None => {
-                        return Err(VMError::EmptyRegister(format!(
-                            "Register {} does not exist",
-                            s
-                        )))
-                    }
-                    Some(v) => self.insert_register(reg, v.clone()),
-                },
-            },
-            Instruction::CallModule {
-                module,
-                function,
-                args,
-                output,
-            } => {
-                if self.options.disable_modules {
-                    error!("Modules are disabled");
-                    self.insert_register(
-                        output,
-                        VMError::UnsupportedOperation(format!(
-                            "Modules are disabled: Failed to call module {}.{}",
-                            module, function
-                        ))
-                            .to_value(),
-                    );
-                    return Ok(VMState::Running);
-                }
-                let f = match self.modules.get(module) {
-                    None => {
-                        return Err(VMError::InvalidModule(format!(
-                            "Module {} does not exist",
-                            module
-                        )))
-                    }
-                    Some(m) => match m.functions.get(function) {
-                        None => {
-                            return Err(VMError::InvalidModuleFunction(format!(
-                                "Module {}.{} does not exist",
-                                module, function
-                            )))
-                        }
-                        Some(f) => *f,
-                    },
-                };
-                let mut inner_args = Vec::with_capacity(args.len());
-                for arg in args {
-                    inner_args.push(self.get_register(arg)?);
-                }
-                let v = f(inner_args);
-                self.insert_register(output, v)
-            }
-            Instruction::CallExtensionModule {
-                module,
-                function,
-                this,
-                args,
-                output,
-            } => {
-                if self.options.disable_modules {
-                    error!("Modules are disabled");
-                    self.insert_register(
-                        output,
-                        VMError::UnsupportedOperation(format!(
-                            "Modules are disabled: Failed to call extension {}::{}.{}",
-                            module, this, function
-                        ))
-                            .to_value(),
-                    );
-                    return Ok(VMState::Running);
-                }
-                let m = match self.modules.get(module) {
-                    None => {
-                        return Err(VMError::InvalidModule(format!(
-                            "Module {} does not exist",
-                            module
-                        )))
-                    }
-                    Some(m) => m.clone(),
-                };
-                let this = self.get_register(this)?;
-                let rigz_type = this.rigz_type();
-                let f = match m.extension_functions.get(&rigz_type) {
-                    None => match m.extension_functions.get(&RigzType::Any) {
-                        None => {
-                            return Err(VMError::InvalidModuleFunction(format!(
-                                "Module {}.{:?} does not exist (Any does not exist)",
-                                module, rigz_type
-                            )))
-                        }
-                        Some(def) => match def.get(function) {
-                            None => {
-                                return Err(VMError::InvalidModuleFunction(format!(
-                                    "Module extension {}.{} does not exist",
-                                    module, function
-                                )))
-                            }
-                            Some(f) => *f,
-                        },
-                    },
-                    Some(def) => match def.get(function) {
-                        None => {
-                            return Err(VMError::InvalidModuleFunction(format!(
-                                "Module extension {}.{} does not exist",
-                                module, function
-                            )))
-                        }
-                        Some(f) => f,
-                    },
-                };
-                let mut inner_args = Vec::with_capacity(args.len());
-                for arg in args {
-                    inner_args.push(self.get_register(arg)?);
-                }
-                let v = f(this, inner_args);
-                self.insert_register(output, v)
-            }
-            Instruction::Log(level, tmpl, args) => {
-                if !self.options.enable_logging {
-                    return Ok(VMState::Running);
-                }
+    /// Value is replaced with None, shifting the registers breaks the program. Scopes are not evaluated, use `remove_register_eval_scope` instead.
+    pub fn remove_register(&mut self, register: Register) -> Result<Value<'vm>, VMError> {
+        self.remove_register_value(register)
+    }
 
-                let mut res = (*tmpl).to_string();
-                for arg in args {
-                    let l = self.get_register(arg)?.to_string();
-                    res = res.replacen("{}", l.as_str(), 1);
-                }
-                log!(level, "{}", res)
+    #[inline]
+    fn remove_register_value(&mut self, register: Register) -> Result<Value<'vm>, VMError> {
+        match self.registers.get_mut(&register) {
+            None => Err(VMError::EmptyRegister(format!("R{} is empty", register))),
+            Some(v) => {
+                let value = std::mem::take(v);
+                *v = Value::None;
+                Ok(value)
             }
-            Instruction::Puts(args) => {
-                let mut puts = String::new();
-                for r in args {
-                    let arg = self.get_register(r)?;
-                    puts.push_str(", ");
-                    puts.push_str(arg.to_string().as_str());
-                }
-                println!("{}", puts)
-            }
-            Instruction::Call(scope_index, register) => self.call_frame(scope_index, register)?,
-            Instruction::Ret(r) => {
-                return Err(VMError::UnsupportedOperation(format!(
-                    "Ret not handled by parent function: R{}",
-                    r
-                )))
-            }
-            Instruction::Goto(scope_id, index) => {
-                self.sp = scope_id;
-                self.current.pc = index;
-            }
-            Instruction::AddInstruction(scope, instruction) => match self.scopes.get_mut(scope) {
-                None => {
-                    return Err(VMError::ScopeDoesNotExist(format!(
-                        "Scope does not exist: {}",
-                        scope
-                    )))
-                }
-                Some(s) => {
-                    s.instructions.push(*instruction);
-                }
-            },
-            Instruction::InsertAtInstruction(scope, index, new_instruction) => {
-                match self.scopes.get_mut(scope) {
-                    None => {
-                        return Err(VMError::ScopeDoesNotExist(format!(
-                            "Scope does not exist: {}",
-                            scope
-                        )))
-                    }
-                    Some(s) => s.instructions.insert(index, *new_instruction),
+        }
+    }
+
+    /// Value is replaced with None, shifting the registers breaks the program.
+
+    pub fn remove_register_eval_scope(
+        &mut self,
+        register: Register,
+    ) -> Result<Value<'vm>, VMError> {
+        let value = self.remove_register_value(register)?;
+
+        if let Value::ScopeId(scope, output) = value {
+            self.handle_scope(scope, register, output)
+        } else {
+            Ok(value)
+        }
+    }
+
+    pub fn process_ret(
+        &mut self,
+        output: Register,
+        process: Option<fn(value: Value<'vm>) -> VMState<'vm>>,
+    ) -> Result<VMState<'vm>, VMError> {
+        let current = self.current.output;
+        let source = self.get_register(current)?;
+        self.insert_register(output, source.clone());
+        match self.frames.pop() {
+            None => return Ok(VMState::Done(source)),
+            Some(c) => {
+                self.clear_frame()?;
+                self.sp = c.scope_id;
+                self.current = c;
+                match process {
+                    None => {}
+                    Some(process) => return Ok(process(source)),
                 }
             }
-            Instruction::UpdateInstruction(scope, index, new_instruction) => {
-                match self.scopes.get_mut(scope) {
-                    None => {
-                        return Err(VMError::ScopeDoesNotExist(format!(
-                            "Scope does not exist: {}",
-                            scope
-                        )))
-                    }
-                    Some(s) => match s.instructions.get_mut(index) {
-                        None => {
-                            return Err(VMError::ScopeDoesNotExist(format!(
-                                "Scope does not exist: {}",
-                                scope
-                            )))
-                        }
-                        Some(i) => {
-                            *i = *new_instruction;
-                        }
-                    },
-                }
-            }
-            Instruction::RemoveInstruction(scope, index) => match self.scopes.get_mut(scope) {
-                None => {
-                    return Err(VMError::ScopeDoesNotExist(format!(
-                        "Scope does not exist: {}",
-                        scope
-                    )))
-                }
-                Some(s) => {
-                    if index >= s.instructions.len() {
-                        return Err(VMError::UnsupportedOperation(format!(
-                            "Instruction does not exist: {}#{}",
-                            scope, index
-                        )));
-                    }
-                    s.instructions.remove(index);
-                }
-            },
-            Instruction::Publish(value) => {
-                let value = self.get_register(value)?;
-                match self.lifecycles.get_mut("on") {
-                    None => {
-                        return Err(VMError::LifecycleError("Lifecycle does not exist: `on`".to_string()))
-                    }
-                    Some(l) => {
-                        l.send(value)?;
-                    }
-                }
-            }
-            Instruction::PublishEvent(message, value) => {
-                let value = self.get_register(value)?;
-                match self.lifecycles.get_mut("on") {
-                    None => {
-                        return Err(VMError::LifecycleError("Lifecycle does not exist: `on`".to_string()))
-                    }
-                    Some(l) => {
-                        l.send_event(message, value)?;
-                    }
-                }
-            }
-        };
+        }
         Ok(VMState::Running)
+    }
+
+    pub fn clear_frame(&mut self) -> Result<(), VMError> {
+        if self.options.disable_variable_cleanup {
+            return Ok(());
+        }
+
+        let variables = std::mem::take(&mut self.current.variables);
+        for reg in variables.values() {
+            let _ = match reg {
+                Variable::Let(r) | Variable::Mut(r) => self.remove_register(*r)?,
+            };
+        }
+        Ok(())
     }
 
     pub fn process_instruction(
@@ -461,33 +198,9 @@ impl<'vm> VM<'vm> {
         trace!("Running {:?}", instruction);
         self.current.pc += 1;
         match instruction {
-            Instruction::Ret(output) => {
-                let current = self.current.output;
-                let source = self.get_register(current)?;
-                self.insert_register(output, source.clone());
-                match self.frames.pop() {
-                    None => return Ok(VMState::Done(source)),
-                    Some(c) => {
-                        self.clear_frame()?;
-                        self.sp = c.scope_id;
-                        self.current = c;
-                    }
-                }
-            }
-            instruction => return self.process_core_instruction(instruction),
-        };
-        Ok(VMState::Running)
-    }
-
-    pub(crate) fn clear_frame(&mut self) -> Result<(), VMError> {
-        let variables = std::mem::take(&mut self.current.variables);
-        for reg in variables.values() {
-            let _ = match reg {
-                Variable::Let(r) => self.get_register(*r)?,
-                Variable::Mut(r) => self.get_register(*r)?,
-            };
+            Instruction::Ret(output) => self.process_ret(output, None),
+            instruction => self.process_core_instruction(instruction),
         }
-        Ok(())
     }
 
     pub fn process_instruction_scope(
@@ -497,24 +210,9 @@ impl<'vm> VM<'vm> {
         trace!("Running {:?} (scope)", instruction);
         self.current.pc += 1;
         match instruction {
-            Instruction::Call(scope_index, register) => self.call_frame(scope_index, register)?,
-            Instruction::Ret(output) => {
-                let current = self.current.output;
-                let source = self.get_register(current)?;
-                self.insert_register(output, source.clone());
-                return match self.frames.pop() {
-                    None => Ok(VMState::Done(source)),
-                    Some(c) => {
-                        self.clear_frame()?;
-                        self.sp = c.scope_id;
-                        self.current = c;
-                        Ok(VMState::Ran(source))
-                    }
-                };
-            }
-            ins => return self.process_core_instruction(ins),
-        };
-        Ok(VMState::Running)
+            Instruction::Ret(output) => self.process_ret(output, Some(|s| VMState::Ran(s))),
+            ins => self.process_core_instruction(ins),
+        }
     }
 
     fn next_instruction(&self) -> Result<Option<Instruction<'vm>>, VMError> {
@@ -624,5 +322,14 @@ impl<'vm> VM<'vm> {
             futures.insert(name.to_string(), l.run());
         }
         futures
+    }
+
+    /// Snapshots can't include modules or messages from in progress lifecycles
+    pub fn snapshot(&self) -> Vec<u8> {
+        todo!()
+    }
+
+    pub fn load_snapshot(&mut self) {
+        todo!()
     }
 }

@@ -4,7 +4,7 @@ use crate::Reverse;
 impl<'vm> Reverse for Value<'vm> {
     type Output = Value<'vm>;
 
-    fn reverse(self) -> Self::Output {
+    fn reverse(&self) -> Self::Output {
         match self {
             Value::Number(n) => Value::Number(n.reverse()),
             Value::String(s) => {
@@ -17,7 +17,7 @@ impl<'vm> Reverse for Value<'vm> {
                 r.reverse();
                 Value::Map(r)
             }
-            v => v,
+            v => v.clone(),
         }
     }
 }

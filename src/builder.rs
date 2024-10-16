@@ -1,6 +1,10 @@
 use crate::value::Value;
 use crate::vm::VMOptions;
-use crate::{generate_bin_op_methods, generate_builder, generate_unary_op_methods, Binary, BinaryOperation, CallFrame, Instruction, Lifecycle, Module, Register, RigzType, Scope, Unary, UnaryOperation, VM};
+use crate::{
+    generate_bin_op_methods, generate_builder, generate_unary_op_methods, Binary, BinaryOperation,
+    CallFrame, Instruction, Lifecycle, Module, Register, RigzType, Scope, Unary, UnaryOperation,
+    VM,
+};
 use indexmap::IndexMap;
 use log::Level;
 use std::fmt::Debug;
@@ -11,7 +15,7 @@ pub struct VMBuilder<'vm> {
     pub scopes: Vec<Scope<'vm>>,
     pub modules: IndexMap<&'vm str, Module<'vm>>,
     pub options: VMOptions,
-    lifecycles: IndexMap<&'vm str, Lifecycle<'vm>>
+    lifecycles: IndexMap<&'vm str, Lifecycle<'vm>>,
 }
 
 impl<'vm> Default for VMBuilder<'vm> {

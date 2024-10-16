@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 pub struct Scope<'vm> {
     pub instructions: Vec<Instruction<'vm>>,
     pub type_definitions: IndexMap<String, RigzObjectDefinition>,
-    pub owned_registers: Vec<Register>
+    pub owned_registers: Vec<Register>,
 }
 
 impl<'vm> Scope<'vm> {

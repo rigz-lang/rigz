@@ -78,8 +78,6 @@ macro_rules! generate_builder {
             s
         }
 
-
-
         #[inline]
         pub fn register_module(&mut self, module: Module<'vm>) -> &mut Self {
             self.modules.insert(module.name, module);

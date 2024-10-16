@@ -20,8 +20,8 @@ use std::hash::Hash;
 pub use builder::VMBuilder;
 pub use call_frame::{CallFrame, Variable};
 pub use instructions::{Binary, BinaryOperation, Instruction, Unary, UnaryOperation};
-pub use lifecycle::{Message, Lifecycle};
-pub use module::{Function, ExtensionFunction, Module};
+pub use lifecycle::{Lifecycle, Message};
+pub use module::{ExtensionFunction, Function, Module};
 pub use number::Number;
 pub use objects::{RigzObject, RigzObjectDefinition, RigzType};
 pub use scope::Scope;
@@ -58,7 +58,7 @@ impl<'vm> VMError {
 mod tests {
     use crate::number::Number;
     use crate::value::Value;
-    use crate::{Module, RigzType, VMBuilder};
+    use crate::{Module, RigzType, VMBuilder, VMError};
     use indexmap::IndexMap;
     use std::str::FromStr;
 
@@ -180,12 +180,14 @@ mod tests {
     #[test]
     fn module_works<'vm>() {
         let mut builder = VMBuilder::new();
-        fn hello(args: Vec<Value>) -> Value {
+        fn hello(args: Vec<Value>) -> Result<Value, VMError> {
             println!("{}", Value::List(args));
-            Value::None
+            Ok(Value::None)
         }
-        let mut functions: IndexMap<&'vm str, &dyn Fn(Vec<Value<'vm>>) -> Value<'vm>> =
-            IndexMap::new();
+        let mut functions: IndexMap<
+            &'vm str,
+            &dyn Fn(Vec<Value<'vm>>) -> Result<Value<'vm>, VMError>,
+        > = IndexMap::new();
         functions.insert("hello", &hello);
 
         let module = Module {
