@@ -2,7 +2,7 @@ default:
   image: rust:1.79
   cache: &global_cache
     policy: pull
-    unprotect: false
+    unprotect: true
     paths:
       - target
     when: on_success
