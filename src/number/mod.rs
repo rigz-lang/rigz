@@ -91,59 +91,59 @@ impl PartialEq for Number {
 
 impl Number {
     #[inline]
-    pub fn is_one(&self) -> bool {
+    pub fn is_one(self) -> bool {
         match self {
-            Number::Int(i) => *i == 1,
-            Number::UInt(u) => *u == 1,
-            Number::Float(f) => *f == 1.0
+            Number::Int(i) => i == 1,
+            Number::UInt(u) => u == 1,
+            Number::Float(f) => f == 1.0
         }
     }
 
     #[inline]
-    pub fn is_zero(&self) -> bool {
+    pub fn is_zero(self) -> bool {
         match self {
-            Number::Int(i) => *i == 0,
-            Number::UInt(u) => *u == 0,
-            Number::Float(f) => *f == 0.0
+            Number::Int(i) => i == 0,
+            Number::UInt(u) => u == 0,
+            Number::Float(f) => f == 0.0
         }
     }
 
-    pub fn to_float(&self) -> f64 {
+    pub fn to_float(self) -> f64 {
         match self {
-            Number::Int(i) => *i as f64,
-            Number::UInt(u) => *u as f64,
-            Number::Float(f) => *f,
+            Number::Int(i) => i as f64,
+            Number::UInt(u) => u as f64,
+            Number::Float(f) => f,
         }
     }
 
-    pub fn to_int(&self) -> i64 {
+    pub fn to_int(self) -> i64 {
         match self {
-            Number::Int(i) => *i,
-            Number::UInt(u) => *u as i64,
-            Number::Float(f) => *f as i64,
+            Number::Int(i) => i,
+            Number::UInt(u) => u as i64,
+            Number::Float(f) => f as i64,
         }
     }
 
-    pub fn to_uint(&self) -> Result<u64, VMError> {
+    pub fn to_uint(self) -> Result<u64, VMError> {
         if self.is_negative() {
             return Err(VMError::ConversionError("Cannot convert negative to UINT".to_string()))
         }
         let u = match self {
-            Number::Int(i) => *i as u64,
-            Number::UInt(u) => *u,
-            Number::Float(f) => *f as u64,
+            Number::Int(i) => i as u64,
+            Number::UInt(u) => u,
+            Number::Float(f) => f as u64,
         };
         Ok(u)
     }
 
-    pub fn to_usize(&self) -> Result<usize, VMError> {
+    pub fn to_usize(self) -> Result<usize, VMError> {
         if self.is_negative() {
             return Err(VMError::ConversionError("Cannot convert negative to UINT".to_string()))
         }
         let u = match self {
-            Number::Int(i) => *i as usize,
-            Number::UInt(u) => *u as usize,
-            Number::Float(f) => *f as usize,
+            Number::Int(i) => i as usize,
+            Number::UInt(u) => u as usize,
+            Number::Float(f) => f as usize,
         };
         Ok(u)
     }

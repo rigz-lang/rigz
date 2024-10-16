@@ -43,7 +43,7 @@ impl Value {
                     return false
                 }
 
-                s.parse().unwrap_or_else(|_| true)
+                s.parse().unwrap_or(true)
             },
             Value::List(l) => !l.is_empty(),
             Value::Map(m) => !m.is_empty()

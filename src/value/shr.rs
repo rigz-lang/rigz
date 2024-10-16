@@ -11,7 +11,7 @@ impl Shr for Value {
             (Value::String(lhs), Value::Number(rhs)) => {
                 let lhs = lhs.as_str();
                 let s = if rhs.is_negative() {
-                    lhs[rhs.to_int().abs() as usize..].to_string()
+                    lhs[rhs.to_int().unsigned_abs() as usize..].to_string()
                 } else {
                     lhs[..=rhs.to_usize().unwrap()].to_string()
                 };

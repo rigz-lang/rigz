@@ -179,7 +179,7 @@ impl VM {
             let instruction = frame.next_instruction(&scope);
             match instruction {
                 Instruction::Halt(r) => {
-                    return Ok(self.remove_register(&r)?)
+                    return self.remove_register(&r)
                 }
                 Instruction::Unary { op, from, output } => {
                     let val = match self.registers.shift_remove(&from) {

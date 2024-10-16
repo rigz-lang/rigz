@@ -12,7 +12,7 @@ impl Rev for Value {
                 Value::String(s)
             },
             Value::List(l) => {
-                Value::List(l.iter().rev().map(|v| v.clone()).collect())
+                Value::List(l.iter().rev().cloned().collect())
             }
             Value::Map(m) => {
                 let mut r = m.clone();

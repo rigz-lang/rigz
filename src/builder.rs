@@ -38,6 +38,12 @@ macro_rules! generate_bin_op_methods {
     };
 }
 
+impl Default for VMBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VMBuilder {
     #[inline]
     pub fn new() -> Self {
