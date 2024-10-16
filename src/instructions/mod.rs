@@ -43,8 +43,6 @@ pub enum Instruction<'vm> {
         to: Register,
         rigz_type: RigzType,
     },
-    // Import(),
-    // Export(),
     Ret(Register),
     GetVariable(&'vm str, Register),
     LoadLetRegister(&'vm str, Register),
@@ -122,19 +120,18 @@ impl<'vm> VM<'vm> {
             Instruction::BinaryAssign(b) => self.handle_binary_assign(b)?,
             Instruction::UnaryClear(u, clear) => self.handle_unary_clear(u, clear)?,
             Instruction::BinaryClear(b, clear) => self.handle_binary_clear(b, clear)?,
-            Instruction::Push(v) => {
-                match self.registers.len() {
-                    0 => self.insert_register(2, v),
-                    k => self.insert_register(k, v),
-                }
+            Instruction::Push(v) => match self.registers.len() {
+                0 => self.insert_register(2, v),
+                k => self.insert_register(k, v),
             },
-            Instruction::Pop(r) => {
-                match self.registers.pop() {
-                    None => return Err(VMError::RuntimeError(format!("Pop called on empty registers with {}", r))),
-                    Some((_, v)) => {
-                        self.insert_register(r, v)
-                    }
+            Instruction::Pop(r) => match self.registers.pop() {
+                None => {
+                    return Err(VMError::RuntimeError(format!(
+                        "Pop called on empty registers with {}",
+                        r
+                    )))
                 }
+                Some((_, v)) => self.insert_register(r, v),
             },
             Instruction::Load(r, v) => self.insert_register(r, v),
             Instruction::LoadLetRegister(name, register) => self.load_let(name, register)?,

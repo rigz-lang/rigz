@@ -1,8 +1,8 @@
 use crate::instructions::{Binary, Unary};
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation,
-    CallFrame, Instruction, Lifecycle, Module, Number, Register, RigzType, Scope,
-    UnaryOperation, VMError, Value, Variable,
+    CallFrame, Instruction, Lifecycle, Module, Number, Register, RigzType, Scope, UnaryOperation,
+    VMError, Value, Variable,
 };
 use indexmap::map::Entry;
 use indexmap::IndexMap;
@@ -98,7 +98,10 @@ impl<'vm> VM<'vm> {
     }
 
     #[inline]
-    pub fn get_register_mut(&'vm mut self, register: Register) -> Result<&'vm mut Value<'vm>, VMError> {
+    pub fn get_register_mut(
+        &'vm mut self,
+        register: Register,
+    ) -> Result<&'vm mut Value<'vm>, VMError> {
         match self.registers.get_mut(&register) {
             None => Err(VMError::EmptyRegister(format!("R{} is empty", register))),
             Some(v) => Ok(v),

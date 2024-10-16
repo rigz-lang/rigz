@@ -79,12 +79,7 @@ impl<'vm> VM<'vm> {
     }
 
     pub fn handle_binary_assign(&mut self, binary: Binary) -> Result<(), VMError> {
-        let Binary {
-            op,
-            lhs,
-            rhs,
-            ..
-        } = binary;
+        let Binary { op, lhs, rhs, .. } = binary;
         let v = self.get_register(lhs)?;
         let rhs = self.get_register(rhs)?;
         self.apply_binary(op, v, rhs, lhs)

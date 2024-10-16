@@ -21,7 +21,7 @@ pub use builder::VMBuilder;
 pub use call_frame::{CallFrame, Variable};
 pub use instructions::{Binary, BinaryOperation, Instruction, Unary, UnaryOperation};
 pub use lifecycle::{Lifecycle, Message};
-pub use module::{ExtensionFunction, Function, Module};
+pub use module::{ExtensionFunction, Function, Module, MutableExtensionFunction, MutableFunction};
 pub use number::Number;
 pub use objects::{RigzObject, RigzObjectDefinition, RigzType};
 pub use scope::Scope;
@@ -193,7 +193,7 @@ mod tests {
         let module = Module {
             name: "test",
             functions,
-            extension_functions: Default::default(),
+            ..Default::default()
         };
         let mut vm = builder
             .register_module(module)

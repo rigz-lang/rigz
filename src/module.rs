@@ -7,11 +7,18 @@ pub type Function<'vm> =
 pub type ExtensionFunction<'vm> =
     IndexMap<&'vm str, &'vm dyn Fn(Value<'vm>, Vec<Value<'vm>>) -> Result<Value<'vm>, VMError>>;
 
-#[derive(Clone)]
+pub type MutableFunction<'vm> =
+    IndexMap<&'vm str, &'vm dyn FnMut(Vec<Value<'vm>>) -> Result<Value<'vm>, VMError>>;
+pub type MutableExtensionFunction<'vm> =
+    IndexMap<&'vm str, &'vm dyn FnMut(Value<'vm>, Vec<Value<'vm>>) -> Result<Value<'vm>, VMError>>;
+
+#[derive(Clone, Default)]
 pub struct Module<'vm> {
     pub name: &'vm str,
     pub functions: Function<'vm>,
     pub extension_functions: IndexMap<RigzType, ExtensionFunction<'vm>>,
+    pub mutable_functions: Function<'vm>,
+    pub mutable_extension_functions: IndexMap<RigzType, ExtensionFunction<'vm>>,
 }
 
 impl<'vm> Debug for Module<'vm> {

@@ -14,7 +14,10 @@ mod shr;
 mod sub;
 
 use crate::number::Number;
-use crate::{impl_from_into_lifetime, impl_from_lifetime, Register, RigzObject, RigzObjectDefinition, RigzType, VMError, BOOL, ERROR, LIST, MAP, NONE, NUMBER, STRING};
+use crate::{
+    impl_from_into_lifetime, impl_from_lifetime, Register, RigzObject, RigzObjectDefinition,
+    RigzType, VMError, BOOL, ERROR, LIST, MAP, NONE, NUMBER, STRING,
+};
 use indexmap::IndexMap;
 use log::trace;
 use std::cmp::Ordering;
