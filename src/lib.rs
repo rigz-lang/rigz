@@ -26,7 +26,8 @@ pub use objects::RigzType;
 pub use scope::Scope;
 pub use traits::{Logical, Reverse};
 pub use value::Value;
-pub use vm::VM;
+pub use value_range::ValueRange;
+pub use vm::{RegisterValue, VM};
 
 pub type Register = usize;
 
