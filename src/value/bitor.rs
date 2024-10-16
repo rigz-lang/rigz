@@ -2,8 +2,8 @@ use crate::value::Value;
 use crate::VMError;
 use std::ops::BitOr;
 
-impl<'vm> BitOr for Value<'vm> {
-    type Output = Value<'vm>;
+impl BitOr for Value {
+    type Output = Value;
 
     #[inline]
     fn bitor(self, rhs: Self) -> Self::Output {

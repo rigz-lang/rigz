@@ -5,21 +5,21 @@ use dyn_clone::DynClone;
 pub trait Module<'vm>: DynClone {
     fn name(&self) -> &'vm str;
 
-    fn call(&self, function: &'vm str, args: Vec<Value<'vm>>) -> Result<Value<'vm>, VMError>;
+    fn call(&self, function: &'vm str, args: Vec<Value>) -> Result<Value, VMError>;
 
     fn call_extension(
         &self,
         value: Value,
         function: &'vm str,
-        args: Vec<Value<'vm>>,
-    ) -> Result<Value<'vm>, VMError>;
+        args: Vec<Value>,
+    ) -> Result<Value, VMError>;
 
     fn vm_extension(
         &self,
         vm: &mut VM<'vm>,
         function: &'vm str,
-        args: Vec<Value<'vm>>,
-    ) -> Result<Value<'vm>, VMError>;
+        args: Vec<Value>,
+    ) -> Result<Value, VMError>;
 
     fn extensions(&self) -> &[&str];
 

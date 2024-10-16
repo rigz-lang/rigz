@@ -37,8 +37,8 @@ impl<'vm> VM<'vm> {
     pub fn apply_binary(
         &mut self,
         binary_operation: BinaryOperation,
-        lhs: Value<'vm>,
-        rhs: Value<'vm>,
+        lhs: Value,
+        rhs: Value,
         output: Register,
     ) -> Result<(), VMError> {
         let v = match binary_operation {

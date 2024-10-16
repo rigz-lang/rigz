@@ -1,10 +1,8 @@
-use crate::{Instruction, Register, RigzObjectDefinition};
-use indexmap::IndexMap;
+use crate::{Instruction, Register};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Scope<'vm> {
     pub instructions: Vec<Instruction<'vm>>,
-    pub type_definitions: IndexMap<String, RigzObjectDefinition>,
     pub owned_registers: Vec<Register>,
 }
 

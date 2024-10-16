@@ -1,8 +1,8 @@
 use crate::value::Value;
 use std::ops::Neg;
 
-impl<'vm> Neg for Value<'vm> {
-    type Output = Value<'vm>;
+impl Neg for Value {
+    type Output = Value;
 
     #[inline]
     fn neg(self) -> Self::Output {

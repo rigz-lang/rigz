@@ -3,8 +3,8 @@ use crate::VMError;
 use log::warn;
 use std::ops::Rem;
 
-impl<'vm> Rem for Value<'vm> {
-    type Output = Value<'vm>;
+impl Rem for Value {
+    type Output = Value;
 
     #[inline]
     fn rem(self, rhs: Self) -> Self::Output {

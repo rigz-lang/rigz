@@ -1,8 +1,8 @@
 use crate::value::Value;
 use crate::Reverse;
 
-impl<'vm> Reverse for Value<'vm> {
-    type Output = Value<'vm>;
+impl Reverse for Value {
+    type Output = Value;
 
     #[inline]
     fn reverse(&self) -> Self::Output {

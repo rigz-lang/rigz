@@ -2,8 +2,8 @@ use crate::value::Value;
 use crate::VMError;
 use std::ops::Div;
 
-impl<'vm> Div for Value<'vm> {
-    type Output = Value<'vm>;
+impl Div for Value {
+    type Output = Value;
 
     #[inline]
     fn div(self, rhs: Self) -> Self::Output {

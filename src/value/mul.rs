@@ -3,8 +3,8 @@ use crate::value::Value;
 use crate::VMError;
 use std::ops::Mul;
 
-impl<'vm> Mul for Value<'vm> {
-    type Output = Value<'vm>;
+impl Mul for Value {
+    type Output = Value;
 
     #[inline]
     fn mul(self, rhs: Self) -> Self::Output {

@@ -2,8 +2,8 @@ use crate::value::Value;
 use crate::VMError;
 use std::ops::BitXor;
 
-impl<'vm> BitXor for Value<'vm> {
-    type Output = Value<'vm>;
+impl BitXor for Value {
+    type Output = Value;
 
     #[inline]
     fn bitxor(self, rhs: Self) -> Self::Output {

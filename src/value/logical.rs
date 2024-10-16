@@ -1,11 +1,11 @@
 use crate::value::Value;
 use crate::Logical;
 
-impl<'vm> Logical<Value<'vm>> for Value<'vm> {
-    type Output = Value<'vm>;
+impl Logical<Value> for Value {
+    type Output = Value;
 
     #[inline]
-    fn and(self, rhs: Value<'vm>) -> Self::Output {
+    fn and(self, rhs: Value) -> Self::Output {
         match (self, rhs) {
             (Value::None, _) => Value::None,
             (lhs, Value::None) => lhs,
@@ -14,7 +14,7 @@ impl<'vm> Logical<Value<'vm>> for Value<'vm> {
     }
 
     #[inline]
-    fn or(self, rhs: Value<'vm>) -> Self::Output {
+    fn or(self, rhs: Value) -> Self::Output {
         match (self, rhs) {
             (Value::None, _) => Value::None,
             (lhs, Value::None) => lhs,
@@ -23,7 +23,7 @@ impl<'vm> Logical<Value<'vm>> for Value<'vm> {
     }
 
     #[inline]
-    fn xor(self, rhs: Value<'vm>) -> Self::Output {
+    fn xor(self, rhs: Value) -> Self::Output {
         match (self, rhs) {
             (Value::None, _) => Value::None,
             (lhs, Value::None) => lhs,

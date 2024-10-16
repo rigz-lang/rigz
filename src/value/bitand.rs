@@ -2,8 +2,8 @@ use crate::value::Value;
 use crate::VMError;
 use std::ops::BitAnd;
 
-impl<'vm> BitAnd for Value<'vm> {
-    type Output = Value<'vm>;
+impl BitAnd for Value {
+    type Output = Value;
 
     #[inline]
     fn bitand(self, rhs: Self) -> Self::Output {

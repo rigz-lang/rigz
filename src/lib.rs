@@ -12,7 +12,6 @@ mod traits;
 mod value;
 mod vm;
 
-pub(crate) use objects::{BOOL, ERROR, LIST, MAP, NONE, NUMBER, STRING};
 use std::fmt::Debug;
 use std::hash::Hash;
 
@@ -21,7 +20,7 @@ pub use call_frame::{CallFrame, Variable};
 pub use instructions::{Binary, BinaryOperation, Instruction, Unary, UnaryOperation, Clear};
 pub use module::Module;
 pub use number::Number;
-pub use objects::{RigzObject, RigzObjectDefinition, RigzType};
+pub use objects::RigzType;
 pub use scope::Scope;
 pub use traits::{Logical, Reverse};
 pub use value::Value;
@@ -47,7 +46,7 @@ pub enum VMError {
 }
 
 impl<'vm> VMError {
-    pub fn to_value(self) -> Value<'vm> {
+    pub fn to_value(self) -> Value {
         Value::Error(self)
     }
 }
@@ -183,7 +182,7 @@ mod tests {
             "test"
         }
 
-        fn call(&self, function: &'vm str, args: Vec<Value<'vm>>) -> Result<Value<'vm>, VMError> {
+        fn call(&self, function: &'vm str, args: Vec<Value>) -> Result<Value, VMError> {
             match function {
                 "hello" => {
                     println!("{}", Value::List(args));
@@ -197,8 +196,8 @@ mod tests {
             &self,
             value: Value,
             function: &'vm str,
-            args: Vec<Value<'vm>>,
-        ) -> Result<Value<'vm>, VMError> {
+            args: Vec<Value>,
+        ) -> Result<Value, VMError> {
             Err(VMError::InvalidModuleFunction(function.to_string()))
         }
 
@@ -206,8 +205,8 @@ mod tests {
             &self,
             vm: &mut VM<'vm>,
             function: &'vm str,
-            args: Vec<Value<'vm>>,
-        ) -> Result<Value<'vm>, VMError> {
+            args: Vec<Value>,
+        ) -> Result<Value, VMError> {
             Err(VMError::InvalidModuleFunction(function.to_string()))
         }
 

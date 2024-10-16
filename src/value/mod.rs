@@ -14,10 +14,7 @@ mod shr;
 mod sub;
 
 use crate::number::Number;
-use crate::{
-    impl_from_into_lifetime, impl_from_lifetime, Register, RigzObject, RigzObjectDefinition,
-    RigzType, VMError, BOOL, ERROR, LIST, MAP, NONE, NUMBER, STRING,
-};
+use crate::{impl_from, impl_from_into, impl_from_into_lifetime, impl_from_lifetime, Register, RigzType, VMError};
 use indexmap::IndexMap;
 use log::trace;
 use std::cmp::Ordering;
@@ -25,27 +22,26 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug, Default)]
-pub enum Value<'vm> {
+pub enum Value {
     #[default]
     None,
     Bool(bool),
     Number(Number),
     String(String),
-    List(Vec<Value<'vm>>),
-    Map(IndexMap<Value<'vm>, Value<'vm>>),
-    Object(RigzObject<'vm>),
+    List(Vec<Value>),
+    Map(IndexMap<Value, Value>),
     ScopeId(usize, Register),
     Error(VMError),
 }
 
-impl_from_lifetime! {
+impl_from! {
     bool, Value, Value::Bool;
     String, Value, Value::String;
-    Vec<Value<'a>>, Value, Value::List;
-    IndexMap<Value<'a>, Value<'a>>, Value, Value::Map;
+    Vec<Value>, Value, Value::List;
+    IndexMap<Value, Value>, Value, Value::Map;
 }
 
-impl_from_into_lifetime! {
+impl_from_into! {
     i32, Value, Value::Number;
     i64, Value, Value::Number;
     u32, Value, Value::Number;
@@ -54,9 +50,9 @@ impl_from_into_lifetime! {
     f64, Value, Value::Number;
 }
 
-impl<'vm> Eq for Value<'vm> {}
+impl Eq for Value {}
 
-impl<'vm> PartialOrd for Value<'vm> {
+impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         if self.eq(other) {
             return Some(Ordering::Equal);
@@ -77,14 +73,14 @@ impl<'vm> PartialOrd for Value<'vm> {
             (_, Value::List(_)) => Some(Ordering::Greater),
             (Value::Map(_), _) => Some(Ordering::Less),
             (_, Value::Map(_)) => Some(Ordering::Greater),
-            (_, Value::Object(_)) => Some(Ordering::Greater),
+            // (_, Value::Object(_)) => Some(Ordering::Greater),
             (Value::ScopeId(_, _), _) => todo!(),
             (_, Value::ScopeId(_, _)) => todo!(),
         }
     }
 }
 
-impl<'vm> Value<'vm> {
+impl Value {
     #[inline]
     pub fn to_number(&self) -> Option<Number> {
         match self {
@@ -122,7 +118,6 @@ impl<'vm> Value<'vm> {
             }
             Value::List(l) => !l.is_empty(),
             Value::Map(m) => !m.is_empty(),
-            Value::Object(m) => !m.fields.is_empty(),
             Value::ScopeId(_u, _) => todo!(),
         }
     }
@@ -136,67 +131,17 @@ impl<'vm> Value<'vm> {
             Value::String(_) => RigzType::String,
             Value::List(_) => RigzType::List,
             Value::Map(_) => RigzType::Map,
-            Value::Object(v) => RigzType::Object(v.definition_index.clone()),
             Value::Error(_) => RigzType::Error,
             Value::ScopeId(_u, _) => todo!(),
         }
     }
 
     #[inline]
-    pub fn to_object(&self) -> RigzObject<'vm> {
-        if let Value::Object(o) = self {
-            return o.clone();
-        }
-        let fields = IndexMap::from([("value".to_string(), self.clone())]);
-        match &self {
-            Value::None => RigzObject {
-                fields,
-                definition_index: &NONE,
-            },
-            Value::Bool(_) => RigzObject {
-                fields,
-                definition_index: &BOOL,
-            },
-            Value::Number(_) => RigzObject {
-                fields,
-                definition_index: &NUMBER,
-            },
-            Value::String(_) => RigzObject {
-                fields,
-                definition_index: &STRING,
-            },
-            Value::List(_) => RigzObject {
-                fields,
-                definition_index: &LIST,
-            },
-            Value::Map(_) => RigzObject {
-                fields,
-                definition_index: &MAP,
-            },
-            Value::Error(_) => RigzObject {
-                fields,
-                definition_index: &ERROR,
-            },
-            _ => unreachable!(),
-        }
-    }
-
-    #[inline]
-    pub fn cast_to_object(
-        &self,
-        rigz_object_definition: RigzObjectDefinition,
-    ) -> Result<RigzObject<'vm>, VMError> {
-        let object = self.to_object();
-        object.cast(rigz_object_definition)
-    }
-
-    #[inline]
-    pub fn cast(&self, rigz_type: RigzType) -> Result<Value<'vm>, VMError> {
+    pub fn cast(&self, rigz_type: RigzType) -> Result<Value, VMError> {
         let rigz_type = match rigz_type {
             RigzType::None => return Ok(Value::None),
             RigzType::Bool => return Ok(Value::Bool(self.to_bool())),
             RigzType::String => return Ok(Value::String(self.to_string())),
-            RigzType::Object(o) => return Ok(Value::Object(self.cast_to_object(o)?)),
             _ => rigz_type,
         };
 
@@ -229,7 +174,7 @@ impl<'vm> Value<'vm> {
     }
 }
 
-impl<'vm> Display for Value<'vm> {
+impl Display for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::None => write!(f, "none"),
@@ -261,25 +206,12 @@ impl<'vm> Display for Value<'vm> {
                 }
                 write!(f, "[{}]", values)
             }
-            Value::Object(o) => {
-                let mut values = String::new();
-                let len = o.fields.len();
-                for (index, (k, v)) in o.fields.iter().enumerate() {
-                    values.push_str(k.to_string().as_str());
-                    values.push_str(" = ");
-                    values.push_str(v.to_string().as_str());
-                    if index != len - 1 {
-                        values.push(',')
-                    }
-                }
-                write!(f, "{} {{ {} }}", o.definition_index.name, values)
-            }
             Value::ScopeId(u, _) => write!(f, "0x{}", *u),
         }
     }
 }
 
-impl<'vm> Hash for Value<'vm> {
+impl Hash for Value {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             Value::None => 0.hash(state),
@@ -298,13 +230,12 @@ impl<'vm> Hash for Value<'vm> {
                     v.hash(state);
                 }
             }
-            Value::Object(m) => m.hash(state),
             Value::ScopeId(u, _) => u.hash(state),
         }
     }
 }
 
-impl<'vm> PartialEq for Value<'vm> {
+impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Value::None, Value::None) => true,
@@ -317,8 +248,6 @@ impl<'vm> PartialEq for Value<'vm> {
             (Value::None, Value::String(s)) => s.is_empty() || s.eq("none"),
             (Value::None, Value::List(v)) => v.is_empty(),
             (Value::None, Value::Map(m)) => m.is_empty(),
-            (Value::None, Value::Object(m)) => m.is_empty(),
-            (Value::Object(m), Value::None) => m.is_empty(),
             (Value::Bool(false), Value::String(s)) => s.is_empty() || s.eq("false"),
             (Value::Bool(false), Value::List(v)) => v.is_empty(),
             (Value::Bool(false), Value::Map(m)) => m.is_empty(),
@@ -353,12 +282,7 @@ impl<'vm> PartialEq for Value<'vm> {
             (Value::String(s), v) => s.eq(v.to_string().as_str()),
             (v, Value::String(s)) => s.eq(v.to_string().as_str()),
             (Value::List(a), Value::Map(b)) => a.is_empty() && b.is_empty(),
-            (Value::List(a), Value::Object(b)) => a.is_empty() && b.is_empty(),
-            (Value::Object(a), Value::List(b)) => a.is_empty() && b.is_empty(),
             (Value::Map(a), Value::List(b)) => a.is_empty() && b.is_empty(),
-            (Value::Map(a), Value::Object(b)) => b.equivalent(a),
-            (Value::Object(a), Value::Map(b)) => a.equivalent(b),
-            (Value::Object(a), Value::Object(b)) => a == b,
             (Value::ScopeId(a, _), Value::ScopeId(b, _)) => a == b,
             (Value::ScopeId(_, _), _) => todo!(),
             (_, Value::ScopeId(_, _)) => todo!(),

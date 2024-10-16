@@ -23,7 +23,7 @@ pub enum Instruction<'vm> {
     Binary(Binary),
     UnaryAssign(Unary),
     BinaryAssign(Binary),
-    Load(Register, Value<'vm>),
+    Load(Register, Value),
     Copy(Register, Register),
     Call(usize, Register),
     Log(Level, &'vm str, Vec<Register>),
@@ -80,7 +80,7 @@ pub enum Instruction<'vm> {
     UpdateInstruction(usize, usize, Box<Instruction<'vm>>),
     RemoveInstruction(usize, usize),
     /// this assumes no larger registers have been removed, use at your own risk
-    Push(Value<'vm>),
+    Push(Value),
     /// pop the last register and store its value in register
     Pop(Register),
 }
@@ -113,7 +113,7 @@ impl<'vm> VM<'vm> {
     pub fn process_core_instruction(
         &mut self,
         instruction: Instruction<'vm>,
-    ) -> Result<VMState<'vm>, VMError> {
+    ) -> Result<VMState, VMError> {
         match instruction {
             Instruction::Halt(r) => return Ok(VMState::Done(self.remove_register_eval_scope(r)?)),
             Instruction::Clear(clear) => self.handle_clear(clear)?,

@@ -2,8 +2,8 @@ use crate::value::Value;
 use crate::VMError;
 use std::ops::Sub;
 
-impl<'vm> Sub for Value<'vm> {
-    type Output = Value<'vm>;
+impl Sub for Value {
+    type Output = Value;
 
     #[inline]
     fn sub(self, rhs: Self) -> Self::Output {

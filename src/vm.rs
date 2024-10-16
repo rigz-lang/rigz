@@ -10,10 +10,10 @@ use indexmap::IndexMap;
 use log::{trace, Level};
 use nohash_hasher::BuildNoHashHasher;
 
-pub enum VMState<'vm> {
+pub enum VMState {
     Running,
-    Done(Value<'vm>),
-    Ran(Value<'vm>),
+    Done(Value),
+    Ran(Value),
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -45,8 +45,8 @@ pub struct VM<'vm> {
     pub scopes: Vec<Scope<'vm>>,
     pub current: CallFrame<'vm>,
     pub frames: Vec<CallFrame<'vm>>,
-    pub registers: IndexMap<usize, Value<'vm>, BuildNoHashHasher<usize>>,
-    pub stack: Vec<Value<'vm>>,
+    pub registers: IndexMap<usize, Value, BuildNoHashHasher<usize>>,
+    pub stack: Vec<Value>,
     pub modules: IndexMap<&'vm str, Box<dyn Module<'vm>>>,
     pub sp: usize,
     pub options: VMOptions,
@@ -92,12 +92,12 @@ impl<'vm> VM<'vm> {
     generate_builder!();
 
     #[inline]
-    pub fn insert_register(&mut self, register: Register, value: Value<'vm>) {
+    pub fn insert_register(&mut self, register: Register, value: Value) {
         self.registers.insert(register, value);
     }
 
     #[inline]
-    pub fn get_register(&mut self, register: Register) -> Result<Value<'vm>, VMError> {
+    pub fn get_register(&mut self, register: Register) -> Result<Value, VMError> {
         match self.registers.get(&register) {
             None => Err(VMError::EmptyRegister(format!("R{} is empty", register))),
             Some(v) => Ok(v.clone()),
@@ -107,7 +107,7 @@ impl<'vm> VM<'vm> {
     pub fn resolve_registers(
         &mut self,
         registers: Vec<Register>,
-    ) -> Result<Vec<Value<'vm>>, VMError> {
+    ) -> Result<Vec<Value>, VMError> {
         let len = registers.len();
         let mut result = Vec::with_capacity(len);
         for register in registers {
@@ -117,7 +117,7 @@ impl<'vm> VM<'vm> {
     }
 
     #[inline]
-    pub fn resolve_register(&mut self, register: Register) -> Result<Value<'vm>, VMError> {
+    pub fn resolve_register(&mut self, register: Register) -> Result<Value, VMError> {
         let v = self.get_register(register)?;
 
         if let Value::ScopeId(scope, output) = v {
@@ -135,7 +135,7 @@ impl<'vm> VM<'vm> {
     }
 
     #[inline]
-    pub fn get_register_mut(&mut self, register: Register) -> Result<&mut Value<'vm>, VMError> {
+    pub fn get_register_mut(&mut self, register: Register) -> Result<&mut Value, VMError> {
         match self.registers.get_mut(&register) {
             None => Err(VMError::EmptyRegister(format!("R{} is empty", register))),
             Some(v) => Ok(v),
@@ -148,7 +148,7 @@ impl<'vm> VM<'vm> {
         scope: usize,
         original: Register,
         output: Register,
-    ) -> Result<Value<'vm>, VMError> {
+    ) -> Result<Value, VMError> {
         self.call_frame(scope, output)?;
         match self.run_scope()? {
             VMState::Running => unreachable!(),
@@ -160,12 +160,12 @@ impl<'vm> VM<'vm> {
     }
 
     /// Value is replaced with None, shifting the registers can break the program. Scopes are not evaluated, use `remove_register_eval_scope` instead.
-    pub fn remove_register(&mut self, register: Register) -> Result<Value<'vm>, VMError> {
+    pub fn remove_register(&mut self, register: Register) -> Result<Value, VMError> {
         self.remove_register_value(register)
     }
 
     #[inline]
-    fn remove_register_value(&mut self, register: Register) -> Result<Value<'vm>, VMError> {
+    fn remove_register_value(&mut self, register: Register) -> Result<Value, VMError> {
         match self.registers.get_mut(&register) {
             None => Err(VMError::EmptyRegister(format!("R{} is empty", register))),
             Some(v) => {
@@ -180,7 +180,7 @@ impl<'vm> VM<'vm> {
     pub fn remove_register_eval_scope(
         &mut self,
         register: Register,
-    ) -> Result<Value<'vm>, VMError> {
+    ) -> Result<Value, VMError> {
         let value = self.remove_register_value(register)?;
 
         if let Value::ScopeId(scope, output) = value {
@@ -193,8 +193,8 @@ impl<'vm> VM<'vm> {
     pub fn process_ret(
         &mut self,
         output: Register,
-        process: Option<fn(value: Value<'vm>) -> VMState<'vm>>,
-    ) -> Result<VMState<'vm>, VMError> {
+        process: Option<fn(value: Value) -> VMState>,
+    ) -> Result<VMState, VMError> {
         let current = self.current.output;
         let source = self.resolve_register(current)?;
         self.insert_register(output, source.clone());
@@ -231,7 +231,7 @@ impl<'vm> VM<'vm> {
     pub fn process_instruction(
         &mut self,
         instruction: Instruction<'vm>,
-    ) -> Result<VMState<'vm>, VMError> {
+    ) -> Result<VMState, VMError> {
         trace!("Running {:?}", instruction);
         self.current.pc += 1;
         match instruction {
@@ -243,7 +243,7 @@ impl<'vm> VM<'vm> {
     pub fn process_instruction_scope(
         &mut self,
         instruction: Instruction<'vm>,
-    ) -> Result<VMState<'vm>, VMError> {
+    ) -> Result<VMState, VMError> {
         trace!("Running {:?} (scope)", instruction);
         self.current.pc += 1;
         match instruction {
@@ -286,7 +286,7 @@ impl<'vm> VM<'vm> {
         }
     }
 
-    pub fn run_scope(&mut self) -> Result<VMState<'vm>, VMError> {
+    pub fn run_scope(&mut self) -> Result<VMState, VMError> {
         loop {
             let instruction = match self.next_instruction()? {
                 // TODO this should probably be an error requiring explicit halt, result would be none

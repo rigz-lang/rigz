@@ -227,7 +227,7 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        pub fn add_load_instruction(&mut self, reg: Register, value: Value<'vm>) -> &mut Self {
+        pub fn add_load_instruction(&mut self, reg: Register, value: Value) -> &mut Self {
             self.add_instruction(Instruction::Load(reg, value))
         }
 

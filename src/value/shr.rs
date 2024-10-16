@@ -3,8 +3,8 @@ use crate::value::Value;
 use crate::VMError;
 use std::ops::Shr;
 
-impl<'vm> Shr for Value<'vm> {
-    type Output = Value<'vm>;
+impl Shr for Value {
+    type Output = Value;
 
     #[inline]
     fn shr(self, rhs: Self) -> Self::Output {

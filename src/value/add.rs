@@ -1,8 +1,8 @@
 use crate::value::Value;
 use std::ops::Add;
 
-impl<'vm> Add for Value<'vm> {
-    type Output = Value<'vm>;
+impl Add for Value {
+    type Output = Value;
 
     #[inline]
     fn add(self, rhs: Self) -> Self::Output {

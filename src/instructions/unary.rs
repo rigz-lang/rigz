@@ -23,7 +23,7 @@ impl<'vm> VM<'vm> {
     pub fn apply_unary(
         &mut self,
         unary_operation: UnaryOperation,
-        val: Value<'vm>,
+        val: Value,
         output: Register,
     ) -> Result<(), VMError> {
         match unary_operation {
