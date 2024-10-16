@@ -1,4 +1,5 @@
-use crate::{BinaryOperation, UnaryOperation, CallFrame, Instruction, Register, Scope, VM, RigzType};
+use indexmap::IndexMap;
+use crate::{BinaryOperation, UnaryOperation, CallFrame, Instruction, Register, Scope, VM, RigzType, Module};
 use crate::value::Value;
 
 macro_rules! generate_unary_op_methods {
@@ -122,6 +123,7 @@ macro_rules! generate_builder {
 pub struct VMBuilder<'vm> {
     pub sp: usize,
     pub scopes: Vec<Scope<'vm>>,
+    pub modules: IndexMap<&'vm str, Module<'vm>>
 }
 
 impl <'vm> Default  for VMBuilder<'vm> {
@@ -136,6 +138,7 @@ impl <'vm> VMBuilder<'vm> {
         Self {
             sp: 0,
             scopes: vec![Scope::new()],
+            modules: IndexMap::new(),
         }
     }
 
@@ -155,6 +158,35 @@ impl <'vm> VMBuilder<'vm> {
         s
     }
 
+    #[inline]
+    pub fn register_module(&mut self, module: Module<'vm>) -> &mut Self {
+        self.modules.insert(module.name, module);
+        self
+    }
+
+    #[inline]
+    pub fn add_call_module_instruction(&mut self, name: &'vm str, function: &'vm str, args: Vec<Register>, output: Register) -> &mut Self {
+        self.add_instruction(Instruction::CallModule {
+            module: name,
+            function,
+            args,
+            output,
+        });
+        self
+    }
+
+    #[inline]
+    pub fn add_call_extension_module_instruction(&mut self, name: &'vm str, function: &'vm str, this: Register, args: Vec<Register>, output: Register) -> &mut Self {
+        self.add_instruction(Instruction::CallExtensionModule {
+            module: name,
+            function,
+            this,
+            args,
+            output,
+        });
+        self
+    }
+
     pub fn add_instruction(&mut self, instruction: Instruction<'vm>) -> &mut Self {
         self.scopes[self.sp].instructions.push(instruction);
         self
@@ -168,6 +200,7 @@ impl <'vm> VMBuilder<'vm> {
             frames: vec![],
             registers: Default::default(),
             lifecycles: vec![],
+            modules: std::mem::take(&mut self.modules)
         }
     }
 
@@ -179,6 +212,7 @@ impl <'vm> VMBuilder<'vm> {
             frames: vec![],
             registers: Default::default(),
             lifecycles: vec![],
+            modules: self.modules.clone()
         };
         (vm, self)
     }
