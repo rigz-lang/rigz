@@ -1,7 +1,7 @@
-use std::ops::{BitXor};
 use crate::value::Value;
+use std::ops::BitXor;
 
-impl <'vm> BitXor for Value<'vm> {
+impl<'vm> BitXor for Value<'vm> {
     type Output = Value<'vm>;
 
     fn bitxor(self, rhs: Self) -> Self::Output {
@@ -14,11 +14,9 @@ impl <'vm> BitXor for Value<'vm> {
             (Value::Bool(a), Value::Bool(b)) => Value::Bool(a ^ b),
             (Value::Bool(a), b) => Value::Bool(a ^ b.to_bool()),
             (b, Value::Bool(a)) => Value::Bool(a ^ b.to_bool()),
-            (Value::Number(a), Value::Number(b)) => {
-                match a ^ b {
-                    Ok(n) => Value::Number(n),
-                    Err(e) => Value::Error(e)
-                }
+            (Value::Number(a), Value::Number(b)) => match a ^ b {
+                Ok(n) => Value::Number(n),
+                Err(e) => Value::Error(e),
             },
             // (Value::String(a), Value::String(b)) => {
             //     let mut result = a.clone();
@@ -50,7 +48,7 @@ impl <'vm> BitXor for Value<'vm> {
             //     result.insert(b.clone(), b);
             //     Value::Map(result)
             // }
-            _ => todo!()
+            _ => todo!(),
         }
     }
 }

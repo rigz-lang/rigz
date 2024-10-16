@@ -3,6 +3,7 @@ mod bitand;
 mod bitor;
 mod bitxor;
 mod div;
+mod logical;
 mod mul;
 mod neg;
 mod not;
@@ -11,11 +12,10 @@ mod rev;
 mod shl;
 mod shr;
 mod sub;
-mod logical;
 
+use crate::VMError;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
-use crate::VMError;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Number {
@@ -58,33 +58,27 @@ impl PartialEq for Number {
             (&Number::Int(a), &Number::Int(b)) => a == b,
             (&Number::UInt(a), &Number::UInt(b)) => a == b,
             (&Number::Float(a), &Number::Float(b)) => a == b,
-            (&Number::Int(a), &Number::UInt(b)) =>  {
+            (&Number::Int(a), &Number::UInt(b)) => {
                 if a.is_negative() {
-                    return false
+                    return false;
                 }
                 a as u64 == b
             }
-            (&Number::Int(a), &Number::Float(b)) => {
-                a as f64 == b
-            }
+            (&Number::Int(a), &Number::Float(b)) => a as f64 == b,
             (&Number::UInt(a), &Number::Int(b)) => {
                 if b.is_negative() {
-                    return false
+                    return false;
                 }
                 a == b as u64
             }
             (&Number::UInt(a), &Number::Float(b)) => {
                 if b.is_sign_negative() {
-                    return false
+                    return false;
                 }
                 a == b as u64
             }
-            (&Number::Float(a), &Number::Int(b)) => {
-                a == b as f64
-            }
-            (&Number::Float(a), &Number::UInt(b)) => {
-                a == b as f64
-            }
+            (&Number::Float(a), &Number::Int(b)) => a == b as f64,
+            (&Number::Float(a), &Number::UInt(b)) => a == b as f64,
         }
     }
 }
@@ -100,7 +94,7 @@ impl Number {
         match self {
             Number::Int(i) => i == 1,
             Number::UInt(u) => u == 1,
-            Number::Float(f) => f == 1.0
+            Number::Float(f) => f == 1.0,
         }
     }
 
@@ -109,7 +103,7 @@ impl Number {
         match self {
             Number::Int(i) => i == 0,
             Number::UInt(u) => u == 0,
-            Number::Float(f) => f == 0.0
+            Number::Float(f) => f == 0.0,
         }
     }
 
@@ -131,7 +125,9 @@ impl Number {
 
     pub fn to_uint(self) -> Result<u64, VMError> {
         if self.is_negative() {
-            return Err(VMError::ConversionError("Cannot convert negative to UINT".to_string()))
+            return Err(VMError::ConversionError(
+                "Cannot convert negative to UINT".to_string(),
+            ));
         }
         let u = match self {
             Number::Int(i) => i as u64,
@@ -143,7 +139,9 @@ impl Number {
 
     pub fn to_usize(self) -> Result<usize, VMError> {
         if self.is_negative() {
-            return Err(VMError::ConversionError("Cannot convert negative to UINT".to_string()))
+            return Err(VMError::ConversionError(
+                "Cannot convert negative to UINT".to_string(),
+            ));
         }
         let u = match self {
             Number::Int(i) => i as usize,

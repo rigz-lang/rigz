@@ -1,5 +1,5 @@
-use crate::Logical;
 use crate::number::Number;
+use crate::Logical;
 
 impl Logical<Number> for Number {
     type Output = Number;

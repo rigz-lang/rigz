@@ -1,8 +1,8 @@
-use std::ops::Shl;
 use crate::number::Number;
 use crate::value::Value;
+use std::ops::Shl;
 
-impl <'vm> Shl for Value<'vm> {
+impl<'vm> Shl for Value<'vm> {
     type Output = Value<'vm>;
 
     fn shl(self, rhs: Self) -> Self::Output {
@@ -22,7 +22,7 @@ impl <'vm> Shl for Value<'vm> {
                 } else {
                     Value::Number(Number::Int(0))
                 }
-            },
+            }
             (Value::Number(lhs), Value::Number(rhs)) => Value::Number(lhs << rhs),
             (Value::String(lhs), Value::Number(rhs)) => {
                 let lhs = lhs.as_str();
@@ -39,7 +39,7 @@ impl <'vm> Shl for Value<'vm> {
                 Value::String(res)
             }
 
-            _ => todo!()
+            _ => todo!(),
         }
     }
 }

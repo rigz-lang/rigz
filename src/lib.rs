@@ -1,21 +1,20 @@
 extern crate core;
 
 mod builder;
-mod value;
-mod number;
 mod macros;
+mod number;
+mod value;
 
-use std::fmt::{format, Debug};
-use std::hash::{Hash, Hasher};
-use std::ops::Deref;
-use std::string::ToString;
-use indexmap::IndexMap;
-use indexmap::map::Entry;
-use once_cell::sync::Lazy;
 pub use crate::value::Value;
+use indexmap::map::Entry;
+use indexmap::IndexMap;
+use once_cell::sync::Lazy;
+use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
+use std::string::ToString;
 
-pub use builder::VMBuilder;
 pub use crate::number::Number;
+pub use builder::VMBuilder;
 
 pub trait Rev {
     type Output;
@@ -102,26 +101,26 @@ pub enum Instruction<'vm> {
         module: &'vm str,
         function: &'vm str,
         args: Vec<Register>,
-        output: Register
+        output: Register,
     },
     CallExtensionModule {
         module: &'vm str,
         function: &'vm str,
         this: Register,
         args: Vec<Register>,
-        output: Register
+        output: Register,
     },
     CallEq(Register, Register, usize),
     CallNeq(Register, Register, usize),
     IfElse {
         truthy: Register,
         if_scope: usize,
-        else_scope: usize
+        else_scope: usize,
     },
     Cast {
         from: Register,
         to: Register,
-        rigz_type: RigzType
+        rigz_type: RigzType,
     },
     // Import(),
     // Export(),
@@ -145,9 +144,8 @@ pub enum RigzType {
     Map,
     Error,
     Function(Vec<RigzType>, Box<RigzType>),
-    Object(RigzObjectDefinition)
+    Object(RigzObjectDefinition),
 }
-
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RigzObjectDefinition {
@@ -209,18 +207,21 @@ pub struct RigzObject<'vm> {
 impl<'vm> RigzObject<'vm> {
     pub fn cast(&self, def: RigzObjectDefinition) -> Result<RigzObject<'vm>, VMError> {
         if self.definition_index == &def {
-            return Ok(self.clone())
+            return Ok(self.clone());
         }
 
         if self.definition_index.fields == def.fields {
-            return Ok(self.clone())
+            return Ok(self.clone());
         }
 
-        Err(VMError::ConversionError(format!("Cannot convert {} to {}", self.definition_index.name, def.name)))
+        Err(VMError::ConversionError(format!(
+            "Cannot convert {} to {}",
+            self.definition_index.name, def.name
+        )))
     }
 }
 
-impl <'vm> RigzObject<'vm> {
+impl<'vm> RigzObject<'vm> {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.fields.is_empty()
@@ -230,13 +231,13 @@ impl <'vm> RigzObject<'vm> {
         for (k, v) in other {
             let key = k.to_string();
             if !self.fields.contains_key(&key) {
-                return false
+                return false;
             }
             match self.fields.get(&key) {
                 None => return false,
                 Some(o) => {
                     if !o.eq(v) {
-                        return false
+                        return false;
                     }
                 }
             };
@@ -245,7 +246,7 @@ impl <'vm> RigzObject<'vm> {
     }
 }
 
-impl <'vm> Hash for RigzObject<'vm> {
+impl<'vm> Hash for RigzObject<'vm> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.definition_index.name.hash(state);
         for (k, v) in &self.fields {
@@ -266,26 +267,20 @@ pub struct CallFrame {
     pub scope_id: usize,
     pub pc: usize,
     pub variables: IndexMap<String, Variable>, // TODO switch to intern strings
-    pub parent: Option<usize>
+    pub parent: Option<usize>,
 }
 
 impl<'vm> CallFrame {
     pub(crate) fn get_variable(&self, name: &String, vm: &VM<'vm>) -> Option<Register> {
         match self.variables.get(name) {
-            None => {
-                match self.parent {
-                    None => None,
-                    Some(parent) => {
-                        vm.frames[parent].get_variable(name, vm)
-                    }
-                }
-            }
-            Some(v) => {
-                match v {
-                    Variable::Let(v) => Some(*v),
-                    Variable::Mut(v) => Some(*v)
-                }
-            }
+            None => match self.parent {
+                None => None,
+                Some(parent) => vm.frames[parent].get_variable(name, vm),
+            },
+            Some(v) => match v {
+                Variable::Let(v) => Some(*v),
+                Variable::Mut(v) => Some(*v),
+            },
         }
     }
 }
@@ -296,7 +291,7 @@ impl Default for CallFrame {
     }
 }
 
-impl <'vm> CallFrame {
+impl<'vm> CallFrame {
     fn next_instruction(&mut self, scope: &Scope<'vm>) -> Instruction<'vm> {
         let instruction = scope.instructions[self.pc].clone();
         self.pc += 1;
@@ -325,10 +320,10 @@ impl <'vm> CallFrame {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Scope<'vm> {
     pub instructions: Vec<Instruction<'vm>>,
-    pub type_definitions: IndexMap<String, RigzObjectDefinition>
+    pub type_definitions: IndexMap<String, RigzObjectDefinition>,
 }
 
-impl <'vm> Scope<'vm> {
+impl<'vm> Scope<'vm> {
     #[inline]
     pub fn new() -> Self {
         Self::default()
@@ -338,7 +333,7 @@ impl <'vm> Scope<'vm> {
 #[derive(Clone, Debug)]
 pub struct Lifecycle<'vm> {
     pub name: String,
-    pub parent: Option<&'vm Lifecycle<'vm>>
+    pub parent: Option<&'vm Lifecycle<'vm>>,
 }
 
 #[derive(Clone, Debug)]
@@ -349,22 +344,41 @@ pub struct VM<'vm> {
     pub registers: IndexMap<usize, Value<'vm>>,
     pub lifecycles: Vec<Lifecycle<'vm>>,
     pub modules: IndexMap<&'vm str, Module<'vm>>,
-    sp: usize
+    sp: usize,
 }
 
 #[derive(Clone, Debug)]
 pub struct Module<'vm> {
     pub name: &'vm str,
     pub functions: IndexMap<&'vm str, fn(Vec<Value<'vm>>) -> Value<'vm>>,
-    pub extension_functions: IndexMap<RigzType, IndexMap<&'vm str, fn(Value<'vm>, Vec<Value<'vm>>) -> Value<'vm>>>,
+    pub extension_functions:
+        IndexMap<RigzType, IndexMap<&'vm str, fn(Value<'vm>, Vec<Value<'vm>>) -> Value<'vm>>>,
 }
 
-impl <'vm> VM<'vm> {
+impl<'vm> Default for VM<'vm> {
+    fn default() -> Self {
+        VM::new()
+    }
+}
+
+impl<'vm> VM<'vm> {
+    pub fn new() -> Self {
+        Self {
+            scopes: vec![Scope::new()],
+            current: Default::default(),
+            frames: vec![],
+            registers: Default::default(),
+            lifecycles: vec![],
+            modules: Default::default(),
+            sp: 0,
+        }
+    }
+
     generate_builder!();
 
     pub fn insert_register(&mut self, register: Register, value: Value<'vm>) {
         if register <= 1 {
-            return
+            return;
         }
 
         self.registers.insert(register, value);
@@ -372,28 +386,31 @@ impl <'vm> VM<'vm> {
 
     pub fn get_register(&self, register: &Register) -> Result<Value<'vm>, VMError> {
         if *register == 0 {
-            return Ok(Value::None)
+            return Ok(Value::None);
         }
 
         if *register == 1 {
-            return Ok(Value::Number(Number::Int(1)))
+            return Ok(Value::Number(Number::Int(1)));
         }
 
         match self.registers.get(register) {
             None => Err(VMError::EmptyRegister(format!("R{} is empty", register))),
-            Some(v) => Ok(v.clone())
+            Some(v) => Ok(v.clone()),
         }
     }
 
     fn current_scope(&mut self) -> Result<Scope<'vm>, VMError> {
         let scope_id = self.current.scope_id;
         match self.scopes.get(scope_id) {
-            None => Err(VMError::ScopeError(format!("Scope {} does not exist", scope_id))),
+            None => Err(VMError::ScopeError(format!(
+                "Scope {} does not exist",
+                scope_id
+            ))),
             Some(s) => Ok(s.clone()),
         }
     }
 
-    pub fn run(&mut self) -> Result<Value, VMError> {
+    pub fn run(&mut self) -> Result<Value<'vm>, VMError> {
         loop {
             let scope = self.current_scope()?;
             let len = scope.instructions.len();
@@ -404,9 +421,7 @@ impl <'vm> VM<'vm> {
 
             let instruction = self.current.next_instruction(&scope);
             match instruction {
-                Instruction::Halt(r) => {
-                    return self.get_register(&r)
-                }
+                Instruction::Halt(r) => return self.get_register(&r),
                 Instruction::Unary { op, from, output } => {
                     let val = match self.registers.shift_remove(&from) {
                         None => return Err(VMError::EmptyRegister(format!("R{} is empty", from))),
@@ -418,7 +433,7 @@ impl <'vm> VM<'vm> {
                         }
                         UnaryOperation::Not => {
                             self.insert_register(output, val);
-                        },
+                        }
                         UnaryOperation::Print => {
                             println!("{}", val);
                             self.insert_register(output, val);
@@ -432,7 +447,12 @@ impl <'vm> VM<'vm> {
                         }
                     }
                 }
-                Instruction::Binary { op, lhs, rhs, output } => {
+                Instruction::Binary {
+                    op,
+                    lhs,
+                    rhs,
+                    output,
+                } => {
                     let lhs = self.get_register(&lhs)?;
                     let rhs = self.get_register(&rhs)?;
                     let v = match op {
@@ -471,31 +491,31 @@ impl <'vm> VM<'vm> {
                 Instruction::Copy(from, to) => {
                     let copy = match self.registers.get(&from) {
                         None => return Err(VMError::EmptyRegister(format!("R{} is empty", from))),
-                        Some(s) => s.clone()
+                        Some(s) => s.clone(),
                     };
                     self.insert_register(to, copy);
                 }
                 Instruction::Call(scope_index) => {
                     self.call_frame(scope_index)?;
                 }
-                Instruction::Ret => {
-                    match self.frames.pop() {
-                        None => {
-                            return Err(VMError::FrameError("CallStack is empty".to_string()))
+                Instruction::Ret => match self.frames.pop() {
+                    None => return Err(VMError::FrameError("CallStack is empty".to_string())),
+                    Some(c) => {
+                        let variables = std::mem::take(&mut self.current.variables);
+                        for reg in variables.values() {
+                            let _ = match reg {
+                                Variable::Let(r) => self.get_register(r)?,
+                                Variable::Mut(r) => self.get_register(r)?,
+                            };
                         }
-                        Some(c) => {
-                            let variables = std::mem::take(&mut self.current.variables);
-                            for reg in variables.values() {
-                                let _ = match reg {
-                                    Variable::Let(r) => self.get_register(r)?,
-                                    Variable::Mut(r) => self.get_register(r)?
-                                };
-                            }
-                            self.current = c;
-                        }
+                        self.current = c;
                     }
-                }
-                Instruction::Cast { from, rigz_type, to } => {
+                },
+                Instruction::Cast {
+                    from,
+                    rigz_type,
+                    to,
+                } => {
                     let value = self.get_register(&from)?;
                     self.insert_register(to, value.cast(rigz_type)?);
                 }
@@ -513,7 +533,11 @@ impl <'vm> VM<'vm> {
                         self.call_frame(scope_index)?;
                     }
                 }
-                Instruction::IfElse { truthy, if_scope, else_scope } => {
+                Instruction::IfElse {
+                    truthy,
+                    if_scope,
+                    else_scope,
+                } => {
                     if self.get_register(&truthy)?.to_bool() {
                         self.call_frame(if_scope)?;
                     } else {
@@ -522,79 +546,112 @@ impl <'vm> VM<'vm> {
                 }
                 Instruction::GetVariable(name, reg) => {
                     match self.current.get_variable(&name, self) {
-                        None => return Err(VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))),
-                        Some(s) => {
-                            match self.registers.get(&s) {
-                                None => return Err(VMError::EmptyRegister(format!("Register {} does not exist", s))),
-                                Some(v) => {
-                                    self.insert_register(reg, v.clone())
-                                }
-                            }
+                        None => {
+                            return Err(VMError::VariableDoesNotExist(format!(
+                                "Variable {} does not exist",
+                                name
+                            )))
                         }
+                        Some(s) => match self.registers.get(&s) {
+                            None => {
+                                return Err(VMError::EmptyRegister(format!(
+                                    "Register {} does not exist",
+                                    s
+                                )))
+                            }
+                            Some(v) => self.insert_register(reg, v.clone()),
+                        },
                     }
                 }
-                Instruction::CallModule { module, function, args, output } => {
-                    match self.modules.get(module) {
-                        None => return Err(VMError::InvalidModule(format!("Module {} does not exist", module))),
-                        Some(m) => {
-                            match m.functions.get(function) {
-                                None => return Err(VMError::InvalidModuleFunction(format!("Module {}.{} does not exist", module, function))),
+                Instruction::CallModule {
+                    module,
+                    function,
+                    args,
+                    output,
+                } => match self.modules.get(module) {
+                    None => {
+                        return Err(VMError::InvalidModule(format!(
+                            "Module {} does not exist",
+                            module
+                        )))
+                    }
+                    Some(m) => match m.functions.get(function) {
+                        None => {
+                            return Err(VMError::InvalidModuleFunction(format!(
+                                "Module {}.{} does not exist",
+                                module, function
+                            )))
+                        }
+                        Some(f) => {
+                            let mut inner_args = Vec::with_capacity(args.len());
+                            for arg in args {
+                                inner_args.push(self.get_register(&arg)?);
+                            }
+                            let v = f(inner_args);
+                            self.insert_register(output, v)
+                        }
+                    },
+                },
+                Instruction::CallExtensionModule {
+                    module,
+                    function,
+                    this,
+                    args,
+                    output,
+                } => match self.modules.get(module) {
+                    None => {
+                        return Err(VMError::InvalidModule(format!(
+                            "Module {} does not exist",
+                            module
+                        )))
+                    }
+                    Some(m) => {
+                        let this = self.get_register(&this)?;
+                        let rigz_type = this.rigz_type();
+                        match m.extension_functions.get(&rigz_type) {
+                            None => match m.extension_functions.get(&RigzType::Any) {
+                                None => {
+                                    return Err(VMError::InvalidModuleFunction(format!(
+                                        "Module {}.{:?} does not exist (Any does not exist)",
+                                        module, rigz_type
+                                    )))
+                                }
+                                Some(def) => match def.get(function) {
+                                    None => {
+                                        return Err(VMError::InvalidModuleFunction(format!(
+                                            "Module extension {}.{} does not exist",
+                                            module, function
+                                        )))
+                                    }
+                                    Some(f) => {
+                                        let mut inner_args = Vec::with_capacity(args.len());
+                                        for arg in args {
+                                            inner_args.push(self.get_register(&arg)?);
+                                        }
+                                        let v = f(this, inner_args);
+                                        self.insert_register(output, v)
+                                    }
+                                },
+                            },
+                            Some(def) => match def.get(function) {
+                                None => {
+                                    return Err(VMError::InvalidModuleFunction(format!(
+                                        "Module extension {}.{} does not exist",
+                                        module, function
+                                    )))
+                                }
                                 Some(f) => {
                                     let mut inner_args = Vec::with_capacity(args.len());
                                     for arg in args {
                                         inner_args.push(self.get_register(&arg)?);
                                     }
-                                    let v = f(inner_args);
+                                    let v = f(this, inner_args);
                                     self.insert_register(output, v)
                                 }
-                            }
+                            },
                         }
                     }
-                }
-                Instruction::CallExtensionModule { module, function, this, args, output } => {
-                    match self.modules.get(module) {
-                        None => return Err(VMError::InvalidModule(format!("Module {} does not exist", module))),
-                        Some(m) => {
-                            let this = self.get_register(&this)?;
-                            let rigz_type = this.rigz_type();
-                            match m.extension_functions.get(&rigz_type) {
-                                None => {
-                                    match m.extension_functions.get(&RigzType::Any) {
-                                        None => {
-                                            return Err(VMError::InvalidModuleFunction(format!("Module {}.{:?} does not exist (Any does not exist)", module, rigz_type)))
-                                        }
-                                        Some(def) => {
-                                            match def.get(function) {
-                                                None => return Err(VMError::InvalidModuleFunction(format!("Module extension {}.{} does not exist", module, function))),
-                                                Some(f) => {
-                                                    let mut inner_args = Vec::with_capacity(args.len());
-                                                    for arg in args {
-                                                        inner_args.push(self.get_register(&arg)?);
-                                                    }
-                                                    let v = f(this, inner_args);
-                                                    self.insert_register(output, v)
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
-                                Some(def) => {
-                                    match def.get(function) {
-                                        None => return Err(VMError::InvalidModuleFunction(format!("Module extension {}.{} does not exist", module, function))),
-                                        Some(f) => {
-                                            let mut inner_args = Vec::with_capacity(args.len());
-                                            for arg in args {
-                                                inner_args.push(self.get_register(&arg)?);
-                                            }
-                                            let v = f(this, inner_args);
-                                            self.insert_register(output, v)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                },
             }
         }
         Ok(Value::None)
@@ -602,16 +659,17 @@ impl <'vm> VM<'vm> {
 
     pub fn load_mut(&mut self, name: String, reg: Register) -> Result<(), VMError> {
         match self.current.variables.entry(name) {
-            Entry::Occupied(mut var) => {
-                match var.get() {
-                    Variable::Let(_) => {
-                        return Err(VMError::UnsupportedOperation(format!("Cannot overwrite let variable: {}", *var.key())))
-                    }
-                    Variable::Mut(e) => {
-                        var.insert(Variable::Mut(reg));
-                    }
+            Entry::Occupied(mut var) => match var.get() {
+                Variable::Let(_) => {
+                    return Err(VMError::UnsupportedOperation(format!(
+                        "Cannot overwrite let variable: {}",
+                        *var.key()
+                    )))
                 }
-            }
+                Variable::Mut(_) => {
+                    var.insert(Variable::Mut(reg));
+                }
+            },
             Entry::Vacant(e) => {
                 e.insert(Variable::Mut(reg));
             }
@@ -622,8 +680,11 @@ impl <'vm> VM<'vm> {
     pub fn load_let(&mut self, name: String, reg: Register) -> Result<(), VMError> {
         match self.current.variables.entry(name) {
             Entry::Occupied(v) => {
-                return Err(VMError::UnsupportedOperation(format!("Cannot overwrite let variable: {}", *v.key())))
-            },
+                return Err(VMError::UnsupportedOperation(format!(
+                    "Cannot overwrite let variable: {}",
+                    *v.key()
+                )))
+            }
             Entry::Vacant(e) => {
                 e.insert(Variable::Let(reg));
             }
@@ -633,7 +694,10 @@ impl <'vm> VM<'vm> {
 
     pub fn call_frame(&mut self, scope_index: usize) -> Result<(), VMError> {
         if self.scopes.len() <= scope_index {
-            return Err(VMError::ScopeDoesNotExist(format!("{} does not exist", scope_index)))
+            return Err(VMError::ScopeDoesNotExist(format!(
+                "{} does not exist",
+                scope_index
+            )));
         }
         let current = std::mem::take(&mut self.current);
         self.frames.push(current);
@@ -642,15 +706,14 @@ impl <'vm> VM<'vm> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-    use indexmap::IndexMap;
-    use crate::{Module, RigzType, VMBuilder};
     use crate::number::Number;
     use crate::number::Number::Int;
     use crate::value::Value;
+    use crate::{Module, RigzType, VMBuilder};
+    use indexmap::IndexMap;
+    use std::str::FromStr;
 
     #[test]
     fn value_eq() {
@@ -671,7 +734,10 @@ mod tests {
             .add_load_instruction(4, Value::Number(Number::Int(42)))
             .build();
         vm.run().unwrap();
-        assert_eq!(vm.registers.get(&4).unwrap().clone(), Value::Number(Number::Int(42)));
+        assert_eq!(
+            vm.registers.get(&4).unwrap().clone(),
+            Value::Number(Number::Int(42))
+        );
     }
 
     #[test]
@@ -682,7 +748,10 @@ mod tests {
             .add_cast_instruction(4, RigzType::String, 7)
             .build();
         vm.run().unwrap();
-        assert_eq!(vm.registers.get(&7).unwrap().clone(), Value::String(42.to_string()));
+        assert_eq!(
+            vm.registers.get(&7).unwrap().clone(),
+            Value::String(42.to_string())
+        );
     }
 
     #[test]
@@ -694,7 +763,10 @@ mod tests {
             .add_add_instruction(4, 37, 82)
             .build();
         vm.run().unwrap();
-        assert_eq!(vm.registers.get(&82).unwrap().clone(), Value::Number(Number::Int(84)));
+        assert_eq!(
+            vm.registers.get(&82).unwrap().clone(),
+            Value::Number(Number::Int(84))
+        );
     }
 
     #[test]
@@ -705,7 +777,10 @@ mod tests {
             .add_copy_instruction(4, 37)
             .build();
         vm.run().unwrap();
-        assert_eq!(vm.registers.get(&37).unwrap().clone(), Value::Number(Number::Int(42)));
+        assert_eq!(
+            vm.registers.get(&37).unwrap().clone(),
+            Value::Number(Number::Int(42))
+        );
     }
 
     #[test]
@@ -717,7 +792,10 @@ mod tests {
             .add_shr_instruction(2, 3, 4)
             .build();
         vm.run().unwrap();
-        assert_eq!(vm.registers.get(&4).unwrap().clone(), Value::String(String::from_str("ab").unwrap()));
+        assert_eq!(
+            vm.registers.get(&4).unwrap().clone(),
+            Value::String(String::from_str("ab").unwrap())
+        );
     }
 
     #[test]
@@ -729,7 +807,10 @@ mod tests {
             .add_shl_instruction(2, 3, 4)
             .build();
         vm.run().unwrap();
-        assert_eq!(vm.registers.get(&4).unwrap().clone(), Value::String(String::from_str("bc").unwrap()));
+        assert_eq!(
+            vm.registers.get(&4).unwrap().clone(),
+            Value::String(String::from_str("bc").unwrap())
+        );
     }
 
     #[test]
@@ -743,9 +824,11 @@ mod tests {
             .add_call_instruction(1)
             .build();
         vm.run().unwrap();
-        assert_eq!(vm.registers.get(&3).unwrap().clone(), Value::String(String::from_str("abc").unwrap()));
+        assert_eq!(
+            vm.registers.get(&3).unwrap().clone(),
+            Value::String(String::from_str("abc").unwrap())
+        );
     }
-
 
     #[test]
     fn module_works<'vm>() {
@@ -753,7 +836,7 @@ mod tests {
         fn hello(args: Vec<Value>) -> Value {
             println!("{}", Value::List(args));
             Value::None
-        };
+        }
         let mut functions: IndexMap<&'vm str, fn(Vec<Value<'vm>>) -> Value<'vm>> = IndexMap::new();
         functions.insert("hello", hello);
 

@@ -1,8 +1,8 @@
-use std::ops::{Div};
 use crate::value::Value;
 use crate::VMError;
+use std::ops::Div;
 
-impl <'vm> Div for Value<'vm> {
+impl<'vm> Div for Value<'vm> {
     type Output = Value<'vm>;
 
     fn div(self, rhs: Self) -> Self::Output {
@@ -10,20 +10,26 @@ impl <'vm> Div for Value<'vm> {
             (Value::Error(v), _) => Value::Error(v),
             (_, Value::Error(v)) => Value::Error(v),
             (Value::None, _) => Value::None,
-            (lhs, Value::None) => Value::Error(VMError::RuntimeError(format!("Cannot divide {} by 0/none", lhs))),
+            (lhs, Value::None) => Value::Error(VMError::RuntimeError(format!(
+                "Cannot divide {} by 0/none",
+                lhs
+            ))),
             (Value::Bool(a), Value::Bool(b)) => Value::Bool(a | b),
             (Value::Bool(a), b) => Value::Bool(a | b.to_bool()),
             (b, Value::Bool(a)) => Value::Bool(a | b.to_bool()),
             (Value::Number(a), Value::Number(b)) => {
                 if b.is_zero() {
-                    return Value::Error(VMError::RuntimeError(format!("Cannot divide {} by 0/none", a)))
+                    return Value::Error(VMError::RuntimeError(format!(
+                        "Cannot divide {} by 0/none",
+                        a
+                    )));
                 }
 
                 match a / b {
                     Ok(n) => Value::Number(n),
-                    Err(e) => Value::Error(e)
+                    Err(e) => Value::Error(e),
                 }
-            },
+            }
             (Value::String(a), Value::String(b)) => {
                 let result = a.split(b.as_str());
                 Value::List(result.map(|s| Value::String(s.to_string())).collect())
@@ -53,7 +59,7 @@ impl <'vm> Div for Value<'vm> {
             //     result.insert(b.clone(), b);
             //     Value::Map(result)
             // }
-            _ => todo!()
+            _ => todo!(),
         }
     }
 }

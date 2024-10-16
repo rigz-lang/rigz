@@ -1,7 +1,7 @@
-use std::ops::Add;
 use crate::value::Value;
+use std::ops::Add;
 
-impl <'vm> Add for Value<'vm> {
+impl<'vm> Add for Value<'vm> {
     type Output = Value<'vm>;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -13,11 +13,9 @@ impl <'vm> Add for Value<'vm> {
             (Value::Bool(a), Value::Bool(b)) => Value::Bool(a | b),
             (Value::Bool(a), b) => Value::Bool(a | b.to_bool()),
             (b, Value::Bool(a)) => Value::Bool(a | b.to_bool()),
-            (Value::Number(a), Value::Number(b)) => {
-                match a + b {
-                    Ok(n) => Value::Number(n),
-                    Err(e) => Value::Error(e)
-                }
+            (Value::Number(a), Value::Number(b)) => match a + b {
+                Ok(n) => Value::Number(n),
+                Err(e) => Value::Error(e),
             },
             (Value::String(a), Value::String(b)) => {
                 let mut result = a.clone();
@@ -49,7 +47,7 @@ impl <'vm> Add for Value<'vm> {
                 result.insert(b.clone(), b);
                 Value::Map(result)
             }
-            _ => todo!()
+            _ => todo!(),
         }
     }
 }

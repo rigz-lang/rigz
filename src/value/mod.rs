@@ -3,22 +3,25 @@ mod bitand;
 mod bitor;
 mod bitxor;
 mod div;
+mod logical;
 mod mul;
-mod not;
 mod neg;
+mod not;
 mod rem;
 mod rev;
 mod shl;
 mod shr;
 mod sub;
-mod logical;
 
+use crate::number::Number;
+use crate::{
+    RigzObject, RigzObjectDefinition, RigzType, VMError, BOOL, ERROR, LIST, MAP, NONE, NUMBER,
+    STRING,
+};
+use indexmap::IndexMap;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
-use indexmap::IndexMap;
-use crate::number::Number;
-use crate::{BOOL, ERROR, LIST, MAP, NONE, NUMBER, RigzObject, RigzObjectDefinition, RigzType, STRING, VMError, Scope, Register};
 
 #[derive(Clone, Debug)]
 pub enum Value<'vm> {
@@ -33,12 +36,12 @@ pub enum Value<'vm> {
     Error(VMError),
 }
 
-impl <'vm> Eq for Value<'vm> {}
+impl<'vm> Eq for Value<'vm> {}
 
-impl <'vm> PartialOrd for Value<'vm> {
+impl<'vm> PartialOrd for Value<'vm> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         if self.eq(other) {
-            return Some(Ordering::Equal)
+            return Some(Ordering::Equal);
         }
 
         match (self, other) {
@@ -63,7 +66,7 @@ impl <'vm> PartialOrd for Value<'vm> {
     }
 }
 
-impl <'vm> Value<'vm> {
+impl<'vm> Value<'vm> {
     pub fn to_bool(&self) -> bool {
         match self {
             Value::None => false,
@@ -73,11 +76,11 @@ impl <'vm> Value<'vm> {
             Value::String(s) => {
                 let empty = s.is_empty();
                 if empty {
-                    return false
+                    return false;
                 }
 
                 s.parse().unwrap_or(true)
-            },
+            }
             Value::List(l) => !l.is_empty(),
             Value::Map(m) => !m.is_empty(),
             Value::Object(m) => !m.fields.is_empty(),
@@ -99,8 +102,6 @@ impl <'vm> Value<'vm> {
             Value::ScopeId(u) => todo!(),
         }
     }
-
-
 
     #[inline]
     pub fn to_object(&self) -> RigzObject<'vm> {
@@ -137,12 +138,15 @@ impl <'vm> Value<'vm> {
                 fields,
                 definition_index: &ERROR,
             },
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
     #[inline]
-    pub fn cast_to_object(&self, rigz_object_definition: RigzObjectDefinition) -> Result<RigzObject<'vm>, VMError> {
+    pub fn cast_to_object(
+        &self,
+        rigz_object_definition: RigzObjectDefinition,
+    ) -> Result<RigzObject<'vm>, VMError> {
         let object = self.to_object();
         object.cast(rigz_object_definition)
     }
@@ -154,12 +158,12 @@ impl <'vm> Value<'vm> {
             RigzType::Bool => return Ok(Value::Bool(self.to_bool())),
             RigzType::String => return Ok(Value::String(self.to_string())),
             RigzType::Object(o) => return Ok(Value::Object(self.cast_to_object(o)?)),
-            _ => rigz_type
+            _ => rigz_type,
         };
 
         let self_type = self.rigz_type();
         if self_type == rigz_type {
-            return Ok(self.to_owned())
+            return Ok(self.to_owned());
         }
 
         let v = match (self_type, rigz_type) {
@@ -172,62 +176,64 @@ impl <'vm> Value<'vm> {
             (RigzType::Bool, RigzType::Number) => {
                 if let Value::Bool(b) = self {
                     let v = if *b { 1 } else { 0 };
-                    return Ok(Value::Number(Number::Int(v)))
+                    return Ok(Value::Number(Number::Int(v)));
                 }
                 unreachable!()
-            },
+            }
             (RigzType::Bool, RigzType::Int) => {
                 if let Value::Bool(b) = self {
                     let v = if *b { 1 } else { 0 };
-                    return Ok(Value::Number(Number::Int(v)))
+                    return Ok(Value::Number(Number::Int(v)));
                 }
                 unreachable!()
-            },
+            }
             (RigzType::Bool, RigzType::UInt) => {
                 if let Value::Bool(b) = self {
                     let v = if *b { 1 } else { 0 };
-                    return Ok(Value::Number(Number::UInt(v)))
+                    return Ok(Value::Number(Number::UInt(v)));
                 }
                 unreachable!()
-            },
+            }
             (RigzType::Bool, RigzType::Float) => {
                 if let Value::Bool(b) = self {
                     let v = if *b { 1.0 } else { 0.0 };
-                    return Ok(Value::Number(Number::Float(v)))
+                    return Ok(Value::Number(Number::Float(v)));
                 }
                 unreachable!()
-            },
+            }
             (RigzType::Number, RigzType::Int) => {
                 if let Value::Number(b) = self {
-                    return Ok(Value::Number(Number::Int(b.to_int())))
+                    return Ok(Value::Number(Number::Int(b.to_int())));
                 }
                 unreachable!()
             }
             (RigzType::Number, RigzType::UInt) => {
                 if let Value::Number(b) = self {
-                    return Ok(Value::Number(Number::UInt(b.to_uint()?)))
+                    return Ok(Value::Number(Number::UInt(b.to_uint()?)));
                 }
                 unreachable!()
             }
             (RigzType::Number, RigzType::Float) => {
                 if let Value::Number(b) = self {
-                    return Ok(Value::Number(Number::Float(b.to_float())))
+                    return Ok(Value::Number(Number::Float(b.to_float())));
                 }
                 unreachable!()
             }
             (RigzType::String, RigzType::List) => {
                 if let Value::String(s) = self {
-                    return Ok(Value::List(s.chars().map(|c| Value::String(c.to_string())).collect()))
+                    return Ok(Value::List(
+                        s.chars().map(|c| Value::String(c.to_string())).collect(),
+                    ));
                 }
                 unreachable!()
             }
-            _ => unreachable!()
+            _ => unreachable!(),
         };
         Ok(v)
     }
 }
 
-impl <'vm> Display for Value<'vm> {
+impl<'vm> Display for Value<'vm> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::None => write!(f, "none"),
@@ -272,12 +278,12 @@ impl <'vm> Display for Value<'vm> {
                 }
                 write!(f, "{} {{ {} }}", o.definition_index.name, values)
             }
-            Value::ScopeId(u) => todo!(),
+            Value::ScopeId(u) => write!(f, "0x{}", *u),
         }
     }
 }
 
-impl <'vm> Hash for Value<'vm> {
+impl<'vm> Hash for Value<'vm> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             Value::None => 0.hash(state),
@@ -297,12 +303,12 @@ impl <'vm> Hash for Value<'vm> {
                 }
             }
             Value::Object(m) => m.hash(state),
-            Value::ScopeId(u) => todo!(),
+            Value::ScopeId(u) => u.hash(state),
         }
     }
 }
 
-impl <'vm> PartialEq for Value<'vm> {
+impl<'vm> PartialEq for Value<'vm> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Value::None, Value::None) => true,
@@ -358,8 +364,8 @@ impl <'vm> PartialEq for Value<'vm> {
             (Value::Object(a), Value::Map(b)) => a.equivalent(b),
             (Value::Object(a), Value::Object(b)) => a == b,
             (Value::ScopeId(a), Value::ScopeId(b)) => a == b,
-            (Value::ScopeId(a), b) => todo!(),
-            (a, Value::ScopeId(b)) => todo!(),
+            (Value::ScopeId(_), _) => todo!(),
+            (_, Value::ScopeId(_)) => todo!(),
         }
     }
 }

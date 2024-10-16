@@ -1,7 +1,7 @@
-use std::ops::Neg;
 use crate::value::Value;
+use std::ops::Neg;
 
-impl <'vm> Neg for Value<'vm> {
+impl<'vm> Neg for Value<'vm> {
     type Output = Value<'vm>;
 
     fn neg(self) -> Self::Output {

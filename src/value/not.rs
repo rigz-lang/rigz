@@ -1,7 +1,7 @@
-use std::ops::Not;
 use crate::value::Value;
+use std::ops::Not;
 
-impl <'vm> Not for Value<'vm> {
+impl<'vm> Not for Value<'vm> {
     type Output = Value<'vm>;
 
     fn not(self) -> Self::Output {
@@ -10,7 +10,7 @@ impl <'vm> Not for Value<'vm> {
             Value::Bool(b) => Value::Bool(!b),
             Value::Number(n) => Value::Number(!n),
             Value::Error(e) => Value::Error(e),
-            v => Value::Bool(!v.to_bool())
+            v => Value::Bool(!v.to_bool()),
         }
     }
 }

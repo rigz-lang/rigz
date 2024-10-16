@@ -1,7 +1,7 @@
-use crate::Logical;
 use crate::value::Value;
+use crate::Logical;
 
-impl <'vm> Logical<Value<'vm>> for Value<'vm> {
+impl<'vm> Logical<Value<'vm>> for Value<'vm> {
     type Output = Value<'vm>;
 
     fn and(self, rhs: Value<'vm>) -> Self::Output {

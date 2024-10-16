@@ -1,5 +1,5 @@
-use std::ops::Not;
 use crate::number::Number;
+use std::ops::Not;
 
 impl Not for Number {
     type Output = Number;

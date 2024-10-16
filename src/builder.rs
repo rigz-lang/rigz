@@ -1,6 +1,8 @@
-use indexmap::IndexMap;
-use crate::{BinaryOperation, UnaryOperation, CallFrame, Instruction, Register, Scope, VM, RigzType, Module};
 use crate::value::Value;
+use crate::{
+    BinaryOperation, CallFrame, Instruction, Module, Register, RigzType, Scope, UnaryOperation, VM,
+};
+use indexmap::IndexMap;
 
 #[macro_export]
 macro_rules! generate_unary_op_methods {
@@ -92,7 +94,13 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        pub fn add_call_module_instruction(&mut self, name: &'vm str, function: &'vm str, args: Vec<Register>, output: Register) -> &mut Self {
+        pub fn add_call_module_instruction(
+            &mut self,
+            name: &'vm str,
+            function: &'vm str,
+            args: Vec<Register>,
+            output: Register,
+        ) -> &mut Self {
             self.add_instruction(Instruction::CallModule {
                 module: name,
                 function,
@@ -103,7 +111,14 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        pub fn add_call_extension_module_instruction(&mut self, name: &'vm str, function: &'vm str, this: Register, args: Vec<Register>, output: Register) -> &mut Self {
+        pub fn add_call_extension_module_instruction(
+            &mut self,
+            name: &'vm str,
+            function: &'vm str,
+            this: Register,
+            args: Vec<Register>,
+            output: Register,
+        ) -> &mut Self {
             self.add_instruction(Instruction::CallExtensionModule {
                 module: name,
                 function,
@@ -120,23 +135,51 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        pub fn add_call_eq_instruction(&mut self, lhs: Register, rhs: Register, scope_id: usize) -> &mut Self {
+        pub fn add_call_eq_instruction(
+            &mut self,
+            lhs: Register,
+            rhs: Register,
+            scope_id: usize,
+        ) -> &mut Self {
             self.add_instruction(Instruction::CallEq(lhs, rhs, scope_id))
         }
 
         #[inline]
-        pub fn add_call_neq_instruction(&mut self, lhs: Register, rhs: Register, scope_id: usize) -> &mut Self {
+        pub fn add_call_neq_instruction(
+            &mut self,
+            lhs: Register,
+            rhs: Register,
+            scope_id: usize,
+        ) -> &mut Self {
             self.add_instruction(Instruction::CallNeq(lhs, rhs, scope_id))
         }
 
         #[inline]
-        pub fn add_if_else_instruction(&mut self, truthy: Register, if_scope: usize, else_scope: usize) -> &mut Self {
-            self.add_instruction(Instruction::IfElse { truthy, if_scope, else_scope })
+        pub fn add_if_else_instruction(
+            &mut self,
+            truthy: Register,
+            if_scope: usize,
+            else_scope: usize,
+        ) -> &mut Self {
+            self.add_instruction(Instruction::IfElse {
+                truthy,
+                if_scope,
+                else_scope,
+            })
         }
 
         #[inline]
-        pub fn add_cast_instruction(&mut self, from: Register, rigz_type: RigzType, to: Register) -> &mut Self {
-            self.add_instruction(Instruction::Cast { from, rigz_type, to })
+        pub fn add_cast_instruction(
+            &mut self,
+            from: Register,
+            rigz_type: RigzType,
+            to: Register,
+        ) -> &mut Self {
+            self.add_instruction(Instruction::Cast {
+                from,
+                rigz_type,
+                to,
+            })
         }
 
         #[inline]
@@ -165,26 +208,30 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        pub fn add_get_variable_instruction(&mut self, name: String, register: Register) -> &mut Self {
+        pub fn add_get_variable_instruction(
+            &mut self,
+            name: String,
+            register: Register,
+        ) -> &mut Self {
             self.add_instruction(Instruction::GetVariable(name, register))
         }
-    }
+    };
 }
 
 #[derive(Clone, Debug)]
 pub struct VMBuilder<'vm> {
     pub sp: usize,
     pub scopes: Vec<Scope<'vm>>,
-    pub modules: IndexMap<&'vm str, Module<'vm>>
+    pub modules: IndexMap<&'vm str, Module<'vm>>,
 }
 
-impl <'vm> Default  for VMBuilder<'vm> {
+impl<'vm> Default for VMBuilder<'vm> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl <'vm> VMBuilder<'vm> {
+impl<'vm> VMBuilder<'vm> {
     #[inline]
     pub fn new() -> Self {
         Self {
@@ -205,7 +252,7 @@ impl <'vm> VMBuilder<'vm> {
             registers: Default::default(),
             lifecycles: vec![],
             modules: std::mem::take(&mut self.modules),
-            sp: 0
+            sp: 0,
         }
     }
 
@@ -218,7 +265,7 @@ impl <'vm> VMBuilder<'vm> {
             registers: Default::default(),
             lifecycles: vec![],
             modules: self.modules.clone(),
-            sp: 0
+            sp: 0,
         };
         (vm, self)
     }

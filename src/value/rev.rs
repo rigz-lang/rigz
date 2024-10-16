@@ -1,7 +1,7 @@
-use crate::Rev;
 use crate::value::Value;
+use crate::Rev;
 
-impl <'vm> Rev for Value<'vm> {
+impl<'vm> Rev for Value<'vm> {
     type Output = Value<'vm>;
 
     fn rev(self) -> Self::Output {
@@ -10,10 +10,8 @@ impl <'vm> Rev for Value<'vm> {
             Value::String(s) => {
                 let s = s.chars().rev().collect();
                 Value::String(s)
-            },
-            Value::List(l) => {
-                Value::List(l.iter().rev().cloned().collect())
             }
+            Value::List(l) => Value::List(l.iter().rev().cloned().collect()),
             Value::Map(m) => {
                 let mut r = m.clone();
                 r.reverse();

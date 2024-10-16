@@ -1,5 +1,5 @@
-use std::ops::Shr;
 use crate::number::Number;
+use std::ops::Shr;
 
 impl Shr for Number {
     type Output = Number;
@@ -14,7 +14,7 @@ impl Shr for Number {
         match self {
             Number::Int(i) => Number::Int(i >> shift),
             Number::UInt(u) => Number::UInt(u >> shift),
-            Number::Float(f) => Number::Float(f64::from_bits(f.to_bits() >> shift))
+            Number::Float(f) => Number::Float(f64::from_bits(f.to_bits() >> shift)),
         }
     }
 }

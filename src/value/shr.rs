@@ -1,8 +1,8 @@
-use std::ops::Shr;
 use crate::number::Number;
 use crate::value::Value;
+use std::ops::Shr;
 
-impl <'vm> Shr for Value<'vm> {
+impl<'vm> Shr for Value<'vm> {
     type Output = Value<'vm>;
 
     fn shr(self, rhs: Self) -> Self::Output {
@@ -22,7 +22,7 @@ impl <'vm> Shr for Value<'vm> {
                 } else {
                     Value::Number(Number::Int(0))
                 }
-            },
+            }
             (Value::Number(lhs), Value::Number(rhs)) => Value::Number(lhs >> rhs),
             (Value::String(lhs), Value::Number(rhs)) => {
                 let lhs = lhs.as_str();
@@ -38,7 +38,7 @@ impl <'vm> Shr for Value<'vm> {
                 res.push_str(lhs.as_str());
                 Value::String(res)
             }
-            _ => todo!()
+            _ => todo!(),
         }
     }
 }
