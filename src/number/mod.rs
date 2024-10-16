@@ -13,7 +13,7 @@ mod shl;
 mod shr;
 mod sub;
 
-use crate::{impl_from, impl_from_cast, VMError};
+use crate::{impl_from_cast, VMError};
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
@@ -77,27 +77,6 @@ impl FromStr for Number {
                 Ok(f) => Ok(f.into()),
                 Err(e) => Err(e.to_string()),
             },
-            _ if s.ends_with('u') => {
-                let s = s[..s.len() - 1].to_string();
-                match s.parse::<u64>() {
-                    Ok(u) => Ok(u.into()),
-                    Err(e) => Err(e.to_string()),
-                }
-            }
-            _ if s.ends_with('f') => {
-                let s = s[..s.len() - 1].to_string();
-                match s.parse::<f64>() {
-                    Ok(u) => Ok(u.into()),
-                    Err(e) => Err(e.to_string()),
-                }
-            }
-            _ if s.ends_with('i') => {
-                let s = s[..s.len() - 1].to_string();
-                match s.parse::<i64>() {
-                    Ok(u) => Ok(u.into()),
-                    Err(e) => Err(e.to_string()),
-                }
-            }
             _ => match s.parse::<i64>() {
                 Ok(i) => Ok(i.into()),
                 Err(e) => Err(e.to_string()),

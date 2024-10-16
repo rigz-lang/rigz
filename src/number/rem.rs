@@ -1,5 +1,4 @@
 use crate::number::Number;
-use crate::VMError;
 use std::ops::Rem;
 
 impl Rem for Number {
