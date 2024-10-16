@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use crate::value::Value;
 use crate::vm::VMOptions;
 use crate::{generate_builder, generate_unary_op_methods, generate_bin_op_methods, Binary, BinaryOperation, CallFrame, Instruction, Module, Register, RigzType, Scope, Unary, UnaryOperation, VM};

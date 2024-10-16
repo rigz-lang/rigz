@@ -12,7 +12,7 @@ mod vm;
 
 use indexmap::IndexMap;
 pub(crate) use objects::{BOOL, ERROR, LIST, MAP, NONE, NUMBER, STRING};
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
 
 pub use builder::VMBuilder;
@@ -112,21 +112,32 @@ pub struct Lifecycle<'vm> {
     pub parent: Option<&'vm Lifecycle<'vm>>,
 }
 
-pub type Function<'vm> = IndexMap<&'vm str, fn(Vec<Value<'vm>>) -> Value<'vm>>;
-pub type ExtensionFunction<'vm> = IndexMap<&'vm str, fn(Value<'vm>, Vec<Value<'vm>>) -> Value<'vm>>;
+pub type Function<'vm> = IndexMap<&'vm str, &'vm dyn Fn(Vec<Value<'vm>>) -> Value<'vm>>;
+pub type ExtensionFunction<'vm> = IndexMap<&'vm str, &'vm dyn Fn(Value<'vm>, Vec<Value<'vm>>) -> Value<'vm>>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Module<'vm> {
     pub name: &'vm str,
     pub functions: Function<'vm>,
     pub extension_functions: IndexMap<RigzType, ExtensionFunction<'vm>>,
 }
 
+impl <'vm> Debug for Module<'vm> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut extension_debug = String::new();
+        for (k,v) in &self.extension_functions {
+            extension_debug.push_str(format!("type={:?}, functions={:?}", k.clone(), v.keys()).as_str());
+            extension_debug.push(';');
+        }
+        write!(f, "Module {{name={}, functions={:?}, extension_functions={}}}", self.name, self.functions.keys(), extension_debug)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::number::Number;
     use crate::value::Value;
-    use crate::{Module, RigzType, VMBuilder};
+    use crate::{ExtensionFunction, Function, Module, RigzType, VMBuilder};
     use indexmap::IndexMap;
     use std::str::FromStr;
 
@@ -252,8 +263,8 @@ mod tests {
             println!("{}", Value::List(args));
             Value::None
         }
-        let mut functions: IndexMap<&'vm str, fn(Vec<Value<'vm>>) -> Value<'vm>> = IndexMap::new();
-        functions.insert("hello", hello);
+        let mut functions: IndexMap<&'vm str, &dyn Fn(Vec<Value<'vm>>) -> Value<'vm>> = IndexMap::new();
+        functions.insert("hello", &hello);
 
         let module = Module {
             name: "test",
