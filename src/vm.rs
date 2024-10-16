@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Formatter};
 use crate::instructions::{Binary, Unary};
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation,
@@ -15,11 +16,29 @@ pub enum VMState<'vm> {
     Ran(Value<'vm>),
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct VMOptions {
     pub enable_logging: bool,
     pub disable_modules: bool,
     pub disable_variable_cleanup: bool,
+}
+
+impl VMOptions {
+    fn to_byte(&self) -> u8 {
+        let mut result = 0;
+        result |= self.enable_logging as u8;
+        result |= (self.disable_modules as u8) << 1;
+        result |= (self.disable_variable_cleanup as u8) << 2;
+        result
+    }
+
+    fn from_byte(byte: u8) -> Self {
+        let mut result = VMOptions::default();
+        result.enable_logging = (byte & 1) == 1;
+        result.disable_modules = (byte & 1 << 1) == 2;
+        result.disable_variable_cleanup = (byte & 1 << 2) == 4;
+        result
+    }
 }
 
 pub struct VM<'vm> {
@@ -31,6 +50,21 @@ pub struct VM<'vm> {
     pub modules: IndexMap<&'vm str, Box<dyn Module<'vm>>>,
     pub sp: usize,
     pub options: VMOptions,
+}
+
+impl <'vm> Debug for VM<'vm> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "VM(current={:?},scopes={:?},frames={:?},registers={:?},stack={:?},modules={:?},sp={},options={:?})",
+               self.current,
+               self.scopes,
+               self.frames,
+               self.registers,
+               self.stack,
+               self.modules.keys(),
+               self.sp,
+               self.options
+        )
+    }
 }
 
 impl<'vm> Default for VM<'vm> {
@@ -317,11 +351,50 @@ impl<'vm> VM<'vm> {
     }
 
     /// Snapshots can't include modules or messages from in progress lifecycles
-    pub fn snapshot(&self) -> Vec<u8> {
-        todo!()
+    pub fn snapshot(&self) -> Result<Vec<u8>, VMError> {
+        let mut bytes = Vec::new();
+        bytes.push(self.options.to_byte());
+        bytes.extend((self.sp as u64).to_le_bytes());
+        Ok(bytes)
     }
 
-    pub fn load_snapshot(&mut self) {
-        todo!()
+    /// Snapshots can't include modules so VM must be created before loading snapshot
+    pub fn load_snapshot(&mut self, bytes: Vec<u8>) -> Result<(), VMError> {
+        self.options = VMOptions::from_byte(bytes[0]);
+        let mut sp = [0; 8];
+        for (i, b) in bytes[1..9].iter().enumerate() {
+            sp[i] = *b;
+        }
+        self.sp = u64::from_le_bytes(sp) as usize;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{VMBuilder, Value, VM};
+    use crate::vm::VMOptions;
+
+    #[test]
+    fn options_snapshot() {
+        let options = VMOptions {
+            enable_logging: true,
+            disable_modules: true,
+            disable_variable_cleanup: true,
+        };
+        let byte = options.to_byte();
+        assert_eq!(VMOptions::from_byte(byte), options)
+    }
+
+    #[test]
+    fn snapshot() {
+        let mut builder = VMBuilder::new();
+        builder.add_load_instruction(1, Value::Bool(true));
+        let vm = builder.build();
+        let bytes = vm.snapshot().expect("snapshot failed");
+        let mut vm2 = VM::default();
+        vm2.load_snapshot(bytes).expect("load failed");
+        assert_eq!(vm2.options, vm.options);
+        assert_eq!(vm2.sp, vm.sp);
     }
 }

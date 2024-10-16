@@ -6,6 +6,6 @@ impl Shr for Number {
 
     #[inline]
     fn shr(self, rhs: Self) -> Self::Output {
-        Number(f64::from_bits(self.0.to_bits() >> rhs.to_int()))
+        Number(((self.0 as i64) >> rhs.to_int()) as f64)
     }
 }
