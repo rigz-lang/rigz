@@ -5,11 +5,11 @@ mod value;
 mod number;
 mod macros;
 
-use std::fmt::{Debug};
+use std::fmt::{format, Debug};
 use std::hash::{Hash, Hasher};
 use std::string::ToString;
 use indexmap::IndexMap;
-use indexmap::map::{Entry, OccupiedEntry};
+use indexmap::map::Entry;
 use once_cell::sync::Lazy;
 use crate::value::Value;
 
@@ -108,7 +108,7 @@ pub enum Instruction<'vm> {
     },
     // Import(),
     // Export(),
-    Ret,
+    Ret, // TODO this should return a register
     LoadLet(String, Value<'vm>),
     LoadMut(String, Value<'vm>),
     GetVariable(String, Register),
@@ -135,8 +135,8 @@ pub enum RigzType {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RigzObjectDefinition {
-    name: String,
-    fields: IndexMap<String, RigzType>,
+    pub name: String,
+    pub fields: IndexMap<String, RigzType>,
 }
 
 static NONE: Lazy<RigzObjectDefinition> = Lazy::new(|| RigzObjectDefinition {
@@ -176,17 +176,21 @@ static MAP: Lazy<RigzObjectDefinition> = Lazy::new(|| RigzObjectDefinition {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RigzObject<'vm> {
-    fields: IndexMap<String, Value<'vm>>,
-    definition_index: &'vm RigzObjectDefinition,
+    pub fields: IndexMap<String, Value<'vm>>,
+    pub definition_index: &'vm RigzObjectDefinition,
 }
 
 impl<'vm> RigzObject<'vm> {
-    pub(crate) fn cast(&self, def: RigzObjectDefinition) -> Result<RigzObject<'vm>, VMError> {
+    pub fn cast(&self, def: RigzObjectDefinition) -> Result<RigzObject<'vm>, VMError> {
         if self.definition_index == &def {
             return Ok(self.clone())
         }
 
-        todo!()
+        if self.definition_index.fields == def.fields {
+            return Ok(self.clone())
+        }
+
+        Err(VMError::ConversionError(format!("Cannot convert {} to {}", self.definition_index.name, def.name)))
     }
 }
 
@@ -233,10 +237,10 @@ pub enum Variable<'vm> {
 
 #[derive(Clone, Debug)]
 pub struct CallFrame<'vm> {
-    scope_id: usize,
-    pc: usize,
-    variables: IndexMap<String, Variable<'vm>>, // TODO switch to intern strings
-    parent: Option<usize>
+    pub scope_id: usize,
+    pub pc: usize,
+    pub variables: IndexMap<String, Variable<'vm>>, // TODO switch to intern strings
+    pub parent: Option<usize>
 }
 
 impl<'vm> CallFrame<'vm> {
@@ -295,8 +299,8 @@ impl <'vm> CallFrame<'vm> {
 
 #[derive(Clone, Debug, Default)]
 pub struct Scope<'vm> {
-    instructions: Vec<Instruction<'vm>>,
-    type_definitions: IndexMap<String, RigzObjectDefinition>
+    pub instructions: Vec<Instruction<'vm>>,
+    pub type_definitions: IndexMap<String, RigzObjectDefinition>
 }
 
 impl <'vm> Scope<'vm> {
@@ -308,17 +312,17 @@ impl <'vm> Scope<'vm> {
 
 #[derive(Clone, Debug)]
 pub struct Lifecycle<'vm> {
-    name: String,
-    parent: Option<&'vm Lifecycle<'vm>>
+    pub name: String,
+    pub parent: Option<&'vm Lifecycle<'vm>>
 }
 
 #[derive(Clone, Debug)]
 pub struct VM<'vm> {
-    scopes: Vec<Scope<'vm>>,
-    current: CallFrame<'vm>,
-    frames: Vec<CallFrame<'vm>>,
-    registers: IndexMap<usize, Value<'vm>>,
-    lifecycles: Vec<Lifecycle<'vm>>
+    pub scopes: Vec<Scope<'vm>>,
+    pub current: CallFrame<'vm>,
+    pub frames: Vec<CallFrame<'vm>>,
+    pub registers: IndexMap<usize, Value<'vm>>,
+    pub lifecycles: Vec<Lifecycle<'vm>>
 }
 
 impl <'vm> VM<'vm> {
@@ -492,7 +496,7 @@ impl <'vm> VM<'vm> {
         Ok(Value::None)
     }
 
-    fn load_mut(&mut self, name: String, value: Value<'vm>) -> Result<(), VMError> {
+    pub fn load_mut(&mut self, name: String, value: Value<'vm>) -> Result<(), VMError> {
         match self.current.variables.entry(name) {
             Entry::Occupied(mut var) => {
                 match var.get() {
@@ -511,7 +515,7 @@ impl <'vm> VM<'vm> {
         Ok(())
     }
 
-    fn load_let(&mut self, name: String, value: Value<'vm>) -> Result<(), VMError> {
+    pub fn load_let(&mut self, name: String, value: Value<'vm>) -> Result<(), VMError> {
         match self.current.variables.entry(name) {
             Entry::Occupied(v) => {
                 return Err(VMError::UnsupportedOperation(format!("Cannot overwrite let variable: {}", *v.key())))
@@ -523,7 +527,7 @@ impl <'vm> VM<'vm> {
         Ok(())
     }
 
-    fn call_frame(&mut self, scope_index: usize) -> Result<(), VMError> {
+    pub fn call_frame(&mut self, scope_index: usize) -> Result<(), VMError> {
         if self.scopes.len() <= scope_index {
             return Err(VMError::ScopeDoesNotExist(format!("{} does not exist", scope_index)))
         }
