@@ -30,10 +30,21 @@ pub enum Instruction<'vm> {
     Puts(Vec<Register>),
     CallEq(Register, Register, usize, Register),
     CallNeq(Register, Register, usize, Register),
+    // todo if, if_else, unless statements
     IfElse {
         truthy: Register,
         if_scope: usize,
         else_scope: usize,
+        output: Register,
+    },
+    If {
+        truthy: Register,
+        if_scope: usize,
+        output: Register,
+    },
+    Unless {
+        truthy: Register,
+        unless_scope: usize,
         output: Register,
     },
     Cast {
@@ -212,6 +223,24 @@ impl<'vm> VM<'vm> {
                     self.call_frame(if_scope, output)?;
                 } else {
                     self.call_frame(else_scope, output)?;
+                }
+            }
+            Instruction::If {
+                truthy,
+                if_scope,
+                output,
+            } => {
+                if self.resolve_register(truthy)?.to_bool() {
+                    self.call_frame(if_scope, output)?;
+                }
+            }
+            Instruction::Unless {
+                truthy,
+                unless_scope,
+                output,
+            } => {
+                if !self.resolve_register(truthy)?.to_bool() {
+                    self.call_frame(unless_scope, output)?;
                 }
             }
             Instruction::GetVariable(name, reg) => match self.current.get_variable(name, self) {

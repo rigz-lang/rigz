@@ -234,6 +234,34 @@ macro_rules! generate_builder {
         }
 
         #[inline]
+        pub fn add_if_instruction(
+            &mut self,
+            truthy: Register,
+            if_scope: usize,
+            output: Register,
+        ) -> &mut Self {
+            self.add_instruction(Instruction::If {
+                truthy,
+                if_scope,
+                output,
+            })
+        }
+
+        #[inline]
+        pub fn add_unless_instruction(
+            &mut self,
+            truthy: Register,
+            unless_scope: usize,
+            output: Register,
+        ) -> &mut Self {
+            self.add_instruction(Instruction::Unless {
+                truthy,
+                unless_scope,
+                output,
+            })
+        }
+
+        #[inline]
         pub fn add_cast_instruction(
             &mut self,
             from: Register,
