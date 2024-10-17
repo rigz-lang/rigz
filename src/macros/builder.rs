@@ -1,4 +1,3 @@
-
 #[macro_export]
 macro_rules! generate_unary_op_methods {
     ($($name:ident => $variant:ident),*) => {
@@ -160,6 +159,23 @@ macro_rules! generate_builder {
                 this,
                 args,
                 output,
+            });
+            self
+        }
+
+        #[inline]
+        pub fn add_call_mutable_extension_module_instruction(
+            &mut self,
+            module: &'vm str,
+            func: &'vm str,
+            this: Register,
+            args: Vec<Register>,
+        ) -> &mut Self {
+            self.add_instruction(Instruction::CallMutableExtension {
+                module,
+                func,
+                this,
+                args,
             });
             self
         }

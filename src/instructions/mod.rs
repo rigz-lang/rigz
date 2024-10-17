@@ -8,6 +8,7 @@ pub use unary::{Unary, UnaryOperation};
 use crate::vm::{RegisterValue, VMState};
 use crate::{Register, RigzType, VMError, Value, VM};
 
+// todo simplify clear usage
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Clear {
     One(Register),
@@ -60,6 +61,7 @@ pub enum Instruction<'vm> {
     LoadLetRegister(&'vm str, Register),
     LoadMutRegister(&'vm str, Register),
     // requires modules, enabled by default
+    /// Module instructions will clone your module, ideally modules implement Copy + Clone
     CallModule {
         module: &'vm str,
         func: &'vm str,
@@ -73,7 +75,12 @@ pub enum Instruction<'vm> {
         args: Vec<usize>,
         output: usize,
     },
-    /// This instruction will clone your module, ideally modules implement Copy + Clone
+    CallMutableExtension {
+        module: &'vm str,
+        this: usize,
+        func: &'vm str,
+        args: Vec<usize>,
+    },
     CallVMExtension {
         module: &'vm str,
         func: &'vm str,
@@ -129,7 +136,7 @@ impl<'vm> VM<'vm> {
             Instruction::HaltIfError(r) => {
                 let value = self.remove_register_eval_scope(r);
                 if let Value::Error(e) = value {
-                    return VMState::Done(e.to_value());
+                    return VMState::Done(e.into());
                 }
             }
             Instruction::Clear(clear) => self.handle_clear(clear),
@@ -144,7 +151,6 @@ impl<'vm> VM<'vm> {
                 None => self.insert_register(
                     r,
                     VMError::RuntimeError(format!("Pop called on empty registers with {}", r))
-                        .to_value()
                         .into(),
                 ),
                 Some(v) => self.insert_register(r, v),
@@ -152,11 +158,11 @@ impl<'vm> VM<'vm> {
             Instruction::Load(r, v) => self.insert_register(r, v),
             Instruction::LoadLetRegister(name, register) => match self.load_let(name, register) {
                 Ok(_) => {}
-                Err(e) => return VMState::Done(e.to_value()),
+                Err(e) => return VMState::Done(e.into()),
             },
             Instruction::LoadMutRegister(name, register) => match self.load_mut(name, register) {
                 Ok(_) => {}
-                Err(e) => return VMState::Done(e.to_value()),
+                Err(e) => return VMState::Done(e.into()),
             },
             Instruction::Call(scope_index, register) => self.call_frame(scope_index, register),
             Instruction::CallModule {
@@ -168,11 +174,11 @@ impl<'vm> VM<'vm> {
                 match self.get_module_clone(module) {
                     Ok(module) => {
                         let args = self.resolve_registers(args);
-                        let v = module.call(func, args).unwrap_or_else(|e| e.to_value());
+                        let v = module.call(func, args).unwrap_or_else(|e| e.into());
                         self.insert_register(output, v.into());
                     }
                     Err(e) => {
-                        self.insert_register(output, e.to_value().into());
+                        self.insert_register(output, e.into());
                     }
                 };
             }
@@ -189,12 +195,32 @@ impl<'vm> VM<'vm> {
                         let args = self.resolve_registers(args);
                         let v = module
                             .call_extension(this, func, args)
-                            .unwrap_or_else(|e| e.to_value());
+                            .unwrap_or_else(|e| e.into());
                         self.insert_register(output, v.into());
                     }
                     Err(e) => {
-                        self.insert_register(output, e.to_value().into());
+                        self.insert_register(output, e.into());
                     }
+                };
+            }
+            Instruction::CallMutableExtension {
+                module,
+                this,
+                func,
+                args,
+            } => {
+                match self.get_module_clone(module) {
+                    Ok(module) => {
+                        let args = self.resolve_registers(args);
+                        match self.update_register(this, |v| {
+                            // todo remove args.clone
+                            module.call_mutable_extension(v, func, args.clone());
+                        }) {
+                            Ok(_) => {}
+                            Err(e) => self.insert_register(this, e.into()),
+                        }
+                    }
+                    Err(e) => self.insert_register(this, e.into()),
                 };
             }
             Instruction::CallVMExtension {
@@ -208,11 +234,11 @@ impl<'vm> VM<'vm> {
                         let args = self.resolve_registers(args);
                         let value = module
                             .vm_extension(self, func, args)
-                            .unwrap_or_else(|e| e.to_value());
+                            .unwrap_or_else(|e| e.into());
                         self.insert_register(output, value.into())
                     }
                     Err(e) => {
-                        self.insert_register(output, e.to_value().into());
+                        self.insert_register(output, e.into());
                     }
                 };
             }
@@ -281,19 +307,13 @@ impl<'vm> VM<'vm> {
                     self.insert_register(
                         reg,
                         VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))
-                            .to_value()
                             .into(),
                     );
                 }
-                Some(s) => match self.registers.get(&s) {
-                    None => self.insert_register(
-                        reg,
-                        VMError::EmptyRegister(format!("Register {} does not exist", s))
-                            .to_value()
-                            .into(),
-                    ),
-                    Some(v) => self.insert_register(reg, v.clone()),
-                },
+                Some(s) => {
+                    let v = self.get_register(s);
+                    self.insert_register(reg, v.clone());
+                }
             },
             Instruction::Log(level, tmpl, args) => {
                 if !self.options.enable_logging {
@@ -406,10 +426,10 @@ impl<'vm> VM<'vm> {
                         "Cannot read {}th index of {}",
                         index, source
                     ))
-                    .to_value(),
+                    .into(),
                     Some(c) => Value::String(c.to_string()),
                 },
-                Err(e) => e.to_value(),
+                Err(e) => e.into(),
             },
             (Value::List(source), Value::Number(n)) => match n.to_usize() {
                 Ok(index) => match source.get(index) {
@@ -417,17 +437,17 @@ impl<'vm> VM<'vm> {
                         "Cannot read {}th index of {:?}",
                         index, source
                     ))
-                    .to_value(),
+                    .into(),
                     Some(c) => c.clone(),
                 },
-                Err(e) => e.to_value(),
+                Err(e) => e.into(),
             },
             (Value::Map(source), index) => match source.get(&index) {
                 None => VMError::UnsupportedOperation(format!(
                     "Cannot read {} index of {:?}",
                     index, source
                 ))
-                .to_value(),
+                .into(),
                 Some(c) => c.clone(),
             },
             (Value::Number(source), Value::Number(n)) => {
@@ -435,7 +455,7 @@ impl<'vm> VM<'vm> {
             }
             (source, attr) => {
                 VMError::UnsupportedOperation(format!("Cannot read {} for {}", attr, source))
-                    .to_value()
+                    .into()
             }
         };
         self.insert_register(output, v.into());

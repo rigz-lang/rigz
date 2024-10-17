@@ -14,13 +14,13 @@ mod shr;
 mod sub;
 
 use crate::number::Number;
+use crate::value_range::ValueRange;
 use crate::{impl_from, RigzType, VMError};
 use indexmap::IndexMap;
 use log::trace;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
-use crate::value_range::ValueRange;
 
 #[derive(Clone, Debug, Default)]
 pub enum Value {
@@ -187,6 +187,20 @@ impl Value {
                 IndexMap::from([(e.clone().into(), e.into())])
             }
             Value::Range(r) => r.to_map(),
+        }
+    }
+
+    #[inline]
+    pub fn rigz_type(&self) -> RigzType {
+        match self {
+            Value::None => RigzType::None,
+            Value::Bool(_) => RigzType::Bool,
+            Value::Number(_) => RigzType::Number,
+            Value::String(_) => RigzType::String,
+            Value::List(_) => RigzType::List,
+            Value::Map(_) => RigzType::Map,
+            Value::Range(_) => RigzType::Range,
+            Value::Error(_) => RigzType::Error,
         }
     }
 

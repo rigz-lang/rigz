@@ -7,10 +7,12 @@ use crate::{
 };
 use indexmap::map::Entry;
 use indexmap::IndexMap;
+use std::cell::RefCell;
 
 use log::{trace, warn, Level};
 use nohash_hasher::BuildNoHashHasher;
 use std::fmt::{Debug, Formatter};
+use std::ops::DerefMut;
 
 pub enum VMState {
     Running,
@@ -68,7 +70,7 @@ pub struct VM<'vm> {
     pub scopes: Vec<Scope<'vm>>,
     pub current: CallFrame<'vm>,
     pub frames: Vec<CallFrame<'vm>>,
-    pub registers: IndexMap<usize, RegisterValue, BuildNoHashHasher<usize>>,
+    pub registers: IndexMap<usize, RefCell<RegisterValue>, BuildNoHashHasher<usize>>,
     pub stack: Vec<RegisterValue>,
     pub modules: IndexMap<&'static str, Box<dyn Module<'vm>>>,
     pub sp: usize,
@@ -125,13 +127,13 @@ impl<'vm> VM<'vm> {
                 warn!("Insert Register called for {}, value not saved", register)
             }
             register => {
-                self.registers.insert(register, value);
+                self.registers.insert(register, RefCell::new(value));
             }
         }
     }
 
     #[inline]
-    pub fn get_register(&mut self, register: Register) -> RegisterValue {
+    pub fn get_register(&self, register: Register) -> RegisterValue {
         match register {
             0 => Value::None.into(),
             1 => Value::Number(Number::one()).into(),
@@ -139,7 +141,7 @@ impl<'vm> VM<'vm> {
                 None => RegisterValue::Value(
                     VMError::EmptyRegister(format!("R{} is empty", register)).to_value(),
                 ),
-                Some(v) => v.clone(),
+                Some(v) => v.borrow().clone(),
             },
         }
     }
@@ -170,11 +172,31 @@ impl<'vm> VM<'vm> {
     }
 
     #[inline]
-    pub fn get_register_mut(&mut self, register: Register) -> Result<&mut RegisterValue, VMError> {
-        match self.registers.get_mut(&register) {
-            None => Err(VMError::EmptyRegister(format!("R{} is empty", register))),
-            Some(v) => Ok(v),
-        }
+    pub fn update_register<F>(&mut self, register: Register, mut closure: F) -> Result<(), VMError>
+    where
+        F: FnMut(&mut Value),
+    {
+        let r = match self.registers.get(&register) {
+            None => return Err(VMError::EmptyRegister(format!("R{} is empty", register))),
+            Some(v) => {
+                let mut v = v.borrow_mut();
+                match v.deref_mut() {
+                    RegisterValue::ScopeId(s, o) => {
+                        return Err(VMError::UnsupportedOperation(format!(
+                            "Scopes are not implemented yet - Scope {s} R{o}"
+                        )))
+                    }
+                    RegisterValue::Register(r) => *r,
+                    RegisterValue::Value(v) => {
+                        return {
+                            closure(v);
+                            Ok(())
+                        }
+                    }
+                }
+            }
+        };
+        self.update_register(r, closure)
     }
 
     #[inline]
@@ -204,7 +226,7 @@ impl<'vm> VM<'vm> {
             None => RegisterValue::Value(
                 VMError::EmptyRegister(format!("R{} is empty", register)).to_value(),
             ),
-            Some(v) => std::mem::replace(v, RegisterValue::Value(Value::None)),
+            Some(v) => RefCell::replace(v, RegisterValue::Value(Value::None)),
         }
     }
 

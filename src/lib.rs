@@ -11,8 +11,8 @@ mod objects;
 mod scope;
 mod traits;
 mod value;
-mod vm;
 mod value_range;
+mod vm;
 
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -55,7 +55,7 @@ mod tests {
     use crate::number::Number;
     use crate::value::Value;
     use crate::vm::RegisterValue;
-    use crate::{Module, RigzType, VMBuilder, VMError, VM};
+    use crate::{Module, RigzType, VMBuilder, VMError};
     use std::str::FromStr;
 
     #[test]
@@ -64,10 +64,7 @@ mod tests {
         builder.add_load_instruction(4, Value::Number(Number::Int(42)).into());
         let mut vm = builder.build();
         vm.eval().unwrap();
-        assert_eq!(
-            vm.registers.get(&4).unwrap().clone(),
-            Value::Number(Number::Int(42)).into()
-        );
+        assert_eq!(vm.get_register(4), Value::Number(Number::Int(42)).into());
     }
 
     #[test]
@@ -78,10 +75,7 @@ mod tests {
             .add_cast_instruction(4, RigzType::String, 7);
         let mut vm = builder.build();
         vm.eval().unwrap();
-        assert_eq!(
-            vm.registers.get(&7).unwrap().clone(),
-            Value::String(42.to_string()).into()
-        );
+        assert_eq!(vm.get_register(7), Value::String(42.to_string()).into());
     }
 
     #[test]
@@ -93,10 +87,7 @@ mod tests {
             .add_add_instruction(4, 37, 82);
         let mut vm = builder.build();
         vm.eval().unwrap();
-        assert_eq!(
-            vm.registers.get(&82).unwrap().clone(),
-            Value::Number(Number::Int(84)).into()
-        );
+        assert_eq!(vm.get_register(82), Value::Number(Number::Int(84)).into());
     }
 
     #[test]
@@ -107,10 +98,7 @@ mod tests {
             .add_copy_instruction(4, 37);
         let mut vm = builder.build();
         vm.eval().unwrap();
-        assert_eq!(
-            vm.registers.get(&37).unwrap().clone(),
-            Value::Number(Number::Int(42)).into()
-        );
+        assert_eq!(vm.get_register(37), Value::Number(Number::Int(42)).into());
     }
 
     #[test]
@@ -123,7 +111,7 @@ mod tests {
         let mut vm = builder.build();
         vm.eval().unwrap();
         assert_eq!(
-            vm.registers.get(&4).unwrap().clone(),
+            vm.get_register(4),
             Value::String(String::from_str("ab").unwrap()).into()
         );
     }
@@ -138,7 +126,7 @@ mod tests {
         let mut vm = builder.build();
         vm.eval().unwrap();
         assert_eq!(
-            vm.registers.get(&4).unwrap().clone(),
+            vm.get_register(4),
             Value::String(String::from_str("bc").unwrap()).into()
         );
     }
@@ -155,7 +143,7 @@ mod tests {
         let mut vm = builder.build();
         vm.eval().unwrap();
         assert_eq!(
-            vm.registers.get(&3).unwrap().clone(),
+            vm.get_register(3),
             Value::String(String::from_str("abc").unwrap()).into()
         );
     }
@@ -179,24 +167,6 @@ mod tests {
             }
         }
 
-        fn call_extension(
-            &self,
-            value: Value,
-            function: &'vm str,
-            args: Vec<Value>,
-        ) -> Result<Value, VMError> {
-            Err(VMError::InvalidModuleFunction(function.to_string()))
-        }
-
-        fn vm_extension(
-            &self,
-            vm: &mut VM<'vm>,
-            function: &'vm str,
-            args: Vec<Value>,
-        ) -> Result<Value, VMError> {
-            Err(VMError::InvalidModuleFunction(function.to_string()))
-        }
-
         fn trait_definition(&self) -> &'static str {
             r#"
             trait test
@@ -216,7 +186,10 @@ mod tests {
             .add_call_module_instruction("test", "hello", vec![2], 3);
         let mut vm = builder.build();
         vm.eval().unwrap();
-        assert_eq!(vm.registers.get(&3).unwrap().clone(), Value::None.into());
+        assert_eq!(
+            vm.registers.get(&3).unwrap().clone().into_inner(),
+            Value::None.into()
+        );
     }
 
     #[test]

@@ -143,7 +143,7 @@ impl<'vm> VM<'vm> {
                     "Invalid Register Passed to binary_clear: {} must be {} or {}",
                     c, lhs, rhs
                 ))
-                .to_value(),
+                .into(),
             ),
             Clear::Two(c1, c2) => {
                 let v = VMError::RuntimeError(format!(

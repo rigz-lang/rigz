@@ -79,10 +79,10 @@ impl<'vm> VM<'vm> {
                 "Invalid Register Passed to unary_clear: {} != {}",
                 c, from
             ))
-            .to_value(),
+            .into(),
             Clear::One(c) => self.remove_register_eval_scope(c),
             c => VMError::RuntimeError(format!("Invalid Option Passed to unary_clear: {:?}", c))
-                .to_value(),
+                .into(),
         };
         self.apply_unary(op, val, output);
     }

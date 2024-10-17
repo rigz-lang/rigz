@@ -1,6 +1,6 @@
 use crate::value::Value;
-use std::ops::Add;
 use crate::VMError;
+use std::ops::Add;
 
 impl Add for Value {
     type Output = Value;
@@ -25,16 +25,18 @@ impl Add for Value {
             }
             (Value::Number(a), Value::Range(r)) | (Value::Range(r), Value::Number(a)) => {
                 match r + a {
-                    None => VMError::UnsupportedOperation(format!("Unable to perform add {a} to range")).to_value(),
-                    Some(r) => Value::Range(r)
+                    None => {
+                        VMError::UnsupportedOperation(format!("Unable to perform add {a} to range"))
+                            .to_value()
+                    }
+                    Some(r) => Value::Range(r),
                 }
             }
-            (Value::Range(a), Value::Range(b)) => {
-                match a + b {
-                    None => VMError::UnsupportedOperation("Unable to perform add ranges".to_string()).to_value(),
-                    Some(r) => Value::Range(r)
-                }
-            }
+            (Value::Range(a), Value::Range(b)) => match a + b {
+                None => VMError::UnsupportedOperation("Unable to perform add ranges".to_string())
+                    .to_value(),
+                Some(r) => Value::Range(r),
+            },
             (Value::Range(a), Value::String(b)) | (Value::String(b), Value::Range(a)) => {
                 VMError::UnsupportedOperation(format!("Cannot perform {a} + {b}")).to_value()
             }
