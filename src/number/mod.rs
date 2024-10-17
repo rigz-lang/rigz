@@ -14,11 +14,13 @@ mod shr;
 mod sub;
 
 use crate::{impl_from, impl_from_cast, VMError};
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum Number {
     Int(i64),
     Float(f64),

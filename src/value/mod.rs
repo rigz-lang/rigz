@@ -18,11 +18,13 @@ use crate::value_range::ValueRange;
 use crate::{impl_from, RigzType, VMError};
 use indexmap::IndexMap;
 use log::trace;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum Value {
     #[default]
     None,
@@ -197,8 +199,9 @@ impl Value {
             Value::Bool(_) => RigzType::Bool,
             Value::Number(_) => RigzType::Number,
             Value::String(_) => RigzType::String,
-            Value::List(_) => RigzType::List,
-            Value::Map(_) => RigzType::Map,
+            // todo add type info to lists & maps
+            Value::List(_) => RigzType::List(Box::new(RigzType::Any)),
+            Value::Map(_) => RigzType::Map(Box::new(RigzType::Any), Box::new(RigzType::Any)),
             Value::Range(_) => RigzType::Range,
             Value::Error(_) => RigzType::Error,
         }
@@ -227,8 +230,8 @@ impl Value {
                 }
                 Some(n) => Value::Number(n.into()),
             },
-            (v, RigzType::List) => Value::List(v.to_list()),
-            (v, RigzType::Map) => Value::Map(v.to_map()),
+            (v, RigzType::List(_)) => Value::List(v.to_list()),
+            (v, RigzType::Map(_, _)) => Value::Map(v.to_map()),
             (v, RigzType::Custom(def)) => {
                 let mut res = v.to_map();
                 for (field, rigz_type) in def.fields {

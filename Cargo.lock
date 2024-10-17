@@ -454,7 +454,7 @@ checksum = "7a66a03ae7c801facd77a29370b4faec201768915ac14a721ba36f20bc9c209b"
 
 [[package]]
 name = "rigz_vm"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "criterion",
  "crossbeam",
@@ -463,6 +463,7 @@ dependencies = [
  "log",
  "nohash-hasher",
  "pretty_env_logger",
+ "serde",
 ]
 
 [[package]]

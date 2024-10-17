@@ -213,9 +213,9 @@ impl<'vm> VM<'vm> {
                     Ok(module) => {
                         let args = self.resolve_registers(args);
                         /*
-                            if function fails, value is overwritten
-                            might be better to output to a register as a reference or the error
-                         */
+                           if function fails, value is overwritten
+                           might be better to output to a register as a reference or the error
+                        */
                         match self.update_register(this, |v| {
                             // todo remove args.clone
                             module.call_mutable_extension(v, func, args.clone());
@@ -458,8 +458,7 @@ impl<'vm> VM<'vm> {
                 Value::Bool(source.to_bits() & (1 << n.to_int()) != 0)
             }
             (source, attr) => {
-                VMError::UnsupportedOperation(format!("Cannot read {} for {}", attr, source))
-                    .into()
+                VMError::UnsupportedOperation(format!("Cannot read {} for {}", attr, source)).into()
             }
         };
         self.insert_register(output, v.into());

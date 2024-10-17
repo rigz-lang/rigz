@@ -2,10 +2,12 @@ mod add;
 
 use crate::{impl_from, Value};
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::ops::{Neg, Range};
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum ValueRange {
     Int(Range<i64>),
     Char(Range<char>),

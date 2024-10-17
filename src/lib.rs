@@ -14,9 +14,6 @@ mod value;
 mod value_range;
 mod vm;
 
-use std::fmt::Debug;
-use std::hash::Hash;
-
 pub use builder::VMBuilder;
 pub use call_frame::{CallFrame, Variable};
 pub use instructions::{Binary, BinaryOperation, Clear, Instruction, Unary, UnaryOperation};
@@ -24,6 +21,9 @@ pub use module::Module;
 pub use number::Number;
 pub use objects::RigzType;
 pub use scope::Scope;
+use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
+use std::hash::Hash;
 pub use traits::{Logical, Reverse};
 pub use value::Value;
 pub use value_range::ValueRange;
@@ -31,7 +31,8 @@ pub use vm::{RegisterValue, VM};
 
 pub type Register = usize;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+// Tagged to avoid confusion with string deserialization
 pub enum VMError {
     RuntimeError(String),
     EmptyRegister(String),
