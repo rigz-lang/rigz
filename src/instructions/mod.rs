@@ -80,6 +80,7 @@ pub enum Instruction<'vm> {
         this: usize,
         func: &'vm str,
         args: Vec<usize>,
+        output: usize,
     },
     CallVMExtension {
         module: &'vm str,
@@ -208,20 +209,20 @@ impl<'vm> VM<'vm> {
                 this,
                 func,
                 args,
+                output,
             } => {
                 match self.get_module_clone(module) {
                     Ok(module) => {
                         let args = self.resolve_registers(args);
-                        /*
-                           if function fails, value is overwritten
-                           might be better to output to a register as a reference or the error
-                        */
                         match self.update_register(this, |v| {
                             // todo remove args.clone
-                            module.call_mutable_extension(v, func, args.clone());
+                            module.call_mutable_extension(v, func, args.clone())
                         }) {
-                            Ok(_) => {}
-                            Err(e) => self.insert_register(this, e.into()),
+                            Ok(Some(v)) => {
+                                self.insert_register(output, v.into())
+                            }
+                            Ok(None) => {}
+                            Err(e) => self.insert_register(output, e.into()),
                         }
                     }
                     Err(e) => self.insert_register(this, e.into()),

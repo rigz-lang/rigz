@@ -56,7 +56,7 @@ mod tests {
     use crate::number::Number;
     use crate::value::Value;
     use crate::vm::RegisterValue;
-    use crate::{Module, RigzType, VMBuilder, VMError};
+    use crate::{BinaryOperation, Module, RigzType, VMBuilder, VMError};
     use std::str::FromStr;
 
     #[test]
@@ -149,7 +149,7 @@ mod tests {
         );
     }
 
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     struct TestModule {}
 
     #[allow(unused_variables)]
@@ -227,5 +227,26 @@ mod tests {
             .add_halt_instruction(4);
         let mut vm = builder.build();
         assert_eq!(vm.eval().unwrap(), Value::String("hello".to_string()))
+    }
+
+    #[test]
+    fn function_scope() {
+        let mut builder = VMBuilder::new();
+        builder
+            .enter_scope()
+            .add_binary_instruction(BinaryOperation::Add, 1, 2, 3)
+            .exit_scope(3)
+            .add_load_instruction(1, RegisterValue::Value(1.into()))
+            .add_load_instruction(2, RegisterValue::Value(2.into()))
+            .add_call_instruction(1, 3)
+            .add_load_instruction(1, RegisterValue::Register(3))
+            .add_load_instruction(2, RegisterValue::Value(3.into()))
+            .add_call_instruction(1, 3)
+            .add_load_instruction(1, RegisterValue::Register(3))
+            .add_load_instruction(2, RegisterValue::Value(4.into()))
+            .add_call_instruction(1, 3)
+            .add_halt_instruction(3);
+        let mut vm = builder.build();
+        assert_eq!(vm.eval().unwrap(), 10.into())
     }
 }

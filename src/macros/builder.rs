@@ -197,12 +197,14 @@ macro_rules! generate_builder {
             func: &'vm str,
             this: Register,
             args: Vec<Register>,
+            output: Register,
         ) -> &mut Self {
             self.add_instruction(Instruction::CallMutableExtension {
                 module,
                 func,
                 this,
                 args,
+                output
             });
             self
         }

@@ -161,9 +161,9 @@ impl<'vm> VM<'vm> {
     }
 
     #[inline]
-    pub fn update_register<F>(&mut self, register: Register, mut closure: F) -> Result<(), VMError>
+    pub fn update_register<F>(&mut self, register: Register, mut closure: F) -> Result<Option<Value>, VMError>
     where
-        F: FnMut(&mut Value),
+        F: FnMut(&mut Value) -> Result<Option<Value>, VMError>,
     {
         let r = match self.registers.get(&register) {
             None => return Err(VMError::EmptyRegister(format!("R{} is empty", register))),
@@ -177,10 +177,7 @@ impl<'vm> VM<'vm> {
                     }
                     RegisterValue::Register(r) => *r,
                     RegisterValue::Value(v) => {
-                        return {
-                            closure(v);
-                            Ok(())
-                        }
+                        return closure(v)
                     }
                 }
             }
@@ -391,6 +388,12 @@ impl<'vm> VM<'vm> {
         let mut bytes = Vec::new();
         bytes.push(self.options.to_byte());
         bytes.extend((self.sp as u64).to_le_bytes());
+
+        // write registers
+        // write stack
+        // write scopes
+        // write current
+        // write call_frames
         Ok(bytes)
     }
 
@@ -402,6 +405,11 @@ impl<'vm> VM<'vm> {
             sp[i] = *b;
         }
         self.sp = u64::from_le_bytes(sp) as usize;
+        // load registers
+        // load stack
+        // load scopes
+        // load current
+        // load call_frames
         Ok(())
     }
 }
@@ -432,5 +440,6 @@ mod tests {
         vm2.load_snapshot(bytes).expect("load failed");
         assert_eq!(vm2.options, vm.options);
         assert_eq!(vm2.sp, vm.sp);
+        // assert_eq!(vm2.get_register(1), Value::Bool(true).into());
     }
 }
