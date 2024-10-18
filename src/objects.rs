@@ -18,7 +18,11 @@ pub enum RigzType {
     This,
     VM,
     Range,
-    Type(Box<RigzType>),
+    Type {
+        base_type: Box<RigzType>,
+        optional: bool,
+        can_return_error: bool,
+    },
     Function(Vec<RigzType>, Box<RigzType>),
     Custom(CustomType),
 }
@@ -41,7 +45,25 @@ impl FromStr for RigzType {
             "String" => RigzType::String,
             "VM" => RigzType::VM,
             s => {
-                if s.contains("<") {
+                if s.ends_with("!?") {
+                    RigzType::Type {
+                        base_type: Box::new((&s[..s.len()-2]).parse()?),
+                        optional: true,
+                        can_return_error: true,
+                    }
+                } else if s.ends_with("!") {
+                    RigzType::Type {
+                        base_type: Box::new((&s[..s.len()-1]).parse()?),
+                        optional: false,
+                        can_return_error: true,
+                    }
+                } else if s.ends_with("?") {
+                    RigzType::Type {
+                        base_type: Box::new((&s[..s.len()-1]).parse()?),
+                        optional: true,
+                        can_return_error: false,
+                    }
+                } else if s.contains("<") {
                     return Err(VMError::RuntimeError("Types containing < are not supported yet".to_string()))
                 } else {
                     RigzType::Custom(CustomType {
@@ -71,7 +93,9 @@ impl Display for RigzType {
             RigzType::This => write!(f, "Self"),
             RigzType::VM => write!(f, "VM"),
             RigzType::Range => write!(f, "Range"),
-            RigzType::Type(t) => write!(f, "Type<{t}>"),
+            RigzType::Type { base_type, optional, can_return_error } => {
+                write!(f, "{base_type}{}{}", if *can_return_error {"!"} else {""}, if *optional {"?"} else {""})
+            },
             RigzType::Function(args, result) => write!(f, "Function<{args:?},{result}>"),
             RigzType::Custom(c) => write!(f, "{}", c.name),
         }
