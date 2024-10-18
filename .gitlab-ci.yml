@@ -1,5 +1,5 @@
 default:
-  image: rust:1.81
+  image: rust:1.82
   cache: &global_cache
     policy: pull
     unprotect: true

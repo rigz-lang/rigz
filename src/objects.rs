@@ -1,5 +1,7 @@
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
+use std::str::FromStr;
+use crate::VMError;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RigzType {
@@ -21,6 +23,38 @@ pub enum RigzType {
     Custom(CustomType),
 }
 
+impl FromStr for RigzType {
+    type Err = VMError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let rigz_type = match s {
+            "None" => RigzType::None,
+            "Bool" => RigzType::Float,
+            "Float" => RigzType::Float,
+            "Int" => RigzType::Int,
+            "Number" => RigzType::Number,
+            "Self" => RigzType::This,
+            "Error" => RigzType::Error,
+            "List" => RigzType::List(Box::new(RigzType::Any)),
+            "Map" => RigzType::Map(Box::new(RigzType::Any), Box::new(RigzType::Any)),
+            "Range" => RigzType::Range,
+            "String" => RigzType::String,
+            "VM" => RigzType::VM,
+            s => {
+                if s.contains("<") {
+                    todo!("Types containing < are not supported yet")
+                } else {
+                    RigzType::Custom(CustomType {
+                        name: s.to_string(),
+                        fields: vec![],
+                    })
+                }
+            }
+        };
+        Ok(rigz_type)
+    }
+}
+
 impl Display for RigzType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -39,7 +73,7 @@ impl Display for RigzType {
             RigzType::Range => write!(f, "Range"),
             RigzType::Type(t) => write!(f, "Type<{t}>"),
             RigzType::Function(args, result) => write!(f, "Function<{args:?},{result}>"),
-            RigzType::Custom(c) => write!(f, "Custom<{c:?}>"),
+            RigzType::Custom(c) => write!(f, "{}", c.name),
         }
     }
 }
