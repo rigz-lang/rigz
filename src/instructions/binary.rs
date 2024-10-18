@@ -126,8 +126,8 @@ impl<'vm> VM<'vm> {
                 self.remove_register_eval_scope(c),
             ),
             Clear::One(c) if c == lhs => (
-                self.remove_register_eval_scope(lhs),
-                self.resolve_register(c),
+                self.remove_register_eval_scope(c),
+                self.resolve_register(rhs),
             ),
             Clear::Two(c1, c2) if c1 == lhs && c2 == rhs => (
                 self.remove_register_eval_scope(c1),
