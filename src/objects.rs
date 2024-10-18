@@ -42,7 +42,7 @@ impl FromStr for RigzType {
             "VM" => RigzType::VM,
             s => {
                 if s.contains("<") {
-                    todo!("Types containing < are not supported yet")
+                    return Err(VMError::RuntimeError("Types containing < are not supported yet".to_string()))
                 } else {
                     RigzType::Custom(CustomType {
                         name: s.to_string(),
