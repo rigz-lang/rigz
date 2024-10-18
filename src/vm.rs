@@ -2,14 +2,14 @@ use crate::instructions::{Binary, Unary};
 use crate::lifecycle::Lifecycle;
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation,
-    CallFrame, Clear, Instruction, Module, Number, Register, RigzType, Scope, UnaryOperation, VMError,
+    CallFrame, Clear, Instruction, Module, Register, RigzType, Scope, UnaryOperation, VMError,
     Value, Variable,
 };
 use indexmap::map::Entry;
 use indexmap::IndexMap;
 use std::cell::RefCell;
 
-use log::{trace, warn, Level};
+use log::{trace, Level};
 use nohash_hasher::BuildNoHashHasher;
 use std::fmt::{Debug, Formatter};
 use std::ops::DerefMut;
@@ -122,27 +122,16 @@ impl<'vm> VM<'vm> {
 
     #[inline]
     pub fn insert_register(&mut self, register: Register, value: RegisterValue) {
-        match register {
-            0 | 1 => {
-                warn!("Insert Register called for {}, value not saved", register)
-            }
-            register => {
-                self.registers.insert(register, RefCell::new(value));
-            }
-        }
+        self.registers.insert(register, RefCell::new(value));
     }
 
     #[inline]
     pub fn get_register(&self, register: Register) -> RegisterValue {
-        match register {
-            0 => Value::None.into(),
-            1 => Value::Number(Number::one()).into(),
-            register => match self.registers.get(&register) {
-                None => RegisterValue::Value(
-                    VMError::EmptyRegister(format!("R{} is empty", register)).to_value(),
-                ),
-                Some(v) => v.borrow().clone(),
-            },
+        match self.registers.get(&register) {
+            None => RegisterValue::Value(
+                VMError::EmptyRegister(format!("R{} is empty", register)).to_value(),
+            ),
+            Some(v) => v.borrow().clone(),
         }
     }
 
@@ -215,11 +204,7 @@ impl<'vm> VM<'vm> {
 
     /// Value is replaced with None, shifting the registers can break the program. Scopes are not evaluated, use `remove_register_eval_scope` instead.
     pub fn remove_register(&mut self, register: Register) -> RegisterValue {
-        match register {
-            0 => Value::None.into(),
-            1 => Value::Number(Number::one()).into(),
-            register => self.remove_register_value(register),
-        }
+        self.remove_register_value(register)
     }
 
     #[inline]
