@@ -89,6 +89,16 @@ macro_rules! generate_builder {
         }
 
         #[inline]
+        pub fn add_unary_clear_instruction(
+            &mut self,
+            op: UnaryOperation,
+            from: Register,
+            output: Register,
+        ) -> &mut Self {
+            self.add_instruction(Instruction::UnaryClear(Unary { op, from, output }, Clear::One(from)))
+        }
+
+        #[inline]
         pub fn add_binary_instruction(
             &mut self,
             op: BinaryOperation,
@@ -102,6 +112,23 @@ macro_rules! generate_builder {
                 rhs,
                 output,
             }))
+        }
+
+        #[inline]
+        pub fn add_binary_clear_instruction(
+            &mut self,
+            op: BinaryOperation,
+            lhs: Register,
+            rhs: Register,
+            clear: Clear,
+            output: Register,
+        ) -> &mut Self {
+            self.add_instruction(Instruction::BinaryClear(Binary {
+                op,
+                lhs,
+                rhs,
+                output,
+            }, clear))
         }
 
         #[inline]

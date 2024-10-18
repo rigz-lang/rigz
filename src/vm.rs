@@ -2,7 +2,7 @@ use crate::instructions::{Binary, Unary};
 use crate::lifecycle::Lifecycle;
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation,
-    CallFrame, Instruction, Module, Number, Register, RigzType, Scope, UnaryOperation, VMError,
+    CallFrame, Clear, Instruction, Module, Number, Register, RigzType, Scope, UnaryOperation, VMError,
     Value, Variable,
 };
 use indexmap::map::Entry;
@@ -198,6 +198,8 @@ impl<'vm> VM<'vm> {
         };
         self.update_register(r, closure)
     }
+
+    // todo create update_registers to support multiple mutable values at the same time
 
     #[inline]
     pub fn handle_scope(&mut self, scope: usize, original: Register, output: Register) -> Value {
