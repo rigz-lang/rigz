@@ -85,14 +85,14 @@ pub fn eval(input: &str) -> Result<Value, RuntimeError> {
     let input = runtime_parse(input)?;
 
     let mut vm: VM = input.create_verified_vm()?;
-    vm.run().map_err(|e| e.into())
+    vm.eval().map_err(|e| e.into())
 }
 
 pub fn repl_eval(input: &str) -> Result<Value, RuntimeError> {
     let input = runtime_parse(input)?;
 
     let mut vm: VM = input.create_vm();
-    vm.run().map_err(|e| e.into())
+    vm.eval().map_err(|e| e.into())
 }
 
 #[allow(unused_imports)]
@@ -109,6 +109,19 @@ mod tests {
                     let input = $input;
                     let v = eval(input);
                     assert_eq!(v, Ok($expected), "Failed to parse input {}", input)
+                }
+            )*
+        };
+    }
+
+    macro_rules! run_error {
+        ($($name:ident($input:literal = $expected:expr))*) => {
+            $(
+                 #[test]
+                fn $name() {
+                    let input = $input;
+                    let v = eval(input);
+                    assert_eq!(v, Err($expected), "Failed to parse input {}", input)
                 }
             )*
         };
@@ -136,6 +149,7 @@ mod tests {
     }
 
     mod valid {
+        use rigz_vm::VMError;
         use super::*;
 
         run_expected! {
@@ -149,7 +163,12 @@ mod tests {
             to_s("1.to_s" = Value::String("1".to_string()))
             unary_not("!1" = Value::Bool(false))
             unary_neg("-2.5" = Value::Number((-2.5).into()))
-            vm_register("VM.get_register 0" = Value::None)
+            // arg is loaded into 0th register, using Number to be explicit however 0 is also equal to none
+            vm_register("VM.get_register 0" = Value::Number(0.into()))
+        }
+
+        run_error! {
+            vm_register_invalid("VM.get_register 1" = VMError::EmptyRegister("R1 is empty".to_string()).into())
         }
     }
 }

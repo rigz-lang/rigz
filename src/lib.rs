@@ -1,11 +1,19 @@
 pub use rigz_vm::{Module, Number, RigzType, VMBuilder, Value, VM};
+use crate::ast::Scope;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct FunctionDefinition<'vm> {
+pub struct FunctionSignature<'vm> {
     pub arguments: Vec<FunctionArgument<'vm>>,
     pub return_type: RigzType,
     pub self_type: Option<FunctionType>,
     pub positional: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionDefinition<'lex> {
+    name: &'lex str,
+    type_definition: FunctionSignature<'lex>,
+    body: Scope<'lex>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -41,6 +49,7 @@ pub struct FunctionArgument<'vm> {
     pub name: Option<&'vm str>,
     pub default: Option<Value>,
     pub function_type: FunctionType,
+    pub var_arg: bool,
 }
 
 pub mod ast;

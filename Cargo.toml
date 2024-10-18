@@ -2,7 +2,7 @@
 name = "rigz_runtime"
 version = "0.3.0"
 edition = "2021"
-description = "Handles parsing and converting rigz to its VM instructions, no AST available (use tree-sitter-rigz instead)"
+description = "Handles parsing and converting rigz to its VM instructions (for syntax highlighting use tree-sitter-rigz instead)"
 readme = "README.md"
 license = "MIT"
 repository = "https://gitlab.com/magicfoodhand/rigz_runtime"
@@ -10,5 +10,6 @@ repository = "https://gitlab.com/magicfoodhand/rigz_runtime"
 [dependencies]
 indexmap = "2.6.0"
 logos = "0.14"
-rigz_vm = { version = "0.18" }
+rigz_vm = { version = "0.23" }
 log = "0.4"
+serde_json = "1.0"

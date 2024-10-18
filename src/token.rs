@@ -127,7 +127,7 @@ pub enum TokenKind<'lex> {
     BinOp(BinaryOperation),
     #[token("!")]
     Not,
-    #[regex("[A-Z][a-z_]+!?", |lex| lex.slice())]
+    #[regex("[A-Z][A-Za-z_]+!?\\??", |lex| lex.slice())]
     TypeValue(&'lex str),
     #[token("-")]
     Minus,
@@ -140,7 +140,7 @@ pub enum TokenKind<'lex> {
     #[token("fn")]
     FunctionDef,
     #[regex("\\$[A-Za-z_]*", |lex| lex.slice())]
-    #[regex("[A-Za-z_]+", |lex| lex.slice())]
+    #[regex("[a-z_][A-Za-z_]*", |lex| lex.slice())]
     Identifier(&'lex str),
     #[regex(":[A-Za-z_]+", |lex| { let s = lex.slice(); Symbol(&s[1..]) })]
     Symbol(Symbol<'lex>),
@@ -172,7 +172,7 @@ pub enum TokenKind<'lex> {
     Trait,
     #[regex("#[^\n]*")]
     #[regex("/\\*(?:[^*]|\\*[^/])*\\*/")]
-    Comment, //todo support doc-tests
+    Comment, //todo support doc-tests, nested comments
     #[token("?:")]
     Elvis,
     // Reserved for future versions

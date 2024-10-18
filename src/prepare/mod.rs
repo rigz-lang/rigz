@@ -3,18 +3,25 @@ use crate::ast::{
     TraitDefinition,
 };
 use crate::modules::{JsonModule, StdLibModule, VMModule};
-use crate::FunctionDefinition;
+use crate::{FunctionDefinition, FunctionSignature, FunctionType};
+use indexmap::map::Entry;
 use indexmap::IndexMap;
 use log::warn;
-use rigz_vm::{Module, Register, VMBuilder, Value, VM};
+use rigz_vm::{Clear, Module, Register, RegisterValue, RigzType, VMBuilder, VMError, Value, VM};
 use std::collections::HashMap;
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum CallSite<'vm> {
+    Scope(usize),
+    Module(&'vm str),
+}
 
 pub(crate) struct ProgramParser<'vm> {
     builder: VMBuilder<'vm>,
     current: Register,
     last: Register,
     modules: HashMap<&'vm str, ModuleTraitDefinition<'vm>>,
-    function_scopes: IndexMap<&'vm str, Vec<(FunctionDefinition<'vm>, usize)>>,
+    function_scopes: IndexMap<&'vm str, Vec<(FunctionSignature<'vm>, CallSite<'vm>)>>,
 }
 
 impl<'vm> Default for ProgramParser<'vm> {
@@ -22,7 +29,7 @@ impl<'vm> Default for ProgramParser<'vm> {
         let mut builder = VMBuilder::new();
         ProgramParser {
             builder,
-            current: 2, // 0 & 1 are reserved
+            current: 0,
             last: 0,
             modules: HashMap::new(),
             function_scopes: IndexMap::new(),
@@ -75,7 +82,7 @@ impl<'vm> ProgramParser<'vm> {
         }
 
         if module.imported {
-            self.parse_trait_definition(module.definition);
+            self.parse_trait_definition_for_module(name, module.definition);
             // trait definition is useless after import
             self.modules.insert(
                 name,
@@ -132,36 +139,112 @@ impl<'vm> ProgramParser<'vm> {
             //     }
             //     Some(_) => {}
             // },
-            Statement::FunctionDefinition {
-                name,
-                type_definition,
-                body,
-            } => {
-                todo!()
+            Statement::FunctionDefinition(fd) => {
+                self.parse_function_definition(fd);
             }
         }
     }
 
-    pub(crate) fn parse_trait_definition(&mut self, trait_definition: TraitDefinition<'vm>) {}
+    pub(crate) fn parse_function_definition(&mut self, function_definition: FunctionDefinition<'vm>) {
+        let FunctionDefinition {
+            name,
+            type_definition,
+            body,
+        } = function_definition;
+        let f_def = self.parse_scope(body);
+        // todo convert type definition into function call (reserve registers & map args)
+        match self.function_scopes.entry(name) {
+            Entry::Occupied(mut entry) => {
+                entry
+                    .get_mut()
+                    .push((type_definition, CallSite::Scope(f_def)));
+            }
+            Entry::Vacant(e) => {
+                e.insert(vec![(type_definition, CallSite::Scope(f_def))]);
+            }
+        }
+    }
+
+    pub(crate) fn parse_trait_definition_for_module(&mut self, module_name: &'static str, trait_definition: TraitDefinition<'vm>) {
+        for func in trait_definition.functions {
+            match func {
+                FunctionDeclaration::Declaration { type_definition, name } => {
+                    match self.function_scopes.entry(name) {
+                        Entry::Occupied(mut entry) => {
+                            entry
+                                .get_mut()
+                                .push((type_definition, CallSite::Module(module_name)));
+                        }
+                        Entry::Vacant(e) => {
+                            e.insert(vec![(type_definition, CallSite::Module(module_name))]);
+                        }
+                    }
+                }
+                FunctionDeclaration::Definition(fd) => {
+                    self.parse_function_definition(fd)
+                }
+            }
+        }
+    }
+
+    pub(crate) fn parse_trait_definition(&mut self, trait_definition: TraitDefinition<'vm>) {
+
+    }
 
     pub(crate) fn parse_expression(&mut self, expression: Expression<'vm>) {
         match expression {
             Expression::Value(v) => self.parse_value(v),
-            // TODO use clear when appropriate
             Expression::BinExp(a, op, b) => {
-                self.parse_expression(*a);
-                let a = self.last;
-                self.parse_expression(*b);
-                let b = self.last;
+                let (a, b, clear) = match (*a, *b) {
+                    (Expression::Value(a), Expression::Value(b)) => {
+                        self.parse_value(a);
+                        let a = self.last;
+                        self.parse_value(b);
+                        let b = self.last;
+                        (a, b, Clear::Two(a, b))
+                    }
+                    (a, Expression::Value(b)) => {
+                        self.parse_expression(a);
+                        let a = self.last;
+                        self.parse_value(b);
+                        let b = self.last;
+                        (a, b, Clear::One(b))
+                    }
+                    (Expression::Value(a), b) => {
+                        self.parse_value(a);
+                        let a = self.last;
+                        self.parse_expression(b);
+                        let b = self.last;
+                        (a, b, Clear::One(a))
+                    }
+                    (a, b) => {
+                        self.parse_expression(a);
+                        let a = self.last;
+                        self.parse_expression(b);
+                        let b = self.last;
+                        let next = self.next_register();
+                        self.builder.add_binary_instruction(op, a, b, next);
+                        return;
+                    }
+                };
                 let next = self.next_register();
-                self.builder.add_binary_instruction(op, a, b, next);
+                self.builder
+                    .add_binary_clear_instruction(op, a, b, clear, next);
             }
-            Expression::UnaryExp(op, ex) => {
-                self.parse_expression(*ex);
-                let r = self.last;
-                let next = self.next_register();
-                self.builder.add_unary_instruction(op, r, next);
-            }
+            Expression::UnaryExp(op, ex) => match *ex {
+                Expression::Value(v) => {
+                    self.parse_value(v);
+                    let r = self.last;
+                    let next = self.next_register();
+                    self.builder.add_unary_clear_instruction(op, r, next);
+                }
+                ex => {
+                    self.parse_expression(ex);
+                    let r = self.last;
+                    let next = self.next_register();
+                    self.builder.add_unary_instruction(op, r, next);
+                }
+            },
             Expression::Identifier(id) => {
                 let next = self.next_register();
                 self.builder.add_get_variable_instruction(id, next);
@@ -208,7 +291,8 @@ impl<'vm> ProgramParser<'vm> {
                     }
                 }
                 let r = self.next_register();
-                self.builder.add_load_instruction(r, Value::List(base));
+                self.builder
+                    .add_load_instruction(r, Value::List(base).into());
                 if !remaining.is_empty() {
                     todo!("expressions in list not supported yet")
                 }
@@ -230,20 +314,127 @@ impl<'vm> ProgramParser<'vm> {
                     }
                 }
                 let r = self.next_register();
-                self.builder.add_load_instruction(r, Value::Map(base));
+                self.builder
+                    .add_load_instruction(r, Value::Map(base).into());
                 if !remaining.is_empty() {
                     todo!("expressions in map not supported yet")
                 }
                 // store static part of map first, values only, then modify
             }
-            Expression::FunctionCall(name, args) => {
-                todo!()
+            // todo use clear in function calls when appropriate
+            Expression::FunctionCall(name, args) => match self.function_scopes.get(name) {
+                None => {
+                    let next = self.next_register();
+                    self.builder.add_load_instruction(
+                        next,
+                        Value::Error(VMError::InvalidModuleFunction(format!(
+                            "Function {name} does not exist"
+                        )))
+                        .into(),
+                    );
+                }
+                Some(f) => {
+                    todo!("Find best match for {:?}", f)
+                }
+            },
+            Expression::TypeFunctionCall(rigz_type, name, args) => {
+                match rigz_type {
+                    RigzType::VM => {
+                        let mut call_args = Vec::with_capacity(args.len());
+                        for a in args {
+                            self.parse_expression(a);
+                            call_args.push(self.last);
+                        }
+                        let output = self.next_register();
+                        // todo this really should check function definitions before adding the instruction (require mut VM?)
+                        self.builder.add_call_vm_extension_module_instruction(
+                            "VM", name, call_args, output,
+                        );
+                    }
+                    rt => {
+                        todo!("Support all rigz types as function calls {rt}")
+                    }
+                }
             }
             Expression::InstanceFunctionCall(exp, calls, args) => {
-                todo!()
+                let name = match calls.last() {
+                    None => {
+                        let next = self.next_register();
+                        self.builder.add_load_instruction(
+                            next,
+                            Value::Error(VMError::InvalidModuleFunction(format!(
+                                "Invalid Instance call for {:?}",
+                                *exp
+                            )))
+                            .into(),
+                        );
+                        return;
+                    }
+                    Some(s) => *s,
+                };
+                let f = match self.function_scopes.get(name) {
+                    None => {
+                        let next = self.next_register();
+                        self.builder.add_load_instruction(
+                            next,
+                            Value::Error(VMError::InvalidModuleFunction(format!(
+                                "Extension Function {name} does not exist"
+                            )))
+                            .into(),
+                        );
+                        return;
+                    }
+                    Some(f) => f.clone()
+                };
+                if f.len() == 1 {
+                    let (sig, call) = f[0].clone();
+                    let mut call_args = Vec::with_capacity(args.len());
+                    for a in args {
+                        self.parse_expression(a);
+                        call_args.push(self.last);
+                    }
+                    match call {
+                        CallSite::Scope(_) => {
+                            todo!("Support scope functions {:?}", f)
+                        }
+                        CallSite::Module(m) => {
+                            match sig.self_type {
+                                None => {
+                                    let output = self.next_register();
+                                    self.builder.add_call_module_instruction(m, name, call_args, output);
+                                }
+                                Some(t) => {
+                                    match t.rigz_type {
+                                        RigzType::VM => {
+                                            let output = self.next_register();
+                                            self.builder.add_call_vm_extension_module_instruction(m, name, call_args, output);
+                                        }
+                                        _ if t.mutable => {
+                                            self.parse_expression(*exp);
+                                            let this = self.last;
+                                            self.builder.add_call_mutable_extension_module_instruction(m, name, this, call_args);
+                                        }
+                                        _ => {
+                                            self.parse_expression(*exp);
+                                            let this = self.last;
+                                            let output = self.next_register();
+                                            self.builder.add_call_extension_module_instruction(m, name, this, call_args, output);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    todo!("Find best match for extension {:?}", f)
+                }
             }
             Expression::Scope(s) => {
-                let _ = self.parse_scope(s);
+                let s = self.parse_scope(s);
+                let next = self.next_register();
+                let output = self.next_register();
+                self.builder
+                    .add_load_instruction(next, RegisterValue::ScopeId(s, output));
             }
             Expression::Cast(e, t) => {
                 self.parse_expression(*e);
@@ -254,7 +445,7 @@ impl<'vm> ProgramParser<'vm> {
                 let next = self.next_register();
                 // todo create a symbols cache
                 self.builder
-                    .add_load_instruction(next, Value::String(s.to_string()));
+                    .add_load_instruction(next, Value::String(s.to_string()).into());
             }
         }
     }
@@ -266,7 +457,8 @@ impl<'vm> ProgramParser<'vm> {
     }
 
     fn parse_value(&mut self, value: Value) {
-        self.builder.add_load_instruction(self.current, value);
+        self.builder
+            .add_load_instruction(self.current, value.into());
         self.next_register();
     }
 

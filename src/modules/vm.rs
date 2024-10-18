@@ -9,23 +9,6 @@ impl<'vm> Module<'vm> for VMModule {
         "VM"
     }
 
-    fn call(&self, function: &'vm str, args: Vec<Value>) -> Result<Value, VMError> {
-        Err(VMError::UnsupportedOperation(
-            "VMModule does not implement `call`".to_string(),
-        ))
-    }
-
-    fn call_extension(
-        &self,
-        value: Value,
-        function: &'vm str,
-        args: Vec<Value>,
-    ) -> Result<Value, VMError> {
-        Err(VMError::UnsupportedOperation(
-            "VMModule does not implement `call_extension`".to_string(),
-        ))
-    }
-
     fn vm_extension(
         &self,
         vm: &mut VM<'vm>,
@@ -53,7 +36,7 @@ impl<'vm> Module<'vm> for VMModule {
                         Err(e) => return Err(e),
                     },
                 };
-                vm.get_register(u)
+                Ok(vm.resolve_register(u))
             }
             "remove_register" => {
                 if args.len() != 1 {
@@ -75,7 +58,7 @@ impl<'vm> Module<'vm> for VMModule {
                         Err(e) => return Err(e),
                     },
                 };
-                vm.remove_register(u)
+                Ok(vm.remove_register_eval_scope(u))
             }
             f => Err(VMError::UnsupportedOperation(format!(
                 "VMModule does not have a function `{}`",
@@ -86,9 +69,9 @@ impl<'vm> Module<'vm> for VMModule {
 
     fn trait_definition(&self) -> &'static str {
         r#"trait VM
-            fn get_register(register: Number) -> Any!
-            fn remove_register(register: Number) -> Any!
-            fn resolve_register(register: Number) -> Any!
+            fn mut VM.get_register(register: Number) -> Any!
+            fn mut VM.remove_register(register: Number) -> Any!
+            fn mut VM.resolve_register(register: Number) -> Any!
         end"#
     }
 }

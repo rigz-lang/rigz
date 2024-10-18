@@ -1,6 +1,6 @@
 use crate::prepare::ProgramParser;
 use crate::runtime::RuntimeError;
-use crate::FunctionDefinition;
+use crate::{FunctionDefinition, FunctionSignature};
 use rigz_vm::{BinaryOperation, Module, RigzType, UnaryOperation, Value, VM};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -68,11 +68,7 @@ pub enum Statement<'lex> {
         mutable: bool,
         expression: Expression<'lex>,
     },
-    FunctionDefinition {
-        name: &'lex str,
-        type_definition: FunctionDefinition<'lex>,
-        body: Scope<'lex>,
-    },
+    FunctionDefinition(FunctionDefinition<'lex>),
     Trait(TraitDefinition<'lex>), // todo support later
                                   // If {
                                   //     condition: Expression<'lex>,
@@ -99,6 +95,7 @@ pub enum Expression<'lex> {
     ),
     UnaryExp(UnaryOperation, Box<Expression<'lex>>),
     FunctionCall(&'lex str, Vec<Expression<'lex>>),
+    TypeFunctionCall(RigzType, &'lex str, Vec<Expression<'lex>>),
     InstanceFunctionCall(Box<Expression<'lex>>, Vec<&'lex str>, Vec<Expression<'lex>>),
     Scope(Scope<'lex>),
     Cast(Box<Expression<'lex>>, RigzType),
@@ -140,13 +137,9 @@ pub struct ModuleTraitDefinition<'lex> {
 pub enum FunctionDeclaration<'lex> {
     Declaration {
         name: &'lex str,
-        type_definition: FunctionDefinition<'lex>,
+        type_definition: FunctionSignature<'lex>,
     },
-    Definition {
-        name: &'lex str,
-        type_definition: FunctionDefinition<'lex>,
-        body: Scope<'lex>,
-    },
+    Definition(FunctionDefinition<'lex>),
 }
 #[derive(Debug, PartialEq, Clone)]
 pub struct TraitDefinition<'lex> {

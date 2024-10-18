@@ -1,4 +1,4 @@
-use rigz_vm::{Module, VMError, Value, VM};
+use rigz_vm::{Module, VMError, Value};
 
 #[derive(Copy, Clone)]
 pub struct JsonModule {}
@@ -10,7 +10,26 @@ impl<'vm> Module<'vm> for JsonModule {
     }
 
     fn call(&self, function: &'vm str, args: Vec<Value>) -> Result<Value, VMError> {
-        todo!()
+        match function {
+            "parse" => {
+                let len = args.len();
+                if len != 1 {
+                    return Err(VMError::RuntimeError(format!(
+                        "Invalid args for parse, expected 1 argument, received {len}"
+                    )));
+                }
+                let value = args[0].to_string();
+                match serde_json::from_str(value.as_str()) {
+                    Ok(v) => Ok(v),
+                    Err(e) => Err(VMError::RuntimeError(format!(
+                        "Unable to deserialize {value} - {e}"
+                    ))),
+                }
+            }
+            _ => Err(VMError::InvalidModuleFunction(format!(
+                "Function {function} does not exist"
+            ))),
+        }
     }
 
     fn call_extension(
@@ -19,16 +38,17 @@ impl<'vm> Module<'vm> for JsonModule {
         function: &'vm str,
         args: Vec<Value>,
     ) -> Result<Value, VMError> {
-        todo!()
-    }
-
-    fn vm_extension(
-        &self,
-        vm: &mut VM<'vm>,
-        function: &'vm str,
-        args: Vec<Value>,
-    ) -> Result<Value, VMError> {
-        todo!()
+        match function {
+            "to_json" => match serde_json::to_string(&value) {
+                Ok(s) => Ok(s.into()),
+                Err(e) => Err(VMError::RuntimeError(format!(
+                    "Unable to serialize {value} - {e}"
+                ))),
+            },
+            _ => Err(VMError::InvalidModuleFunction(format!(
+                "Function {function} does not exist"
+            ))),
+        }
     }
 
     fn trait_definition(&self) -> &'static str {
