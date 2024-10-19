@@ -10,4 +10,5 @@ pub trait Logical<Rhs> {
     fn and(self, rhs: Rhs) -> Self::Output;
     fn or(self, rhs: Rhs) -> Self::Output;
     fn xor(self, rhs: Rhs) -> Self::Output;
+    fn elvis(self, rhs: Rhs) -> Self::Output;
 }

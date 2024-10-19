@@ -3,7 +3,6 @@ mod bitand;
 mod bitor;
 mod bitxor;
 mod div;
-mod logical;
 mod mul;
 mod neg;
 mod not;

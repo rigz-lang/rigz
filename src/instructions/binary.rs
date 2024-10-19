@@ -31,6 +31,7 @@ pub enum BinaryOperation {
     Gt,
     Lt,
     Lte,
+    Elvis,
 }
 
 impl Display for BinaryOperation {
@@ -55,6 +56,7 @@ impl Display for BinaryOperation {
             BinaryOperation::Gt => write!(f, ">"),
             BinaryOperation::Lt => write!(f, "<"),
             BinaryOperation::Lte => write!(f, "<="),
+            BinaryOperation::Elvis => write!(f, "?:"),
         }
     }
 }
@@ -88,6 +90,7 @@ impl<'vm> VM<'vm> {
             BinaryOperation::Gte => Value::Bool(lhs >= rhs),
             BinaryOperation::Lt => Value::Bool(lhs < rhs),
             BinaryOperation::Lte => Value::Bool(lhs <= rhs),
+            BinaryOperation::Elvis => lhs.elvis(rhs),
         };
 
         self.insert_register(output, v.into());
