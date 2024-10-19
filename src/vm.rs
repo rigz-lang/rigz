@@ -385,6 +385,17 @@ impl<'vm> VM<'vm> {
         self.sp = scope_index;
     }
 
+    #[inline]
+    pub fn call_frame_self(&mut self, scope_index: usize, output: Register, this: Register, mutable: bool) {
+        self.call_frame(scope_index, output);
+        let var = if mutable {
+            Variable::Mut(this)
+        } else {
+            Variable::Let(this)
+        };
+        self.current.variables.insert("self", var);
+    }
+
     /// Snapshots can't include modules or messages from in progress lifecycles
     pub fn snapshot(&self) -> Result<Vec<u8>, VMError> {
         let mut bytes = Vec::new();

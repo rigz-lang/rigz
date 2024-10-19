@@ -1,3 +1,6 @@
+#[allow(unused_imports)] // for navigation & autocomplete in macro
+use crate::Instruction;
+
 #[macro_export]
 macro_rules! generate_unary_op_methods {
     ($($name:ident => $variant:ident),*) => {
@@ -264,6 +267,11 @@ macro_rules! generate_builder {
         #[inline]
         pub fn add_call_instruction(&mut self, scope_id: usize, register: Register) -> &mut Self {
             self.add_instruction(Instruction::Call(scope_id, register))
+        }
+
+        #[inline]
+        pub fn add_call_self_instruction(&mut self, scope_id: usize, output: Register, this: Register, mutable: bool) -> &mut Self {
+            self.add_instruction(Instruction::CallSelf(scope_id, output, this, mutable))
         }
 
         #[inline]

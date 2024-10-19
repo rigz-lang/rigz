@@ -30,6 +30,7 @@ pub enum Instruction<'vm> {
     InstanceGetRegister(Register, Register, Register),
     Copy(Register, Register),
     Call(usize, Register),
+    CallSelf(usize, Register, Register, bool),
     Log(Level, &'vm str, Vec<Register>),
     Puts(Vec<Register>),
     CallEq(Register, Register, usize, Register),
@@ -204,6 +205,7 @@ impl<'vm> VM<'vm> {
                 Err(e) => return VMState::Done(e.into()),
             },
             Instruction::Call(scope_index, register) => self.call_frame(scope_index, register),
+            Instruction::CallSelf(scope_index, output, this, mutable) => self.call_frame_self(scope_index, output, this, mutable),
             Instruction::CallModule {
                 module,
                 func,
