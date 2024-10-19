@@ -11,7 +11,7 @@ use std::cell::RefCell;
 
 use log::{trace, Level};
 use nohash_hasher::BuildNoHashHasher;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 use std::ops::DerefMut;
 
 pub enum VMState {
@@ -66,6 +66,7 @@ impl<T: Into<Value>> From<T> for RegisterValue {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct VM<'vm> {
     pub scopes: Vec<Scope<'vm>>,
     pub current: CallFrame<'vm>,
@@ -76,22 +77,6 @@ pub struct VM<'vm> {
     pub sp: usize,
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
-}
-
-impl<'vm> Debug for VM<'vm> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "VM(current={:?},scopes={:?},frames={:?},registers={:?},stack={:?},modules={:?},sp={},options={:?},lifecycles={:?})",
-               self.current,
-               self.scopes,
-               self.frames,
-               self.registers,
-               self.stack,
-               self.modules.keys(),
-               self.sp,
-               self.options,
-               self.lifecycles
-        )
-    }
 }
 
 impl<'vm> Default for VM<'vm> {

@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Formatter};
 use crate::{VMError, Value, VM};
 use dyn_clone::DynClone;
 
@@ -54,6 +55,12 @@ pub trait Module<'vm>: DynClone {
 
     // todo create proc_macro that uses tree-sitter-rigz for syntax highlighting and compile time syntax validation
     fn trait_definition(&self) -> &'static str;
+}
+
+impl Debug for dyn Module<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Module {}", self.name())
+    }
 }
 
 dyn_clone::clone_trait_object!(Module<'_>);
