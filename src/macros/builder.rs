@@ -366,6 +366,16 @@ macro_rules! generate_builder {
         }
 
         #[inline]
+        pub fn add_set_self_instruction(&mut self, register: Register, mutable: bool) -> &mut Self {
+            self.add_instruction(Instruction::SetSelf(register, mutable))
+        }
+
+        #[inline]
+        pub fn add_get_self_instruction(&mut self) -> &mut Self {
+            self.add_instruction(Instruction::GetSelf)
+        }
+
+        #[inline]
         pub fn add_load_mut_instruction(
             &mut self,
             name: &'vm str,

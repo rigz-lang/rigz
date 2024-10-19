@@ -14,6 +14,13 @@ pub struct CallFrame<'vm> {
     pub variables: IndexMap<&'vm str, Variable>, // TODO switch to intern strings
     pub parent: Option<usize>,
     pub output: Register,
+    pub this: Option<This>,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct This {
+    pub register: Register,
+    pub mutable: bool,
 }
 
 impl<'vm> CallFrame<'vm> {
@@ -60,6 +67,7 @@ impl<'vm> CallFrame<'vm> {
             pc: 0,
             variables: Default::default(),
             parent: None,
+            this: None,
         }
     }
 
@@ -71,6 +79,7 @@ impl<'vm> CallFrame<'vm> {
             pc: 0,
             variables: Default::default(),
             parent: Some(parent),
+            this: None,
         }
     }
 }

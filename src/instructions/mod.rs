@@ -5,6 +5,7 @@ pub use binary::{Binary, BinaryAssign, BinaryOperation};
 use log::{log, Level};
 pub use unary::{Unary, UnaryAssign, UnaryOperation};
 
+use crate::call_frame::This;
 use crate::vm::{RegisterValue, VMState};
 use crate::{Register, RigzType, VMError, Value, VM};
 
@@ -34,6 +35,8 @@ pub enum Instruction<'vm> {
     Puts(Vec<Register>),
     CallEq(Register, Register, usize, Register),
     CallNeq(Register, Register, usize, Register),
+    SetSelf(Register, bool),
+    GetSelf,
     // todo if, if_else, unless statements
     IfElse {
         truthy: Register,
@@ -141,6 +144,31 @@ impl<'vm> VM<'vm> {
                     return VMState::Done(e.into());
                 }
             }
+            Instruction::SetSelf(register, mutable) => {
+                self.current.this = Some(This { register, mutable });
+            }
+            Instruction::GetSelf => match &self.current.this {
+                None => {
+                    return VMState::Done(
+                        VMError::RuntimeError("Self is not set for current frame".into()).into(),
+                    )
+                }
+                Some(this) => {
+                    let success = if this.mutable {
+                        self.load_mut("self", this.register)
+                    } else {
+                        self.load_let("self", this.register)
+                    };
+                    match success {
+                        Ok(_) => {}
+                        Err(e) => {
+                            return VMState::Done(
+                                VMError::RuntimeError(format!("Failed to set self: {e:?}")).into(),
+                            )
+                        }
+                    }
+                }
+            },
             Instruction::Clear(clear) => self.handle_clear(clear),
             Instruction::Unary(u) => self.handle_unary(u),
             Instruction::Binary(b) => self.handle_binary(b),
