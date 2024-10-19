@@ -384,6 +384,15 @@ macro_rules! generate_builder {
         }
 
         #[inline]
+        pub fn add_get_mutable_variable_instruction(
+            &mut self,
+            name: &'vm str,
+            register: Register,
+        ) -> &mut Self {
+            self.add_instruction(Instruction::GetMutableVariable(name, register))
+        }
+
+        #[inline]
         pub fn add_puts_instruction(&mut self, values: Vec<Register>) -> &mut Self {
             self.add_instruction(Instruction::Puts(values))
         }
