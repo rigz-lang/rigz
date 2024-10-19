@@ -371,8 +371,8 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        pub fn add_get_self_instruction(&mut self) -> &mut Self {
-            self.add_instruction(Instruction::GetSelf)
+        pub fn add_get_self_instruction(&mut self, output: Register, mutable: bool) -> &mut Self {
+            self.add_instruction(Instruction::GetSelf(output, mutable))
         }
 
         #[inline]
