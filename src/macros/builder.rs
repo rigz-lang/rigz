@@ -1,5 +1,3 @@
-use crate::Instruction;
-
 #[macro_export]
 macro_rules! generate_unary_op_methods {
     ($($name:ident => $variant:ident),*) => {
@@ -91,6 +89,15 @@ macro_rules! generate_builder {
         }
 
         #[inline]
+        pub fn add_unary_assign_instruction(
+            &mut self,
+            op: UnaryOperation,
+            from: Register,
+        ) -> &mut Self {
+            self.add_instruction(Instruction::UnaryAssign(UnaryAssign { op, from }))
+        }
+
+        #[inline]
         pub fn add_unary_clear_instruction(
             &mut self,
             op: UnaryOperation,
@@ -122,13 +129,11 @@ macro_rules! generate_builder {
             op: BinaryOperation,
             lhs: Register,
             rhs: Register,
-            output: Register,
         ) -> &mut Self {
-            self.add_instruction(Instruction::BinaryAssign(Binary {
+            self.add_instruction(Instruction::BinaryAssign(BinaryAssign {
                 op,
                 lhs,
                 rhs,
-                output,
             }))
         }
 

@@ -1,4 +1,4 @@
-use crate::instructions::{Binary, Unary};
+use crate::instructions::{Binary, BinaryAssign, Unary, UnaryAssign};
 use crate::lifecycle::Lifecycle;
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation,

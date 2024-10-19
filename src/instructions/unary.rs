@@ -9,6 +9,12 @@ pub struct Unary {
     pub output: Register,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UnaryAssign {
+    pub op: UnaryOperation,
+    pub from: Register,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum UnaryOperation {
     Neg,
@@ -66,8 +72,8 @@ impl<'vm> VM<'vm> {
         self.apply_unary(op, val, output);
     }
 
-    pub fn handle_unary_assign(&mut self, unary: Unary) {
-        let Unary { op, from, .. } = unary;
+    pub fn handle_unary_assign(&mut self, unary: UnaryAssign) {
+        let UnaryAssign { op, from } = unary;
         let val = self.resolve_register(from);
         self.apply_unary(op, val, from);
     }

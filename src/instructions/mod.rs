@@ -1,9 +1,9 @@
 mod binary;
 mod unary;
 
-pub use binary::{Binary, BinaryOperation};
+pub use binary::{Binary, BinaryAssign, BinaryOperation};
 use log::{log, Level};
-pub use unary::{Unary, UnaryOperation};
+pub use unary::{Unary, UnaryAssign, UnaryOperation};
 
 use crate::vm::{RegisterValue, VMState};
 use crate::{Register, RigzType, VMError, Value, VM};
@@ -23,8 +23,8 @@ pub enum Instruction<'vm> {
     HaltIfError(Register),
     Unary(Unary),
     Binary(Binary),
-    UnaryAssign(Unary),
-    BinaryAssign(Binary),
+    UnaryAssign(UnaryAssign),
+    BinaryAssign(BinaryAssign),
     Load(Register, RegisterValue),
     InstanceGet(Register, Value, Register),
     InstanceGetRegister(Register, Register, Register),

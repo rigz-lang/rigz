@@ -10,6 +10,13 @@ pub struct Binary {
     pub output: Register,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BinaryAssign {
+    pub op: BinaryOperation,
+    pub lhs: Register,
+    pub rhs: Register,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum BinaryOperation {
     Add,
@@ -109,8 +116,8 @@ impl<'vm> VM<'vm> {
         self.apply_binary(op, lhs, rhs, output);
     }
 
-    pub fn handle_binary_assign(&mut self, binary: Binary) {
-        let Binary { op, lhs, rhs, .. } = binary;
+    pub fn handle_binary_assign(&mut self, binary: BinaryAssign) {
+        let BinaryAssign { op, lhs, rhs} = binary;
         let v = self.resolve_register(lhs);
         let rhs = self.resolve_register(rhs);
         self.apply_binary(op, v, rhs, lhs); // TODO measure cost of storing in same register vs impl *Assign trait
