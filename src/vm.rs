@@ -161,7 +161,11 @@ impl<'vm> VM<'vm> {
     }
 
     #[inline]
-    pub fn update_register<F>(&mut self, register: Register, mut closure: F) -> Result<Option<Value>, VMError>
+    pub fn update_register<F>(
+        &mut self,
+        register: Register,
+        mut closure: F,
+    ) -> Result<Option<Value>, VMError>
     where
         F: FnMut(&mut Value) -> Result<Option<Value>, VMError>,
     {
@@ -176,9 +180,7 @@ impl<'vm> VM<'vm> {
                         )))
                     }
                     RegisterValue::Register(r) => *r,
-                    RegisterValue::Value(v) => {
-                        return closure(v)
-                    }
+                    RegisterValue::Value(v) => return closure(v),
                 }
             }
         };

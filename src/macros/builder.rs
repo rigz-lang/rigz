@@ -104,7 +104,10 @@ macro_rules! generate_builder {
             from: Register,
             output: Register,
         ) -> &mut Self {
-            self.add_instruction(Instruction::UnaryClear(Unary { op, from, output }, Clear::One(from)))
+            self.add_instruction(Instruction::UnaryClear(
+                Unary { op, from, output },
+                Clear::One(from),
+            ))
         }
 
         #[inline]
@@ -130,11 +133,7 @@ macro_rules! generate_builder {
             lhs: Register,
             rhs: Register,
         ) -> &mut Self {
-            self.add_instruction(Instruction::BinaryAssign(BinaryAssign {
-                op,
-                lhs,
-                rhs,
-            }))
+            self.add_instruction(Instruction::BinaryAssign(BinaryAssign { op, lhs, rhs }))
         }
 
         #[inline]
@@ -146,12 +145,15 @@ macro_rules! generate_builder {
             clear: Clear,
             output: Register,
         ) -> &mut Self {
-            self.add_instruction(Instruction::BinaryClear(Binary {
-                op,
-                lhs,
-                rhs,
-                output,
-            }, clear))
+            self.add_instruction(Instruction::BinaryClear(
+                Binary {
+                    op,
+                    lhs,
+                    rhs,
+                    output,
+                },
+                clear,
+            ))
         }
 
         #[inline]
@@ -227,7 +229,7 @@ macro_rules! generate_builder {
                 func,
                 this,
                 args,
-                output
+                output,
             });
             self
         }

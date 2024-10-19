@@ -25,12 +25,19 @@ pub trait Module<'vm>: DynClone {
         )))
     }
 
-    fn call_mutable_extension(&self, value: &mut Value, function: &'vm str, args: Vec<Value>) -> Result<Option<Value>, VMError> {
-        Ok(Some(VMError::UnsupportedOperation(format!(
-            "{} does not implement `call_mutable_extension`",
-            self.name()
+    fn call_mutable_extension(
+        &self,
+        value: &mut Value,
+        function: &'vm str,
+        args: Vec<Value>,
+    ) -> Result<Option<Value>, VMError> {
+        Ok(Some(
+            VMError::UnsupportedOperation(format!(
+                "{} does not implement `call_mutable_extension`",
+                self.name()
+            ))
+            .to_value(),
         ))
-        .to_value()))
     }
 
     fn vm_extension(

@@ -1,7 +1,7 @@
+use crate::VMError;
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 use std::str::FromStr;
-use crate::VMError;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RigzType {
@@ -47,24 +47,26 @@ impl FromStr for RigzType {
             s => {
                 if s.ends_with("!?") {
                     RigzType::Type {
-                        base_type: Box::new((&s[..s.len()-2]).parse()?),
+                        base_type: Box::new((&s[..s.len() - 2]).parse()?),
                         optional: true,
                         can_return_error: true,
                     }
                 } else if s.ends_with("!") {
                     RigzType::Type {
-                        base_type: Box::new((&s[..s.len()-1]).parse()?),
+                        base_type: Box::new((&s[..s.len() - 1]).parse()?),
                         optional: false,
                         can_return_error: true,
                     }
                 } else if s.ends_with("?") {
                     RigzType::Type {
-                        base_type: Box::new((&s[..s.len()-1]).parse()?),
+                        base_type: Box::new((&s[..s.len() - 1]).parse()?),
                         optional: true,
                         can_return_error: false,
                     }
                 } else if s.contains("<") {
-                    return Err(VMError::RuntimeError("Types containing < are not supported yet".to_string()))
+                    return Err(VMError::RuntimeError(
+                        "Types containing < are not supported yet".to_string(),
+                    ));
                 } else {
                     RigzType::Custom(CustomType {
                         name: s.to_string(),
@@ -93,9 +95,18 @@ impl Display for RigzType {
             RigzType::This => write!(f, "Self"),
             RigzType::VM => write!(f, "VM"),
             RigzType::Range => write!(f, "Range"),
-            RigzType::Type { base_type, optional, can_return_error } => {
-                write!(f, "{base_type}{}{}", if *can_return_error {"!"} else {""}, if *optional {"?"} else {""})
-            },
+            RigzType::Type {
+                base_type,
+                optional,
+                can_return_error,
+            } => {
+                write!(
+                    f,
+                    "{base_type}{}{}",
+                    if *can_return_error { "!" } else { "" },
+                    if *optional { "?" } else { "" }
+                )
+            }
             RigzType::Function(args, result) => write!(f, "Function<{args:?},{result}>"),
             RigzType::Custom(c) => write!(f, "{}", c.name),
         }

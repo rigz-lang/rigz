@@ -33,7 +33,7 @@ impl Logical<Value> for Value {
     fn elvis(self, rhs: Value) -> Self::Output {
         match (self, rhs) {
             (Value::None | Value::Error(_), rhs) => rhs,
-            (lhs, _) => lhs
+            (lhs, _) => lhs,
         }
     }
 }

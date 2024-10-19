@@ -218,9 +218,7 @@ impl<'vm> VM<'vm> {
                             // todo remove args.clone
                             module.call_mutable_extension(v, func, args.clone())
                         }) {
-                            Ok(Some(v)) => {
-                                self.insert_register(output, v.into())
-                            }
+                            Ok(Some(v)) => self.insert_register(output, v.into()),
                             Ok(None) => {}
                             Err(e) => self.insert_register(output, e.into()),
                         }

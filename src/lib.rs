@@ -16,7 +16,9 @@ mod vm;
 
 pub use builder::VMBuilder;
 pub use call_frame::{CallFrame, Variable};
-pub use instructions::{Binary, BinaryAssign, BinaryOperation, Clear, Instruction, Unary, UnaryAssign, UnaryOperation};
+pub use instructions::{
+    Binary, BinaryAssign, BinaryOperation, Clear, Instruction, Unary, UnaryAssign, UnaryOperation,
+};
 pub use module::Module;
 pub use number::Number;
 pub use objects::RigzType;
