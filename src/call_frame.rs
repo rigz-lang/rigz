@@ -1,4 +1,4 @@
-use crate::{Register, VM};
+use crate::{Register, VMError, VM};
 use indexmap::IndexMap;
 
 #[derive(Clone, Debug)]
@@ -26,6 +26,26 @@ impl<'vm> CallFrame<'vm> {
             Some(v) => match v {
                 Variable::Let(v) => Some(*v),
                 Variable::Mut(v) => Some(*v),
+            },
+        }
+    }
+
+    pub(crate) fn get_mutable_variable(
+        &self,
+        name: &'vm str,
+        vm: &VM<'vm>,
+    ) -> Result<Option<Register>, VMError> {
+        match self.variables.get(name) {
+            None => match self.parent {
+                None => Ok(None),
+                Some(parent) => vm.frames[parent].get_mutable_variable(name, vm),
+            },
+            Some(v) => match v {
+                Variable::Let(_) => Err(VMError::VariableDoesNotExist(format!(
+                    "Variable {} is immutable",
+                    name
+                ))),
+                Variable::Mut(v) => Ok(Some(*v)),
             },
         }
     }

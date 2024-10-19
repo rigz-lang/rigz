@@ -58,6 +58,7 @@ pub enum Instruction<'vm> {
     },
     Ret(Register),
     GetVariable(&'vm str, Register),
+    GetMutableVariable(&'vm str, Register),
     LoadLetRegister(&'vm str, Register),
     LoadMutRegister(&'vm str, Register),
     // requires modules, enabled by default
@@ -314,6 +315,25 @@ impl<'vm> VM<'vm> {
                     );
                 }
                 Some(s) => {
+                    let v = self.get_register(s);
+                    self.insert_register(reg, v.clone());
+                }
+            },
+            Instruction::GetMutableVariable(name, reg) => match self
+                .current
+                .get_mutable_variable(name, self)
+            {
+                Ok(None) => {
+                    self.insert_register(
+                        reg,
+                        VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))
+                            .into(),
+                    );
+                }
+                Err(e) => {
+                    self.insert_register(reg, e.into());
+                }
+                Ok(Some(s)) => {
                     let v = self.get_register(s);
                     self.insert_register(reg, v.clone());
                 }
