@@ -161,9 +161,22 @@ impl<'vm> VM<'vm> {
                 }
             }
             Instruction::GetSelf(output, mutable) => {
-                let success = if mutable {
+                if mutable {
                     match self.current.get_mutable_variable("self", self) {
-                        Ok(v) => v,
+                        Ok(v) => match v {
+                            None => {
+                                return VMState::Done(
+                                    VMError::RuntimeError("Self not set".into()).into(),
+                                )
+                            }
+                            Some(og) => {
+                                let original = self
+                                    .registers
+                                    .insert(og, RefCell::new(RegisterValue::Register(output)))
+                                    .expect("Original value was unset, this a bug in GetMutableVariable");
+                                self.registers.insert(output, original);
+                            }
+                        },
                         Err(e) => {
                             return VMState::Done(
                                 VMError::RuntimeError(format!("Failed to get self: {e:?}")).into(),
@@ -171,14 +184,15 @@ impl<'vm> VM<'vm> {
                         }
                     }
                 } else {
-                    self.current.get_variable("self", self)
-                };
-                match success {
-                    Some(s) => self.insert_register(output, RegisterValue::Register(s)),
-                    None => {
-                        return VMState::Done(VMError::RuntimeError("Self not set".into()).into())
+                    match self.current.get_variable("self", self) {
+                        None => {
+                            return VMState::Done(
+                                VMError::RuntimeError("Self not set".into()).into(),
+                            )
+                        }
+                        Some(s) => self.insert_register(output, RegisterValue::Register(s)),
                     }
-                }
+                };
             }
             Instruction::Clear(clear) => self.handle_clear(clear),
             Instruction::Unary(u) => self.handle_unary(u),
