@@ -251,4 +251,31 @@ mod tests {
         let mut vm = builder.build();
         assert_eq!(vm.eval().unwrap(), 10.into())
     }
+
+    #[test]
+    fn mutable_bin_assign() {
+        let mut builder = VMBuilder::new();
+        builder
+            .add_load_instruction(1, 3.into())
+            .add_load_instruction(2, 7.into())
+            .add_load_mut_instruction("a", 1)
+            .add_binary_assign_instruction(BinaryOperation::Add, 1, 2)
+            .add_halt_instruction(1);
+        let mut vm = builder.build();
+        assert_eq!(vm.eval().unwrap(), 10.into())
+    }
+
+    #[test]
+    fn mutable_get_var_assign() {
+        let mut builder = VMBuilder::new();
+        builder
+            .add_load_instruction(1, 3.into())
+            .add_load_instruction(2, 7.into())
+            .add_load_mut_instruction("a", 1)
+            .add_get_mutable_variable_instruction("a", 4)
+            .add_binary_assign_instruction(BinaryOperation::Add, 4, 2)
+            .add_halt_instruction(1);
+        let mut vm = builder.build();
+        assert_eq!(vm.eval().unwrap(), 10.into())
+    }
 }

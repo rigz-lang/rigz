@@ -59,6 +59,12 @@ pub enum RegisterValue {
     Value(Value),
 }
 
+impl From<usize> for RegisterValue {
+    fn from(value: usize) -> Self {
+        RegisterValue::Register(value)
+    }
+}
+
 impl<T: Into<Value>> From<T> for RegisterValue {
     #[inline]
     fn from(value: T) -> Self {
@@ -371,7 +377,13 @@ impl<'vm> VM<'vm> {
     }
 
     #[inline]
-    pub fn call_frame_self(&mut self, scope_index: usize, output: Register, this: Register, mutable: bool) {
+    pub fn call_frame_self(
+        &mut self,
+        scope_index: usize,
+        output: Register,
+        this: Register,
+        mutable: bool,
+    ) {
         self.call_frame(scope_index, output);
         let var = if mutable {
             Variable::Mut(this)

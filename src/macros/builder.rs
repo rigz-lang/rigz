@@ -270,7 +270,13 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        pub fn add_call_self_instruction(&mut self, scope_id: usize, output: Register, this: Register, mutable: bool) -> &mut Self {
+        pub fn add_call_self_instruction(
+            &mut self,
+            scope_id: usize,
+            output: Register,
+            this: Register,
+            mutable: bool,
+        ) -> &mut Self {
             self.add_instruction(Instruction::CallSelf(scope_id, output, this, mutable))
         }
 

@@ -3,6 +3,7 @@ mod unary;
 
 pub use binary::{Binary, BinaryAssign, BinaryOperation};
 use log::{log, Level};
+use std::cell::RefCell;
 pub use unary::{Unary, UnaryAssign, UnaryOperation};
 
 use crate::vm::{RegisterValue, VMState};
@@ -205,7 +206,9 @@ impl<'vm> VM<'vm> {
                 Err(e) => return VMState::Done(e.into()),
             },
             Instruction::Call(scope_index, register) => self.call_frame(scope_index, register),
-            Instruction::CallSelf(scope_index, output, this, mutable) => self.call_frame_self(scope_index, output, this, mutable),
+            Instruction::CallSelf(scope_index, output, this, mutable) => {
+                self.call_frame_self(scope_index, output, this, mutable)
+            }
             Instruction::CallModule {
                 module,
                 func,
@@ -372,9 +375,12 @@ impl<'vm> VM<'vm> {
                 Err(e) => {
                     self.insert_register(reg, e.into());
                 }
-                Ok(Some(s)) => {
-                    let v = self.get_register(s);
-                    self.insert_register(reg, v.clone());
+                Ok(Some(original)) => {
+                    let original = self
+                        .registers
+                        .insert(original, RefCell::new(RegisterValue::Register(reg)))
+                        .expect("Original value was unset, this a bug in GetMutableVariable");
+                    self.registers.insert(reg, original);
                 }
             },
             Instruction::Log(level, tmpl, args) => {

@@ -1,6 +1,6 @@
-use std::fmt::{Debug, Formatter};
 use crate::{VMError, Value, VM};
 use dyn_clone::DynClone;
+use std::fmt::{Debug, Formatter};
 
 /// modules will be cloned when used, until DynClone can be removed, ideally they're Copy + Clone
 #[allow(unused_variables)]
