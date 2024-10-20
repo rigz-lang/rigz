@@ -11,6 +11,9 @@ impl<'vm> Module<'vm> for StdLibModule {
 
     fn call(&self, function: &'vm str, args: Vec<Value>) -> Result<Value, VMError> {
         match function {
+            "format" | "printf" if args.is_empty() => Err(VMError::RuntimeError(format!(
+                "{function} requires at least one argument"
+            ))),
             "format" | "printf" => Err(VMError::RuntimeError(format!(
                 "Function {function} is not implemented"
             ))),
@@ -119,15 +122,20 @@ impl<'vm> Module<'vm> for StdLibModule {
         }
     }
 
-    fn call_mutable_extension(&self, value: &mut Value, function: &'vm str, args: Vec<Value>) {
+    fn call_mutable_extension(
+        &self,
+        value: &mut Value,
+        function: &'vm str,
+        args: Vec<Value>,
+    ) -> Result<Option<Value>, VMError> {
         match function {
             "extend" => {
                 let len = args.len();
                 if len != 1 {
-                    *value = VMError::RuntimeError(format!(
+                    return Err(VMError::RuntimeError(format!(
                         "Invalid args for parse, expected 1 argument, received {len}"
                     ))
-                    .into();
+                    .into());
                 }
                 let mut arg = Value::None;
                 for a in args {
@@ -138,10 +146,10 @@ impl<'vm> Module<'vm> for StdLibModule {
                     (Value::List(v), Value::List(o)) => v.extend(o),
                     (Value::Map(v), Value::Map(o)) => v.extend(o),
                     (v, o) => {
-                        *v = VMError::RuntimeError(format!(
+                        return Err(VMError::RuntimeError(format!(
                             "Invalid args for parse, cannot extend {v} with {o}"
                         ))
-                        .into();
+                        .into());
                     }
                 }
             }
@@ -149,19 +157,20 @@ impl<'vm> Module<'vm> for StdLibModule {
                 Value::List(v) => v.extend(args),
                 Value::String(v) => v.extend(args.into_iter().map(|v| v.to_string())),
                 v => {
-                    *v = VMError::RuntimeError(format!(
+                    return Err(VMError::RuntimeError(format!(
                         "Invalid args for push, cannot push elements to {v}"
                     ))
-                    .into();
+                    .into());
                 }
             },
             _ => {
-                *value = VMError::InvalidModuleFunction(format!(
+                return Err(VMError::InvalidModuleFunction(format!(
                     "Extension Function {function} does not exist"
                 ))
-                .into()
+                .into())
             }
         }
+        Ok(None)
     }
 
     fn trait_definition(&self) -> &'static str {

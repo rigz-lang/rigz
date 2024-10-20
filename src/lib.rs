@@ -1,11 +1,12 @@
-pub use rigz_vm::{Module, Number, RigzType, VMBuilder, Value, VM};
 use crate::ast::Scope;
+pub use rigz_vm::{Module, Number, RigzType, VMBuilder, Value, VM};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionSignature<'vm> {
     pub arguments: Vec<FunctionArgument<'vm>>,
-    pub return_type: RigzType,
+    pub return_type: FunctionType,
     pub self_type: Option<FunctionType>,
+    // todo varargs are only valid for positional arguments
     pub positional: bool,
 }
 
@@ -18,8 +19,8 @@ pub struct FunctionDefinition<'lex> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionType {
-    rigz_type: RigzType,
-    mutable: bool,
+    pub rigz_type: RigzType,
+    pub mutable: bool,
 }
 
 impl Into<FunctionType> for RigzType {
@@ -29,14 +30,14 @@ impl Into<FunctionType> for RigzType {
 }
 
 impl FunctionType {
-    fn new(rigz_type: RigzType) -> Self {
+    pub fn new(rigz_type: RigzType) -> Self {
         Self {
             rigz_type,
             mutable: false,
         }
     }
 
-    fn mutable(rigz_type: RigzType) -> Self {
+    pub fn mutable(rigz_type: RigzType) -> Self {
         Self {
             rigz_type,
             mutable: true,
@@ -46,7 +47,7 @@ impl FunctionType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionArgument<'vm> {
-    pub name: Option<&'vm str>,
+    pub name: &'vm str,
     pub default: Option<Value>,
     pub function_type: FunctionType,
     pub var_arg: bool,

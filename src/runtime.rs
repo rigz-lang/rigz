@@ -42,6 +42,7 @@ impl<'vm> Runtime<'vm> {
         Ok(Runtime { vm: intermediate? })
     }
 
+    /// Does not include default modules
     pub fn create_with_modules(
         input: &'vm str,
         modules: Vec<impl Module<'vm> + 'static>,
@@ -55,17 +56,18 @@ impl<'vm> Runtime<'vm> {
     pub fn create_unverified(input: &'vm str) -> Result<Self, RuntimeError> {
         let mut parser = Parser::prepare(input).map_err(|e| e.into())?;
         let program = parser.parse().map_err(|e| e.into())?;
-        let vm = program.create_vm();
+        let vm = program.create_vm()?;
         Ok(Runtime { vm })
     }
 
+    /// Does not include default modules
     pub fn create_unverified_with_modules(
         input: &'vm str,
         modules: Vec<impl Module<'vm> + 'static>,
     ) -> Result<Self, RuntimeError> {
         let mut parser = Parser::prepare(input).map_err(|e| e.into())?;
         let program = parser.parse().map_err(|e| e.into())?;
-        let vm = program.create_vm_with_modules(modules);
+        let vm = program.create_vm_with_modules(modules)?;
         Ok(Runtime { vm })
     }
 
@@ -88,18 +90,51 @@ pub fn eval(input: &str) -> Result<Value, RuntimeError> {
     vm.eval().map_err(|e| e.into())
 }
 
+pub fn eval_show_vm(input: &str) -> Result<(VM, Value), (Option<VM>, RuntimeError)> {
+    let input = match runtime_parse(input) {
+        Ok(p) => p,
+        Err(e) => return Err((None, e.into())),
+    };
+
+    let mut vm: VM = match input.create_verified_vm() {
+        Ok(v) => v,
+        Err(e) => return Err((None, e.into())),
+    };
+    match vm.eval() {
+        Ok(v) => Ok((vm, v)),
+        Err(e) => Err((Some(vm), e.into())),
+    }
+}
+
+pub fn eval_debug_vm(input: &str) -> Result<(VM, Value), (Option<VM>, RuntimeError)> {
+    let input = match runtime_parse(input) {
+        Ok(p) => p,
+        Err(e) => return Err((None, e.into())),
+    };
+
+    let mut vm: VM = match input.create_verified_vm() {
+        Ok(v) => v,
+        Err(e) => return Err((None, e.into())),
+    };
+    //println!("Debug VM - {vm:#?}");
+    match vm.eval() {
+        Ok(v) => Ok((vm, v)),
+        Err(e) => Err((Some(vm), e.into())),
+    }
+}
+
 pub fn repl_eval(input: &str) -> Result<Value, RuntimeError> {
     let input = runtime_parse(input)?;
 
-    let mut vm: VM = input.create_vm();
+    let mut vm: VM = input.create_vm()?;
     vm.eval().map_err(|e| e.into())
 }
 
 #[allow(unused_imports)]
 #[cfg(test)]
 mod tests {
-    use crate::runtime::eval;
-    use rigz_vm::{Number, Value};
+    use crate::runtime::{eval, eval_debug_vm, eval_show_vm};
+    use rigz_vm::{Number, VMError, Value};
 
     macro_rules! run_expected {
         ($($name:ident($input:literal = $expected:expr))*) => {
@@ -107,8 +142,45 @@ mod tests {
                  #[test]
                 fn $name() {
                     let input = $input;
-                    let v = eval(input);
-                    assert_eq!(v, Ok($expected), "Failed to parse input {}", input)
+                    match eval_show_vm(input) {
+                        Ok((vm, v)) => {
+                            assert_eq!(v, $expected, "VM eval failed {input}\n{vm:#?}")
+                        }
+                        Err((vm, err)) => match vm {
+                            None => {
+                                assert!(false, "Failed to parse input {err:?} - {input}")
+                            }
+                            Some(v) => {
+                                assert!(false, "VM eval failed {err:?} - {input}\n{v:#?}")
+                            }
+                        }
+                    };
+
+                }
+            )*
+        };
+    }
+
+    macro_rules! run_show_vm {
+        ($($name:ident($input:literal = $expected:expr))*) => {
+            $(
+                 #[test]
+                fn $name() {
+                    let input = $input;
+                    match eval_debug_vm(input) {
+                        Ok((vm, v)) => {
+                            assert_eq!(v, $expected, "VM eval failed {input}\n{vm:#?}")
+                        }
+                        Err((vm, err)) => match vm {
+                            None => {
+                                assert!(false, "Failed to parse input {err:?} - {input}")
+                            }
+                            Some(v) => {
+                                assert!(false, "VM eval failed {err:?} - {input}\n{v:#?}")
+                            }
+                        }
+                    };
+
                 }
             )*
         };
@@ -146,10 +218,18 @@ mod tests {
         run_invalid! {
             assign("a = 3 * 2")
         }
+
+        run_error! {
+            /*
+                function definitions claim registers for args & outputs,
+                using get_register is very risky, VM.last is the best options
+                VM.first will be altered if an imported module has a default implementation
+            */
+            vm_register_invalid("import VM; VM.get_register 1" = VMError::EmptyRegister("R1 is empty".to_string()).into())
+        }
     }
 
     mod valid {
-        use rigz_vm::VMError;
         use super::*;
 
         run_expected! {
@@ -160,15 +240,56 @@ mod tests {
             paren_precedence("2 + (1 * 3)" = Value::Number(5.into()))
             assign("a = 3 * 2; a" = Value::Number(6.into()))
             assign_add("a = 1 + 2; a + 2" = Value::Number(5.into()))
+            mutable_add("mut a = 4; a += 2; a" = Value::Number(6.into()))
             to_s("1.to_s" = Value::String("1".to_string()))
             unary_not("!1" = Value::Bool(false))
             unary_neg("-2.5" = Value::Number((-2.5).into()))
-            // arg is loaded into 0th register, using Number to be explicit however 0 is also equal to none
-            vm_register("VM.get_register 0" = Value::Number(0.into()))
+            vm_last_register("import VM; a = 1; VM.last" = Value::Number(1.into()))
+            // VM.first will not be 27 if an imported module has a default implementation
+            vm_first_register("import VM; a = 27; VM.first" = Value::Number(27.into()))
+            call_function_multiple_times(r#"
+            fn foo(number: Number) -> Number
+                number * 2
+            end
+            a = 1
+            foo (foo (foo a))
+            "# = 8.into())
         }
+    }
 
-        run_error! {
-            vm_register_invalid("VM.get_register 1" = VMError::EmptyRegister("R1 is empty".to_string()).into())
+    mod debug {
+        use super::*;
+
+        run_show_vm! {
+            call_extension_function_mutable(r#"
+            fn mut Number.foo -> mut Number
+                self *= 3
+                self
+            end
+            mut b = 2
+            b.foo
+            b
+            "# = 6.into())
+            call_extension_function_multiple_times_inline(r#"
+            fn mut Number.foo -> mut Number
+                self *= 3
+                self
+            end
+            mut a = 1
+            ((a.foo).foo).foo
+            a
+            "# = 27.into())
+            call_extension_function_multiple_times(r#"
+            fn mut Number.bah -> mut Number
+                self *= 3
+                self
+            end
+            mut f = 4.2
+            f.bah
+            f.bah
+            f.bah
+            f
+            "# = 113.4.into())
         }
     }
 }

@@ -1,4 +1,5 @@
-use rigz_vm::{Module, VMError, Value, VM};
+use rigz_vm::{Module, Register, RegisterValue, VMError, Value, VM};
+use std::cell::RefCell;
 
 #[derive(Copy, Clone)]
 pub struct VMModule {}
@@ -38,6 +39,22 @@ impl<'vm> Module<'vm> for VMModule {
                 };
                 Ok(vm.resolve_register(u))
             }
+            "first" => {
+                let (og, first) = match vm.registers.first() {
+                    None => return Err(VMError::EmptyRegister("Registers are empty".to_string())),
+                    Some((o, v)) => (*o, v.borrow().clone()),
+                };
+                let v = resolve_register_value(vm, og, first);
+                Ok(v)
+            }
+            "last" => {
+                let (og, last) = match vm.registers.last() {
+                    None => return Err(VMError::EmptyRegister("Registers are empty".to_string())),
+                    Some((o, v)) => (*o, v.borrow().clone()),
+                };
+                let v = resolve_register_value(vm, og, last);
+                Ok(v)
+            }
             "remove_register" => {
                 if args.len() != 1 {
                     return Err(VMError::UnsupportedOperation(format!(
@@ -70,8 +87,17 @@ impl<'vm> Module<'vm> for VMModule {
     fn trait_definition(&self) -> &'static str {
         r#"trait VM
             fn mut VM.get_register(register: Number) -> Any!
+            fn mut VM.first -> Any!
+            fn mut VM.last -> Any!
             fn mut VM.remove_register(register: Number) -> Any!
-            fn mut VM.resolve_register(register: Number) -> Any!
         end"#
+    }
+}
+
+fn resolve_register_value(vm: &mut VM, index: Register, register_value: RegisterValue) -> Value {
+    match register_value {
+        RegisterValue::ScopeId(s, out) => vm.handle_scope(s, index, out),
+        RegisterValue::Register(r) => vm.resolve_register(r),
+        RegisterValue::Value(v) => v,
     }
 }

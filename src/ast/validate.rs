@@ -3,6 +3,11 @@ use crate::ast::{Element, Program};
 #[derive(Debug, PartialEq)]
 pub enum ValidationError {
     MissingExpression(String),
+    ModuleError(String),
+    InvalidSelf(String),
+    InvalidFunction(String),
+    InvalidImport(String),
+    InvalidExport(String),
 }
 
 impl<'vm> Program<'vm> {

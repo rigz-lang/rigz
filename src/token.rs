@@ -124,7 +124,21 @@ pub enum TokenKind<'lex> {
     #[token("||", |_| BinaryOperation::Or)]
     #[token("&", |_| BinaryOperation::BitAnd)]
     #[token("^", |_| BinaryOperation::Xor)]
+    #[token("?:", |_| BinaryOperation::Elvis)]
     BinOp(BinaryOperation),
+    #[token(">>=", |_| BinaryOperation::Shr)]
+    #[token("<<=", |_| BinaryOperation::Shl)]
+    #[token("+=", |_| BinaryOperation::Add)]
+    #[token("-=", |_| BinaryOperation::Sub)]
+    #[token("*=", |_| BinaryOperation::Mul)]
+    #[token("/=", |_| BinaryOperation::Div)]
+    #[token("%=", |_| BinaryOperation::Rem)]
+    #[token("&&=", |_| BinaryOperation::And)]
+    #[token("||=", |_| BinaryOperation::Or)]
+    #[token("&=", |_| BinaryOperation::BitAnd)]
+    #[token("|=", |_| BinaryOperation::BitOr)]
+    #[token("^=", |_| BinaryOperation::Xor)]
+    BinAssign(BinaryOperation),
     #[token("!")]
     Not,
     #[regex("[A-Z][A-Za-z_]+!?\\??", |lex| lex.slice())]
@@ -173,8 +187,6 @@ pub enum TokenKind<'lex> {
     #[regex("#[^\n]*")]
     #[regex("/\\*(?:[^*]|\\*[^/])*\\*/")]
     Comment, //todo support doc-tests, nested comments
-    #[token("?:")]
-    Elvis,
     // Reserved for future versions
     #[token("++")]
     Increment,
@@ -229,6 +241,7 @@ impl Display for TokenKind<'_> {
             TokenKind::Mut => write!(f, "mut"),
             TokenKind::As => write!(f, "as"),
             TokenKind::BinOp(op) => write!(f, "{}", op),
+            TokenKind::BinAssign(op) => write!(f, "{}=", op),
             TokenKind::Not => write!(f, "!"),
             TokenKind::TypeValue(t) => write!(f, "{}", *t),
             TokenKind::Minus => write!(f, "-"),
@@ -262,7 +275,6 @@ impl Display for TokenKind<'_> {
             TokenKind::Range => write!(f, ".."),
             TokenKind::RangeInclusive => write!(f, "..="),
             TokenKind::Optional => write!(f, "?"),
-            TokenKind::Elvis => write!(f, "?:"),
             TokenKind::DoubleBang => write!(f, "!!"),
             TokenKind::Comment => write!(f, "# comment"),
             TokenKind::This => write!(f, "self"),

@@ -5,8 +5,8 @@ use crate::token::{ParsingError, Symbol, Token, TokenKind, TokenValue};
 use crate::{FunctionArgument, FunctionDefinition, FunctionSignature, FunctionType};
 use logos::Logos;
 pub use program::{
-    Element, Expression, FunctionDeclaration, ModuleTraitDefinition, Program, Scope, Statement,
-    TraitDefinition,
+    Assign, Element, Exposed, Expression, FunctionDeclaration, ModuleTraitDefinition, Program,
+    Scope, Statement, TraitDefinition,
 };
 use rigz_vm::{BinaryOperation, RigzType, UnaryOperation};
 use std::collections::VecDeque;
@@ -155,7 +155,7 @@ impl<'lex> Parser<'lex> {
             Some(t) if t.kind == TokenKind::Newline => {
                 self.consume_token(TokenKind::Newline)?;
                 self.peek_required_token_eat_newlines()
-            },
+            }
             Some(t) => Ok(t),
         }
     }
@@ -200,6 +200,7 @@ impl<'lex> Parser<'lex> {
                 self.consume_token(TokenKind::Let)?;
                 self.parse_assignment(false)?.into()
             }
+            TokenKind::Import => self.parse_import()?.into(),
             TokenKind::Mut => {
                 self.consume_token(TokenKind::Mut)?;
                 self.parse_assignment(true)?.into()
@@ -208,16 +209,80 @@ impl<'lex> Parser<'lex> {
                 self.consume_token(TokenKind::Identifier(id))?;
                 match self.peek_token() {
                     None => id.into(),
-                    Some(t) if t.kind == TokenKind::Assign => {
-                        self.parse_assignment_definition(false, id)?.into()
-                    }
-                    Some(_) => self.parse_identifier_expression(id)?.into(),
+                    Some(t) => match t.kind {
+                        TokenKind::Assign => self.parse_assignment_definition(false, id)?.into(),
+                        TokenKind::Increment => {
+                            self.consume_token(TokenKind::Increment)?;
+                            Statement::BinaryAssignment {
+                                lhs: Assign::Identifier(id, false),
+                                op: BinaryOperation::Add,
+                                expression: Expression::Value(1.into()),
+                            }
+                            .into()
+                        }
+                        TokenKind::Decrement => {
+                            self.consume_token(TokenKind::Decrement)?;
+                            Statement::BinaryAssignment {
+                                lhs: Assign::Identifier(id, false),
+                                op: BinaryOperation::Sub,
+                                expression: Expression::Value(1.into()),
+                            }
+                            .into()
+                        }
+                        TokenKind::BinAssign(op) => {
+                            self.consume_token(TokenKind::BinAssign(op))?;
+                            Statement::BinaryAssignment {
+                                lhs: Assign::Identifier(id, false),
+                                op,
+                                expression: self.parse_expression()?,
+                            }
+                            .into()
+                        }
+                        _ => self.parse_identifier_expression(id)?.into(),
+                    },
+                }
+            }
+            TokenKind::This => {
+                self.consume_token(TokenKind::This)?;
+                match self.peek_token() {
+                    None => Expression::This.into(),
+                    Some(t) => match t.kind {
+                        TokenKind::Assign => self.parse_this_assignment_definition()?.into(),
+                        TokenKind::Increment => {
+                            self.consume_token(TokenKind::Increment)?;
+                            Statement::BinaryAssignment {
+                                lhs: Assign::This,
+                                op: BinaryOperation::Add,
+                                expression: Expression::Value(1.into()),
+                            }
+                            .into()
+                        }
+                        TokenKind::Decrement => {
+                            self.consume_token(TokenKind::Decrement)?;
+                            Statement::BinaryAssignment {
+                                lhs: Assign::This,
+                                op: BinaryOperation::Sub,
+                                expression: Expression::Value(1.into()),
+                            }
+                            .into()
+                        }
+                        TokenKind::BinAssign(op) => {
+                            self.consume_token(TokenKind::BinAssign(op))?;
+                            Statement::BinaryAssignment {
+                                lhs: Assign::This,
+                                op,
+                                expression: self.parse_expression()?,
+                            }
+                            .into()
+                        }
+                        _ => self.parse_this_expression()?.into(),
+                    },
                 }
             }
             TokenKind::FunctionDef => {
                 self.consume_token(TokenKind::FunctionDef)?;
                 Statement::FunctionDefinition(self.parse_function_definition()?).into()
-            },
+            }
             TokenKind::Newline => {
                 self.consume_token(TokenKind::Newline)?;
                 self.parse_element()?
@@ -228,7 +293,35 @@ impl<'lex> Parser<'lex> {
             }
             _ => self.parse_expression()?.into(),
         };
+        match self.peek_token() {
+            None => {}
+            Some(t) if t.terminal() => {
+                self.consume_token(t.kind)?;
+            }
+            Some(_) => {}
+        }
         Ok(ele)
+    }
+
+    fn parse_import(&mut self) -> Result<Statement<'lex>, ParsingError> {
+        self.consume_token(TokenKind::Import)?;
+        let next = self.next_required_token()?;
+        match next.kind {
+            TokenKind::TypeValue(tv) => {
+                let _rigz_type: RigzType = match tv.parse() {
+                    Ok(t) => t,
+                    Err(e) => {
+                        return Err(ParsingError::ParseError(format!(
+                            "Failed to parse type {tv} - {e:?}"
+                        )))
+                    }
+                };
+                Ok(Statement::Import(Exposed::TypeValue(tv)))
+            }
+            t => Err(ParsingError::ParseError(format!(
+                "Only type values are supported in import currently, received {t}"
+            ))),
+        }
     }
 
     fn parse_expression(&mut self) -> Result<Expression<'lex>, ParsingError> {
@@ -240,6 +333,7 @@ impl<'lex> Parser<'lex> {
             TokenKind::Not => self.parse_unary_expression(UnaryOperation::Not)?,
             TokenKind::Identifier(id) => self.parse_identifier_expression(id)?,
             TokenKind::Value(v) => self.parse_value_expression(v)?,
+            TokenKind::This => self.parse_this_expression()?,
             TokenKind::Symbol(s) => self.parse_symbol_expression(s)?,
             TokenKind::Lparen => self.parse_paren_expression()?,
             TokenKind::Lbracket => self.parse_list()?,
@@ -295,7 +389,10 @@ impl<'lex> Parser<'lex> {
     ) -> Result<Expression<'lex>, ParsingError> {
         match self.peek_token() {
             None => Ok(exp),
-            Some(t) if t.terminal() => Ok(exp),
+            Some(t) if t.terminal() => {
+                self.consume_token(t.kind)?;
+                Ok(exp)
+            }
             Some(t) => match t.kind {
                 TokenKind::Unless => {
                     self.consume_token(TokenKind::Unless)?;
@@ -324,14 +421,6 @@ impl<'lex> Parser<'lex> {
                     self.consume_token(TokenKind::Period)?;
                     Ok(self.parse_instance_call(exp)?)
                 }
-                TokenKind::Elvis => {
-                    self.consume_token(TokenKind::Elvis)?;
-                    Ok(Expression::binary(
-                        exp,
-                        BinaryOperation::Or,
-                        self.parse_expression()?,
-                    ))
-                }
                 _ => Ok(exp),
             },
         }
@@ -359,8 +448,15 @@ impl<'lex> Parser<'lex> {
     ) -> Result<Statement<'lex>, ParsingError> {
         self.consume_token(TokenKind::Assign)?;
         Ok(Statement::Assignment {
-            name: id,
-            mutable,
+            lhs: Assign::Identifier(id, mutable),
+            expression: self.parse_expression()?,
+        })
+    }
+
+    fn parse_this_assignment_definition(&mut self) -> Result<Statement<'lex>, ParsingError> {
+        self.consume_token(TokenKind::Assign)?;
+        Ok(Statement::Assignment {
+            lhs: Assign::This,
             expression: self.parse_expression()?,
         })
     }
@@ -370,7 +466,7 @@ impl<'lex> Parser<'lex> {
         id: &'lex str,
     ) -> Result<Expression<'lex>, ParsingError> {
         let args = match self.peek_token() {
-            None => return self.parse_inline_expression(id),
+            None => return Ok(id.into()),
             Some(next) => match next.kind {
                 TokenKind::Value(_)
                 | TokenKind::Identifier(_)
@@ -476,6 +572,7 @@ impl<'lex> Parser<'lex> {
         loop {
             match self.peek_token() {
                 None => break,
+                Some(t) if t.terminal() => break,
                 Some(t) => {
                     if needs_separator {
                         if t.kind == TokenKind::Period {
@@ -516,6 +613,10 @@ impl<'lex> Parser<'lex> {
         self.parse_inline_expression(value)
     }
 
+    fn parse_this_expression(&mut self) -> Result<Expression<'lex>, ParsingError> {
+        self.parse_inline_expression(Expression::This)
+    }
+
     fn parse_symbol_expression(
         &mut self,
         symbol: Symbol<'lex>,
@@ -537,7 +638,6 @@ impl<'lex> Parser<'lex> {
             match self.peek_token() {
                 None => break,
                 Some(t) if t.terminal() => {
-                    self.consume_token(t.kind.clone())?;
                     break;
                 }
                 Some(t) if t.kind == TokenKind::Rparen => break,
@@ -589,6 +689,7 @@ impl<'lex> Parser<'lex> {
                     self.consume_token(TokenKind::Comma)?;
                     break;
                 }
+                // todo support {a, b, c, 1, 2, 3}
                 Some(_) => {
                     let key = self.parse_expression()?;
                     self.consume_token(TokenKind::Assign)?;
@@ -602,12 +703,10 @@ impl<'lex> Parser<'lex> {
 
     fn parse_function_definition(&mut self) -> Result<FunctionDefinition<'lex>, ParsingError> {
         match self.parse_function_declaration()? {
-            FunctionDeclaration::Declaration { name, .. } => {
-                Err(ParsingError::ParseError(format!("Missing body for function definition {name}")))
-            }
-            FunctionDeclaration::Definition(f) => {
-                Ok(f)
-            }
+            FunctionDeclaration::Declaration { name, .. } => Err(ParsingError::ParseError(
+                format!("Missing body for function definition {name}"),
+            )),
+            FunctionDeclaration::Definition(f) => Ok(f),
         }
     }
 
@@ -650,7 +749,7 @@ impl<'lex> Parser<'lex> {
     }
 
     fn parse_function_argument(&mut self) -> Result<FunctionArgument<'lex>, ParsingError> {
-        // todo support mut
+        // todo support mut, vm changes required
         let mut var_arg = self.check_var_arg()?;
         let next = self.next_required_token()?;
         if let TokenKind::Identifier(name) = next.kind {
@@ -662,10 +761,10 @@ impl<'lex> Parser<'lex> {
                 _ => RigzType::Any,
             };
             Ok(FunctionArgument {
-                name: Some(name),
+                name,
                 default: None,
                 function_type: rigz_type.into(),
-                var_arg
+                var_arg,
             })
         } else {
             Err(ParsingError::ParseError(format!(
@@ -675,18 +774,26 @@ impl<'lex> Parser<'lex> {
         }
     }
 
-    fn parse_return_type(&mut self) -> Result<RigzType, ParsingError> {
+    fn parse_return_type(&mut self) -> Result<FunctionType, ParsingError> {
         let mut rigz_type = RigzType::Any;
+        let mut mutable = false;
         match self.peek_token() {
             None => return Err(Self::eoi_error("parse_return_type")),
             Some(t) => {
                 if t.kind == TokenKind::Arrow {
                     self.consume_token(TokenKind::Arrow)?;
+                    match self.peek_required_token()?.kind {
+                        TokenKind::Mut => {
+                            self.consume_token(TokenKind::Mut)?;
+                            mutable = true;
+                        }
+                        _ => {}
+                    }
                     rigz_type = self.parse_rigz_type()?
                 }
             }
         }
-        Ok(rigz_type)
+        Ok(FunctionType { rigz_type, mutable })
     }
 
     fn parse_rigz_type(&mut self) -> Result<RigzType, ParsingError> {
@@ -782,9 +889,7 @@ impl<'lex> Parser<'lex> {
         Ok(TraitDefinition { name, functions })
     }
 
-    fn parse_trait_declarations(
-        &mut self,
-    ) -> Result<Vec<FunctionDeclaration<'lex>>, ParsingError> {
+    fn parse_trait_declarations(&mut self) -> Result<Vec<FunctionDeclaration<'lex>>, ParsingError> {
         let mut all = Vec::new();
         loop {
             let next = self.peek_required_token_eat_newlines()?;
@@ -804,7 +909,10 @@ impl<'lex> Parser<'lex> {
                 }
                 // todo support type definitions here too
                 _ => {
-                    return Err(ParsingError::ParseError(format!("Invalid Token in trait declarations {:?}, expected fn or end", next)))
+                    return Err(ParsingError::ParseError(format!(
+                        "Invalid Token in trait declarations {:?}, expected fn or end",
+                        next
+                    )))
                 }
             }
         }
@@ -821,54 +929,74 @@ impl<'lex> Parser<'lex> {
                 if let TokenKind::TypeValue(tv) = next.kind {
                     self.parse_typed_function_declaration(Some(tv), true)
                 } else {
-                    Err(ParsingError::ParseError(format!("Invalid Token after fn mut {:?}, expected Type", next)))
+                    Err(ParsingError::ParseError(format!(
+                        "Invalid Token after fn mut {:?}, expected Type",
+                        next
+                    )))
                 }
             }
             TokenKind::TypeValue(tv) => {
                 self.consume_token(TokenKind::TypeValue(tv))?;
                 self.parse_typed_function_declaration(Some(tv), false)
             }
-            TokenKind::Identifier(_) => {
-                self.parse_typed_function_declaration(None, false)
-            }
-            _ => {
-                Err(ParsingError::ParseError(format!("Invalid Token in function declaration {:?}, expected mut, Type, or function name", next)))
-            }
+            TokenKind::Identifier(_) => self.parse_typed_function_declaration(None, false),
+            _ => Err(ParsingError::ParseError(format!(
+                "Invalid Token in function declaration {:?}, expected mut, Type, or function name",
+                next
+            ))),
         }
     }
 
-    fn parse_typed_function_declaration(&mut self, rigz_type: Option<&'lex str>, mutable: bool) -> Result<FunctionDeclaration<'lex>, ParsingError> {
+    fn parse_typed_function_declaration(
+        &mut self,
+        rigz_type: Option<&'lex str>,
+        mutable: bool,
+    ) -> Result<FunctionDeclaration<'lex>, ParsingError> {
         let self_type = match rigz_type {
             Some(rt) => match rt.parse() {
                 Ok(t) => {
                     self.consume_token(TokenKind::Period)?;
+                    if t == RigzType::VM && !mutable {
+                        return Err(ParsingError::ParseError(
+                            "VM extensions must be mutable".to_string(),
+                        ));
+                    }
                     Some(FunctionType {
                         rigz_type: t,
-                        mutable
+                        mutable,
                     })
-                },
-                Err(e) => return Err(ParsingError::ParseError(format!("Invalid type: {} {:?}", rt, e)))
+                }
+                Err(e) => {
+                    return Err(ParsingError::ParseError(format!(
+                        "Invalid type: {} {:?}",
+                        rt, e
+                    )))
+                }
             },
-            None => None
+            None => None,
         };
         let next = self.next_required_token()?;
 
         let name = match next.kind {
-            TokenKind::Type => { // hack to support type as function name
+            TokenKind::Type => {
+                // hack to support type as function name
                 "type"
             }
-            TokenKind::Identifier(name) => {
-                name
-            }
+            TokenKind::Identifier(name) => name,
             // todo support nested types, Module.CustomType
             _ => {
                 return match rigz_type {
-                    Some(rt) => {
-                        Err(ParsingError::ParseError(format!("Invalid Token after {} {} {:?}, expected Identifier", if mutable {"fn mut"} else {"fn"}, rt, next)))
-                    }
-                    None => {
-                        Err(ParsingError::ParseError(format!("Invalid Token after {} {:?}, expected Identifier", if mutable {"fn mut"} else {"fn"}, next)))
-                    }
+                    Some(rt) => Err(ParsingError::ParseError(format!(
+                        "Invalid Token after {} {} {:?}, expected Identifier",
+                        if mutable { "fn mut" } else { "fn" },
+                        rt,
+                        next
+                    ))),
+                    None => Err(ParsingError::ParseError(format!(
+                        "Invalid Token after {} {:?}, expected Identifier",
+                        if mutable { "fn mut" } else { "fn" },
+                        next
+                    ))),
                 }
             }
         };
@@ -876,19 +1004,15 @@ impl<'lex> Parser<'lex> {
         type_definition.self_type = self_type;
         let next = self.peek_required_token_eat_newlines()?;
         let dec = match next.kind {
-            TokenKind::FunctionDef | TokenKind::End => {
-                FunctionDeclaration::Declaration {
-                    name,
-                    type_definition,
-                }
-            }
-            _ => {
-                FunctionDeclaration::Definition(FunctionDefinition {
-                    name,
-                    type_definition,
-                    body: self.parse_scope()?,
-                })
-            }
+            TokenKind::FunctionDef | TokenKind::End => FunctionDeclaration::Declaration {
+                name,
+                type_definition,
+            },
+            _ => FunctionDeclaration::Definition(FunctionDefinition {
+                name,
+                type_definition,
+                body: self.parse_scope()?,
+            }),
         };
         Ok(dec)
     }
@@ -916,6 +1040,24 @@ mod tests {
                     let v = parse(input);
                     assert_eq!(v, Ok($expected), "Failed to parse input: {}", input)
                 }
+            )*
+        };
+    }
+
+    macro_rules! test_parse_equivalent {
+        ($(
+            $($name:ident $input:literal)*
+            = $expected:expr;
+        )*) => {
+            $(
+                $(
+                    #[test]
+                    fn $name() {
+                        let input = $input;
+                        let v = parse(input);
+                        assert_eq!(v, Ok($expected), "Failed to parse input: {}", input)
+                    }
+                )*
             )*
         };
     }
@@ -985,21 +1127,23 @@ mod tests {
             valid_function "fn hello = none",
             valid_function_dollar_sign "fn $ = none",
             outer_paren_func "(foo 1, 2, 3)",
-            //named_args_in_func "foo a: 1, b: 2, c: 3",
+            //todo named_args_in_func "foo a: 1, b: 2, c: 3",
             let_works "let a = 1",
             mut_works "mut a = 1",
+            // todo map_key_equals_values "a = {1, '2', true, none}",
             inline_unless_works "a = b unless c",
             instance_methods "a.b.c.d 1, 2, 3",
             function_def r#"
             fn say(message: String) -> None
                 puts message
             end"#,
-            // unless_works r#"
-            //     unless c
-            //         c = 42
-            //     end
-            // "#,
-            // if_else r#"
+            // todo
+            unless_works r#"
+                unless c
+                    c = 42
+                end
+            "#,
+            // if_else_root_return r#"
             //     if c
             //         return c * 42
             //     else
@@ -1008,6 +1152,66 @@ mod tests {
             //     c * 37
             // "#,
         );
+    }
+
+    test_parse_equivalent! {
+        define_function_typed_oneish_line r#"
+            fn hello -> String
+                = "hi there"
+            hello"#
+        define_function_typed r#"
+            fn hello -> String
+                "hi there"
+            end
+            hello"# = Program {
+                elements: vec![
+                    Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
+                        name: "hello",
+                        type_definition: FunctionSignature {
+                            arguments: vec![],
+                            positional: true,
+                            return_type: FunctionType::new(RigzType::String),
+                            self_type: None,
+                        },
+                        body: Scope {
+                         elements: vec![
+                            Element::Expression(Expression::Value(Value::String("hi there".to_string())))
+                        ],
+                        }
+                    })),
+                    Element::Expression(Expression::Identifier("hello"))
+                ]
+            };
+        define_function r#"
+            fn hello
+                "hi there"
+            end
+            hello"#
+        define_function_oneishline r#"
+            fn hello
+                = "hi there"
+            hello"#
+        define_function_oneline r#"
+            fn hello = "hi there"
+            hello"# = Program {
+                elements: vec![
+                    Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
+                        name: "hello",
+                        type_definition: FunctionSignature {
+                            arguments: vec![],
+                            positional: true,
+                            return_type: FunctionType::new(RigzType::Any),
+                            self_type: None,
+                        },
+                        body: Scope {
+                        elements: vec![
+                            Element::Expression(Expression::Value(Value::String("hi there".to_string())))
+                        ],
+                            }
+                    })),
+                    Element::Expression(Expression::Identifier("hello"))
+                ]
+            };
     }
 
     test_parse! {
@@ -1033,7 +1237,7 @@ mod tests {
                             name: "foo",
                             type_definition: FunctionSignature {
                                 arguments: vec![],
-                                return_type: RigzType::Any,
+                                return_type: FunctionType::new(RigzType::Any),
                                 self_type: None,
                                 positional: true,
                             },
@@ -1042,11 +1246,8 @@ mod tests {
                             name: "bar",
                             type_definition: FunctionSignature {
                                 arguments: vec![],
-                                return_type: RigzType::Any,
-                                self_type: Some(FunctionType {
-                                    rigz_type: RigzType::String,
-                                    mutable: true,
-                                }),
+                                return_type: FunctionType::new(RigzType::Any),
+                                self_type: Some(FunctionType::mutable(RigzType::String)),
                                 positional: true,
                             },
                         },
@@ -1055,16 +1256,13 @@ mod tests {
                             type_definition: FunctionSignature {
                                 arguments: vec![
                                     FunctionArgument {
-                                        name: Some("message"),
+                                        name: "message",
                                         default: None,
-                                        function_type: FunctionType {
-                                            rigz_type: RigzType::String,
-                                            mutable: false,
-                                        },
+                                        function_type: FunctionType::new(RigzType::String),
                                         var_arg: false
                                     }
                                 ],
-                                return_type: RigzType::None,
+                                return_type: FunctionType::new(RigzType::None),
                                 self_type: None,
                                 positional: true,
                          },
@@ -1133,125 +1331,13 @@ mod tests {
         assign "a = 7 - 0" = Program {
             elements: vec![
                 Element::Statement(Statement::Assignment {
-                    name: "a",
+                    lhs: Assign::Identifier("a", false),
                     expression: Expression::BinExp(
                         Box::new(Expression::Value(Value::Number(7.into()))),
                         BinaryOperation::Sub,
                         Box::new(Expression::Value(Value::Number(0.into())))
                     ),
-                    mutable: false,
                 })
-            ]
-        },
-        define_function_oneline r#"
-            fn hello = "hi there"
-            hello"# = Program {
-            elements: vec![
-                Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
-                    name: "hello",
-                    type_definition: FunctionSignature {
-                        arguments: vec![],
-                        positional: true,
-                        return_type: RigzType::Any,
-                        self_type: None,
-                    },
-                    body: Scope {
-                     elements: vec![
-                        Element::Expression(Expression::Value(Value::String("hi there".to_string())))
-                    ],
-                    }
-                })),
-                Element::Expression(Expression::Identifier("hello"))
-            ]
-        },
-        define_function_oneishline r#"
-            fn hello
-                = "hi there"
-            hello"# = Program {
-            elements: vec![
-                Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
-                    name: "hello",
-                    type_definition: FunctionSignature {
-                        arguments: vec![],
-                        positional: true,
-                        return_type: RigzType::Any,
-                        self_type: None,
-                    },
-                    body: Scope {
-                        elements: vec![
-                            Element::Expression(Expression::Value(Value::String("hi there".to_string())))
-                        ],
-                        }
-                })),
-                Element::Expression(Expression::Identifier("hello"))
-            ]
-        },
-        define_function r#"
-            fn hello
-                "hi there"
-            end
-            hello"# = Program {
-            elements: vec![
-                Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
-                    name: "hello",
-                    type_definition: FunctionSignature {
-                        arguments: vec![],
-                        positional: true,
-                        return_type: RigzType::Any,
-                        self_type: None,
-                    },
-                    body: Scope {
-                    elements: vec![
-                        Element::Expression(Expression::Value(Value::String("hi there".to_string())))
-                    ],
-                        }
-                })),
-                Element::Expression(Expression::Identifier("hello"))
-            ]
-        },
-        define_function_typed r#"
-            fn hello -> String
-                "hi there"
-            end
-            hello"# = Program {
-            elements: vec![
-                Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
-                    name: "hello",
-                    type_definition: FunctionSignature {
-                        arguments: vec![],
-                        positional: true,
-                        return_type: RigzType::String,
-                        self_type: None,
-                    },
-                    body: Scope {
-                     elements: vec![
-                        Element::Expression(Expression::Value(Value::String("hi there".to_string())))
-                        ],
-                    }
-                })),
-                Element::Expression(Expression::Identifier("hello"))
-            ]
-        },
-        define_function_typed_oneish_line r#"
-            fn hello -> String
-                = "hi there"
-            hello"# = Program {
-            elements: vec![
-                Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
-                    name: "hello",
-                    type_definition: FunctionSignature {
-                        arguments: vec![],
-                        positional: true,
-                        return_type: RigzType::String,
-                        self_type: None,
-                    },
-                    body: Scope {
-                        elements: vec![
-                            Element::Expression(Expression::Value(Value::String("hi there".to_string())))
-                        ],
-                    }
-                })),
-                Element::Expression(Expression::Identifier("hello"))
             ]
         },
         define_function_args r#"
@@ -1266,25 +1352,25 @@ mod tests {
                         positional: true,
                         arguments: vec![
                             FunctionArgument {
-                                name: Some("a"),
+                                name: "a",
                                 default: None,
                                 function_type: RigzType::Any.into(),
                                 var_arg: false
                             },
                             FunctionArgument {
-                                name: Some("b"),
+                                name: "b",
                                 default: None,
                                 function_type: RigzType::Any.into(),
                                 var_arg: false
                             },
                             FunctionArgument {
-                                name: Some("c"),
+                                name: "c",
                                 default: None,
                                 function_type: RigzType::Any.into(),
                                 var_arg: false
                             },
                         ],
-                        return_type: RigzType::Any,
+                        return_type: FunctionType::new(RigzType::Any),
                         self_type: None,
                     },
                     body: Scope {
@@ -1298,6 +1384,32 @@ mod tests {
                     }
                 })),
                 Element::Expression(Expression::FunctionCall("add", vec![Expression::Value(Value::Number(1.into())), Expression::Value(Value::Number(2.into())), Expression::Value(Value::Number(3.into()))]))
+            ]
+        },
+        multi_complex_parens "1 + (2 * (2 - 4)) / 4" = Program {
+            elements: vec![
+                Element::Expression(
+                    Expression::BinExp(
+                        Box::new(Expression::BinExp(
+                        Box::new(Expression::Value(Value::Number(1.into()))),
+                        BinaryOperation::Add,
+                        Box::new(Expression::BinExp(
+                            Box::new(Expression::Value(Value::Number(2.into()))),
+                            BinaryOperation::Mul,
+                            Box::new(Expression::BinExp(
+                                    Box::new(Expression::Value(Value::Number(2.into()))),
+                                    BinaryOperation::Sub,
+                                    Box::new(Expression::Value(Value::Number(4.into()))))
+                                ))
+                            )
+                        )
+                    ),
+                        BinaryOperation::Div,
+                        Box::new(
+                            Expression::Value(Value::Number(4.into()))
+                        )
+                    )
+                )
             ]
         },
         // todo support later
@@ -1354,33 +1466,6 @@ mod tests {
     mod debug {
         use super::*;
 
-        test_parse! {
-            multi_complex_parens "1 + (2 * (2 - 4)) / 4" = Program {
-                elements: vec![
-                    Element::Expression(
-                        Expression::BinExp(
-                            Box::new(Expression::BinExp(
-                            Box::new(Expression::Value(Value::Number(1.into()))),
-                            BinaryOperation::Add,
-                            Box::new(Expression::BinExp(
-                                Box::new(Expression::Value(Value::Number(2.into()))),
-                                BinaryOperation::Mul,
-                                Box::new(Expression::BinExp(
-                                        Box::new(Expression::Value(Value::Number(2.into()))),
-                                        BinaryOperation::Sub,
-                                        Box::new(Expression::Value(Value::Number(4.into()))))
-                                    ))
-                                )
-                            )
-                        ),
-                            BinaryOperation::Div,
-                            Box::new(
-                                Expression::Value(Value::Number(4.into()))
-                            )
-                        )
-                    )
-                ]
-            },
-        }
+        test_parse! {}
     }
 }
