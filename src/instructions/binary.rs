@@ -68,6 +68,36 @@ impl Display for BinaryOperation {
     }
 }
 
+#[inline]
+fn eval_binary_operation(
+    binary_operation: BinaryOperation,
+    lhs: Value,
+    rhs: Value,
+) -> Value {
+    match binary_operation {
+        BinaryOperation::Add => lhs + rhs,
+        BinaryOperation::Sub => lhs - rhs,
+        BinaryOperation::Shr => lhs >> rhs,
+        BinaryOperation::Shl => lhs << rhs,
+        BinaryOperation::Eq => Value::Bool(lhs == rhs),
+        BinaryOperation::Neq => Value::Bool(lhs != rhs),
+        BinaryOperation::Mul => lhs * rhs,
+        BinaryOperation::Div => lhs / rhs,
+        BinaryOperation::Rem => lhs % rhs,
+        BinaryOperation::BitOr => lhs | rhs,
+        BinaryOperation::BitAnd => lhs & rhs,
+        BinaryOperation::BitXor => lhs ^ rhs,
+        BinaryOperation::And => lhs.and(rhs),
+        BinaryOperation::Or => lhs.or(rhs),
+        BinaryOperation::Xor => lhs.xor(rhs),
+        BinaryOperation::Gt => Value::Bool(lhs > rhs),
+        BinaryOperation::Gte => Value::Bool(lhs >= rhs),
+        BinaryOperation::Lt => Value::Bool(lhs < rhs),
+        BinaryOperation::Lte => Value::Bool(lhs <= rhs),
+        BinaryOperation::Elvis => lhs.elvis(rhs),
+    }
+}
+
 impl<'vm> VM<'vm> {
     #[inline]
     pub fn apply_binary(
@@ -77,28 +107,7 @@ impl<'vm> VM<'vm> {
         rhs: Value,
         output: Register,
     ) {
-        let v = match binary_operation {
-            BinaryOperation::Add => lhs + rhs,
-            BinaryOperation::Sub => lhs - rhs,
-            BinaryOperation::Shr => lhs >> rhs,
-            BinaryOperation::Shl => lhs << rhs,
-            BinaryOperation::Eq => Value::Bool(lhs == rhs),
-            BinaryOperation::Neq => Value::Bool(lhs != rhs),
-            BinaryOperation::Mul => lhs * rhs,
-            BinaryOperation::Div => lhs / rhs,
-            BinaryOperation::Rem => lhs % rhs,
-            BinaryOperation::BitOr => lhs | rhs,
-            BinaryOperation::BitAnd => lhs & rhs,
-            BinaryOperation::BitXor => lhs ^ rhs,
-            BinaryOperation::And => lhs.and(rhs),
-            BinaryOperation::Or => lhs.or(rhs),
-            BinaryOperation::Xor => lhs.xor(rhs),
-            BinaryOperation::Gt => Value::Bool(lhs > rhs),
-            BinaryOperation::Gte => Value::Bool(lhs >= rhs),
-            BinaryOperation::Lt => Value::Bool(lhs < rhs),
-            BinaryOperation::Lte => Value::Bool(lhs <= rhs),
-            BinaryOperation::Elvis => lhs.elvis(rhs),
-        };
+        let v = eval_binary_operation(binary_operation, lhs, rhs);
 
         self.insert_register(output, v.into());
     }
@@ -118,9 +127,17 @@ impl<'vm> VM<'vm> {
 
     pub fn handle_binary_assign(&mut self, binary: BinaryAssign) {
         let BinaryAssign { op, lhs, rhs } = binary;
-        let v = self.resolve_register(lhs);
         let rhs = self.resolve_register(rhs);
-        self.apply_binary(op, v, rhs, lhs); // TODO measure cost of storing in same register vs impl *Assign trait
+        match self.update_register(lhs, |v| {
+            // todo remove v.clone() & rhs.clone()
+            *v = eval_binary_operation(op, v.clone(), rhs.clone());
+            Ok(None)
+        }) {
+            Ok(_) => {}
+            Err(e) => {
+                self.insert_register(lhs, e.into())
+            }
+        };
     }
 
     pub fn handle_binary_clear(&mut self, binary: Binary, clear: Clear) {
