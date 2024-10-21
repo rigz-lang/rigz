@@ -299,10 +299,6 @@ mod tests {
                             "a",
                             85,
                         ),
-                        // Instruction::Load(
-                        //     85,
-                        //     90_usize.into(),
-                        // ),
                         Instruction::CallSelf(
                             1,
                             85,
@@ -321,12 +317,12 @@ mod tests {
                             85,
                             true,
                         ),
-                        Instruction::GetMutableVariable(
+                        Instruction::GetVariable(
                             "a",
-                            91,
+                            90,
                         ),
                         Instruction::Halt(
-                            91,
+                            90,
                         ),
                     ],
                     owned_registers: vec![],
@@ -356,7 +352,7 @@ mod tests {
                         ),
                         Instruction::Load(
                             85,
-                            88_usize.into(),
+                            RegisterValue::Register(88),
                         ),
                         Instruction::Ret(
                             85,

@@ -169,6 +169,9 @@ impl<'vm> VM<'vm> {
                                     VMError::RuntimeError("Self not set".into()).into(),
                                 )
                             }
+                            Some(og) if og == output => {
+                                // todo move this to a shared function
+                            }
                             Some(og) => {
                                 let original = self
                                     .registers
@@ -388,6 +391,9 @@ impl<'vm> VM<'vm> {
                 }
                 Err(e) => {
                     self.insert_register(reg, e.into());
+                }
+                Ok(Some(original)) if original == reg => {
+
                 }
                 Ok(Some(original)) => {
                     let original = self

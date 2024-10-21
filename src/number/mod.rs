@@ -36,6 +36,8 @@ impl_from_cast! {
     f32 as f64, Number, Number::Float;
 }
 
+// From usize not supported, since that would be a RegisterValue
+
 impl Hash for Number {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
