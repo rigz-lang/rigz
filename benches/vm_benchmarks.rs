@@ -21,7 +21,7 @@ fn vm_benchmark(c: &mut Criterion) {
                 .add_load_instruction(2, 2.into())
                 .add_load_instruction(3, 2.into())
                 .add_add_instruction(2, 3, 4);
-            builder.build().eval().expect("Failed to run");
+            let _ = builder.build().eval().expect("Failed to run");
         })
     });
 }
@@ -42,7 +42,7 @@ fn vm_benchmark_clear(c: &mut Criterion) {
                     },
                     Clear::Two(2, 3),
                 ));
-            builder.build().eval().expect("Failed to run");
+            let _ = builder.build().eval().expect("Failed to run");
         })
     });
 }

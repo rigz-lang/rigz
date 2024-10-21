@@ -54,10 +54,10 @@ impl VMError {
 }
 
 #[cfg(test)]
-mod tests {
+mod vm_test {
     use crate::number::Number;
     use crate::value::Value;
-    use crate::vm::RegisterValue;
+    use crate::vm::{RegisterValue, VMOptions};
     use crate::{BinaryAssign, BinaryOperation, Instruction, Module, RigzType, Scope, VMBuilder, VMError, VM};
     use std::str::FromStr;
 
@@ -361,8 +361,113 @@ mod tests {
                     owned_registers: vec![],
                 },
             ],
+            options: VMOptions {
+                enable_logging: false,
+                disable_modules: false,
+                disable_variable_cleanup: true,
+            },
             ..Default::default()
         };
-        assert_eq!(vm.run(), 54.into(), "Run Failed {vm:#?}")
+        assert_eq!(vm.run(), 54.into(), "Run Failed {vm:#?}");
+        let results: Vec<_> = vm.registers.into_iter().filter(|(index, v)| {
+            let b = v.borrow();
+            b.clone() == RegisterValue::Value(54.into())
+        }).map(|(i, _)| i).collect();
+        assert_eq!(1, results.len(), "Multiple matches - {results:?}");
+    }
+
+    #[test]
+    fn multi_mut_scope_get_var_between() {
+        let mut vm = VM {
+            scopes: vec![
+                Scope {
+                    instructions: vec![
+                        Instruction::Load(
+                            89,
+                            RegisterValue::Value(
+                                4.2.into(),
+                            ),
+                        ),
+                        Instruction::LoadMutRegister(
+                            "f",
+                            89,
+                        ),
+                        Instruction::GetMutableVariable(
+                            "f",
+                            85,
+                        ),
+                        Instruction::CallSelf(
+                            1,
+                            85,
+                            85,
+                            true,
+                        ),
+                        Instruction::GetMutableVariable(
+                            "f",
+                            85,
+                        ),
+                        Instruction::CallSelf(
+                            1,
+                            85,
+                            85,
+                            true,
+                        ),
+                        Instruction::GetMutableVariable(
+                            "f",
+                            85,
+                        ),
+                        Instruction::CallSelf(
+                            1,
+                            85,
+                            85,
+                            true,
+                        ),
+                        Instruction::GetVariable(
+                            "f",
+                            90,
+                        ),
+                        Instruction::Halt(
+                            90,
+                        ),
+                    ],
+                    owned_registers: vec![],
+                },
+                Scope {
+                    instructions: vec![
+                        Instruction::GetSelf(
+                            86,
+                            true,
+                        ),
+                        Instruction::Load(
+                            87,
+                            RegisterValue::Value(
+                                3.into(),
+                            ),
+                        ),
+                        Instruction::BinaryAssign(
+                            BinaryAssign {
+                                op: BinaryOperation::Mul,
+                                lhs: 86,
+                                rhs: 87,
+                            },
+                        ),
+                        Instruction::GetSelf(
+                            88,
+                            true,
+                        ),
+                        Instruction::Load(
+                            85,
+                            RegisterValue::Register(88),
+                        ),
+                        Instruction::Ret(
+                            85,
+                        ),
+                    ],
+                    owned_registers: vec![],
+                },
+            ],
+            ..Default::default()
+        };
+        assert_eq!(vm.run(), 113.4.into(), "Run Failed {vm:#?}")
     }
 }

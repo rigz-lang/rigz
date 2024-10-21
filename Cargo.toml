@@ -1,7 +1,7 @@
 [package]
 name = "rigz_vm"
 description = "Register based VM for rigz"
-version = "0.27.7"
+version = "0.27.8"
 edition = "2021"
 readme = "README.md"
 license = "MIT"
@@ -12,10 +12,12 @@ crossbeam = "0.8"
 dyn-clone = "1.0.17"
 indexmap = { version = "2.6.0", features = ["serde"] }
 log = "0.4.22"
+log-derive = "0.4.1"
 nohash-hasher = "0.2.0"
 serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
+backtrace-on-stack-overflow = "0.3.0"
 criterion = { version = "0.5", features = ["html_reports"] }
 pretty_env_logger = "0.5.0"
 

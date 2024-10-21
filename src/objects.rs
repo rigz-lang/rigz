@@ -45,21 +45,21 @@ impl FromStr for RigzType {
             "String" => RigzType::String,
             "VM" => RigzType::VM,
             s => {
-                if s.ends_with("!?") {
+                if let Some(s) = s.strip_suffix("!?") {
                     RigzType::Type {
-                        base_type: Box::new((&s[..s.len() - 2]).parse()?),
+                        base_type: Box::new(s.parse()?),
                         optional: true,
                         can_return_error: true,
                     }
-                } else if s.ends_with("!") {
+                } else if let Some(s) = s.strip_suffix("!") {
                     RigzType::Type {
-                        base_type: Box::new((&s[..s.len() - 1]).parse()?),
+                        base_type: Box::new(s.parse()?),
                         optional: false,
                         can_return_error: true,
                     }
-                } else if s.ends_with("?") {
+                } else if let Some(s) = s.strip_suffix("?") {
                     RigzType::Type {
-                        base_type: Box::new((&s[..s.len() - 1]).parse()?),
+                        base_type: Box::new(s.parse()?),
                         optional: true,
                         can_return_error: false,
                     }

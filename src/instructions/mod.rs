@@ -3,7 +3,6 @@ mod unary;
 
 pub use binary::{Binary, BinaryAssign, BinaryOperation};
 use log::{log, Level};
-use std::cell::RefCell;
 pub use unary::{Unary, UnaryAssign, UnaryOperation};
 
 use crate::vm::{RegisterValue, VMState};
@@ -169,15 +168,8 @@ impl<'vm> VM<'vm> {
                                     VMError::RuntimeError("Self not set".into()).into(),
                                 )
                             }
-                            Some(og) if og == output => {
-                                // todo move this to a shared function
-                            }
                             Some(og) => {
-                                let original = self
-                                    .registers
-                                    .insert(og, RefCell::new(RegisterValue::Register(output)))
-                                    .expect("Original value was unset, this a bug in GetMutableVariable");
-                                self.registers.insert(output, original);
+                                self.swap_register(og, output);
                             }
                         },
                         Err(e) => {
@@ -392,15 +384,8 @@ impl<'vm> VM<'vm> {
                 Err(e) => {
                     self.insert_register(reg, e.into());
                 }
-                Ok(Some(original)) if original == reg => {
-
-                }
                 Ok(Some(original)) => {
-                    let original = self
-                        .registers
-                        .insert(original, RefCell::new(RegisterValue::Register(reg)))
-                        .expect("Original value was unset, this a bug in GetMutableVariable");
-                    self.registers.insert(reg, original);
+                    self.swap_register(original, reg);
                 }
             },
             Instruction::Log(level, tmpl, args) => {

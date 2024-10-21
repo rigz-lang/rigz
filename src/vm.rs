@@ -9,10 +9,11 @@ use indexmap::map::Entry;
 use indexmap::IndexMap;
 use std::cell::RefCell;
 
-use log::{trace, Level};
+use log::{trace, warn, Level};
 use nohash_hasher::BuildNoHashHasher;
 use std::fmt::Debug;
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
+use log_derive::logfn_inputs;
 
 pub enum VMState {
     Running,
@@ -112,8 +113,36 @@ impl<'vm> VM<'vm> {
     generate_builder!();
 
     #[inline]
+    #[logfn_inputs(Trace)]
     pub fn insert_register(&mut self, register: Register, value: RegisterValue) {
         self.registers.insert(register, RefCell::new(value));
+    }
+
+    #[inline]
+    #[logfn_inputs(Trace)]
+    pub fn swap_register(&mut self, original: Register, reg: Register) {
+        if original == reg {
+            warn!("Called swap_register with same register {reg}");
+            return
+        }
+
+        let res = self
+            .registers
+            .insert(original, RefCell::new(RegisterValue::Register(reg)));
+        match res {
+            None => {
+                panic!("Invalid call to swap_register {original} was not set");
+            }
+            Some(res) => {
+                {
+                    let b = res.borrow();
+                    if let RegisterValue::Register(r) = b.deref() {
+                        return self.swap_register(*r, reg)
+                    }
+                }
+                self.registers.insert(reg, res);
+            }
+        }
     }
 
     #[inline]
@@ -210,7 +239,7 @@ impl<'vm> VM<'vm> {
     pub fn remove_register_eval_scope(&mut self, register: Register) -> Value {
         match self.remove_register_value(register) {
             RegisterValue::ScopeId(scope, output) => self.handle_scope(scope, register, output),
-            RegisterValue::Register(r) => self.resolve_register(r),
+            RegisterValue::Register(r) => self.remove_register_eval_scope(r),
             RegisterValue::Value(v) => v,
         }
     }
@@ -221,7 +250,7 @@ impl<'vm> VM<'vm> {
         process: Option<fn(value: Value) -> VMState>,
     ) -> VMState {
         let current = self.current.output;
-        let source = self.resolve_register(current);
+        let source = self.remove_register_eval_scope(current);
         self.insert_register(output, source.clone().into());
         match self.frames.pop() {
             None => return VMState::Done(source),
