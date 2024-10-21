@@ -199,9 +199,9 @@ dependencies = [
 
 [[package]]
 name = "rigz_vm"
-version = "0.27.5"
+version = "0.27.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ccd9ec4f6f035950c56c91fb2eff6178bf25686158d37fc26171ed39fdbfc37"
+checksum = "e7acc27db590c22419c2ec7ebec5534c1abadb13c4158e7f07955f55999d3aab"
 dependencies = [
  "crossbeam",
  "dyn-clone",

@@ -664,10 +664,10 @@ impl<'vm> ProgramParser<'vm> {
     ) -> Result<(), ValidationError> {
         match expression {
             Expression::Identifier(id) => {
-                let next = self.next_register();
                 if mutable {
-                    self.builder.add_get_mutable_variable_instruction(id, next);
+                    self.builder.add_get_mutable_variable_instruction(id, this);
                 } else {
+                    let next = self.next_register();
                     self.builder.add_get_variable_instruction(id, next);
                 }
             }
@@ -675,7 +675,7 @@ impl<'vm> ProgramParser<'vm> {
                 self.parse_expression(expression)?;
             }
         }
-        if this != self.last {
+        if !mutable && this != self.last {
             self.builder.add_load_instruction(this, self.last.into());
         }
         Ok(())

@@ -91,8 +91,8 @@ pub enum TokenKind<'lex> {
     #[token("true", |_| TokenValue::Bool(true))]
     #[regex("-?[0-9]+", |lex| TokenValue::Number(Number::Int(lex.slice().parse().unwrap())))]
     #[regex("-?[0-9]+\\.[0-9]+", |lex| TokenValue::Number(Number::Float(lex.slice().parse().unwrap())))]
-    // todo special logic to support string concat, probably as dedicated tokens
-    #[regex("('[^'\n\r]+')|(\"[^\"\n\r]+\")|(`[^`\n\r]+`)", |lex| { let s = lex.slice(); TokenValue::String(&s[1..s.len()-1]) })]
+    // todo special logic to support string escape expressions, probably as dedicated tokens
+    #[regex("('[^'\n\r]*')|(\"[^\"\n\r]*\")|(`[^`\n\r]*`)", |lex| { let s = lex.slice(); TokenValue::String(&s[1..s.len()-1]) })]
     Value(TokenValue<'lex>),
     #[token("=")]
     Assign,
