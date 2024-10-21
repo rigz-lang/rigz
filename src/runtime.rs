@@ -1,8 +1,8 @@
-use std::panic;
 use crate::ast::{parse, Parser, Program, ValidationError};
+use crate::modules::VMModule;
 use crate::token::ParsingError;
 use rigz_vm::{Module, VMError, Value, VM};
-use crate::modules::VMModule;
+use std::panic;
 
 pub struct Runtime<'vm> {
     vm: VM<'vm>,
@@ -118,7 +118,7 @@ pub fn eval_debug_vm(input: &str) -> Result<(VM, Value), (Option<VM>, RuntimeErr
         Ok(v) => v,
         Err(e) => return Err((None, e.into())),
     };
-    println!("Debug VM - {vm:#?}");
+    println!("VM Initial State - {vm:#?}");
     match vm.eval() {
         Ok(v) => Ok((vm, v)),
         Err(e) => Err((Some(vm), e.into())),
@@ -257,7 +257,7 @@ mod tests {
             foo (foo (foo a))
             "# = 8.into())
             call_extension_function_mutable(r#"
-            fn mut Number.foo -> mut Number
+            fn mut Number.foo -> mut Self
                 self *= 3
                 self
             end
@@ -265,8 +265,17 @@ mod tests {
             b.foo
             b
             "# = 6.into())
+            call_extension_function_multiple_times_inline(r#"
+            fn mut Number.foo -> mut Self
+                self *= 3
+                self
+            end
+            mut a = 2
+            ((a.foo).foo).foo
+            a
+            "# = 54.into())
             call_extension_function_multiple_times(r#"
-            fn mut Number.bah -> mut Number
+            fn mut Number.bah -> mut Self
                 self *= 3
                 self
             end
@@ -283,15 +292,6 @@ mod tests {
         use super::*;
 
         run_show_vm! {
-            call_extension_function_multiple_times_inline(r#"
-            fn mut Number.foo -> mut Number
-                self *= 3
-                self
-            end
-            mut a = 2
-            ((a.foo).foo).foo
-            a
-            "# = 54.into())
             // todo support builder like pattern
             // call_extension_function_multiple_times_instance(r#"
             // fn mut String.foo -> mut Self

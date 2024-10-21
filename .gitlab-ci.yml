@@ -16,19 +16,16 @@ stages:
 
 test:
   stage: test
+  script:
+    - cargo test
+
+benchmarks:
+  stage: test
   cache:
     <<: *global_cache
     policy: pull-push
   script:
-    - cargo test
-
-#benchmarks:
-#  stage: test
-#  cache:
-#    <<: *global_cache
-#    policy: pull-push
-#  script:
-#    - cargo bench
+    - cargo bench
 
 publish:
   stage: publish
