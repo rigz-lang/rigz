@@ -58,7 +58,7 @@ mod tests {
     use crate::number::Number;
     use crate::value::Value;
     use crate::vm::RegisterValue;
-    use crate::{BinaryOperation, Module, RigzType, VMBuilder, VMError};
+    use crate::{BinaryAssign, BinaryOperation, Instruction, Module, RigzType, Scope, VMBuilder, VMError, VM};
     use std::str::FromStr;
 
     #[test]
@@ -277,5 +277,96 @@ mod tests {
             .add_halt_instruction(1);
         let mut vm = builder.build();
         assert_eq!(vm.eval().unwrap(), 10.into())
+    }
+
+    #[test]
+    fn multi_mut_scope() {
+        let mut vm = VM {
+            scopes: vec![
+                Scope {
+                    instructions: vec![
+                        Instruction::Load(
+                            89,
+                            RegisterValue::Value(
+                                2.into(),
+                            ),
+                        ),
+                        Instruction::LoadMutRegister(
+                            "a",
+                            89,
+                        ),
+                        Instruction::GetMutableVariable(
+                            "a",
+                            85,
+                        ),
+                        // Instruction::Load(
+                        //     85,
+                        //     90_usize.into(),
+                        // ),
+                        Instruction::CallSelf(
+                            1,
+                            85,
+                            85,
+                            true,
+                        ),
+                        Instruction::CallSelf(
+                            1,
+                            85,
+                            85,
+                            true,
+                        ),
+                        Instruction::CallSelf(
+                            1,
+                            85,
+                            85,
+                            true,
+                        ),
+                        Instruction::GetMutableVariable(
+                            "a",
+                            91,
+                        ),
+                        Instruction::Halt(
+                            91,
+                        ),
+                    ],
+                    owned_registers: vec![],
+                },
+                Scope {
+                    instructions: vec![
+                        Instruction::GetSelf(
+                            86,
+                            true,
+                        ),
+                        Instruction::Load(
+                            87,
+                            RegisterValue::Value(
+                                3.into(),
+                            ),
+                        ),
+                        Instruction::BinaryAssign(
+                            BinaryAssign {
+                                op: BinaryOperation::Mul,
+                                lhs: 86,
+                                rhs: 87,
+                            },
+                        ),
+                        Instruction::GetSelf(
+                            88,
+                            true,
+                        ),
+                        Instruction::Load(
+                            85,
+                            88_usize.into(),
+                        ),
+                        Instruction::Ret(
+                            85,
+                        ),
+                    ],
+                    owned_registers: vec![],
+                },
+            ],
+            ..Default::default()
+        };
+        assert_eq!(vm.run(), 54.into(), "Run Failed {vm:#?}")
     }
 }

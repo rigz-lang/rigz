@@ -119,9 +119,7 @@ impl<'vm> VM<'vm> {
     #[inline]
     pub fn get_register(&self, register: Register) -> RegisterValue {
         match self.registers.get(&register) {
-            None => RegisterValue::Value(
-                VMError::EmptyRegister(format!("R{} is empty", register)).to_value(),
-            ),
+            None => VMError::EmptyRegister(format!("R{} is empty", register)).into(),
             Some(v) => v.borrow().clone(),
         }
     }
@@ -228,7 +226,7 @@ impl<'vm> VM<'vm> {
         match self.frames.pop() {
             None => return VMState::Done(source),
             Some(c) => {
-                self.clear_frame();
+                self.clear_frame(output);
                 self.sp = c.scope_id;
                 self.current = c;
                 match process {
@@ -240,15 +238,20 @@ impl<'vm> VM<'vm> {
         VMState::Running
     }
 
-    pub fn clear_frame(&mut self) {
+    pub fn clear_frame(&mut self, output: Register) {
         if self.options.disable_variable_cleanup {
             return;
         }
 
         let variables = std::mem::take(&mut self.current.variables);
-        for reg in variables.values() {
-            let _ = match reg {
-                Variable::Let(r) | Variable::Mut(r) => self.remove_register(*r),
+        for (_, var) in variables {
+            match var {
+                Variable::Let(r) | Variable::Mut(r) => {
+                    if r == output {
+                        continue
+                    }
+                    self.remove_register(r);
+                },
             };
         }
     }

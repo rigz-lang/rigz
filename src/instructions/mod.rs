@@ -138,9 +138,9 @@ impl<'vm> VM<'vm> {
     #[inline]
     pub fn process_core_instruction(&mut self, instruction: Instruction<'vm>) -> VMState {
         match instruction {
-            Instruction::Halt(r) => return VMState::Done(self.remove_register_eval_scope(r)),
+            Instruction::Halt(r) => return VMState::Done(self.resolve_register(r)),
             Instruction::HaltIfError(r) => {
-                let value = self.remove_register_eval_scope(r);
+                let value = self.resolve_register(r);
                 if let Value::Error(e) = value {
                     return VMState::Done(e.into());
                 }

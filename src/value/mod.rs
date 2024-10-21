@@ -47,6 +47,12 @@ impl_from! {
     IndexMap<Value, Value>, Value, Value::Map;
 }
 
+impl From<&'_ str> for Value {
+    fn from(value: &'_ str) -> Self {
+        Value::String(value.to_string())
+    }
+}
+
 impl<T: Into<Number>> From<T> for Value {
     #[inline]
     fn from(value: T) -> Self {
