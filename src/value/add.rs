@@ -12,7 +12,7 @@ impl Add for Value {
             (Value::None, v) | (v, Value::None) => v,
             (Value::Bool(a), Value::Bool(b)) => Value::Bool(a | b),
             (Value::Number(a), Value::Number(b)) => Value::Number(a + b),
-            (Value::Number(a), Value::String(b)) | (Value::String(b), Value::Number(a)) => {
+            (Value::Number(a), Value::String(b)) => {
                 let s = Value::String(b.clone());
                 match s.to_number() {
                     None => {
@@ -21,6 +21,17 @@ impl Add for Value {
                         Value::String(res)
                     }
                     Some(r) => Value::Number(a + r),
+                }
+            }
+            (Value::String(a), Value::Number(b)) => {
+                let s = Value::String(a.clone());
+                match s.to_number() {
+                    None => {
+                        let mut res = a.to_string();
+                        res.push_str(b.to_string().as_str());
+                        Value::String(res)
+                    }
+                    Some(r) => Value::Number(b + r),
                 }
             }
             (Value::Number(a), Value::Range(r)) | (Value::Range(r), Value::Number(a)) => {
@@ -85,7 +96,10 @@ mod tests {
             test_false_bool_true_add_true => (Value::Bool(false), Value::Bool(true), Value::Bool(true));
             test_false_0_add_true => (Value::Bool(false), Value::Number(Number::Int(0)), Value::Bool(false));
             test_true_0_add_true => (Value::Bool(true), Value::Number(Number::Int(0)), Value::Number(Number::Int(1)));
-            // Add more test cases here as needed
+            test_str_1_add_num => (Value::String("1".into()), Value::Number(6.into()), Value::Number(7.into()));
+            test_str_abc_add_num => (Value::String("abc".into()), Value::Number(6.into()), Value::String("abc6".into()));
+            test_num_add_abc => (Value::Number(6.into()), Value::String("abc".into()), Value::String("6abc".into()));
+            // todo add more test cases
         }
     }
 }

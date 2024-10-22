@@ -69,7 +69,7 @@ mod tests {
             test_true_0_shr_true => (Value::Bool(true), Value::Number(Number::Int(0)), Value::Number(Number::Int(1)));
             append_to_from => (Value::String("abc".into()), Value::String("123".into()), Value::String("123abc".into()));
             int_like => (Value::Number(1.into()), Value::Number(2.into()), Value::Number((1 >> 2).into()));
-            // shr more test cases here as needed
+            // todo add more test cases
         }
     }
 }

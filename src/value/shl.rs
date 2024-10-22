@@ -70,7 +70,7 @@ mod tests {
             test_true_0_shl_true => (Value::Bool(true), Value::Number(Number::Int(0)), Value::Number(Number::Int(1)));
             push_to_end => (Value::String("abc".into()), Value::String("123".into()), Value::String("abc123".into()));
             int_like => (Value::Number(1.into()), Value::Number(2.0.into()), Value::Number((1 << 2).into()));
-            // shl more test cases here as needed
+            // todo add more test cases
         }
     }
 }

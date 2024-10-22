@@ -74,6 +74,7 @@ mod tests {
             test_false_bool_true_bitxor_true => (Value::Bool(false), Value::Bool(true), Value::Bool(true));
             test_false_0_bitxor_true => (Value::Bool(false), Value::Number(Number::Int(0)), Value::Bool(false));
             test_true_0_bitxor_true => (Value::Bool(true), Value::Number(Number::Int(0)), Value::Number(Number::Int(1)));
+            // todo add more test cases
         }
     }
 }

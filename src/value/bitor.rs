@@ -73,7 +73,7 @@ mod tests {
             test_false_bool_true_bitor_true => (Value::Bool(false), Value::Bool(true), Value::Bool(true));
             test_false_0_bitor_true => (Value::Bool(false), Value::Number(Number::Int(0)), Value::Bool(false));
             test_true_0_bitor_true => (Value::Bool(true), Value::Number(Number::Int(0)), Value::Number(Number::Int(1)));
-            // bitor more test cases here as needed
+            // todo add more test cases
         }
     }
 }

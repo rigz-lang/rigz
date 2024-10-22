@@ -305,10 +305,11 @@ impl<'vm> VM<'vm> {
     }
 
     #[inline]
-    /// scope_id must be valid when this is called, otherwise function will panic
+    #[log_derive::logfn(Debug)]
     fn next_instruction(&self) -> Option<Instruction<'vm>> {
         let scope_id = self.sp;
         // TODO move &Scope to callframe
+        /// scope_id must be valid when this is called, otherwise function will panic
         let scope = &self.scopes[scope_id];
         scope.instructions.get(self.current.pc).cloned()
     }

@@ -367,6 +367,7 @@ macro_rules! generate_builder {
 
         #[inline]
         pub fn add_load_instruction(&mut self, reg: Register, value: RegisterValue) -> &mut Self {
+            self.scopes[self.sp].owned_registers.push(reg);
             self.add_instruction(Instruction::Load(reg, value))
         }
 

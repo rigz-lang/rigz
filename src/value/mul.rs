@@ -92,7 +92,7 @@ mod tests {
             test_false_0_mul_true => (Value::Bool(false), Value::Number(Number::Int(0)), Value::Bool(false));
             test_true_0_mul_true => (Value::Bool(true), Value::Number(Number::Int(0)), Value::Number(Number::Int(1)));
             test_str_f64_str => (Value::String("abc".to_string()), Value::Number(Number::Float(2.5)), Value::String("abcabca".to_string()));
-            // mul more test cases here as needed
+            // todo add more test cases
         }
     }
 }
