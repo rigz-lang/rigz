@@ -144,20 +144,8 @@ mod tests {
                  #[test]
                 fn $name() {
                     let input = $input;
-                    match eval_show_vm(input) {
-                        Ok((vm, v)) => {
-                            assert_eq!(v, $expected, "VM eval failed {input}\n{vm:#?}")
-                        }
-                        Err((vm, err)) => match vm {
-                            None => {
-                                assert!(false, "Failed to parse input {err:?} - {input}")
-                            }
-                            Some(v) => {
-                                assert!(false, "VM eval failed {err:?} - {input}\n{v:#?}")
-                            }
-                        }
-                    };
-
+                    let v = eval(input);
+                    assert_eq!(v, Ok($expected), "VM eval failed {input}");
                 }
             )*
         };
@@ -233,6 +221,7 @@ mod tests {
 
     mod valid {
         use super::*;
+        use indexmap::IndexMap;
 
         run_expected! {
             raw_value("'Hello World'" = Value::String("Hello World".to_string()))
@@ -285,6 +274,47 @@ mod tests {
             f.bah
             f
             "# = 113.4.into())
+            instance_get(r#"
+                m = {a = {b = {c = 1}}}
+                m.a.b.c
+            "# = 1.into())
+            create_dynamic_list(r#"
+                [{d = 1}]
+            "# = Value::List(vec![Value::Map(IndexMap::from([("d".into(), 1.into())]))]))
+            // todo support builder like pattern
+            call_extension_function_multiple_times_inline_no_parens(r#"
+            fn mut String.foo -> mut Self
+                self += "h"
+                self
+            end
+            mut a = ""
+            a.foo.foo.foo
+            "# = "hhh".to_string().into())
+            self_fib_recursive(r#"
+            fn Number.fib -> Number
+                if self <= 1
+                    self
+                else
+                    (self - 1).fib + (self - 2).fib
+                end
+            end
+            6.fib
+            "# = 8.into())
+            // memoization lifecycle
+            // fib_recursive_dynamic_programming(r#"
+            // @memo
+            // fn fib(n: Number) -> Number
+            //     if n <= 1
+            //         n
+            //     else
+            //         a = (fib n - 1)
+            //         b = (fib n - 2)
+            //         a + b
+            //     end
+            // end
+            // fib 6
+            // fib 6
+            // "# = 8.into())
         }
     }
 
@@ -292,15 +322,16 @@ mod tests {
         use super::*;
 
         run_show_vm! {
-            // todo support builder like pattern
-            // call_extension_function_multiple_times_instance(r#"
-            // fn mut String.foo -> mut Self
-            //     self += "h"
-            //     self
-            // end
-            // mut a = ""
-            // a.foo.foo.foo
-            // "# = "hhh".to_string().into())
+            fib_recursive(r#"
+            fn fib(n: Number) -> Number
+                if n <= 1
+                    n
+                else
+                    (fib n - 1) + (fib n - 2)
+                end
+            end
+            fib 6
+            "# = 8.into())
         }
     }
 }

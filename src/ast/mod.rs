@@ -336,7 +336,7 @@ impl<'lex> Parser<'lex> {
             TokenKind::This => self.parse_this_expression()?,
             TokenKind::Symbol(s) => self.parse_symbol_expression(s)?,
             TokenKind::Lparen => self.parse_paren_expression()?,
-            TokenKind::Lbracket => self.parse_list()?,
+            TokenKind::Lbracket => self.parse_list()?.into(),
             TokenKind::Lcurly => self.parse_map()?,
             TokenKind::Do => Expression::Scope(self.parse_scope()?),
             TokenKind::Unless => Expression::Unless {
@@ -417,9 +417,12 @@ impl<'lex> Parser<'lex> {
                     self.consume_token(TokenKind::As)?;
                     Ok(Expression::Cast(Box::new(exp), self.parse_rigz_type()?))
                 }
-                TokenKind::Period => {
-                    self.consume_token(TokenKind::Period)?;
-                    Ok(self.parse_instance_call(exp)?)
+                TokenKind::Lbracket => {
+                    self.consume_token(TokenKind::Lbracket)?;
+                    Ok(Expression::Index(Box::new(exp), self.parse_list()?))
+                }
+                TokenKind::BinOp(_) | TokenKind::Pipe | TokenKind::Minus | TokenKind::Period => {
+                    Ok(self.parse_inline_expression(exp)?)
                 }
                 _ => Ok(exp),
             },
@@ -515,7 +518,8 @@ impl<'lex> Parser<'lex> {
                     | TokenKind::Rcurly
                     | TokenKind::If
                     | TokenKind::Assign // for maps
-                    | TokenKind::Unless => {
+                    | TokenKind::Unless
+                    | TokenKind::End => {
                         self.tokens.push_front(next);
                         break;
                     }
@@ -533,13 +537,15 @@ impl<'lex> Parser<'lex> {
     ) -> Result<Expression<'lex>, ParsingError> {
         let next = self.next_required_token()?;
         let rhs = match next.kind {
+            // we want value expressions evaluated from left to right, can't call parse_value_expression here
             TokenKind::Value(v) => v.into(),
+            // todo we want value expressions evaluated from left to right, can't call parse_identifier_expression here (need to handle possible function call though)
+            TokenKind::Identifier(id) => id.into(),
             TokenKind::Not => self.parse_unary_expression(UnaryOperation::Not)?,
             TokenKind::Minus => self.parse_unary_expression(UnaryOperation::Neg)?,
-            TokenKind::Identifier(id) => id.into(),
             TokenKind::Lparen => self.parse_paren_expression()?,
             TokenKind::Lcurly => self.parse_map()?,
-            TokenKind::Lbracket => self.parse_list()?,
+            TokenKind::Lbracket => self.parse_list()?.into(),
             TokenKind::Do => Expression::Scope(self.parse_scope()?),
             _ => {
                 return Err(ParsingError::ParseError(format!(
@@ -599,11 +605,8 @@ impl<'lex> Parser<'lex> {
                 }
             }
         }
-        Ok(Expression::InstanceFunctionCall(
-            Box::new(lhs),
-            calls,
-            self.parse_args()?,
-        ))
+        let args = self.parse_args()?;
+        Ok(Expression::InstanceFunctionCall(Box::new(lhs), calls, args))
     }
 
     fn parse_value_expression(
@@ -637,24 +640,27 @@ impl<'lex> Parser<'lex> {
         loop {
             match self.peek_token() {
                 None => break,
-                Some(t) if t.terminal() => {
-                    break;
-                }
-                Some(t) if t.kind == TokenKind::Rparen => break,
-                Some(t) if t.kind == TokenKind::End => break,
-                Some(t) if t.kind == TokenKind::Comma => {
-                    self.consume_token(TokenKind::Comma)?;
-                    continue;
-                }
-                Some(_) => {
-                    args.push(self.parse_expression()?);
-                }
+                Some(t) if t.terminal() => break,
+                Some(t) => match t.kind {
+                    TokenKind::Rparen
+                    | TokenKind::End
+                    | TokenKind::BinOp(_)
+                    | TokenKind::Pipe
+                    | TokenKind::Minus => break,
+                    TokenKind::Comma => {
+                        self.consume_token(TokenKind::Comma)?;
+                        continue;
+                    }
+                    _ => {
+                        args.push(self.parse_expression()?);
+                    }
+                },
             }
         }
         Ok(args)
     }
 
-    fn parse_list(&mut self) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_list(&mut self) -> Result<Vec<Expression<'lex>>, ParsingError> {
         let mut args = Vec::new();
         loop {
             match self.peek_token() {
@@ -672,7 +678,7 @@ impl<'lex> Parser<'lex> {
                 }
             }
         }
-        Ok(Expression::List(args))
+        Ok(args)
     }
 
     fn parse_map(&mut self) -> Result<Expression<'lex>, ParsingError> {

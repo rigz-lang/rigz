@@ -7,7 +7,9 @@ use crate::{FunctionArgument, FunctionDefinition, FunctionSignature, FunctionTyp
 use indexmap::map::Entry;
 use indexmap::IndexMap;
 use log::warn;
-use rigz_vm::{Clear, Module, Register, RegisterValue, RigzType, VMBuilder, VMError, Value, VM};
+use rigz_vm::{
+    Clear, Module, Number, Register, RegisterValue, RigzType, VMBuilder, VMError, Value, VM,
+};
 use std::collections::HashMap;
 use std::env::current_exe;
 
@@ -238,6 +240,7 @@ impl<'vm> ProgramParser<'vm> {
             body,
         } = function_definition;
         let type_definition = self.parse_type_signature(type_definition)?;
+        let current_scope = self.builder.sp;
         self.builder.enter_scope();
         for (arg, reg) in &type_definition.arguments {
             // todo handle varargs
@@ -247,22 +250,10 @@ impl<'vm> ProgramParser<'vm> {
                 self.builder.add_load_let_instruction(arg.name, *reg);
             }
         }
+        // todo store arguments variable
         let f_def = self.builder.sp;
         let (_, output) = type_definition.return_type;
-        for e in body.elements {
-            match e {
-                Element::Expression(Expression::This) => match &type_definition.self_type {
-                    Some(t) if t.0.mutable => {
-                        self.mutable_this();
-                    }
-                    _ => self.parse_element(e)?,
-                },
-                e => self.parse_element(e)?,
-            }
-        }
-        self.builder
-            .add_load_instruction(output, RegisterValue::Register(self.last));
-        self.builder.exit_scope(output);
+        let self_type = type_definition.self_type.clone();
         match self.function_scopes.entry(name) {
             Entry::Occupied(mut entry) => {
                 entry
@@ -273,6 +264,20 @@ impl<'vm> ProgramParser<'vm> {
                 e.insert(vec![(type_definition, CallSite::Scope(f_def, output))]);
             }
         }
+        for e in body.elements {
+            match e {
+                Element::Expression(Expression::This) => match &self_type {
+                    Some(t) if t.0.mutable => {
+                        self.mutable_this();
+                    }
+                    _ => self.parse_element(e)?,
+                },
+                e => self.parse_element(e)?,
+            }
+        }
+        self.builder
+            .add_load_instruction(output, RegisterValue::Register(self.last));
+        self.builder.exit_scope(current_scope, output);
         Ok(())
     }
 
@@ -374,6 +379,7 @@ impl<'vm> ProgramParser<'vm> {
             Expression::This => {
                 let _ = self.this();
             }
+            Expression::Index(_, _) => {}
             Expression::Value(v) => self.parse_value(v),
             Expression::BinExp(a, op, b) => {
                 let (a, b, clear) = match (*a, *b) {
@@ -428,7 +434,7 @@ impl<'vm> ProgramParser<'vm> {
             },
             Expression::Identifier(id) => {
                 if self.function_scopes.contains_key(id) {
-                    self.call_function(None, None, id, vec![])?;
+                    self.call_function(None, id, vec![])?;
                 } else {
                     let next = self.next_register();
                     self.builder.add_get_variable_instruction(id, next);
@@ -441,16 +447,20 @@ impl<'vm> ProgramParser<'vm> {
             } => {
                 self.parse_expression(*condition)?;
                 let cond = self.last;
-                let (truthy, output) = self.parse_scope(then)?;
+                let (truthy, if_output) = self.parse_scope(then)?;
                 match branch {
                     None => {
-                        self.builder.add_if_instruction(cond, truthy, output);
+                        self.builder.add_if_instruction(cond, truthy, if_output);
                     }
                     Some(p) => {
-                        let (falsy, output) = self.parse_scope(p)?;
-                        // todo I think if_else needs both outputs
-                        self.builder
-                            .add_if_else_instruction(cond, truthy, falsy, output);
+                        let (falsy, else_output) = self.parse_scope(p)?;
+                        let output = self.next_register();
+                        self.builder.add_if_else_instruction(
+                            cond,
+                            (truthy, if_output),
+                            (falsy, else_output),
+                            output,
+                        );
                     }
                 }
             }
@@ -461,62 +471,65 @@ impl<'vm> ProgramParser<'vm> {
                 self.builder.add_unless_instruction(cond, unless, output);
             }
             Expression::List(list) => {
-                let mut base = Vec::new();
-                let mut remaining = Vec::new();
-                for v in list {
-                    match v {
-                        Expression::Value(v) => {
-                            base.push(v);
-                        }
-                        v => {
-                            remaining.push(v);
-                        }
-                    }
-                }
-                let r = self.next_register();
-                self.builder
-                    .add_load_instruction(r, Value::List(base).into());
-                if !remaining.is_empty() {
-                    todo!("expressions in list not supported yet")
-                }
+                self.parse_list(list)?;
             }
             Expression::Map(map) => {
-                let mut base = IndexMap::new();
-                let mut remaining = Vec::new();
-                for (k, v) in map {
-                    match (k, v) {
-                        (Expression::Value(k), Expression::Value(v)) => {
-                            base.insert(k, v);
-                        }
-                        (Expression::Identifier(k), Expression::Value(v)) => {
-                            base.insert(Value::String(k.to_string()), v);
-                        }
-                        (k, v) => {
-                            remaining.push((k, v));
-                        }
-                    }
-                }
-                let r = self.next_register();
-                self.builder
-                    .add_load_instruction(r, Value::Map(base).into());
-                if !remaining.is_empty() {
-                    todo!("expressions in map not supported yet")
-                }
-                // store static part of map first, values only, then modify
+                self.parse_map(map)?;
             }
             // todo use clear in function calls when appropriate
             Expression::FunctionCall(name, args) => {
-                self.call_function(None, None, name, args)?;
+                self.call_function(None, name, args)?;
             }
+            // todo make a clear delineation between self.foo & Self.foo
             Expression::TypeFunctionCall(rigz_type, name, args) => {
-                self.call_function(Some(rigz_type), None, name, args)?;
+                self.call_function(Some(rigz_type), name, args)?;
             }
             Expression::InstanceFunctionCall(exp, calls, args) => {
-                let name = calls
-                    .last()
-                    .expect("Invalid Instance Function Call, no calls");
-                // todo support a.b.c.d 1, 2, 3
-                self.call_function(Some(RigzType::Any), Some(*exp), name, args)?;
+                let len = calls.len();
+                assert!(len > 0, "Invalid Instance Function Call no arguments");
+                let last = len - 1;
+                let mut calls = calls.into_iter().enumerate();
+                let (_, first) = calls.next().unwrap();
+                let mut current = match self.function_scopes.contains_key(first) {
+                    false => {
+                        self.parse_expression(*exp)?;
+                        let current = self.last;
+                        let next = self.next_register();
+                        self.builder.add_load_instruction(next, first.into());
+                        let output = self.next_register();
+                        self.builder
+                            .add_instance_get_instruction(current, next, output);
+                        output
+                    }
+                    true if last == 0 => {
+                        self.call_extension_function(*exp, first, args)?;
+                        return Ok(());
+                    }
+                    true => {
+                        self.call_extension_function(*exp, first, vec![])?;
+                        self.last
+                    }
+                };
+
+                for (index, c) in calls {
+                    let fcs = match self.function_scopes.get(c) {
+                        None => {
+                            let next = self.next_register();
+                            self.builder.add_load_instruction(next, c.into());
+                            let output = self.next_register();
+                            self.builder
+                                .add_instance_get_instruction(current, next, output);
+                            current = output;
+                            continue;
+                        }
+                        Some(fcs) => fcs.clone(),
+                    };
+
+                    todo!();
+                    if index == last {
+                    } else {
+                    }
+                }
             }
             Expression::Scope(s) => {
                 let (s, output) = self.parse_scope(s)?;
@@ -539,23 +552,131 @@ impl<'vm> ProgramParser<'vm> {
         Ok(())
     }
 
+    fn parse_list(&mut self, list: Vec<Expression<'vm>>) -> Result<(), ValidationError> {
+        let mut base = Vec::new();
+        let mut values_only = true;
+        let l = self.next_register();
+        for (index, v) in list.into_iter().enumerate() {
+            if values_only {
+                match v {
+                    Expression::Value(v) => {
+                        base.push(v);
+                    }
+                    e => {
+                        values_only = false;
+                        self.builder
+                            .add_load_instruction(l, Value::List(base).into());
+                        base = Vec::new();
+                        let index = Number::Int(index as i64);
+                        let k_next = self.next_register();
+                        self.parse_expression(e)?;
+                        self.builder.add_load_instruction(k_next, index.into());
+                        self.builder
+                            .add_instance_set_instruction(l, k_next, self.last, l);
+                    }
+                }
+            } else {
+                let index = Number::Int(index as i64);
+                let k_next = self.next_register();
+                self.parse_expression(v)?;
+                self.builder.add_load_instruction(k_next, index.into());
+                self.builder
+                    .add_instance_set_instruction(l, k_next, self.last, l);
+            }
+        }
+        if values_only {
+            self.builder
+                .add_load_instruction(l, Value::List(base).into());
+        } else {
+            self.last = l;
+        }
+        Ok(())
+    }
+
+    fn parse_map(
+        &mut self,
+        map: Vec<(Expression<'vm>, Expression<'vm>)>,
+    ) -> Result<(), ValidationError> {
+        let mut base = IndexMap::new();
+        let mut values_only = true;
+        let m = self.next_register();
+        for (k, v) in map {
+            if values_only {
+                match (k, v) {
+                    (Expression::Value(k), Expression::Value(v)) => {
+                        base.insert(k, v);
+                    }
+                    (Expression::Identifier(k), Expression::Value(v)) => {
+                        base.insert(Value::String(k.to_string()), v);
+                    }
+                    (Expression::Identifier(k), e) => {
+                        values_only = false;
+                        self.builder
+                            .add_load_instruction(m, Value::Map(base).into());
+                        let k_next = self.next_register();
+                        self.builder.add_load_instruction(k_next, k.into());
+                        self.parse_expression(e)?;
+                        self.builder
+                            .add_instance_set_instruction(m, k_next, self.last, m);
+                        base = IndexMap::new();
+                    }
+                    (k, v) => {
+                        values_only = false;
+                        self.builder
+                            .add_load_instruction(m, Value::Map(base).into());
+                        base = IndexMap::new();
+                        self.parse_expression(k)?;
+                        let k_next = self.last;
+                        self.parse_expression(v)?;
+                        self.builder
+                            .add_instance_set_instruction(m, k_next, self.last, m);
+                    }
+                }
+            } else {
+                match (k, v) {
+                    (Expression::Identifier(k), e) => {
+                        let k_next = self.next_register();
+                        self.builder.add_load_instruction(k_next, k.into());
+                        self.parse_expression(e)?;
+                        self.builder
+                            .add_instance_set_instruction(m, k_next, self.last, m);
+                    }
+                    (k, v) => {
+                        self.parse_expression(k)?;
+                        let k_next = self.last;
+                        self.parse_expression(v)?;
+                        self.builder
+                            .add_instance_set_instruction(m, k_next, self.last, m);
+                    }
+                }
+            }
+        }
+
+        if values_only {
+            self.builder
+                .add_load_instruction(m, Value::Map(base).into());
+        } else {
+            self.last = m;
+        }
+
+        Ok(())
+    }
+
     fn call_function(
         &mut self,
         rigz_type: Option<RigzType>,
-        this_exp: Option<Expression<'vm>>,
         name: &'vm str,
-        expressions: Vec<Expression<'vm>>,
+        arguments: Vec<Expression<'vm>>,
     ) -> Result<(), ValidationError> {
         let function_call_signatures = self.get_function(name)?;
-        let mut call_args = Vec::with_capacity(expressions.len());
+        let mut call_args = Vec::with_capacity(arguments.len());
         let mut fcs = None;
         let mut vm_module = false;
-        let extension = rigz_type.is_some();
         let mut mutable = false;
         let mut this = 0;
         if function_call_signatures.len() == 1 {
             let (inner_fcs, call_site) = &function_call_signatures[0];
-            if inner_fcs.arguments.len() == expressions.len() {
+            if inner_fcs.arguments.len() == arguments.len() {
                 match &inner_fcs.self_type {
                     None => {}
                     Some((ft, current_this)) => {
@@ -574,7 +695,7 @@ impl<'vm> ProgramParser<'vm> {
             for (fc, call_site) in function_call_signatures {
                 match (&fc.self_type, &rigz_type) {
                     (None, None) => {
-                        if fc.arguments.len() == expressions.len() {
+                        if fc.arguments.len() == arguments.len() {
                             fcs = Some((fc, call_site));
                             break;
                         } else {
@@ -583,7 +704,7 @@ impl<'vm> ProgramParser<'vm> {
                     }
                     (Some((ft, current_this)), Some(s)) => {
                         if &ft.rigz_type == s {
-                            if fc.arguments.len() == expressions.len() {
+                            if fc.arguments.len() == arguments.len() {
                                 if s == &RigzType::VM {
                                     vm_module = true
                                 }
@@ -603,11 +724,11 @@ impl<'vm> ProgramParser<'vm> {
         match fcs {
             None => {
                 return Err(ValidationError::InvalidFunction(format!(
-                    "No matching function found for {name} {rigz_type:?}, {expressions:?}"
+                    "No matching function found for {name} {rigz_type:?}, {arguments:?}"
                 )))
             }
             Some((fcs, call)) => {
-                for ((_, arg_reg), expression) in fcs.arguments.iter().zip(expressions) {
+                for ((_, arg_reg), expression) in fcs.arguments.iter().zip(arguments) {
                     self.parse_expression(expression)?;
                     self.builder
                         .add_load_instruction(*arg_reg, RegisterValue::Register(self.last));
@@ -616,15 +737,8 @@ impl<'vm> ProgramParser<'vm> {
 
                 match call {
                     CallSite::Scope(s, o) => {
-                        if extension {
-                            let e = this_exp.expect("Expected extension function, this is a bug");
-                            self.parse_extension_expression(mutable, this, e)?;
-                            self.builder.add_call_self_instruction(s, o, this, mutable);
-                            self.last = o;
-                        } else {
-                            self.builder.add_call_instruction(s, o);
-                            self.last = o;
-                        }
+                        self.builder.add_call_instruction(s, o);
+                        self.last = o;
                     }
                     CallSite::Module(m) => {
                         let output = self.next_register();
@@ -632,9 +746,98 @@ impl<'vm> ProgramParser<'vm> {
                             self.builder.add_call_vm_extension_module_instruction(
                                 m, name, call_args, output,
                             );
-                        } else if extension {
-                            let e = this_exp.expect("Expected extension function, this is a bug");
-                            self.parse_extension_expression(mutable, this, e)?;
+                        } else {
+                            self.builder
+                                .add_call_module_instruction(m, name, call_args, output);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn call_extension_function(
+        &mut self,
+        this_exp: Expression<'vm>,
+        name: &'vm str,
+        arguments: Vec<Expression<'vm>>,
+    ) -> Result<(), ValidationError> {
+        let function_call_signatures = self.get_function(name)?;
+        let mut call_args = Vec::with_capacity(arguments.len());
+        let mut fcs = None;
+        let mut vm_module = false;
+        let mut mutable = false;
+        let mut this = 0;
+        // todo add type inference for self
+        let rigz_type = RigzType::Any;
+        if function_call_signatures.len() == 1 {
+            let (inner_fcs, call_site) = &function_call_signatures[0];
+            if inner_fcs.arguments.len() == arguments.len() {
+                match &inner_fcs.self_type {
+                    None => {}
+                    Some((ft, current_this)) => {
+                        if ft.rigz_type == RigzType::VM {
+                            vm_module = true
+                        }
+                        this = *current_this;
+                        mutable = ft.mutable;
+                    }
+                }
+                fcs = Some((inner_fcs.clone(), *call_site));
+            } else {
+                todo!("handle default and var args")
+            }
+        } else {
+            for (fc, call_site) in function_call_signatures {
+                match (&fc.self_type, &rigz_type) {
+                    (None, _) => {}
+                    (Some((ft, current_this)), s) => {
+                        if &ft.rigz_type == s {
+                            if fc.arguments.len() == arguments.len() {
+                                if s == &RigzType::VM {
+                                    vm_module = true
+                                }
+                                this = *current_this;
+                                mutable = ft.mutable;
+                                fcs = Some((fc, call_site));
+                                break;
+                            } else {
+                                todo!("check default and var args")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        match fcs {
+            None => {
+                return Err(ValidationError::InvalidFunction(format!(
+                    "No matching function found for {name} {rigz_type:?}, {arguments:?}"
+                )))
+            }
+            Some((fcs, call)) => {
+                for ((_, arg_reg), expression) in fcs.arguments.iter().zip(arguments) {
+                    self.parse_expression(expression)?;
+                    self.builder
+                        .add_load_instruction(*arg_reg, RegisterValue::Register(self.last));
+                    call_args.push(*arg_reg);
+                }
+
+                match call {
+                    CallSite::Scope(s, o) => {
+                        self.parse_extension_expression(mutable, this, this_exp)?;
+                        self.builder.add_call_self_instruction(s, o, this, mutable);
+                        self.last = o;
+                    }
+                    CallSite::Module(m) => {
+                        let output = self.next_register();
+                        if vm_module {
+                            self.builder.add_call_vm_extension_module_instruction(
+                                m, name, call_args, output,
+                            );
+                        } else {
+                            self.parse_extension_expression(mutable, this, this_exp)?;
                             self.builder.add_set_self_instruction(this, mutable);
                             if mutable {
                                 self.builder.add_call_mutable_extension_module_instruction(
@@ -645,9 +848,6 @@ impl<'vm> ProgramParser<'vm> {
                                     m, name, this, call_args, output,
                                 );
                             }
-                        } else {
-                            self.builder
-                                .add_call_module_instruction(m, name, call_args, output);
                         }
                     }
                 }
@@ -729,13 +929,14 @@ impl<'vm> ProgramParser<'vm> {
 
     // dont use this for function scopes!
     fn parse_scope(&mut self, scope: Scope<'vm>) -> Result<(usize, Register), ValidationError> {
+        let current = self.builder.sp;
         self.builder.enter_scope();
         let res = self.builder.sp;
         for e in scope.elements {
             self.parse_element(e)?;
         }
-        let next = self.next_register();
-        self.builder.exit_scope(next);
+        let next = self.last;
+        self.builder.exit_scope(current, next);
         Ok((res, next))
     }
 

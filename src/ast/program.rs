@@ -65,6 +65,15 @@ pub enum Element<'lex> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub enum ImportValue<'lex> {
+    TypeValue(&'lex str),
+    Identifier(&'lex str),
+    FilePath(String),
+    UrlPath(String),
+    // todo support tree shaking?
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Exposed<'lex> {
     TypeValue(&'lex str),
     Identifier(&'lex str),
@@ -132,6 +141,14 @@ pub enum Expression<'lex> {
         condition: Box<Expression<'lex>>,
         then: Scope<'lex>,
     },
+    Index(Box<Expression<'lex>>, Vec<Expression<'lex>>),
+}
+
+impl<'lex> From<Vec<Expression<'lex>>> for Expression<'lex> {
+    #[inline]
+    fn from(value: Vec<Expression<'lex>>) -> Self {
+        Expression::List(value)
+    }
 }
 
 impl<'lex> Expression<'lex> {

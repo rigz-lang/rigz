@@ -40,6 +40,7 @@ impl<'vm> Module<'vm> for StdLibModule {
         args: Vec<Value>,
     ) -> Result<Value, VMError> {
         match function {
+            "clone" => Ok(value.clone()),
             "first" => match value {
                 Value::List(v) => match v.first() {
                     None => Ok(Value::None),
@@ -175,6 +176,7 @@ impl<'vm> Module<'vm> for StdLibModule {
 
     fn trait_definition(&self) -> &'static str {
         r#"import trait STD
+            fn Any.clone -> Any
             fn Any.is_err -> Bool
             fn Any.is_none -> Bool
             fn Any.is_some -> Bool

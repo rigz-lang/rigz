@@ -158,6 +158,8 @@ pub enum TokenKind<'lex> {
     Identifier(&'lex str),
     #[regex(":[A-Za-z_]+", |lex| { let s = lex.slice(); Symbol(&s[1..]) })]
     Symbol(Symbol<'lex>),
+    #[regex("@[a-z_][A-Za-z_]*", |lex| { let s = lex.slice(); &s[1..] })]
+    Lifecycle(&'lex str),
     #[token("(")]
     Lparen,
     #[token(")")]
@@ -223,6 +225,7 @@ pub enum TokenKind<'lex> {
     Try,
     #[token("catch")]
     Catch,
+    // todo should puts & log be dedicated tokens to since they're VM instructions?
     // #[regex("[A-Z][a-z_]+\\??!?", |lex| lex.slice())]
     // TypeValue(&'lex str),
 }
@@ -251,6 +254,7 @@ impl Display for TokenKind<'_> {
             TokenKind::FunctionDef => write!(f, "fn"),
             TokenKind::Identifier(id) => write!(f, "{}", id),
             TokenKind::Symbol(s) => write!(f, "{}", s),
+            TokenKind::Lifecycle(s) => write!(f, "@{}", s),
             TokenKind::Lparen => write!(f, "("),
             TokenKind::Rparen => write!(f, ")"),
             TokenKind::Lcurly => write!(f, "{{"),
