@@ -435,5 +435,21 @@ macro_rules! generate_builder {
         ) -> &mut Self {
             self.add_instruction(Instruction::InstanceGet(source, attr, output))
         }
+
+        #[inline]
+        pub fn add_instance_set_instruction(
+            &mut self,
+            source: Register,
+            index: Register,
+            value: Register,
+            output: Register,
+        ) -> &mut Self {
+            self.add_instruction(Instruction::InstanceSet {
+                source,
+                index,
+                value,
+                output
+            })
+        }
     };
 }
