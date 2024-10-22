@@ -50,8 +50,8 @@ pub enum Instruction<'vm> {
     // todo do I need if, if_else, unless statements, or can I use expressions in the VM?
     IfElse {
         truthy: Register,
-        if_scope: usize,
-        else_scope: usize,
+        if_scope: (usize, Register),
+        else_scope: (usize, Register),
         output: Register,
     },
     If {
@@ -339,11 +339,16 @@ impl<'vm> VM<'vm> {
                 else_scope,
                 output,
             } => {
-                if self.resolve_register(truthy).to_bool() {
-                    self.call_frame(if_scope, output)
+                let r = if self.resolve_register(truthy).to_bool() {
+                    let (if_scope, output ) = if_scope;
+                    self.call_frame(if_scope, output);
+                    output
                 } else {
-                    self.call_frame(else_scope, output)
-                }
+                    let (else_scope, output ) = else_scope;
+                    self.call_frame(else_scope, output);
+                    output
+                };
+                self.insert_register(output, r.into())
             }
             Instruction::If {
                 truthy,

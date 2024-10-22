@@ -1,5 +1,6 @@
 #[allow(unused_imports)] // for navigation & autocomplete in macro
 use crate::Instruction;
+use crate::{Register, Scope};
 
 #[macro_export]
 macro_rules! generate_unary_op_methods {
@@ -306,8 +307,8 @@ macro_rules! generate_builder {
         pub fn add_if_else_instruction(
             &mut self,
             truthy: Register,
-            if_scope: usize,
-            else_scope: usize,
+            if_scope: (usize, Register),
+            else_scope: (usize, Register),
             output: Register,
         ) -> &mut Self {
             self.add_instruction(Instruction::IfElse {
