@@ -28,6 +28,7 @@ pub enum Instruction<'vm> {
     Load(Register, RegisterValue),
     InstanceGet(Register, Value, Register),
     InstanceGetRegister(Register, Register, Register),
+    // todo add InstanceSet && InstanceSetRegister
     Copy(Register, Register),
     Call(usize, Register),
     CallSelf(usize, Register, Register, bool),
@@ -37,7 +38,7 @@ pub enum Instruction<'vm> {
     CallNeq(Register, Register, usize, Register),
     SetSelf(Register, bool),
     GetSelf(Register, bool),
-    // todo if, if_else, unless statements
+    // todo do I need if, if_else, unless statements, or can I use expressions in the VM?
     IfElse {
         truthy: Register,
         if_scope: usize,
@@ -493,6 +494,7 @@ impl<'vm> VM<'vm> {
     fn instance_get(&mut self, source: Register, attr: Value, output: Register) {
         let source = self.resolve_register(source);
         let v = match (source, attr) {
+            // todo support ranges as attr
             (Value::String(source), Value::Number(n)) => match n.to_usize() {
                 Ok(index) => match source.chars().nth(index) {
                     None => VMError::UnsupportedOperation(format!(

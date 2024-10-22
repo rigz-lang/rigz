@@ -417,11 +417,6 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        pub fn add_puts_instruction(&mut self, values: Vec<Register>) -> &mut Self {
-            self.add_instruction(Instruction::Puts(values))
-        }
-
-        #[inline]
         pub fn add_log_instruction(
             &mut self,
             level: Level,
@@ -429,6 +424,16 @@ macro_rules! generate_builder {
             values: Vec<Register>,
         ) -> &mut Self {
             self.add_instruction(Instruction::Log(level, template, values))
+        }
+
+        #[inline]
+        pub fn add_instance_get_instruction(&mut self, source: Register, attr: Value, output: Register) -> &mut Self {
+            self.add_instruction(Instruction::InstanceGet(source, attr, output))
+        }
+
+        #[inline]
+        pub fn add_instance_get_register_instruction(&mut self, source: Register, attr: Register, output: Register) -> &mut Self {
+            self.add_instruction(Instruction::InstanceGetRegister(source, attr, output))
         }
     };
 }

@@ -369,7 +369,7 @@ mod vm_test {
             ..Default::default()
         };
         assert_eq!(vm.run(), 54.into(), "Run Failed {vm:#?}");
-        let results: Vec<_> = vm.registers.into_iter().filter(|(index, v)| {
+        let results: Vec<_> = vm.registers.into_iter().filter(|(_, v)| {
             let b = v.borrow();
             b.clone() == RegisterValue::Value(54.into())
         }).map(|(i, _)| i).collect();

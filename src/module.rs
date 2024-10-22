@@ -59,7 +59,7 @@ pub trait Module<'vm>: DynClone {
 
 impl Debug for dyn Module<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Module {}", self.name())
+        write!(f, "Module {{name={}}}", self.name())
     }
 }
 
