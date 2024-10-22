@@ -69,11 +69,7 @@ impl Display for BinaryOperation {
 }
 
 #[inline]
-fn eval_binary_operation(
-    binary_operation: BinaryOperation,
-    lhs: Value,
-    rhs: Value,
-) -> Value {
+fn eval_binary_operation(binary_operation: BinaryOperation, lhs: Value, rhs: Value) -> Value {
     match binary_operation {
         BinaryOperation::Add => lhs + rhs,
         BinaryOperation::Sub => lhs - rhs,
@@ -134,9 +130,7 @@ impl<'vm> VM<'vm> {
             Ok(None)
         }) {
             Ok(_) => {}
-            Err(e) => {
-                self.insert_register(lhs, e.into())
-            }
+            Err(e) => self.insert_register(lhs, e.into()),
         };
     }
 

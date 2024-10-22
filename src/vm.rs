@@ -10,10 +10,10 @@ use indexmap::IndexMap;
 use std::cell::RefCell;
 
 use log::{trace, warn, Level};
+use log_derive::logfn_inputs;
 use nohash_hasher::BuildNoHashHasher;
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
-use log_derive::logfn_inputs;
 
 pub enum VMState {
     Running,
@@ -123,7 +123,7 @@ impl<'vm> VM<'vm> {
     pub fn swap_register(&mut self, original: Register, reg: Register) {
         if original == reg {
             warn!("Called swap_register with same register {reg}");
-            return
+            return;
         }
 
         let res = self
@@ -137,7 +137,7 @@ impl<'vm> VM<'vm> {
                 {
                     let b = res.borrow();
                     if let RegisterValue::Register(r) = b.deref() {
-                        return self.swap_register(*r, reg)
+                        return self.swap_register(*r, reg);
                     }
                 }
                 self.registers.insert(reg, res);
@@ -277,10 +277,10 @@ impl<'vm> VM<'vm> {
             match var {
                 Variable::Let(r) | Variable::Mut(r) => {
                     if r == output {
-                        continue
+                        continue;
                     }
                     self.remove_register(r);
-                },
+                }
             };
         }
     }

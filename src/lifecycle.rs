@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::Value;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub enum Lifecycle {
@@ -31,5 +31,5 @@ pub struct StatefulLifecycle {
 #[derive(Clone, Debug)]
 pub struct MemoizedLifecycle {
     pub scope_id: usize,
-    pub results: HashMap<Vec<Value>, Value>
+    pub results: HashMap<Vec<Value>, Value>,
 }
