@@ -143,7 +143,7 @@ mod vm_test {
             .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()).into())
             .enter_scope()
             .add_copy_instruction(2, 3)
-            .exit_scope(3)
+            .exit_scope(0, 3)
             .add_call_instruction(1, 3);
         let mut vm = builder.build();
         vm.eval().unwrap();
@@ -207,7 +207,7 @@ mod vm_test {
             .add_load_instruction(2, Value::Number(Number::Int(1)).into())
             .add_load_instruction(3, Value::Number(Number::Int(2)).into())
             .add_add_instruction(2, 3, 4)
-            .exit_scope(4)
+            .exit_scope(0, 4)
             .add_load_instruction(5, RegisterValue::ScopeId(1, 4))
             .add_load_let_instruction("a", 5)
             .add_get_variable_instruction("a", 6)
@@ -226,7 +226,7 @@ mod vm_test {
         builder
             .enter_scope()
             .add_load_instruction(2, Value::String("hello".to_string()).into())
-            .exit_scope(2)
+            .exit_scope(0, 2)
             .add_load_instruction(4, RegisterValue::ScopeId(1, 2))
             .add_halt_instruction(4);
         let mut vm = builder.build();
@@ -239,7 +239,7 @@ mod vm_test {
         builder
             .enter_scope()
             .add_binary_instruction(BinaryOperation::Add, 1, 2, 3)
-            .exit_scope(3)
+            .exit_scope(0, 3)
             .add_load_instruction(1, RegisterValue::Value(1.into()))
             .add_load_instruction(2, RegisterValue::Value(2.into()))
             .add_call_instruction(1, 3)

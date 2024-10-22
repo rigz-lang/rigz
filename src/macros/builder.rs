@@ -1,6 +1,5 @@
 #[allow(unused_imports)] // for navigation & autocomplete in macro
 use crate::Instruction;
-use crate::{Register, Scope};
 
 #[macro_export]
 macro_rules! generate_unary_op_methods {
@@ -71,14 +70,14 @@ macro_rules! generate_builder {
         #[inline]
         pub fn enter_scope(&mut self) -> &mut Self {
             self.scopes.push(Scope::new());
-            self.sp += 1;
+            self.sp = self.scopes.len() - 1;
             self
         }
 
         #[inline]
-        pub fn exit_scope(&mut self, output: Register) -> &mut Self {
+        pub fn exit_scope(&mut self, current: usize, output: Register) -> &mut Self {
             let s = self.add_instruction(Instruction::Ret(output));
-            s.sp -= 1;
+            s.sp = current;
             s
         }
 
