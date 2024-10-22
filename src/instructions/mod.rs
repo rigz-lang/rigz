@@ -6,7 +6,7 @@ use log::{log, Level};
 pub use unary::{Unary, UnaryAssign, UnaryOperation};
 
 use crate::vm::{RegisterValue, VMState};
-use crate::{Register, RigzType, VMError, Value, VM};
+use crate::{Number, Register, RigzType, VMError, Value, VM};
 
 // todo simplify clear usage
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -26,9 +26,18 @@ pub enum Instruction<'vm> {
     UnaryAssign(UnaryAssign),
     BinaryAssign(BinaryAssign),
     Load(Register, RegisterValue),
-    InstanceGet(Register, Value, Register),
-    InstanceGetRegister(Register, Register, Register),
-    // todo add InstanceSet && InstanceSetRegister
+    InstanceGet(Register, Register, Register),
+    InstanceSet {
+        source: Register,
+        index: Register,
+        value: Register,
+        output: Register
+    },
+    InstanceSetMut {
+        source: Register,
+        index: Register,
+        value: Register,
+    },
     Copy(Register, Register),
     Call(usize, Register),
     CallSelf(usize, Register, Register, bool),
@@ -483,15 +492,22 @@ impl<'vm> VM<'vm> {
             Instruction::InstanceGet(source, attr, output) => {
                 self.instance_get(source, attr, output);
             }
-            Instruction::InstanceGetRegister(source, attr, output) => {
-                let attr = self.resolve_register(attr);
-                self.instance_get(source, attr, output);
+            Instruction::InstanceSet {
+                source, index, value, output
+            } => {
+                self.instance_set(source, index, value, output);
+            }
+            Instruction::InstanceSetMut {
+                source, index, value
+            } => {
+                self.instance_set(source, index, value, source);
             }
         };
         VMState::Running
     }
 
-    fn instance_get(&mut self, source: Register, attr: Value, output: Register) {
+    fn instance_get(&mut self, source: Register, attr: Register, output: Register) {
+        let attr = self.resolve_register(attr);
         let source = self.resolve_register(source);
         let v = match (source, attr) {
             // todo support ranges as attr
@@ -533,5 +549,52 @@ impl<'vm> VM<'vm> {
             }
         };
         self.insert_register(output, v.into());
+    }
+
+    fn instance_set(&mut self, source: Register, index: Register, value: Register, output: Register) {
+        let attr = self.resolve_register(index);
+        let value = self.resolve_register(value);
+        let mut source = self.resolve_register(source);
+        match (&mut source, attr) {
+            // todo support ranges as attr
+            (Value::String(s), Value::Number(n)) => match n.to_usize() {
+                Ok(index) => {
+                    s.insert_str(index, value.to_string().as_str());
+                }
+                Err(e) => {
+                    source = e.into();
+                },
+            },
+            (Value::List(s), Value::Number(n)) => match n.to_usize() {
+                Ok(index) => {
+                    s.insert(index, value);
+                },
+                Err(e) => {
+                    source = e.into();
+                },
+            },
+            (Value::Map(source), index) => {
+                source.insert(index, value);
+            },
+            (Value::Number(source), Value::Number(n)) => {
+                let value = if value.to_bool() {
+                    1
+                } else {
+                    0
+                };
+                *source = match source {
+                    Number::Int(_) => {
+                        i64::from_le_bytes((source.to_bits() & (value << n.to_int())).to_le_bytes()).into()
+                    }
+                    Number::Float(_) => {
+                        f64::from_bits(source.to_bits() & (value << n.to_int())).into()
+                    }
+                }
+            }
+            (source, attr) => {
+                *source = VMError::UnsupportedOperation(format!("Cannot read {} for {}", attr, source)).into();
+            }
+        };
+        self.insert_register(output, source.into());
     }
 }

@@ -4,7 +4,7 @@ use crate::vm::VMOptions;
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, Binary, BinaryAssign,
     BinaryOperation, CallFrame, Clear, Instruction, Module, Register, RigzType, Scope, Unary,
-    UnaryAssign, UnaryOperation, Value, VM,
+    UnaryAssign, UnaryOperation, VM,
 };
 use indexmap::IndexMap;
 use log::Level;
