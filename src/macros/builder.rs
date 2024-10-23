@@ -255,6 +255,16 @@ macro_rules! generate_builder {
         }
 
         #[inline]
+        pub fn add_push_instruction(&mut self, register: Register) -> &mut Self {
+            self.add_instruction(Instruction::Push(register))
+        }
+
+        #[inline]
+        pub fn add_pop_instruction(&mut self, register: Register) -> &mut Self {
+            self.add_instruction(Instruction::Pop(register))
+        }
+
+        #[inline]
         pub fn add_halt_instruction(&mut self, register: Register) -> &mut Self {
             self.add_instruction(Instruction::Halt(register))
         }
@@ -367,7 +377,6 @@ macro_rules! generate_builder {
 
         #[inline]
         pub fn add_load_instruction(&mut self, reg: Register, value: RegisterValue) -> &mut Self {
-            self.scopes[self.sp].owned_registers.push(reg);
             self.add_instruction(Instruction::Load(reg, value))
         }
 
@@ -449,7 +458,7 @@ macro_rules! generate_builder {
                 source,
                 index,
                 value,
-                output
+                output,
             })
         }
     };

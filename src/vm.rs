@@ -6,7 +6,7 @@ use crate::{
     Value, Variable,
 };
 use indexmap::map::Entry;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use std::cell::RefCell;
 
 use log::{trace, warn, Level};
@@ -78,8 +78,7 @@ pub struct VM<'vm> {
     pub scopes: Vec<Scope<'vm>>,
     pub current: CallFrame<'vm>,
     pub frames: Vec<CallFrame<'vm>>,
-    pub registers: IndexMap<usize, RefCell<RegisterValue>, BuildNoHashHasher<usize>>,
-    pub stack: Vec<RegisterValue>,
+    pub registers: IndexMap<Register, RefCell<RegisterValue>, BuildNoHashHasher<Register>>,
     pub modules: IndexMap<&'static str, Box<dyn Module<'vm>>>,
     pub sp: usize,
     pub options: VMOptions,
@@ -93,7 +92,6 @@ impl<'vm> Default for VM<'vm> {
             scopes: vec![Scope::new()],
             current: CallFrame::main(),
             frames: vec![],
-            stack: vec![],
             registers: Default::default(),
             modules: Default::default(),
             sp: 0,
@@ -113,22 +111,23 @@ impl<'vm> VM<'vm> {
     generate_builder!();
 
     #[inline]
-    #[logfn_inputs(Trace)]
+    #[logfn_inputs(Trace, fmt = "insert_register(vm={:#p} register={}, value={:?})")]
     pub fn insert_register(&mut self, register: Register, value: RegisterValue) {
+        self.current.owned_registers.insert(register);
         self.registers.insert(register, RefCell::new(value));
     }
 
     #[inline]
-    #[logfn_inputs(Trace)]
-    pub fn swap_register(&mut self, original: Register, reg: Register) {
-        if original == reg {
-            warn!("Called swap_register with same register {reg}");
+    #[logfn_inputs(Trace, fmt = "swap_register(vm={:#p} original={}, dest={})")]
+    pub fn swap_register(&mut self, original: Register, dest: Register) {
+        if original == dest {
+            warn!("Called swap_register with same register {dest}");
             return;
         }
 
         let res = self
             .registers
-            .insert(original, RefCell::new(RegisterValue::Register(reg)));
+            .insert(original, RefCell::new(RegisterValue::Register(dest)));
         match res {
             None => {
                 panic!("Invalid call to swap_register {original} was not set");
@@ -137,10 +136,10 @@ impl<'vm> VM<'vm> {
                 {
                     let b = res.borrow();
                     if let RegisterValue::Register(r) = b.deref() {
-                        return self.swap_register(*r, reg);
+                        return self.swap_register(*r, dest);
                     }
                 }
-                self.registers.insert(reg, res);
+                self.registers.insert(dest, res);
             }
         }
     }
@@ -250,12 +249,17 @@ impl<'vm> VM<'vm> {
         process: Option<fn(value: Value) -> VMState>,
     ) -> VMState {
         let current = self.current.output;
-        let source = self.remove_register_eval_scope(current);
-        self.insert_register(output, source.clone().into());
+        let source = if current == output {
+            self.resolve_register(output)
+        } else {
+            let s = self.resolve_register(current);
+            self.insert_register(output, s.clone().into());
+            s
+        };
         match self.frames.pop() {
             None => return VMState::Done(source),
             Some(c) => {
-                self.clear_frame(output);
+                self.clear_frame();
                 self.sp = c.scope_id;
                 self.current = c;
                 match process {
@@ -267,7 +271,7 @@ impl<'vm> VM<'vm> {
         VMState::Running
     }
 
-    pub fn clear_frame(&mut self, output: Register) {
+    pub fn clear_frame(&mut self) {
         if self.options.disable_variable_cleanup {
             return;
         }
@@ -275,10 +279,8 @@ impl<'vm> VM<'vm> {
         let variables = std::mem::take(&mut self.current.variables);
         for (_, var) in variables {
             match var {
-                Variable::Let(r) | Variable::Mut(r) => {
-                    if r == output {
-                        continue;
-                    }
+                Variable::Mut(_) => {}
+                Variable::Let(r) => {
                     self.remove_register(r);
                 }
             };
@@ -287,7 +289,6 @@ impl<'vm> VM<'vm> {
 
     #[inline]
     pub fn process_instruction(&mut self, instruction: Instruction<'vm>) -> VMState {
-        trace!("Running {:?}", instruction);
         self.current.pc += 1;
         match instruction {
             Instruction::Ret(output) => self.process_ret(output, None),
@@ -296,7 +297,6 @@ impl<'vm> VM<'vm> {
     }
 
     pub fn process_instruction_scope(&mut self, instruction: Instruction<'vm>) -> VMState {
-        trace!("Running {:?} (scope)", instruction);
         self.current.pc += 1;
         match instruction {
             Instruction::Ret(output) => self.process_ret(output, Some(VMState::Ran)),
@@ -309,7 +309,7 @@ impl<'vm> VM<'vm> {
     fn next_instruction(&self) -> Option<Instruction<'vm>> {
         let scope_id = self.sp;
         // TODO move &Scope to callframe
-        /// scope_id must be valid when this is called, otherwise function will panic
+        // scope_id must be valid when this is called, otherwise function will panic
         let scope = &self.scopes[scope_id];
         scope.instructions.get(self.current.pc).cloned()
     }

@@ -1,5 +1,8 @@
-use crate::{Register, VMError, VM};
-use indexmap::IndexMap;
+use std::cell::RefCell;
+use crate::{Register, RegisterValue, VMError, VM};
+use indexmap::{IndexMap, IndexSet};
+use log_derive::{logfn, logfn_inputs};
+use nohash_hasher::BuildNoHashHasher;
 
 #[derive(Clone, Debug)]
 pub enum Variable {
@@ -11,12 +14,17 @@ pub enum Variable {
 pub struct CallFrame<'vm> {
     pub scope_id: usize,
     pub pc: usize,
+    pub registers: IndexMap<Register, RefCell<RegisterValue>, BuildNoHashHasher<Register>>,
+    pub stack: Vec<RegisterValue>,
     pub variables: IndexMap<&'vm str, Variable>, // TODO switch to intern strings
     pub parent: Option<usize>,
+    pub owned_registers: IndexSet<Register, BuildNoHashHasher<Register>>,
     pub output: Register,
 }
 
 impl<'vm> CallFrame<'vm> {
+    #[logfn(Trace)]
+    #[logfn_inputs(Trace, fmt = "get_variable(frame={:#p} name={}, vm={:#p})")]
     pub(crate) fn get_variable(&self, name: &'vm str, vm: &VM<'vm>) -> Option<Register> {
         match self.variables.get(name) {
             None => match self.parent {
@@ -30,6 +38,8 @@ impl<'vm> CallFrame<'vm> {
         }
     }
 
+    #[logfn(Trace)]
+    #[logfn_inputs(Trace, fmt = "get_mutable_variable(frame={:#p} name={}, vm={:#p})")]
     pub(crate) fn get_mutable_variable(
         &self,
         name: &'vm str,
@@ -58,7 +68,10 @@ impl<'vm> CallFrame<'vm> {
             output: 0,
             scope_id: 0,
             pc: 0,
+            registers: Default::default(),
+            stack: Default::default(),
             variables: Default::default(),
+            owned_registers: Default::default(),
             parent: None,
         }
     }
@@ -69,7 +82,10 @@ impl<'vm> CallFrame<'vm> {
             scope_id,
             output,
             pc: 0,
+            registers: Default::default(),
+            stack: Default::default(),
             variables: Default::default(),
+            owned_registers: Default::default(),
             parent: Some(parent),
         }
     }

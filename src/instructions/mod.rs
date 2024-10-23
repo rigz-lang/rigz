@@ -31,7 +31,7 @@ pub enum Instruction<'vm> {
         source: Register,
         index: Register,
         value: Register,
-        output: Register
+        output: Register,
     },
     InstanceSetMut {
         source: Register,
@@ -115,8 +115,7 @@ pub enum Instruction<'vm> {
     InsertAtInstruction(usize, usize, Box<Instruction<'vm>>),
     UpdateInstruction(usize, usize, Box<Instruction<'vm>>),
     RemoveInstruction(usize, usize),
-    /// this assumes no larger registers have been removed, use at your own risk
-    Push(RegisterValue),
+    Push(Register),
     /// pop the last register and store its value in register
     Pop(Register),
 }
@@ -206,8 +205,11 @@ impl<'vm> VM<'vm> {
             Instruction::BinaryAssign(b) => self.handle_binary_assign(b),
             Instruction::UnaryClear(u, clear) => self.handle_unary_clear(u, clear),
             Instruction::BinaryClear(b, clear) => self.handle_binary_clear(b, clear),
-            Instruction::Push(v) => self.stack.push(v),
-            Instruction::Pop(r) => match self.stack.pop() {
+            Instruction::Push(v) => {
+                let v = self.resolve_register(v);
+                self.current.stack.push(v.into())
+            }
+            Instruction::Pop(r) => match self.current.stack.pop() {
                 None => self.insert_register(
                     r,
                     VMError::RuntimeError(format!("Pop called on empty registers with {}", r))
@@ -340,11 +342,11 @@ impl<'vm> VM<'vm> {
                 output,
             } => {
                 let r = if self.resolve_register(truthy).to_bool() {
-                    let (if_scope, output ) = if_scope;
+                    let (if_scope, output) = if_scope;
                     self.call_frame(if_scope, output);
                     output
                 } else {
-                    let (else_scope, output ) = else_scope;
+                    let (else_scope, output) = else_scope;
                     self.call_frame(else_scope, output);
                     output
                 };
@@ -381,8 +383,8 @@ impl<'vm> VM<'vm> {
                     );
                 }
                 Some(s) => {
-                    let v = self.get_register(s);
-                    self.insert_register(reg, v.clone());
+                    let v = self.resolve_register(s);
+                    self.insert_register(reg, v.into());
                 }
             },
             Instruction::GetMutableVariable(name, reg) => match self
@@ -498,12 +500,17 @@ impl<'vm> VM<'vm> {
                 self.instance_get(source, attr, output);
             }
             Instruction::InstanceSet {
-                source, index, value, output
+                source,
+                index,
+                value,
+                output,
             } => {
                 self.instance_set(source, index, value, output);
             }
             Instruction::InstanceSetMut {
-                source, index, value
+                source,
+                index,
+                value,
             } => {
                 self.instance_set(source, index, value, source);
             }
@@ -556,7 +563,13 @@ impl<'vm> VM<'vm> {
         self.insert_register(output, v.into());
     }
 
-    fn instance_set(&mut self, source: Register, index: Register, value: Register, output: Register) {
+    fn instance_set(
+        &mut self,
+        source: Register,
+        index: Register,
+        value: Register,
+        output: Register,
+    ) {
         let attr = self.resolve_register(index);
         let value = self.resolve_register(value);
         let mut source = self.resolve_register(source);
@@ -568,28 +581,25 @@ impl<'vm> VM<'vm> {
                 }
                 Err(e) => {
                     source = e.into();
-                },
+                }
             },
             (Value::List(s), Value::Number(n)) => match n.to_usize() {
                 Ok(index) => {
                     s.insert(index, value);
-                },
+                }
                 Err(e) => {
                     source = e.into();
-                },
+                }
             },
             (Value::Map(source), index) => {
                 source.insert(index, value);
-            },
+            }
             (Value::Number(source), Value::Number(n)) => {
-                let value = if value.to_bool() {
-                    1
-                } else {
-                    0
-                };
+                let value = if value.to_bool() { 1 } else { 0 };
                 *source = match source {
                     Number::Int(_) => {
-                        i64::from_le_bytes((source.to_bits() & (value << n.to_int())).to_le_bytes()).into()
+                        i64::from_le_bytes((source.to_bits() & (value << n.to_int())).to_le_bytes())
+                            .into()
                     }
                     Number::Float(_) => {
                         f64::from_bits(source.to_bits() & (value << n.to_int())).into()
@@ -597,7 +607,9 @@ impl<'vm> VM<'vm> {
                 }
             }
             (source, attr) => {
-                *source = VMError::UnsupportedOperation(format!("Cannot read {} for {}", attr, source)).into();
+                *source =
+                    VMError::UnsupportedOperation(format!("Cannot read {} for {}", attr, source))
+                        .into();
             }
         };
         self.insert_register(output, source.into());

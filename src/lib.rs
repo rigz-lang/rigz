@@ -59,7 +59,8 @@ mod vm_test {
     use crate::value::Value;
     use crate::vm::{RegisterValue, VMOptions};
     use crate::{
-        BinaryAssign, BinaryOperation, Instruction, Module, RigzType, Scope, VMBuilder, VMError, VM,
+        Binary, BinaryAssign, BinaryOperation, Clear, Instruction, Module, RigzType, Scope,
+        VMBuilder, VMError, VM,
     };
     use std::str::FromStr;
 
@@ -191,10 +192,7 @@ mod vm_test {
             .add_call_module_instruction("test", "hello", vec![2], 3);
         let mut vm = builder.build();
         vm.eval().unwrap();
-        assert_eq!(
-            vm.registers.get(&3).unwrap().clone().into_inner(),
-            Value::None.into()
-        );
+        assert_eq!(vm.get_register(3), Value::None.into());
     }
 
     #[test]
@@ -293,10 +291,10 @@ mod vm_test {
                         Instruction::CallSelf(1, 85, 85, true),
                         Instruction::CallSelf(1, 85, 85, true),
                         Instruction::CallSelf(1, 85, 85, true),
-                        Instruction::GetVariable("a", 90),
+                        // GetVariable creates a copy
+                        Instruction::GetMutableVariable("a", 90),
                         Instruction::Halt(90),
                     ],
-                    owned_registers: vec![],
                 },
                 Scope {
                     instructions: vec![
@@ -311,14 +309,8 @@ mod vm_test {
                         Instruction::Load(85, RegisterValue::Register(88)),
                         Instruction::Ret(85),
                     ],
-                    owned_registers: vec![],
                 },
             ],
-            options: VMOptions {
-                enable_logging: false,
-                disable_modules: false,
-                disable_variable_cleanup: true,
-            },
             ..Default::default()
         };
         assert_eq!(vm.run(), 54.into(), "Run Failed {vm:#?}");
@@ -351,7 +343,6 @@ mod vm_test {
                         Instruction::GetVariable("f", 90),
                         Instruction::Halt(90),
                     ],
-                    owned_registers: vec![],
                 },
                 Scope {
                     instructions: vec![
@@ -366,11 +357,248 @@ mod vm_test {
                         Instruction::Load(85, RegisterValue::Register(88)),
                         Instruction::Ret(85),
                     ],
-                    owned_registers: vec![],
                 },
             ],
             ..Default::default()
         };
         assert_eq!(vm.run(), 113.4.into(), "Run Failed {vm:#?}")
     }
+
+    #[test]
+    fn factorial_recursive() {
+        let _ = pretty_env_logger::try_init();
+        let mut vm = VM {
+            scopes: vec![
+                Scope {
+                    instructions: vec![
+                        Instruction::Load(87, RegisterValue::Value(3.into())),
+                        Instruction::Load(90, RegisterValue::Value(0.into())),
+                        Instruction::Load(95, RegisterValue::Value(1.into())),
+                        Instruction::Call(1, 88),
+                        Instruction::Halt(88),
+                    ],
+                },
+                Scope {
+                    instructions: vec![
+                        Instruction::LoadLetRegister("n", 87),
+                        Instruction::Binary(Binary {
+                            op: BinaryOperation::Eq,
+                            lhs: 87,
+                            rhs: 90,
+                            output: 91,
+                        }),
+                        Instruction::IfElse {
+                            truthy: 91,
+                            if_scope: (2, 92),
+                            else_scope: (3, 97),
+                            output: 98,
+                        },
+                        Instruction::Load(88, RegisterValue::Register(98)),
+                        Instruction::Ret(88),
+                    ],
+                },
+                Scope {
+                    instructions: vec![
+                        Instruction::Load(92, RegisterValue::Value(1.into())),
+                        Instruction::Ret(92),
+                    ],
+                },
+                Scope {
+                    instructions: vec![
+                        Instruction::GetVariable("n", 93),
+                        Instruction::Binary(Binary {
+                            op: BinaryOperation::Sub,
+                            lhs: 93,
+                            rhs: 95,
+                            output: 96,
+                        }),
+                        Instruction::Load(87, RegisterValue::Register(96)),
+                        Instruction::Call(1, 88),
+                        Instruction::Binary(Binary {
+                            op: BinaryOperation::Mul,
+                            lhs: 93,
+                            rhs: 88,
+                            output: 97,
+                        }),
+                        Instruction::Load(88, RegisterValue::Register(97)),
+                        Instruction::Ret(88),
+                    ],
+                },
+            ],
+            ..Default::default()
+        };
+        assert_eq!(vm.run(), 24.into())
+    }
+
+    // #[test]
+    // fn fibonacci() {
+    //     pretty_env_logger::init();
+    //     let mut vm = VM {
+    //         scopes: vec![
+    //             Scope {
+    //                 instructions: vec![
+    //                     Instruction::Load(
+    //                         101,
+    //                         RegisterValue::Value(
+    //                             6.into(),
+    //                         ),
+    //                     ),
+    //                     Instruction::Load(
+    //                         87,
+    //                         RegisterValue::Register(
+    //                             101,
+    //                         ),
+    //                     ),
+    //                     Instruction::Call(
+    //                         1,
+    //                         88,
+    //                     ),
+    //                     Instruction::Halt(
+    //                         88,
+    //                     ),
+    //                 ],
+    //             },
+    //             Scope {
+    //                 instructions: vec![
+    //                     Instruction::LoadLetRegister(
+    //                         "n",
+    //                         87,
+    //                     ),
+    //                     Instruction::GetVariable(
+    //                         "n",
+    //                         89,
+    //                     ),
+    //                     Instruction::Load(
+    //                         90,
+    //                         RegisterValue::Value(
+    //                             1.into(),
+    //                         ),
+    //                     ),
+    //                     Instruction::BinaryClear(
+    //                         Binary {
+    //                             op: BinaryOperation::Lte,
+    //                             lhs: 89,
+    //                             rhs: 90,
+    //                             output: 91,
+    //                         },
+    //                         Clear::One(
+    //                             90,
+    //                         ),
+    //                     ),
+    //                     Instruction::IfElse {
+    //                         truthy: 91,
+    //                         if_scope: (
+    //                             2,
+    //                             92,
+    //                         ),
+    //                         else_scope: (
+    //                             3,
+    //                             99,
+    //                         ),
+    //                         output: 100,
+    //                     },
+    //                     Instruction::Load(
+    //                         88,
+    //                         RegisterValue::Register(
+    //                             100,
+    //                         ),
+    //                     ),
+    //                     Instruction::Ret(
+    //                         88,
+    //                     ),
+    //                 ],
+    //             },
+    //             Scope {
+    //                 instructions: vec![
+    //                     Instruction::GetVariable(
+    //                         "n",
+    //                         92,
+    //                     ),
+    //                     Instruction::Ret(
+    //                         92,
+    //                     ),
+    //                 ],
+    //             },
+    //             Scope {
+    //                 instructions: vec![
+    //                     Instruction::GetVariable(
+    //                         "n",
+    //                         93,
+    //                     ),
+    //                     Instruction::Load(
+    //                         94,
+    //                         RegisterValue::Value(
+    //                             1.into(),
+    //                         ),
+    //                     ),
+    //                     Instruction::BinaryClear(
+    //                         Binary {
+    //                             op: BinaryOperation::Sub,
+    //                             lhs: 93,
+    //                             rhs: 94,
+    //                             output: 95,
+    //                         },
+    //                         Clear::One(
+    //                             94,
+    //                         ),
+    //                     ),
+    //                     Instruction::Load(
+    //                         87,
+    //                         RegisterValue::Register(
+    //                             95,
+    //                         ),
+    //                     ),
+    //                     Instruction::Call(
+    //                         1,
+    //                         88,
+    //                     ),
+    //                     Instruction::GetVariable(
+    //                         "n",
+    //                         96,
+    //                     ),
+    //                     Instruction::Load(
+    //                         97,
+    //                         RegisterValue::Value(
+    //                             2.into(),
+    //                         ),
+    //                     ),
+    //                     Instruction::BinaryClear(
+    //                         Binary {
+    //                             op: BinaryOperation::Sub,
+    //                             lhs: 96,
+    //                             rhs: 97,
+    //                             output: 98,
+    //                         },
+    //                         Clear::One(
+    //                             97,
+    //                         ),
+    //                     ),
+    //                     Instruction::Load(
+    //                         87,
+    //                         RegisterValue::Register(
+    //                             98,
+    //                         ),
+    //                     ),
+    //                     Instruction::Call(
+    //                         1,
+    //                         88,
+    //                     ),
+    //                     Instruction::Binary(
+    //                         Binary {
+    //                             op: BinaryOperation::Add,
+    //                             lhs: 88,
+    //                             rhs: 88,
+    //                             output: 99,
+    //                         },
+    //                     ),
+    //                     Instruction::Ret(
+    //                         99,
+    //                     ),
+    //                 ],
+    //             },
+    //         ],
+    //         ..Default::default()
+    //     };
+    //     assert_eq!(vm.run(), 8.into())
+    // }
 }

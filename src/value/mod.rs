@@ -73,17 +73,22 @@ impl PartialOrd for Value {
             (_, Value::Error(_)) => Some(Ordering::Greater),
             (Value::None, _) => Some(Ordering::Less),
             (_, Value::None) => Some(Ordering::Greater),
+            (Value::Bool(a), Value::Bool(b)) => a.partial_cmp(b),
             (Value::Bool(_), _) => Some(Ordering::Less),
             (_, Value::Bool(_)) => Some(Ordering::Greater),
+            (Value::Number(a), Value::Number(b)) => a.partial_cmp(b),
             (Value::Number(_), _) => Some(Ordering::Less),
             (_, Value::Number(_)) => Some(Ordering::Greater),
+            // todo (Value::Range(a), Value::Range(b)) => a.partial_cmp(b),
             (Value::Range(_), _) => Some(Ordering::Less),
             (_, Value::Range(_)) => Some(Ordering::Greater),
+            (Value::String(a), Value::String(b)) => a.partial_cmp(b),
             (Value::String(_), _) => Some(Ordering::Less),
             (_, Value::String(_)) => Some(Ordering::Greater),
+            (Value::List(a), Value::List(b)) => a.partial_cmp(b),
             (Value::List(_), _) => Some(Ordering::Less),
             (_, Value::List(_)) => Some(Ordering::Greater),
-            (_, Value::Map(_)) => Some(Ordering::Greater),
+            (Value::Map(a), Value::Map(b)) => a.into_iter().partial_cmp(b),
         }
     }
 }

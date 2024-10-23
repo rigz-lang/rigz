@@ -14,6 +14,7 @@ mod sub;
 
 use crate::{impl_from, impl_from_cast, VMError};
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
@@ -70,6 +71,17 @@ impl PartialEq for Number {
             (&Number::Float(a), &Number::Float(b)) => a == b,
             (&Number::Int(a), &Number::Float(b)) => a as f64 == b,
             (&Number::Float(a), &Number::Int(b)) => a == b as f64,
+        }
+    }
+}
+
+impl PartialOrd for Number {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (Number::Int(a), Number::Int(b)) => a.partial_cmp(b),
+            (Number::Float(a), Number::Float(b)) => a.partial_cmp(b),
+            (Number::Int(a), Number::Float(b)) => (*a as f64).partial_cmp(b),
+            (Number::Float(a), Number::Int(b)) => a.partial_cmp(&(*b as f64)),
         }
     }
 }

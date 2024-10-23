@@ -45,7 +45,6 @@ impl<'vm> VMBuilder<'vm> {
             scopes: self.scopes,
             current: CallFrame::main(),
             frames: vec![],
-            stack: vec![],
             registers: Default::default(),
             modules: self.modules,
             sp: 0,

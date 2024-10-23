@@ -1,4 +1,4 @@
-use crate::{Instruction, Register};
+use crate::Instruction;
 
 /**
 todo need to know whether scope is function, root, or expression for returns
@@ -10,7 +10,6 @@ otherwise inner scope returns should cascade to function call or root
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Scope<'vm> {
     pub instructions: Vec<Instruction<'vm>>,
-    pub owned_registers: Vec<Register>,
 }
 
 impl<'vm> Scope<'vm> {
