@@ -4,7 +4,7 @@ use crate::vm::VMOptions;
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, Binary, BinaryAssign,
     BinaryOperation, CallFrame, Clear, Instruction, Module, Register, RigzType, Scope, Unary,
-    UnaryAssign, UnaryOperation, VM,
+    UnaryAssign, UnaryOperation, Value, VM,
 };
 use indexmap::IndexMap;
 use log::Level;
@@ -16,6 +16,7 @@ pub struct VMBuilder<'vm> {
     pub modules: IndexMap<&'static str, Box<dyn Module<'vm>>>,
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
+    pub constants: Vec<Value>,
 }
 
 impl<'vm> Default for VMBuilder<'vm> {
@@ -34,6 +35,7 @@ impl<'vm> VMBuilder<'vm> {
             modules: IndexMap::new(),
             options: Default::default(),
             lifecycles: Default::default(),
+            constants: Default::default(),
         }
     }
 
@@ -43,13 +45,14 @@ impl<'vm> VMBuilder<'vm> {
     pub fn build(self) -> VM<'vm> {
         VM {
             scopes: self.scopes,
-            current: CallFrame::main(),
+            current: CallFrame::main().into(),
             frames: vec![],
-            registers: Default::default(),
             modules: self.modules,
             sp: 0,
             options: self.options,
             lifecycles: self.lifecycles,
+            constants: self.constants,
+            stack: Default::default(),
         }
     }
 }

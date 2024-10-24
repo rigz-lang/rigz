@@ -67,7 +67,7 @@ fn eval_unary(unary_operation: UnaryOperation, val: Value) -> Value {
 impl<'vm> VM<'vm> {
     pub fn apply_unary(&mut self, unary_operation: UnaryOperation, val: Value, output: Register) {
         let val = eval_unary(unary_operation, val);
-        self.insert_register(output, val.into())
+        self.insert_register(output, val.into());
     }
 
     pub fn handle_unary(&mut self, unary: Unary) {
@@ -83,7 +83,9 @@ impl<'vm> VM<'vm> {
             Ok(None)
         }) {
             Ok(_) => {}
-            Err(e) => self.insert_register(from, e.into()),
+            Err(e) => {
+                self.insert_register(from, e.into());
+            }
         }
     }
 

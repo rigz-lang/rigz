@@ -6,6 +6,7 @@ pub enum Lifecycle {
     On(EventLifecycle),
     After(StatefulLifecycle),
     Memo(MemoizedLifecycle),
+    Test(TestLifecycle),
 }
 
 #[derive(Clone, Debug)]
@@ -33,3 +34,6 @@ pub struct MemoizedLifecycle {
     pub scope_id: usize,
     pub results: HashMap<Vec<Value>, Value>,
 }
+
+#[derive(Clone, Debug)]
+pub struct TestLifecycle {}

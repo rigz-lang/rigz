@@ -255,16 +255,6 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        pub fn add_push_instruction(&mut self, register: Register) -> &mut Self {
-            self.add_instruction(Instruction::Push(register))
-        }
-
-        #[inline]
-        pub fn add_pop_instruction(&mut self, register: Register) -> &mut Self {
-            self.add_instruction(Instruction::Pop(register))
-        }
-
-        #[inline]
         pub fn add_halt_instruction(&mut self, register: Register) -> &mut Self {
             self.add_instruction(Instruction::Halt(register))
         }
@@ -371,8 +361,29 @@ macro_rules! generate_builder {
         }
 
         #[inline]
+        pub fn add_pop_instruction(&mut self, to: Register) -> &mut Self {
+            self.add_instruction(Instruction::Pop(to))
+        }
+
+        #[inline]
+        pub fn add_push_instruction(&mut self, from: Register) -> &mut Self {
+            self.add_instruction(Instruction::Push(from))
+        }
+
+        #[inline]
         pub fn add_copy_instruction(&mut self, from: Register, to: Register) -> &mut Self {
             self.add_instruction(Instruction::Copy(from, to))
+        }
+
+        #[inline]
+        pub fn add_move_instruction(&mut self, from: Register, to: Register) -> &mut Self {
+            self.add_instruction(Instruction::Move(from, to))
+        }
+
+        #[inline]
+        pub fn add_constant(&mut self, value: Value) -> &mut Self {
+            self.constants.push(value);
+            self
         }
 
         #[inline]

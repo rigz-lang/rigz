@@ -6,14 +6,12 @@ use crate::{
     Value, Variable,
 };
 use indexmap::map::Entry;
-use indexmap::{IndexMap, IndexSet};
-use std::cell::RefCell;
-
-use log::{trace, warn, Level};
+use indexmap::IndexMap;
+use log::Level;
 use log_derive::logfn_inputs;
-use nohash_hasher::BuildNoHashHasher;
+use std::cell::RefCell;
 use std::fmt::Debug;
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 
 pub enum VMState {
     Running,
@@ -24,15 +22,34 @@ pub enum VMState {
 impl VMState {
     #[inline]
     pub fn error(vm_error: VMError) -> Self {
-        VMState::Done(vm_error.to_value())
+        VMState::Done(vm_error.into())
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+impl From<VMError> for VMState {
+    #[inline]
+    fn from(value: VMError) -> Self {
+        VMState::error(value)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct VMOptions {
     pub enable_logging: bool,
     pub disable_modules: bool,
     pub disable_variable_cleanup: bool,
+    pub max_depth: usize,
+}
+
+impl Default for VMOptions {
+    fn default() -> Self {
+        VMOptions {
+            enable_logging: false,
+            disable_modules: false,
+            disable_variable_cleanup: false,
+            max_depth: 1024,
+        }
+    }
 }
 
 impl VMOptions {
@@ -49,6 +66,7 @@ impl VMOptions {
             enable_logging: (byte & 1) == 1,
             disable_modules: (byte & 1 << 1) == 2,
             disable_variable_cleanup: (byte & 1 << 2) == 4,
+            max_depth: 1024,
         }
     }
 }
@@ -58,6 +76,7 @@ pub enum RegisterValue {
     ScopeId(usize, Register),
     Register(Register),
     Value(Value),
+    Constant(usize),
 }
 
 impl From<usize> for RegisterValue {
@@ -76,13 +95,14 @@ impl<T: Into<Value>> From<T> for RegisterValue {
 #[derive(Debug, Clone)]
 pub struct VM<'vm> {
     pub scopes: Vec<Scope<'vm>>,
-    pub current: CallFrame<'vm>,
-    pub frames: Vec<CallFrame<'vm>>,
-    pub registers: IndexMap<Register, RefCell<RegisterValue>, BuildNoHashHasher<Register>>,
+    pub current: RefCell<CallFrame<'vm>>,
+    pub frames: Vec<RefCell<CallFrame<'vm>>>,
     pub modules: IndexMap<&'static str, Box<dyn Module<'vm>>>,
+    pub stack: Vec<Value>,
     pub sp: usize,
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
+    pub constants: Vec<Value>,
 }
 
 impl<'vm> Default for VM<'vm> {
@@ -90,13 +110,14 @@ impl<'vm> Default for VM<'vm> {
     fn default() -> Self {
         Self {
             scopes: vec![Scope::new()],
-            current: CallFrame::main(),
+            current: RefCell::new(CallFrame::main()),
             frames: vec![],
-            registers: Default::default(),
             modules: Default::default(),
             sp: 0,
             options: Default::default(),
             lifecycles: Default::default(),
+            constants: Default::default(),
+            stack: Default::default(),
         }
     }
 }
@@ -112,44 +133,49 @@ impl<'vm> VM<'vm> {
 
     #[inline]
     #[logfn_inputs(Trace, fmt = "insert_register(vm={:#p} register={}, value={:?})")]
-    pub fn insert_register(&mut self, register: Register, value: RegisterValue) {
-        self.current.owned_registers.insert(register);
-        self.registers.insert(register, RefCell::new(value));
+    pub fn insert_register(
+        &self,
+        register: Register,
+        value: RegisterValue,
+    ) -> Option<RefCell<RegisterValue>> {
+        let mut current = self.current.borrow_mut();
+        current
+            .deref_mut()
+            .registers
+            .insert(register, RefCell::new(value))
+    }
+
+    #[inline]
+    #[logfn_inputs(
+        Trace,
+        fmt = "insert_parent_register(vm={:#p} register={}, value={:?})"
+    )]
+    pub fn insert_parent_register(
+        &self,
+        register: Register,
+        value: RegisterValue,
+    ) -> Option<RefCell<RegisterValue>> {
+        let current = self.current.borrow();
+        match current.parent {
+            None => panic!("insert_parent_register called with no parent"),
+            Some(i) => self.frames[i]
+                .borrow_mut()
+                .registers
+                .insert(register, RefCell::new(value)),
+        }
     }
 
     #[inline]
     #[logfn_inputs(Trace, fmt = "swap_register(vm={:#p} original={}, dest={})")]
-    pub fn swap_register(&mut self, original: Register, dest: Register) {
-        if original == dest {
-            warn!("Called swap_register with same register {dest}");
-            return;
-        }
-
-        let res = self
-            .registers
-            .insert(original, RefCell::new(RegisterValue::Register(dest)));
-        match res {
-            None => {
-                panic!("Invalid call to swap_register {original} was not set");
-            }
-            Some(res) => {
-                {
-                    let b = res.borrow();
-                    if let RegisterValue::Register(r) = b.deref() {
-                        return self.swap_register(*r, dest);
-                    }
-                }
-                self.registers.insert(dest, res);
-            }
-        }
+    pub fn swap_register(&self, original: Register, dest: Register) {
+        self.current
+            .borrow_mut()
+            .swap_register(original, dest, self)
     }
 
     #[inline]
     pub fn get_register(&self, register: Register) -> RegisterValue {
-        match self.registers.get(&register) {
-            None => VMError::EmptyRegister(format!("R{} is empty", register)).into(),
-            Some(v) => v.borrow().clone(),
-        }
+        self.current.borrow().get_register(register, self)
     }
 
     pub fn resolve_registers(&mut self, registers: Vec<Register>) -> Vec<Value> {
@@ -167,6 +193,7 @@ impl<'vm> VM<'vm> {
             RegisterValue::ScopeId(scope, output) => self.handle_scope(scope, register, output),
             RegisterValue::Register(r) => self.resolve_register(r),
             RegisterValue::Value(v) => v,
+            RegisterValue::Constant(c) => self.get_constant(c),
         }
     }
 
@@ -179,18 +206,23 @@ impl<'vm> VM<'vm> {
 
     #[inline]
     pub fn update_register<F>(
-        &mut self,
+        &self,
         register: Register,
         mut closure: F,
     ) -> Result<Option<Value>, VMError>
     where
         F: FnMut(&mut Value) -> Result<Option<Value>, VMError>,
     {
-        let r = match self.registers.get(&register) {
+        let r = match self.current.borrow_mut().registers.get(&register) {
             None => return Err(VMError::EmptyRegister(format!("R{} is empty", register))),
             Some(v) => {
                 let mut v = v.borrow_mut();
                 match v.deref_mut() {
+                    RegisterValue::Constant(c) => {
+                        return Err(VMError::UnsupportedOperation(format!(
+                            "Constants cannot be mutated {c}"
+                        )))
+                    }
                     RegisterValue::ScopeId(s, o) => {
                         return Err(VMError::UnsupportedOperation(format!(
                             "Scopes are not implemented yet - Scope {s} R{o}"
@@ -208,7 +240,10 @@ impl<'vm> VM<'vm> {
 
     #[inline]
     pub fn handle_scope(&mut self, scope: usize, original: Register, output: Register) -> Value {
-        self.call_frame(scope, output);
+        match self.call_frame(scope, output) {
+            Ok(_) => {}
+            Err(e) => return e.into(),
+        };
         match self.run_scope() {
             VMState::Running => unreachable!(),
             VMState::Done(v) | VMState::Ran(v) => {
@@ -219,27 +254,25 @@ impl<'vm> VM<'vm> {
     }
 
     /// Value is replaced with None, shifting the registers can break the program. Scopes are not evaluated, use `remove_register_eval_scope` instead.
-    pub fn remove_register(&mut self, register: Register) -> RegisterValue {
-        self.remove_register_value(register)
-    }
-
-    #[inline]
-    fn remove_register_value(&mut self, register: Register) -> RegisterValue {
-        match self.registers.get_mut(&register) {
-            None => RegisterValue::Value(
-                VMError::EmptyRegister(format!("R{} is empty", register)).to_value(),
-            ),
-            Some(v) => RefCell::replace(v, RegisterValue::Value(Value::None)),
-        }
+    pub fn remove_register(&self, register: Register) -> RegisterValue {
+        self.current.borrow_mut().remove_register(register, self)
     }
 
     /// Value is replaced with None, shifting the registers breaks the program.
 
     pub fn remove_register_eval_scope(&mut self, register: Register) -> Value {
-        match self.remove_register_value(register) {
+        match self.remove_register(register) {
             RegisterValue::ScopeId(scope, output) => self.handle_scope(scope, register, output),
             RegisterValue::Register(r) => self.remove_register_eval_scope(r),
             RegisterValue::Value(v) => v,
+            RegisterValue::Constant(c) => self.get_constant(c),
+        }
+    }
+
+    pub fn get_constant(&self, index: usize) -> Value {
+        match self.constants.get(index) {
+            None => VMError::RuntimeError(format!("Constant {index} does not exist")).into(),
+            Some(v) => v.clone(),
         }
     }
 
@@ -248,20 +281,14 @@ impl<'vm> VM<'vm> {
         output: Register,
         process: Option<fn(value: Value) -> VMState>,
     ) -> VMState {
-        let current = self.current.output;
-        let source = if current == output {
-            self.resolve_register(output)
-        } else {
-            let s = self.resolve_register(current);
-            self.insert_register(output, s.clone().into());
-            s
-        };
+        let current = self.current.borrow().output;
+        let source = self.remove_register_eval_scope(current);
         match self.frames.pop() {
             None => return VMState::Done(source),
             Some(c) => {
-                self.clear_frame();
-                self.sp = c.scope_id;
+                self.sp = c.borrow().scope_id;
                 self.current = c;
+                self.insert_register(output, source.clone().into());
                 match process {
                     None => {}
                     Some(process) => return process(source),
@@ -271,25 +298,9 @@ impl<'vm> VM<'vm> {
         VMState::Running
     }
 
-    pub fn clear_frame(&mut self) {
-        if self.options.disable_variable_cleanup {
-            return;
-        }
-
-        let variables = std::mem::take(&mut self.current.variables);
-        for (_, var) in variables {
-            match var {
-                Variable::Mut(_) => {}
-                Variable::Let(r) => {
-                    self.remove_register(r);
-                }
-            };
-        }
-    }
-
     #[inline]
     pub fn process_instruction(&mut self, instruction: Instruction<'vm>) -> VMState {
-        self.current.pc += 1;
+        self.current.borrow_mut().pc += 1;
         match instruction {
             Instruction::Ret(output) => self.process_ret(output, None),
             instruction => self.process_core_instruction(instruction),
@@ -297,7 +308,7 @@ impl<'vm> VM<'vm> {
     }
 
     pub fn process_instruction_scope(&mut self, instruction: Instruction<'vm>) -> VMState {
-        self.current.pc += 1;
+        self.current.borrow_mut().pc += 1;
         match instruction {
             Instruction::Ret(output) => self.process_ret(output, Some(VMState::Ran)),
             ins => self.process_core_instruction(ins),
@@ -311,7 +322,7 @@ impl<'vm> VM<'vm> {
         // TODO move &Scope to callframe
         // scope_id must be valid when this is called, otherwise function will panic
         let scope = &self.scopes[scope_id];
-        scope.instructions.get(self.current.pc).cloned()
+        scope.instructions.get(self.current.borrow().pc).cloned()
     }
 
     /// Generally this should be used instead of run. It will evaluate the VM & start lifecycles
@@ -356,7 +367,7 @@ impl<'vm> VM<'vm> {
     }
 
     pub fn load_mut(&mut self, name: &'vm str, reg: Register) -> Result<(), VMError> {
-        match self.current.variables.entry(name) {
+        match self.current.borrow_mut().variables.entry(name) {
             Entry::Occupied(mut var) => match var.get() {
                 Variable::Let(_) => {
                     return Err(VMError::UnsupportedOperation(format!(
@@ -376,7 +387,7 @@ impl<'vm> VM<'vm> {
     }
 
     pub fn load_let(&mut self, name: &'vm str, reg: Register) -> Result<(), VMError> {
-        match self.current.variables.entry(name) {
+        match self.current.borrow_mut().variables.entry(name) {
             Entry::Occupied(v) => {
                 return Err(VMError::UnsupportedOperation(format!(
                     "Cannot overwrite let variable: {}",
@@ -391,22 +402,30 @@ impl<'vm> VM<'vm> {
     }
 
     #[inline]
-    pub fn call_frame(&mut self, scope_index: usize, output: Register) {
+    pub fn call_frame(&mut self, scope_index: usize, output: Register) -> Result<(), VMError> {
         if self.scopes.len() <= scope_index {
-            self.insert_register(
-                output,
-                VMError::ScopeDoesNotExist(format!("{} does not exist", scope_index))
-                    .to_value()
-                    .into(),
-            );
-            return;
+            return Err(VMError::ScopeDoesNotExist(format!(
+                "{} does not exist",
+                scope_index
+            )));
         }
+
+        if self.frames.len() >= self.options.max_depth {
+            let err = VMError::RuntimeError(format!(
+                "Stack overflow: exceeded {}",
+                self.options.max_depth
+            ));
+            return Err(err.into());
+        }
+
         let current = std::mem::replace(
             &mut self.current,
-            CallFrame::child(scope_index, self.frames.len(), output),
+            RefCell::new(CallFrame::child(scope_index, self.frames.len(), output)),
         );
+
         self.frames.push(current);
         self.sp = scope_index;
+        Ok(())
     }
 
     #[inline]
@@ -416,14 +435,15 @@ impl<'vm> VM<'vm> {
         output: Register,
         this: Register,
         mutable: bool,
-    ) {
-        self.call_frame(scope_index, output);
+    ) -> Result<(), VMError> {
+        self.call_frame(scope_index, output)?;
         let var = if mutable {
             Variable::Mut(this)
         } else {
             Variable::Let(this)
         };
-        self.current.variables.insert("self", var);
+        self.current.borrow_mut().variables.insert("self", var);
+        Ok(())
     }
 
     /// Snapshots can't include modules or messages from in progress lifecycles
@@ -468,6 +488,7 @@ mod tests {
             enable_logging: true,
             disable_modules: true,
             disable_variable_cleanup: true,
+            ..Default::default()
         };
         let byte = options.to_byte();
         assert_eq!(VMOptions::from_byte(byte), options)

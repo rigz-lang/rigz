@@ -130,7 +130,9 @@ impl<'vm> VM<'vm> {
             Ok(None)
         }) {
             Ok(_) => {}
-            Err(e) => self.insert_register(lhs, e.into()),
+            Err(e) => {
+                self.insert_register(lhs, e.into());
+            }
         };
     }
 
