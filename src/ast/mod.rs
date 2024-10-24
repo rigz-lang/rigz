@@ -8,7 +8,7 @@ pub use program::{
     Assign, Element, Exposed, Expression, FunctionDeclaration, ModuleTraitDefinition, Program,
     Scope, Statement, TraitDefinition,
 };
-use rigz_vm::{BinaryOperation, RigzType, UnaryOperation};
+use rigz_vm::{BinaryOperation, RigzType, UnaryOperation, VMError, Value};
 use std::collections::VecDeque;
 use std::fmt::Debug;
 pub use validate::ValidationError;
@@ -373,6 +373,21 @@ impl<'lex> Parser<'lex> {
                     )));
                 }
             }
+            TokenKind::Error => {
+                let next = self.next_required_token()?;
+                match next.kind {
+                    TokenKind::Value(v) => {
+                        Expression::Value(Value::Error(VMError::RuntimeError(v.to_string())))
+                    }
+                    // todo support identifier, lists, map, and args
+                    _ => {
+                        return Err(ParsingError::ParseError(format!(
+                            "Invalid Token for Error {:?}",
+                            next
+                        )));
+                    }
+                }
+            }
             _ => {
                 return Err(ParsingError::ParseError(format!(
                     "Invalid Token for Expression {:?}",
@@ -390,7 +405,7 @@ impl<'lex> Parser<'lex> {
         match self.peek_token() {
             None => Ok(exp),
             Some(t) if t.terminal() => {
-                self.consume_token(t.kind)?;
+                // dont consume newline here
                 Ok(exp)
             }
             Some(t) => match t.kind {
@@ -416,10 +431,6 @@ impl<'lex> Parser<'lex> {
                 TokenKind::As => {
                     self.consume_token(TokenKind::As)?;
                     Ok(Expression::Cast(Box::new(exp), self.parse_rigz_type()?))
-                }
-                TokenKind::Lbracket => {
-                    self.consume_token(TokenKind::Lbracket)?;
-                    Ok(Expression::Index(Box::new(exp), self.parse_list()?))
                 }
                 TokenKind::BinOp(_) | TokenKind::Pipe | TokenKind::Minus | TokenKind::Period => {
                     Ok(self.parse_inline_expression(exp)?)
@@ -483,10 +494,42 @@ impl<'lex> Parser<'lex> {
         Ok(Expression::FunctionCall(id, args))
     }
 
+    fn parse_identifier_expression_skip_inline(
+        &mut self,
+        id: &'lex str,
+    ) -> Result<Expression<'lex>, ParsingError> {
+        let args = match self.peek_token() {
+            None => return Ok(id.into()),
+            Some(next) => match next.kind {
+                TokenKind::Period => {
+                    self.consume_token(TokenKind::Period)?;
+                    return self.parse_instance_call(id.into())
+                }
+                TokenKind::Value(_)
+                | TokenKind::Identifier(_)
+                | TokenKind::Symbol(_)
+                | TokenKind::Lparen
+                | TokenKind::Lcurly
+                | TokenKind::Lbracket => self.parse_args()?,
+                _ => return Ok(id.into()),
+            },
+        };
+        Ok(Expression::FunctionCall(id, args))
+    }
+
     fn parse_paren_expression(&mut self) -> Result<Expression<'lex>, ParsingError> {
         let expr = self.parse_expression()?;
         self.consume_token(TokenKind::Rparen)?;
-        Ok(expr)
+        match self.peek_token() {
+            None => Ok(expr),
+            Some(t) => match t.kind {
+                TokenKind::Period => {
+                    self.consume_token(TokenKind::Period)?;
+                    self.parse_instance_call(expr)
+                }
+                _ => Ok(expr)
+            }
+        }
     }
 
     fn parse_inline_expression<LHS>(&mut self, lhs: LHS) -> Result<Expression<'lex>, ParsingError>
@@ -497,7 +540,11 @@ impl<'lex> Parser<'lex> {
         loop {
             match self.next_token() {
                 None => break,
-                Some(next) if next.terminal() => break,
+                Some(next) if next.terminal() => {
+                    // this allows expression suffixes to be handled correctly
+                    self.tokens.push_front(next);
+                    break
+                },
                 Some(next) => match next.kind {
                     TokenKind::Period => {
                         res = self.parse_instance_call(res)?;
@@ -537,16 +584,29 @@ impl<'lex> Parser<'lex> {
     ) -> Result<Expression<'lex>, ParsingError> {
         let next = self.next_required_token()?;
         let rhs = match next.kind {
-            // we want value expressions evaluated from left to right, can't call parse_value_expression here
-            TokenKind::Value(v) => v.into(),
-            // todo we want value expressions evaluated from left to right, can't call parse_identifier_expression here (need to handle possible function call though)
-            TokenKind::Identifier(id) => id.into(),
+            // todo values & identifiers need some work, this doesn't handle function calls or instance calls
+            // todo we want value expressions evaluated from left to right, can't call parse_value_expression here
+            TokenKind::Value(v) => {
+                let base = v.into();
+                match self.peek_token() {
+                    None => base,
+                    Some(t) => match t.kind {
+                        TokenKind::Period => {
+                            self.consume_token(TokenKind::Period)?;
+                            self.parse_instance_call(base)?
+                        }
+                        _ => base
+                    }
+                }
+            },
+            TokenKind::Identifier(id) => self.parse_identifier_expression_skip_inline(id)?,
             TokenKind::Not => self.parse_unary_expression(UnaryOperation::Not)?,
             TokenKind::Minus => self.parse_unary_expression(UnaryOperation::Neg)?,
             TokenKind::Lparen => self.parse_paren_expression()?,
             TokenKind::Lcurly => self.parse_map()?,
             TokenKind::Lbracket => self.parse_list()?.into(),
             TokenKind::Do => Expression::Scope(self.parse_scope()?),
+            TokenKind::This => self.parse_this_expression_skip_inline()?,
             _ => {
                 return Err(ParsingError::ParseError(format!(
                     "Unexpected {:?} for binary expression: {:?} {}",
@@ -620,6 +680,19 @@ impl<'lex> Parser<'lex> {
         self.parse_inline_expression(Expression::This)
     }
 
+    fn parse_this_expression_skip_inline(&mut self) -> Result<Expression<'lex>, ParsingError> {
+        match self.peek_token() {
+            None => Ok(Expression::This),
+            Some(t) => match t.kind {
+                TokenKind::Period => {
+                    self.consume_token(TokenKind::Period)?;
+                    self.parse_instance_call(Expression::This)
+                }
+                _ => Ok(Expression::This)
+            }
+        }
+    }
+
     fn parse_symbol_expression(
         &mut self,
         symbol: Symbol<'lex>,
@@ -637,6 +710,7 @@ impl<'lex> Parser<'lex> {
 
     fn parse_args(&mut self) -> Result<Vec<Expression<'lex>>, ParsingError> {
         let mut args = Vec::new();
+        let mut needs_comma = false;
         loop {
             match self.peek_token() {
                 None => break,
@@ -644,16 +718,20 @@ impl<'lex> Parser<'lex> {
                 Some(t) => match t.kind {
                     TokenKind::Rparen
                     | TokenKind::End
+                    // binary operations are handled within parse_expression
                     | TokenKind::BinOp(_)
                     | TokenKind::Pipe
                     | TokenKind::Minus => break,
                     TokenKind::Comma => {
                         self.consume_token(TokenKind::Comma)?;
+                        needs_comma = false;
                         continue;
                     }
-                    _ => {
+                    _ if !needs_comma => {
                         args.push(self.parse_expression()?);
+                        needs_comma = true
                     }
+                    _ => break
                 },
             }
         }

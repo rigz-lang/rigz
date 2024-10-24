@@ -118,7 +118,7 @@ pub fn eval_debug_vm(input: &str) -> Result<(VM, Value), (Option<VM>, RuntimeErr
         Ok(v) => v,
         Err(e) => return Err((None, e.into())),
     };
-    println!("VM Initial State - {vm:#?}");
+    // println!("VM Initial State - {vm:#?}");
     match vm.eval() {
         Ok(v) => Ok((vm, v)),
         Err(e) => Err((Some(vm), e.into())),
@@ -216,6 +216,12 @@ mod tests {
                 VM.first will be altered if an imported module has a default implementation
             */
             vm_register_invalid("import VM; VM.get_register 1" = VMError::EmptyRegister("R1 is empty".to_string()).into())
+            error("error 'something went wrong'" = VMError::RuntimeError("something went wrong".into()).into())
+            stack_overflow(r#"fn foo
+                foo
+            end
+            foo
+            "# = VMError::RuntimeError("Stack overflow: exceeded 1024".into()).into())
         }
     }
 
@@ -238,6 +244,13 @@ mod tests {
             vm_last_register("import VM; a = 1; VM.last" = Value::Number(1.into()))
             // VM.first will not be 27 if an imported module has a default implementation
             vm_first_register("import VM; a = 27; VM.first" = Value::Number(27.into()))
+            binary_expr_function_call(r#"
+            fn foo(number: Number) -> Number
+                number * 2
+            end
+            a = 3
+            1.to_s + foo a
+            "# = 7.into())
             call_function_multiple_times(r#"
             fn foo(number: Number) -> Number
                 number * 2
@@ -278,10 +291,12 @@ mod tests {
                 m = {a = {b = {c = 1}}}
                 m.a.b.c
             "# = 1.into())
+            binary_expr_instance_call(r#"
+            11.4 + 1.2.ceil
+            "# = 13.4.into())
             create_dynamic_list(r#"
                 [{d = 1}]
             "# = Value::List(vec![Value::Map(IndexMap::from([("d".into(), 1.into())]))]))
-            // todo support builder like pattern
             call_extension_function_multiple_times_inline_no_parens(r#"
             fn mut String.foo -> mut Self
                 self += "h"
@@ -289,17 +304,24 @@ mod tests {
             end
             mut a = ""
             a.foo.foo.foo
-            "# = "hhh".to_string().into())
-            self_fib_recursive(r#"
-            fn Number.fib -> Number
-                if self <= 1
-                    self
-                else
-                    (self - 1).fib + (self - 2).fib
-                end
+            a == "hhh"
+            "# = true.into())
+            call_module_extension_function_in_extension_scope(r#"
+            fn String.foo -> Self
+                "h" + self.to_s
             end
-            6.fib
-            "# = 8.into())
+            "i".foo
+            "# = "hi".into())
+            lte("6 <= 1" = false.into())
+            gte("6 >= 1" = true.into())
+            if_true(r#"if 0 == none
+                14
+            end"# = 14.into())
+            if_false(r#"if 1 == "abc"
+                14
+            end"# = Value::None.into())
+            to_json("{a=5}.to_json" = r#"{"a":5}"#.into())
+            json_parse("JSON.parse '5'" = 5.into())
             // memoization lifecycle
             // fib_recursive_dynamic_programming(r#"
             // @memo
@@ -315,23 +337,58 @@ mod tests {
             // fib 6
             // fib 6
             // "# = 8.into())
-        }
-    }
-
-    mod debug {
-        use super::*;
-
-        run_show_vm! {
+            if_else_true(r#"if 0 == ""
+                42
+            else
+                37
+            end"# = 42.into())
+            if_else_false(r#"if !true
+                42
+            else
+                1 + 2
+            end"# = 3.into())
+            factorial(r#"
+            fn factorial(n: Number)
+                if n == 0
+                    1
+                else
+                    n * factorial n - 1
+                end
+            end
+            factorial 4
+            "#=24.into())
+            // todo variable should not be necessary for fib calls
             fib_recursive(r#"
             fn fib(n: Number) -> Number
                 if n <= 1
                     n
                 else
-                    (fib n - 1) + (fib n - 2)
+                    b = n - 2
+                    (fib n - 1) + fib b
                 end
             end
             fib 6
             "# = 8.into())
+            self_fib_recursive(r#"
+            fn Number.fib -> Number
+                if self <= 1
+                    self
+                else
+                    b = self - 2
+                    (self - 1).fib + b.fib
+                end
+            end
+            6.fib
+            "# = 8.into())
+        }
+    }
+
+
+    mod debug {
+        use super::*;
+
+        run_show_vm! {
+
         }
     }
 }

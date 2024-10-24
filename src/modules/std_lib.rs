@@ -1,4 +1,4 @@
-use rigz_vm::{Module, VMError, Value, VM};
+use rigz_vm::{Module, Number, VMError, Value, VM};
 
 #[derive(Copy, Clone)]
 pub struct StdLibModule {}
@@ -41,6 +41,42 @@ impl<'vm> Module<'vm> for StdLibModule {
     ) -> Result<Value, VMError> {
         match function {
             "clone" => Ok(value.clone()),
+            "ceil" => match value {
+                Value::Number(n) => {
+                    let v = match n {
+                        Number::Float(f) => {
+                            (f.ceil() as i64).into()
+                        }
+                        n => n.into(),
+                    };
+                    Ok(v)
+                }
+                v => Err(VMError::RuntimeError(format!("Cannot call ceil on {v}"))),
+            },
+            "floor" => match value {
+                Value::Number(n) => {
+                    let v = match n {
+                        Number::Float(f) => {
+                            (f.floor() as i64).into()
+                        }
+                        n => n.into(),
+                    };
+                    Ok(v)
+                }
+                v => Err(VMError::RuntimeError(format!("Cannot call floor on {v}"))),
+            },
+            "trunc" => match value {
+                Value::Number(n) => {
+                    let v = match n {
+                        Number::Float(f) => {
+                            (f.trunc() as i64).into()
+                        }
+                        n => n.into(),
+                    };
+                    Ok(v)
+                }
+                v => Err(VMError::RuntimeError(format!("Cannot call floor on {v}"))),
+            },
             "first" => match value {
                 Value::List(v) => match v.first() {
                     None => Ok(Value::None),

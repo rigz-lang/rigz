@@ -10,7 +10,8 @@ repository = "https://gitlab.com/magicfoodhand/rigz_runtime"
 [dependencies]
 indexmap = "2.6.0"
 logos = "0.14"
-rigz_vm = { version = "0.30" }
+rigz_vm = { version = "0.31" }
+# rigz_vm = { path = "rigz_vm" } # local testing - create symbolic link, ln -s <path>/rigz_vm
 log = "0.4"
 serde_json = "1.0"
 

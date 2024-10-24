@@ -5,13 +5,12 @@ use crate::ast::{
 use crate::modules::{JsonModule, StdLibModule, VMModule};
 use crate::{FunctionArgument, FunctionDefinition, FunctionSignature, FunctionType};
 use indexmap::map::Entry;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use log::warn;
 use rigz_vm::{
     Clear, Module, Number, Register, RegisterValue, RigzType, VMBuilder, VMError, Value, VM,
 };
 use std::collections::HashMap;
-use std::env::current_exe;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub(crate) enum CallSite<'vm> {
@@ -379,7 +378,7 @@ impl<'vm> ProgramParser<'vm> {
             Expression::This => {
                 let _ = self.this();
             }
-            Expression::Index(_, _) => {}
+            // Expression::Index(_, _) => {}
             Expression::Value(v) => self.parse_value(v),
             Expression::BinExp(a, op, b) => {
                 let (a, b, clear) = match (*a, *b) {
@@ -525,11 +524,14 @@ impl<'vm> ProgramParser<'vm> {
                         Some(fcs) => fcs.clone(),
                     };
 
-                    todo!();
                     if index == last {
+                        self.call_inline_extension(c, fcs, &mut current, args)?;
+                        break
                     } else {
+                        self.call_inline_extension(c, fcs, &mut current, vec![])?;
                     }
                 }
+                self.last = current;
             }
             Expression::Scope(s) => {
                 let (s, output) = self.parse_scope(s)?;
@@ -549,6 +551,29 @@ impl<'vm> ProgramParser<'vm> {
                     .add_load_instruction(next, Value::String(s.to_string()).into());
             }
         }
+        Ok(())
+    }
+
+    fn call_inline_extension(&mut self, name: &'vm str, function_call_signatures: FunctionCallSignatures<'vm>, current: &mut Register, args: Vec<Expression<'vm>>) -> Result<(), ValidationError> {
+        let mut call_args = Vec::with_capacity(args.len());
+        if function_call_signatures.len() == 1 {
+            let mut fcs = function_call_signatures.into_iter();
+            let (fcs, call) = fcs.next().unwrap();
+            let (vm_module, mutable, this) = match &fcs.self_type {
+                None => return Err(ValidationError::InvalidFunction(format!("Function is not an extension function {name}"))),
+                Some((f, this)) => {
+                    if this != current {
+                        self.builder.add_load_instruction(*this, (*current).into());
+                    }
+                    (f.rigz_type == RigzType::VM, f.mutable, *this)
+                }
+            };
+            self.setup_call_args(args, &mut call_args, fcs)?;
+            self.process_extension_call(name, call_args, vm_module, mutable, this, call);
+        } else {
+            todo!("Multiple extensions match")
+        }
+        *current = self.last;
         Ok(())
     }
 
@@ -728,17 +753,13 @@ impl<'vm> ProgramParser<'vm> {
                 )))
             }
             Some((fcs, call)) => {
-                for ((_, arg_reg), expression) in fcs.arguments.iter().zip(arguments) {
-                    self.parse_expression(expression)?;
-                    self.builder
-                        .add_load_instruction(*arg_reg, RegisterValue::Register(self.last));
-                    call_args.push(*arg_reg);
-                }
+                self.setup_call_args(arguments, &mut call_args, fcs)?;
 
                 match call {
                     CallSite::Scope(s, o) => {
                         self.builder.add_call_instruction(s, o);
-                        self.last = o;
+                        let next = self.next_register();
+                        self.builder.add_move_instruction(o, next);
                     }
                     CallSite::Module(m) => {
                         let output = self.next_register();
@@ -753,6 +774,16 @@ impl<'vm> ProgramParser<'vm> {
                     }
                 }
             }
+        }
+        Ok(())
+    }
+
+    fn setup_call_args(&mut self, arguments: Vec<Expression<'vm>>, call_args: &mut Vec<Register>, fcs: FunctionCallSignature) -> Result<(), ValidationError> {
+        for ((_, arg_reg), expression) in fcs.arguments.iter().zip(arguments) {
+            self.parse_expression(expression)?;
+            self.builder
+                .add_load_instruction(*arg_reg, RegisterValue::Register(self.last));
+            call_args.push(*arg_reg);
         }
         Ok(())
     }
@@ -817,43 +848,56 @@ impl<'vm> ProgramParser<'vm> {
                 )))
             }
             Some((fcs, call)) => {
-                for ((_, arg_reg), expression) in fcs.arguments.iter().zip(arguments) {
-                    self.parse_expression(expression)?;
-                    self.builder
-                        .add_load_instruction(*arg_reg, RegisterValue::Register(self.last));
-                    call_args.push(*arg_reg);
+                self.setup_call_args(arguments, &mut call_args, fcs)?;
+
+                match &call {
+                    CallSite::Scope(_, _) => {
+                        self.parse_extension_expression(mutable, this, this_exp)?;
+                    }
+                    CallSite::Module(_) if vm_module => {
+
+                    }
+                    CallSite::Module(_) => {
+                        self.parse_extension_expression(mutable, this, this_exp)?;
+                    }
                 }
 
-                match call {
-                    CallSite::Scope(s, o) => {
-                        self.parse_extension_expression(mutable, this, this_exp)?;
-                        self.builder.add_call_self_instruction(s, o, this, mutable);
-                        self.last = o;
-                    }
-                    CallSite::Module(m) => {
-                        let output = self.next_register();
-                        if vm_module {
-                            self.builder.add_call_vm_extension_module_instruction(
-                                m, name, call_args, output,
-                            );
-                        } else {
-                            self.parse_extension_expression(mutable, this, this_exp)?;
-                            self.builder.add_set_self_instruction(this, mutable);
-                            if mutable {
-                                self.builder.add_call_mutable_extension_module_instruction(
-                                    m, name, this, call_args, output,
-                                );
-                            } else {
-                                self.builder.add_call_extension_module_instruction(
-                                    m, name, this, call_args, output,
-                                );
-                            }
-                        }
+                self.process_extension_call(name, call_args, vm_module, mutable, this, call);
+            }
+        }
+        Ok(())
+    }
+
+    fn process_extension_call(&mut self, name: &'vm str, call_args: Vec<Register>, vm_module: bool, mutable: bool, this: Register, call: CallSite<'vm>) {
+        match call {
+            CallSite::Scope(s, o) => {
+                self.builder.add_call_self_instruction(s, o, this, mutable);
+                if mutable {
+                    self.last = this;
+                } else {
+                    let next = self.next_register();
+                    self.builder.add_move_instruction(o, next);
+                }
+            }
+            CallSite::Module(m) => {
+                let output = self.next_register();
+                if vm_module {
+                    self.builder.add_call_vm_extension_module_instruction(
+                        m, name, call_args, output,
+                    );
+                } else {
+                    if mutable {
+                        self.builder.add_call_mutable_extension_module_instruction(
+                            m, name, this, call_args, output,
+                        );
+                    } else {
+                        self.builder.add_call_extension_module_instruction(
+                            m, name, this, call_args, output,
+                        );
                     }
                 }
             }
         }
-        Ok(())
     }
 
     fn parse_extension_expression(

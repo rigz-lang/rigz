@@ -141,7 +141,7 @@ pub enum TokenKind<'lex> {
     BinAssign(BinaryOperation),
     #[token("!")]
     Not,
-    #[regex("[A-Z][A-Za-z_]+!?\\??", |lex| lex.slice())]
+    #[regex("[A-Z][A-Za-z0-9_]+!?\\??", |lex| lex.slice())]
     TypeValue(&'lex str),
     #[token("-")]
     Minus,
@@ -153,12 +153,12 @@ pub enum TokenKind<'lex> {
     Comma,
     #[token("fn")]
     FunctionDef,
-    #[regex("\\$[A-Za-z_]*", |lex| lex.slice())]
-    #[regex("[a-z_][A-Za-z_]*", |lex| lex.slice())]
+    #[regex("\\$[A-Za-z0-9_]*", |lex| lex.slice())]
+    #[regex("[a-z_][A-Za-z0-9_]*", |lex| lex.slice())]
     Identifier(&'lex str),
-    #[regex(":[A-Za-z_]+", |lex| { let s = lex.slice(); Symbol(&s[1..]) })]
+    #[regex(":[A-Za-z0-9_]+", |lex| { let s = lex.slice(); Symbol(&s[1..]) })]
     Symbol(Symbol<'lex>),
-    #[regex("@[a-z_][A-Za-z_]*", |lex| { let s = lex.slice(); &s[1..] })]
+    #[regex("@[a-z_][A-Za-z0-9_]*", |lex| { let s = lex.slice(); &s[1..] })]
     Lifecycle(&'lex str),
     #[token("(")]
     Lparen,
@@ -186,16 +186,16 @@ pub enum TokenKind<'lex> {
     Type,
     #[token("trait")]
     Trait,
-    #[regex("#[^\n]*")]
-    #[regex("/\\*(?:[^*]|\\*[^/])*\\*/")]
-    Comment, //todo support doc-tests, nested comments
-    // Reserved for future versions
     #[token("++")]
     Increment,
     #[token("--")]
     Decrement,
     #[token("self")]
     This,
+    #[regex("#[^\n]*")]
+    #[regex("/\\*(?:[^*]|\\*[^/])*\\*/")]
+    Comment, //todo support doc-tests, nested comments
+    // Reserved for future versions
     #[regex("\\$[0-9]+", |lex| { let s = lex.slice(); s[1..].parse::<usize>().unwrap() })]
     Arg(usize),
     #[token("return")]

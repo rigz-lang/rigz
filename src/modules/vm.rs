@@ -40,7 +40,7 @@ impl<'vm> Module<'vm> for VMModule {
                 Ok(vm.resolve_register(u))
             }
             "first" => {
-                let (og, first) = match vm.registers.first() {
+                let (og, first) = match vm.current.borrow().registers.first() {
                     None => return Err(VMError::EmptyRegister("Registers are empty".to_string())),
                     Some((o, v)) => (*o, v.borrow().clone()),
                 };
@@ -48,7 +48,7 @@ impl<'vm> Module<'vm> for VMModule {
                 Ok(v)
             }
             "last" => {
-                let (og, last) = match vm.registers.last() {
+                let (og, last) = match vm.current.borrow().registers.last() {
                     None => return Err(VMError::EmptyRegister("Registers are empty".to_string())),
                     Some((o, v)) => (*o, v.borrow().clone()),
                 };
@@ -99,5 +99,6 @@ fn resolve_register_value(vm: &mut VM, index: Register, register_value: Register
         RegisterValue::ScopeId(s, out) => vm.handle_scope(s, index, out),
         RegisterValue::Register(r) => vm.resolve_register(r),
         RegisterValue::Value(v) => v,
+        RegisterValue::Constant(c) => vm.get_constant(c)
     }
 }

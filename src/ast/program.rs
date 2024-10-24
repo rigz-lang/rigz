@@ -141,7 +141,8 @@ pub enum Expression<'lex> {
         condition: Box<Expression<'lex>>,
         then: Scope<'lex>,
     },
-    Index(Box<Expression<'lex>>, Vec<Expression<'lex>>),
+    // todo support later
+    // Index(Box<Expression<'lex>>, Vec<Expression<'lex>>),
 }
 
 impl<'lex> From<Vec<Expression<'lex>>> for Expression<'lex> {

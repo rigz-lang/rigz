@@ -58,3 +58,5 @@ pub mod modules;
 pub mod prepare;
 pub mod runtime;
 pub mod token;
+
+pub use runtime::{Runtime, RuntimeError, eval};
