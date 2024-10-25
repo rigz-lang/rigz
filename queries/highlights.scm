@@ -15,6 +15,8 @@
   "else"
   "end"
   "fn"
+  "let"
+  "mut"
   "unless"
 ] @keyword
 
