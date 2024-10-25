@@ -1,6 +1,23 @@
 ==================
 Assignment
 ==================
+a = "2"
+---
+(program
+    (statement
+        (assignment
+            (identifier)
+            (expression
+                (value
+                    (string)
+                ))
+        )
+    )
+)
+
+==================
+Assignment (let)
+==================
 let a = 42
 ---
 (program
@@ -45,7 +62,7 @@ let a = 42 unless true
             (expression
                 (value
                     (number))
-                (trailing_unless
+                (unless_guard
                     (expression
                         (value (bool))
                     )

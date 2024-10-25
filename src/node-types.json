@@ -34,6 +34,25 @@
     }
   },
   {
+    "type": "binary_assignment",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "bool",
     "named": true,
     "fields": {}
@@ -54,15 +73,39 @@
     }
   },
   {
+    "type": "char",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "do_scope",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "lifecycle",
+          "named": true
+        },
+        {
+          "type": "scope",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "error",
     "named": true,
     "fields": {},
     "children": {
-      "multiple": false,
+      "multiple": true,
       "required": true,
       "types": [
         {
-          "type": "string",
+          "type": "expression",
           "named": true
         }
       ]
@@ -85,6 +128,10 @@
           "named": true
         },
         {
+          "type": "do_scope",
+          "named": true
+        },
+        {
           "type": "expression",
           "named": true
         },
@@ -97,11 +144,11 @@
           "named": true
         },
         {
-          "type": "trailing_if",
+          "type": "if_guard",
           "named": true
         },
         {
-          "type": "trailing_unless",
+          "type": "self",
           "named": true
         },
         {
@@ -110,6 +157,10 @@
         },
         {
           "type": "unless",
+          "named": true
+        },
+        {
+          "type": "unless_guard",
           "named": true
         },
         {
@@ -178,7 +229,7 @@
           "named": true
         },
         {
-          "type": "program",
+          "type": "scope",
           "named": true
         },
         {
@@ -189,9 +240,23 @@
     }
   },
   {
-    "type": "identifier",
+    "type": "function_identifier",
     "named": true,
-    "fields": {}
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "type",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "if_else",
@@ -206,7 +271,22 @@
           "named": true
         },
         {
-          "type": "program",
+          "type": "scope",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "if_guard",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
           "named": true
         }
       ]
@@ -236,7 +316,7 @@
       "required": true,
       "types": [
         {
-          "type": "value",
+          "type": "expression",
           "named": true
         }
       ]
@@ -264,6 +344,7 @@
   {
     "type": "program",
     "named": true,
+    "root": true,
     "fields": {},
     "children": {
       "multiple": true,
@@ -271,6 +352,40 @@
       "types": [
         {
           "type": "statement",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "range",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "char",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "scope",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        },
+        {
+          "type": "program",
           "named": true
         }
       ]
@@ -286,6 +401,10 @@
       "types": [
         {
           "type": "assignment",
+          "named": true
+        },
+        {
+          "type": "binary_assignment",
           "named": true
         },
         {
@@ -310,36 +429,6 @@
     "fields": {}
   },
   {
-    "type": "trailing_if",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "expression",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "trailing_unless",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "expression",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "type",
     "named": true,
     "fields": {},
@@ -350,24 +439,9 @@
         {
           "type": "type",
           "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "type_object",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "identifier",
-          "named": true
         },
         {
-          "type": "type",
+          "type": "type_identifier",
           "named": true
         }
       ]
@@ -401,7 +475,22 @@
           "named": true
         },
         {
-          "type": "program",
+          "type": "scope",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "unless_guard",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
           "named": true
         }
       ]
@@ -440,6 +529,10 @@
           "named": true
         },
         {
+          "type": "range",
+          "named": true
+        },
+        {
           "type": "string",
           "named": true
         },
@@ -449,6 +542,10 @@
         }
       ]
     }
+  },
+  {
+    "type": "\n",
+    "named": false
   },
   {
     "type": "!",
@@ -464,6 +561,10 @@
   },
   {
     "type": "&&",
+    "named": false
+  },
+  {
+    "type": "'",
     "named": false
   },
   {
@@ -488,6 +589,18 @@
   },
   {
     "type": "-",
+    "named": false
+  },
+  {
+    "type": "->",
+    "named": false
+  },
+  {
+    "type": ".",
+    "named": false
+  },
+  {
+    "type": "..",
     "named": false
   },
   {
@@ -531,6 +644,14 @@
     "named": false
   },
   {
+    "type": "?",
+    "named": false
+  },
+  {
+    "type": "?:",
+    "named": false
+  },
+  {
     "type": "@",
     "named": false
   },
@@ -555,11 +676,15 @@
     "named": false
   },
   {
-    "type": "String",
+    "type": "Number",
     "named": false
   },
   {
-    "type": "Uint",
+    "type": "Range",
+    "named": false
+  },
+  {
+    "type": "String",
     "named": false
   },
   {
@@ -607,7 +732,7 @@
     "named": false
   },
   {
-    "type": "function_identifier",
+    "type": "identifier",
     "named": true
   },
   {
@@ -631,11 +756,11 @@
     "named": true
   },
   {
-    "type": "true",
-    "named": false
+    "type": "self",
+    "named": true
   },
   {
-    "type": "type",
+    "type": "true",
     "named": false
   },
   {

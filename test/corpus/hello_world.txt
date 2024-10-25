@@ -7,7 +7,7 @@ puts 42
     (statement
         (expression
             (function_call
-                (function_identifier)
+                (function_identifier (identifier))
                 (expression
                     (value
                         (number)
@@ -26,7 +26,7 @@ puts "hello world"
     (statement
         (expression
             (function_call
-                (function_identifier)
+                (function_identifier (identifier))
                 (expression
                     (value
                         (string)

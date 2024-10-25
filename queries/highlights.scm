@@ -1,12 +1,15 @@
 (string) @string
+
 (number) @number
 
 (comment) @comment
 
-(identifier) @variable
+(assignment (identifier)) @variable
 
 (function_call
-  (function_identifier) @function.method)
+  (function_identifier (identifier))) @function.method
+
+(self) @variable.builtin
 
 [
   (none)

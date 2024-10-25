@@ -3,8 +3,8 @@ package tree_sitter_rigz_test
 import (
 	"testing"
 
-	tree_sitter "github.com/smacker/go-tree-sitter"
-	"github.com/tree-sitter/tree-sitter-rigz"
+	tree_sitter "github.com/tree-sitter/go-tree-sitter"
+	tree_sitter_rigz "github.com/tree-sitter/tree-sitter-rigz/bindings/go"
 )
 
 func TestCanLoadGrammar(t *testing.T) {

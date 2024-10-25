@@ -38,22 +38,8 @@
   },
   "scripts": {
     "install": "node-gyp-build",
-    "prebuildify": "prebuildify --napi --strip",
-    "generate": "tree-sitter generate",
-    "build": "tree-sitter generate --no-bindings",
-    "build-wasm": "tree-sitter build --wasm",
-    "test": "tree-sitter generate && tree-sitter test",
-    "test:debug": "tree-sitter test --debug",
-    "parse": "tree-sitter parse"
-  },
-  "tree-sitter": [
-    {
-      "scope": "source.rigz",
-      "file-types": [
-        "rigz"
-      ],
-      "injection-regex": "rigz",
-      "highlights": "queries/highlights.scm"
-    }
-  ]
+    "prestart": "tree-sitter build --wasm",
+    "start": "tree-sitter playground",
+    "test": "node --test bindings/node/*_test.js"
+  }
 }
