@@ -19,7 +19,8 @@ module.exports = grammar({
         $.binary_assignment,
         $.assignment,
         $.function_definition,
-        $.expression
+        $.expression,
+        $.import,
     ), optional($._terminator))),
     type_definition: $ => choice(
         seq($._type, $.type_identifier, "=", $.type_object),
@@ -35,6 +36,7 @@ module.exports = grammar({
     _fn: _ => "fn",
     _end: _ => "end",
     self: _ => "self",
+    import: $ => seq("import", $.type),
     scope: $ => prec.right(choice(seq("=", $.expression), seq($.program, $._end))),
     assignment: $ => prec.right(seq(
         choice(seq(optional($._let), $.identifier), seq($._mut, $.identifier)),

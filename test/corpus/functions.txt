@@ -144,3 +144,18 @@ Extension Function
             (function_call
               (function_identifier
                 (identifier)))))))
+
+==================
+Extension Function
+==================
+import VM
+VM.last
+---
+(program
+    (statement (import (type (type_identifier))))
+    (statement
+        (expression
+            (function_call
+              (function_identifier
+                (type (type_identifier))
+                (identifier))))))

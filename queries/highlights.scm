@@ -15,6 +15,7 @@
   "else"
   "end"
   "fn"
+  "import"
   "let"
   "mut"
   "unless"
