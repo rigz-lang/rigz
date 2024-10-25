@@ -202,6 +202,10 @@
           "named": true
         },
         {
+          "type": "function_call",
+          "named": true
+        },
+        {
           "type": "function_identifier",
           "named": true
         }

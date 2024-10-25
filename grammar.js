@@ -71,10 +71,10 @@ module.exports = grammar({
         seq("(", $.expression, ")")
     ), optional(choice($.cast, $.unless_guard, $.if_guard)))),
     do_scope: $ => seq(optional($.lifecycle), "do", $.scope),
-    function_call: $ => prec.right(seq(
+    function_call: $ => choice(prec.right(seq(
         $.function_identifier,
         optional($._args)
-    )),
+    )), prec.left(2, seq($.expression, ".", $.function_call))),
     _args: $ => prec.right(seq($.expression, repeat(seq(",", $.expression)))),
     unary: $ => prec.left(seq(choice("-", "!"), $.expression)),
     binary: $ => prec.right(2, seq(
