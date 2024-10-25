@@ -1,13 +1,10 @@
-use crate::instructions::{Binary, BinaryAssign, Unary, UnaryAssign};
 use crate::lifecycle::Lifecycle;
+use crate::RigzBuilder;
 use crate::{
-    generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation,
-    CallFrame, Clear, Instruction, Module, Register, RigzType, Scope, UnaryOperation, VMError,
-    Value, Variable,
+    generate_builder, CallFrame, Instruction, Module, Register, Scope, VMError, Value, Variable,
 };
 use indexmap::map::Entry;
 use indexmap::IndexMap;
-use log::Level;
 use log_derive::logfn_inputs;
 use std::cell::RefCell;
 use std::fmt::Debug;
@@ -105,6 +102,14 @@ pub struct VM<'vm> {
     pub constants: Vec<Value>,
 }
 
+impl<'vm> RigzBuilder<'vm> for VM<'vm> {
+    generate_builder!();
+
+    fn build(self) -> VM<'vm> {
+        self
+    }
+}
+
 impl<'vm> Default for VM<'vm> {
     #[inline]
     fn default() -> Self {
@@ -129,8 +134,6 @@ impl<'vm> VM<'vm> {
         Self::default()
     }
 
-    generate_builder!();
-
     #[inline]
     #[logfn_inputs(Trace, fmt = "insert_register(vm={:#p} register={}, value={:?})")]
     pub fn insert_register(
@@ -138,9 +141,7 @@ impl<'vm> VM<'vm> {
         register: Register,
         value: RegisterValue,
     ) -> Option<RefCell<RegisterValue>> {
-        let mut current = self.current.borrow_mut();
-        current
-            .deref_mut()
+        self.current.borrow_mut()
             .registers
             .insert(register, RefCell::new(value))
     }
@@ -415,7 +416,7 @@ impl<'vm> VM<'vm> {
                 "Stack overflow: exceeded {}",
                 self.options.max_depth
             ));
-            return Err(err.into());
+            return Err(err);
         }
 
         let current = std::mem::replace(
@@ -479,6 +480,7 @@ impl<'vm> VM<'vm> {
 
 #[cfg(test)]
 mod tests {
+    use crate::builder::RigzBuilder;
     use crate::vm::VMOptions;
     use crate::{VMBuilder, Value, VM};
 

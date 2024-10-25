@@ -14,7 +14,7 @@ mod value;
 mod value_range;
 mod vm;
 
-pub use builder::VMBuilder;
+pub use builder::{RigzBuilder, VMBuilder};
 pub use call_frame::{CallFrame, Variable};
 pub use instructions::{
     Binary, BinaryAssign, BinaryOperation, Clear, Instruction, Unary, UnaryAssign, UnaryOperation,
@@ -55,6 +55,7 @@ impl VMError {
 
 #[cfg(test)]
 mod vm_test {
+    use crate::builder::RigzBuilder;
     use crate::number::Number;
     use crate::value::Value;
     use crate::vm::RegisterValue;
@@ -153,7 +154,7 @@ mod vm_test {
         );
     }
 
-    #[derive(Copy, Clone)]
+    #[derive(Copy, Clone, Debug)]
     struct TestModule {}
 
     #[allow(unused_variables)]

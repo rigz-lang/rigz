@@ -52,10 +52,10 @@ impl Display for Number {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Number::Int(i) => {
-                write!(f, "{}", *i)
+                write!(f, "{}", i)
             }
             Number::Float(v) => {
-                write!(f, "{}", *v)
+                write!(f, "{}", v)
             }
         }
     }
@@ -90,6 +90,7 @@ impl FromStr for Number {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.replace("_", "");
         match s {
             _ if s.contains('.') => match s.parse::<f64>() {
                 Ok(f) => Ok(f.into()),
@@ -174,5 +175,21 @@ impl Number {
             Number::Int(i) => i.is_negative(),
             Number::Float(f) => f.is_sign_negative(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Number;
+
+    #[test]
+    fn parse_float() {
+        assert_eq!(Number::Float(1.0), "1.0".parse().unwrap())
+    }
+
+    #[test]
+    fn to_s() {
+        assert_eq!(Number::Float(1.0).to_string(), "1".to_string());
+        assert_eq!(Number::Float(1.2).to_string(), "1.2".to_string());
     }
 }

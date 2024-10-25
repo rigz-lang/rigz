@@ -1,10 +1,10 @@
 use crate::{VMError, Value, VM};
 use dyn_clone::DynClone;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 
 /// modules will be cloned when used, until DynClone can be removed, ideally they're Copy + Clone
 #[allow(unused_variables)]
-pub trait Module<'vm>: DynClone {
+pub trait Module<'vm>: Debug + DynClone {
     fn name(&self) -> &'static str;
 
     fn call(&self, function: &'vm str, args: Vec<Value>) -> Result<Value, VMError> {
@@ -55,12 +55,6 @@ pub trait Module<'vm>: DynClone {
 
     // todo create proc_macro that uses tree-sitter-rigz for syntax highlighting and compile time syntax validation
     fn trait_definition(&self) -> &'static str;
-}
-
-impl Debug for dyn Module<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Module {{name={}}}", self.name())
-    }
 }
 
 dyn_clone::clone_trait_object!(Module<'_>);

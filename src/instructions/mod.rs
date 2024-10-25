@@ -404,20 +404,21 @@ impl<'vm> VM<'vm> {
             Instruction::GetVariable(name, reg) => {
                 let r = match self.current.borrow().get_variable(name, self) {
                     None => {
+                        None
+                    }
+                    Some(s) => Some(s),
+                };
+                match r {
+                    None => {
                         self.insert_register(
                             reg,
                             VMError::VariableDoesNotExist(format!(
                                 "Variable {} does not exist",
                                 name
                             ))
-                            .into(),
+                                .into(),
                         );
-                        None
                     }
-                    Some(s) => Some(s),
-                };
-                match r {
-                    None => {}
                     Some(s) => {
                         let v = self.resolve_register(s);
                         self.insert_register(reg, v.into());
@@ -427,14 +428,6 @@ impl<'vm> VM<'vm> {
             Instruction::GetMutableVariable(name, reg) => {
                 let og = match self.current.borrow().get_mutable_variable(name, self) {
                     Ok(None) => {
-                        self.insert_register(
-                            reg,
-                            VMError::VariableDoesNotExist(format!(
-                                "Variable {} does not exist",
-                                name
-                            ))
-                            .into(),
-                        );
                         None
                     }
                     Err(e) => {
@@ -444,7 +437,16 @@ impl<'vm> VM<'vm> {
                     Ok(Some(original)) => Some(original),
                 };
                 match og {
-                    None => {}
+                    None => {
+                        self.insert_register(
+                            reg,
+                            VMError::VariableDoesNotExist(format!(
+                                "Variable {} does not exist",
+                                name
+                            ))
+                                .into(),
+                        );
+                    }
                     Some(og) => self.swap_register(og, reg),
                 }
             }
@@ -564,7 +566,7 @@ impl<'vm> VM<'vm> {
             Instruction::Pop(output) => {
                 let v = match self.stack.pop() {
                     None => VMError::RuntimeError("Pop called on empty stack".into()).into(),
-                    Some(v) => v.into()
+                    Some(v) => v.into(),
                 };
                 self.insert_register(output, v);
             }
