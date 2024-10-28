@@ -1,5 +1,5 @@
 use logos::{Logos, Span};
-use rigz_vm::{BinaryOperation, Number, Value};
+use rigz_ast::{BinaryOperation, Number, Value};
 use std::fmt::{Debug, Display, Formatter};
 use std::str::ParseBoolError;
 
@@ -42,7 +42,7 @@ impl From<ParseBoolError> for ParsingError {
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub struct Symbol<'lex>(pub(crate) &'lex str);
+pub(crate) struct Symbol<'lex>(pub(crate) &'lex str);
 
 impl Display for Symbol<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -51,7 +51,7 @@ impl Display for Symbol<'_> {
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
-pub enum TokenValue<'lex> {
+pub(crate) enum TokenValue<'lex> {
     #[default]
     None,
     Bool(bool),
@@ -83,14 +83,14 @@ impl Into<Value> for TokenValue<'_> {
 
 #[derive(Logos, Copy, Debug, PartialEq, Clone)]
 #[logos(skip r"[ \t\f]+", error = ParsingError)]
-pub enum TokenKind<'lex> {
+pub(crate) enum TokenKind<'lex> {
     #[token("\n")]
     Newline,
     #[token("none", |_| TokenValue::None)]
     #[token("false", |_| TokenValue::Bool(false))]
     #[token("true", |_| TokenValue::Bool(true))]
-    #[regex("-?[0-9]+", |lex| TokenValue::Number(Number::Int(lex.slice().parse().unwrap())))]
-    #[regex("-?[0-9]+\\.[0-9]+", |lex| TokenValue::Number(Number::Float(lex.slice().parse().unwrap())))]
+    #[regex("-?[0-9][0-9_]*\\.[0-9][0-9_]*", |lex| TokenValue::Number(lex.slice().parse().unwrap()))]
+    #[regex("-?[0-9][0-9_]*", |lex| TokenValue::Number(lex.slice().parse().unwrap()))]
     // todo special logic to support string escape expressions, probably as dedicated tokens
     #[regex("('[^'\n\r]*')|(\"[^\"\n\r]*\")|(`[^`\n\r]*`)", |lex| { let s = lex.slice(); TokenValue::String(&s[1..s.len()-1]) })]
     Value(TokenValue<'lex>),
@@ -153,7 +153,7 @@ pub enum TokenKind<'lex> {
     Comma,
     #[token("fn")]
     FunctionDef,
-    #[regex("\\$[A-Za-z0-9_]*", |lex| lex.slice())]
+    #[regex("\\$[a-z_]?[A-Za-z0-9_]*", |lex| lex.slice())]
     #[regex("[a-z_][A-Za-z0-9_]*", |lex| lex.slice())]
     Identifier(&'lex str),
     #[regex(":[A-Za-z0-9_]+", |lex| { let s = lex.slice(); Symbol(&s[1..]) })]

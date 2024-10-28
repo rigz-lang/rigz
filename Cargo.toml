@@ -5,13 +5,13 @@ edition = "2021"
 description = "Handles parsing and converting rigz to its VM instructions (for syntax highlighting use tree-sitter-rigz instead)"
 readme = "README.md"
 license = "MIT"
-repository = "https://gitlab.com/magicfoodhand/rigz_runtime"
+repository = "https://gitlab.com/inapinch/rigz/rigz_runtime"
 
 [dependencies]
 indexmap = "2.6.0"
 logos = "0.14"
-rigz_vm = { version = "0.31" }
-# rigz_vm = { path = "rigz_vm" } # local testing - create symbolic link, ln -s <path>/rigz_vm
+rigz_ast = { path = "rigz_ast_derive/rigz_ast" } # local testing - create symbolic link, ln -s <path>/rigz_vm
+rigz_ast_derive = { path = "rigz_ast_derive" } # local testing - create symbolic link, ln -s <path>/rigz_vm
 log = "0.4"
 serde_json = "1.0"
 

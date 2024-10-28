@@ -1,16 +1,11 @@
-use crate::ast::{
-    Assign, Element, Exposed, Expression, FunctionDeclaration, ModuleTraitDefinition, Parser,
-    Scope, Statement, TraitDefinition, ValidationError,
-};
-use crate::modules::{JsonModule, StdLibModule, VMModule};
-use crate::{FunctionArgument, FunctionDefinition, FunctionSignature, FunctionType};
+mod program;
+
+use rigz_ast::*;
+pub use program::Program;
 use indexmap::map::Entry;
-use indexmap::{IndexMap, IndexSet};
-use log::warn;
-use rigz_vm::{
-    Clear, Module, Number, Register, RegisterValue, RigzType, VMBuilder, VMError, Value, VM,
-};
-use std::collections::HashMap;
+use indexmap::IndexMap;
+use crate::modules::{FileModule, JSONModule, StdModule, VMModule};
+use crate::RuntimeError;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub(crate) enum CallSite<'vm> {
@@ -29,113 +24,127 @@ pub struct FunctionCallSignature<'vm> {
 
 type FunctionCallSignatures<'vm> = Vec<(FunctionCallSignature<'vm>, CallSite<'vm>)>;
 
-pub(crate) struct ProgramParser<'vm> {
-    builder: VMBuilder<'vm>,
-    current: Register,
-    last: Register,
-    modules: HashMap<&'vm str, ModuleTraitDefinition<'vm>>,
-    // todo nested functions are global, they should be removed if invalid
-    function_scopes: IndexMap<&'vm str, FunctionCallSignatures<'vm>>,
+pub(crate) enum ModuleDefinition {
+    Imported,
+    Module(ModuleTraitDefinition<'static>),
 }
 
-impl<'vm> Default for ProgramParser<'vm> {
+pub(crate) struct ProgramParser<'vm, T: RigzBuilder<'vm>> {
+    pub(crate) builder: T,
+    pub(crate) current: Register,
+    pub(crate) last: Register,
+    pub(crate) modules: IndexMap<&'vm str, ModuleDefinition>,
+    // todo nested functions are global, they should be removed if invalid
+    pub(crate) function_scopes: IndexMap<&'vm str, FunctionCallSignatures<'vm>>,
+}
+
+impl<'vm, T: RigzBuilder<'vm>> Default for ProgramParser<'vm, T> {
     fn default() -> Self {
-        let mut builder = VMBuilder::new();
+        let mut builder = T::default();
         ProgramParser {
             builder,
             current: 0,
             last: 0,
-            modules: HashMap::new(),
-            function_scopes: IndexMap::new(),
+            modules: Default::default(),
+            function_scopes: Default::default(),
         }
     }
 }
 
-impl<'vm> ProgramParser<'vm> {
+impl<'vm> ProgramParser<'vm, VMBuilder<'vm>> {
+    pub(crate) fn create(self) -> ProgramParser<'vm, VM<'vm>> {
+        let ProgramParser {
+            builder,
+            current,
+            last,
+            modules,
+            function_scopes,
+        } = self;
+        ProgramParser {
+            builder: builder.build(),
+            current,
+            last,
+            modules,
+            function_scopes,
+        }
+    }
+}
+
+impl<'vm> ProgramParser<'vm, VM<'vm>> {
+    pub(crate) fn repl(&mut self, next_input: String) -> Result<&mut Self, RuntimeError> {
+        let mut first = &mut self.builder.scopes[0];
+        let last = first.instructions.len();
+        if last > 0 {
+            match first.instructions.remove(last - 1) {
+                Instruction::Halt(r) => {
+                    self.builder.current.borrow_mut().pc -= 1;
+                    self.last = r;
+                }
+                i => {
+                    first.instructions.push(i);
+                }
+            }
+        }
+
+        let p = parse(next_input.leak()).map_err(|e| e.into())?.into();
+        self.parse_program(p).map_err(|e| e.into())?;
+        Ok(self)
+    }
+}
+
+impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
     pub(crate) fn new() -> Self {
         let mut p = ProgramParser::default();
         p.add_default_modules();
         p
     }
 
-    fn add_default_modules(&mut self) {
-        self.register_module(VMModule {})
-            .expect("Failed to register VMModule");
-        self.register_module(StdLibModule {})
-            .expect("Failed to register StdLibModule");
-        self.register_module(JsonModule {})
-            .expect("Failed to register JsonModule");
-    }
-
-    fn register_module(
-        &mut self,
-        module: impl Module<'vm> + 'static,
-    ) -> Result<(), ValidationError> {
-        let def = module.trait_definition();
-        self.parse_module_trait_definition(module.name(), def)?;
-        self.builder.register_module(module);
-        Ok(())
-    }
-
-    fn parse_module_trait_definition(
-        &mut self,
-        name: &'static str,
-        def: &'static str,
-    ) -> Result<(), ValidationError> {
-        let mut p = match Parser::prepare(def) {
-            Ok(p) => p,
-            Err(e) => {
-                return Err(ValidationError::ModuleError(format!(
-                    "Failed to read {} module definition: {e}",
-                    name
-                )))
-            }
-        };
-        let module = match p.parse_module_trait_definition() {
-            Ok(d) => d,
-            Err(e) => {
-                return Err(ValidationError::ModuleError(format!(
-                    "Failed to parse {} module definition: {e}",
-                    name
-                )))
-            }
-        };
-
-        if p.has_tokens() {
-            warn!("leftover tokens after parsing {} module definition", name);
-        }
-
-        if module.definition.functions.is_empty() {
-            warn!("empty function definitions for module {name}");
-        }
-
-        if name != module.definition.name {
-            warn!(
-                "mismatched name for module {name} != {}, using {name}",
-                module.definition.name
-            );
-        }
-
-        if module.imported {
-            self.parse_trait_definition_for_module(name, module.definition)?;
-            // trait definition is useless after import
-            self.modules
-                .insert(name, ModuleTraitDefinition::imported(name));
-        } else {
-            self.modules.insert(name, module);
-        }
-        Ok(())
-    }
-
-    // Does not include default modules
+    // Does not include default modules, use ProgramParser::default to skip
     pub(crate) fn with_modules(
-        modules: Vec<impl Module<'vm> + 'static>,
+        modules: Vec<impl ParsedModule<'vm> + 'static>,
     ) -> Result<Self, ValidationError> {
         let mut p = ProgramParser::default();
         for m in modules {
             p.register_module(m)?;
         }
         Ok(p)
+    }
+
+    fn add_default_modules(&mut self) {
+        self.register_module(VMModule {})
+            .expect("Failed to register VMModule");
+        self.register_module(StdModule {})
+            .expect("Failed to register StdModule");
+        self.register_module(JSONModule {})
+            .expect("Failed to register JSONModule");
+        self.register_module(FileModule {})
+            .expect("Failed to register FileModule");
+    }
+
+    fn register_module(
+        &mut self,
+        module: impl ParsedModule<'vm> + 'static,
+    ) -> Result<(), ValidationError> {
+        let name = module.name();
+        let def = module.module_definition();
+        self.modules.insert(name, ModuleDefinition::Module(def));
+        self.builder.register_module(module);
+        Ok(())
+    }
+
+    fn parse_module_trait_definition(
+        &mut self,
+        module: ModuleTraitDefinition<'static>
+    ) -> Result<(), ValidationError> {
+        self.parse_trait_definition_for_module(module.definition.name, module.definition)
+    }
+
+    pub(crate) fn parse_program(&mut self, program: Program<'vm>) -> Result<(), ValidationError> {
+        for element in program.elements {
+            self.parse_element(element)?;
+        }
+        self.builder.add_halt_instruction(self.last);
+        Ok(())
     }
 
     pub(crate) fn parse_element(&mut self, element: Element<'vm>) -> Result<(), ValidationError> {
@@ -237,10 +246,14 @@ impl<'vm> ProgramParser<'vm> {
             name,
             type_definition,
             body,
+            lifecycle
         } = function_definition;
         let type_definition = self.parse_type_signature(type_definition)?;
-        let current_scope = self.builder.sp;
-        self.builder.enter_scope();
+        let current_scope = self.builder.current_scope();
+        match lifecycle {
+            None => self.builder.enter_scope(name),
+            Some(l) => self.builder.enter_lifecycle_scope(name, l),
+        };
         for (arg, reg) in &type_definition.arguments {
             // todo handle varargs
             if arg.function_type.mutable {
@@ -250,7 +263,7 @@ impl<'vm> ProgramParser<'vm> {
             }
         }
         // todo store arguments variable
-        let f_def = self.builder.sp;
+        let f_def = self.builder.current_scope();
         let (_, output) = type_definition.return_type;
         let self_type = type_definition.self_type.clone();
         match self.function_scopes.entry(name) {
@@ -319,10 +332,7 @@ impl<'vm> ProgramParser<'vm> {
             self_type,
             positional,
         } = function_signature;
-        let self_type = match self_type {
-            None => None,
-            Some(f) => Some((f, self.next_register())),
-        };
+        let self_type = self_type.map(|f| (f, self.next_register()));
 
         let mut args = Vec::with_capacity(arguments.len());
 
@@ -367,6 +377,34 @@ impl<'vm> ProgramParser<'vm> {
                 FunctionDeclaration::Definition(fd) => self.parse_function_definition(fd)?,
             }
         }
+        Ok(())
+    }
+
+    fn check_module_exists(&mut self, function: &str) -> Result<(), ValidationError> {
+        let module = self.modules.iter().find(|(_, m)| {
+            match m {
+                ModuleDefinition::Imported => false,
+                ModuleDefinition::Module(m) => {
+                    m.auto_import && m.definition.functions.iter().any(|f| {
+                        match f {
+                            FunctionDeclaration::Declaration { name, .. } => {
+                                *name == function
+                            }
+                            FunctionDeclaration::Definition(f) => {
+                                f.name == function
+                            }
+                        }
+                    })
+                }
+            }
+        });
+        match module {
+            None => {}
+            Some((s, _)) => {
+                // todo support parsing only required functions
+                self.parse_import(Exposed::TypeValue(s))?;
+            }
+        };
         Ok(())
     }
 
@@ -446,13 +484,13 @@ impl<'vm> ProgramParser<'vm> {
             } => {
                 self.parse_expression(*condition)?;
                 let cond = self.last;
-                let (truthy, if_output) = self.parse_scope(then)?;
+                let (truthy, if_output) = self.parse_scope(then, "if")?;
                 match branch {
                     None => {
                         self.builder.add_if_instruction(cond, truthy, if_output);
                     }
                     Some(p) => {
-                        let (falsy, else_output) = self.parse_scope(p)?;
+                        let (falsy, else_output) = self.parse_scope(p, "else")?;
                         let output = self.next_register();
                         self.builder.add_if_else_instruction(
                             cond,
@@ -466,7 +504,7 @@ impl<'vm> ProgramParser<'vm> {
             Expression::Unless { condition, then } => {
                 self.parse_expression(*condition)?;
                 let cond = self.last;
-                let (unless, output) = self.parse_scope(then)?;
+                let (unless, output) = self.parse_scope(then, "unless")?;
                 self.builder.add_unless_instruction(cond, unless, output);
             }
             Expression::List(list) => {
@@ -485,10 +523,11 @@ impl<'vm> ProgramParser<'vm> {
             }
             Expression::InstanceFunctionCall(exp, calls, args) => {
                 let len = calls.len();
-                assert!(len > 0, "Invalid Instance Function Call no arguments");
+                assert!(len > 0, "Invalid Instance Function Call no calls");
                 let last = len - 1;
                 let mut calls = calls.into_iter().enumerate();
                 let (_, first) = calls.next().unwrap();
+                self.check_module_exists(first)?;
                 let mut current = match self.function_scopes.contains_key(first) {
                     false => {
                         self.parse_expression(*exp)?;
@@ -526,7 +565,7 @@ impl<'vm> ProgramParser<'vm> {
 
                     if index == last {
                         self.call_inline_extension(c, fcs, &mut current, args)?;
-                        break
+                        break;
                     } else {
                         self.call_inline_extension(c, fcs, &mut current, vec![])?;
                     }
@@ -534,7 +573,7 @@ impl<'vm> ProgramParser<'vm> {
                 self.last = current;
             }
             Expression::Scope(s) => {
-                let (s, output) = self.parse_scope(s)?;
+                let (s, output) = self.parse_scope(s, "do")?;
                 let next = self.next_register();
                 self.builder
                     .add_load_instruction(next, RegisterValue::ScopeId(s, output));
@@ -554,18 +593,33 @@ impl<'vm> ProgramParser<'vm> {
         Ok(())
     }
 
-    fn call_inline_extension(&mut self, name: &'vm str, function_call_signatures: FunctionCallSignatures<'vm>, current: &mut Register, args: Vec<Expression<'vm>>) -> Result<(), ValidationError> {
+    fn call_inline_extension(
+        &mut self,
+        name: &'vm str,
+        function_call_signatures: FunctionCallSignatures<'vm>,
+        current: &mut Register,
+        args: Vec<Expression<'vm>>,
+    ) -> Result<(), ValidationError> {
         let mut call_args = Vec::with_capacity(args.len());
         if function_call_signatures.len() == 1 {
             let mut fcs = function_call_signatures.into_iter();
             let (fcs, call) = fcs.next().unwrap();
             let (vm_module, mutable, this) = match &fcs.self_type {
-                None => return Err(ValidationError::InvalidFunction(format!("Function is not an extension function {name}"))),
+                None => {
+                    return Err(ValidationError::InvalidFunction(format!(
+                        "Function is not an extension function {name}"
+                    )))
+                }
                 Some((f, this)) => {
                     if this != current {
                         self.builder.add_load_instruction(*this, (*current).into());
                     }
-                    (f.rigz_type == RigzType::VM, f.mutable, *this)
+                    let is_vm = if let RigzType::Custom(CustomType { name, .. }) = &f.rigz_type {
+                        name.as_str() == "VM"
+                    } else {
+                        false
+                    };
+                    (is_vm, f.mutable, *this)
                 }
             };
             self.setup_call_args(args, &mut call_args, fcs)?;
@@ -693,7 +747,20 @@ impl<'vm> ProgramParser<'vm> {
         name: &'vm str,
         arguments: Vec<Expression<'vm>>,
     ) -> Result<(), ValidationError> {
+        self.check_module_exists(name)?;
         let function_call_signatures = self.get_function(name)?;
+        if name == "puts" && function_call_signatures.is_empty() {
+            let mut args = Vec::with_capacity(arguments.len());
+            for arg in arguments {
+                self.parse_expression(arg)?;
+                args.push(self.last);
+            }
+            self.builder.add_puts_instruction(args);
+            return Ok(());
+        }
+
+        // todo special support for log too
+
         let mut call_args = Vec::with_capacity(arguments.len());
         let mut fcs = None;
         let mut vm_module = false;
@@ -701,12 +768,12 @@ impl<'vm> ProgramParser<'vm> {
         let mut this = 0;
         if function_call_signatures.len() == 1 {
             let (inner_fcs, call_site) = &function_call_signatures[0];
-            if inner_fcs.arguments.len() == arguments.len() {
+            if arguments.len() <= inner_fcs.arguments.len() {
                 match &inner_fcs.self_type {
                     None => {}
                     Some((ft, current_this)) => {
-                        if ft.rigz_type == RigzType::VM {
-                            vm_module = true
+                        if let RigzType::Custom(CustomType { name, .. }) = &ft.rigz_type {
+                            vm_module = name.as_str() == "VM"
                         }
                         this = *current_this;
                         mutable = ft.mutable;
@@ -714,31 +781,31 @@ impl<'vm> ProgramParser<'vm> {
                 }
                 fcs = Some((inner_fcs.clone(), *call_site));
             } else {
-                todo!("handle default and var args")
+                todo!("handle var args")
             }
         } else {
             for (fc, call_site) in function_call_signatures {
                 match (&fc.self_type, &rigz_type) {
                     (None, None) => {
-                        if fc.arguments.len() == arguments.len() {
+                        if arguments.len() <= fc.arguments.len() {
                             fcs = Some((fc, call_site));
                             break;
                         } else {
-                            todo!("check default and var args")
+                            todo!("check var args")
                         }
                     }
                     (Some((ft, current_this)), Some(s)) => {
                         if &ft.rigz_type == s {
-                            if fc.arguments.len() == arguments.len() {
-                                if s == &RigzType::VM {
-                                    vm_module = true
+                            if arguments.len() <= fc.arguments.len() {
+                                if let RigzType::Custom(CustomType { name, .. }) = s {
+                                    vm_module = name.as_str() == "VM";
                                 }
                                 this = *current_this;
                                 mutable = ft.mutable;
                                 fcs = Some((fc, call_site));
                                 break;
                             } else {
-                                todo!("check default and var args")
+                                todo!("check var args")
                             }
                         }
                     }
@@ -778,7 +845,26 @@ impl<'vm> ProgramParser<'vm> {
         Ok(())
     }
 
-    fn setup_call_args(&mut self, arguments: Vec<Expression<'vm>>, call_args: &mut Vec<Register>, fcs: FunctionCallSignature) -> Result<(), ValidationError> {
+    fn setup_call_args(
+        &mut self,
+        arguments: Vec<Expression<'vm>>,
+        call_args: &mut Vec<Register>,
+        fcs: FunctionCallSignature,
+    ) -> Result<(), ValidationError> {
+        let arg_len = arguments.len();
+        let arguments = if arg_len < fcs.arguments.len() {
+            let (_, rem) = fcs.arguments.split_at(arg_len);
+            let mut arguments = arguments;
+            for (arg, _) in rem {
+                if arg.default.is_none() {
+                    return Err(ValidationError::MissingExpression(format!("Invalid args expected default value for {arg:?}")))
+                }
+                arguments.push(Expression::Value(arg.default.clone().unwrap()))
+            }
+            arguments
+        } else {
+            arguments
+        };
         for ((_, arg_reg), expression) in fcs.arguments.iter().zip(arguments) {
             self.parse_expression(expression)?;
             self.builder
@@ -808,8 +894,8 @@ impl<'vm> ProgramParser<'vm> {
                 match &inner_fcs.self_type {
                     None => {}
                     Some((ft, current_this)) => {
-                        if ft.rigz_type == RigzType::VM {
-                            vm_module = true
+                        if let RigzType::Custom(CustomType { name, .. }) = &ft.rigz_type {
+                            vm_module = name.as_str() == "VM"
                         }
                         this = *current_this;
                         mutable = ft.mutable;
@@ -826,8 +912,8 @@ impl<'vm> ProgramParser<'vm> {
                     (Some((ft, current_this)), s) => {
                         if &ft.rigz_type == s {
                             if fc.arguments.len() == arguments.len() {
-                                if s == &RigzType::VM {
-                                    vm_module = true
+                                if let &RigzType::Custom(CustomType { name, .. }) = &s {
+                                    vm_module = name.as_str() == "VM"
                                 }
                                 this = *current_this;
                                 mutable = ft.mutable;
@@ -854,9 +940,7 @@ impl<'vm> ProgramParser<'vm> {
                     CallSite::Scope(_, _) => {
                         self.parse_extension_expression(mutable, this, this_exp)?;
                     }
-                    CallSite::Module(_) if vm_module => {
-
-                    }
+                    CallSite::Module(_) if vm_module => {}
                     CallSite::Module(_) => {
                         self.parse_extension_expression(mutable, this, this_exp)?;
                     }
@@ -868,7 +952,15 @@ impl<'vm> ProgramParser<'vm> {
         Ok(())
     }
 
-    fn process_extension_call(&mut self, name: &'vm str, call_args: Vec<Register>, vm_module: bool, mutable: bool, this: Register, call: CallSite<'vm>) {
+    fn process_extension_call(
+        &mut self,
+        name: &'vm str,
+        call_args: Vec<Register>,
+        vm_module: bool,
+        mutable: bool,
+        this: Register,
+        call: CallSite<'vm>,
+    ) {
         match call {
             CallSite::Scope(s, o) => {
                 self.builder.add_call_self_instruction(s, o, this, mutable);
@@ -882,19 +974,15 @@ impl<'vm> ProgramParser<'vm> {
             CallSite::Module(m) => {
                 let output = self.next_register();
                 if vm_module {
-                    self.builder.add_call_vm_extension_module_instruction(
-                        m, name, call_args, output,
+                    self.builder
+                        .add_call_vm_extension_module_instruction(m, name, call_args, output);
+                } else if mutable {
+                    self.builder.add_call_mutable_extension_module_instruction(
+                        m, name, this, call_args, output,
                     );
                 } else {
-                    if mutable {
-                        self.builder.add_call_mutable_extension_module_instruction(
-                            m, name, this, call_args, output,
-                        );
-                    } else {
-                        self.builder.add_call_extension_module_instruction(
-                            m, name, this, call_args, output,
-                        );
-                    }
+                    self.builder
+                        .add_call_extension_module_instruction(m, name, this, call_args, output);
                 }
             }
         }
@@ -934,19 +1022,25 @@ impl<'vm> ProgramParser<'vm> {
                 )))
             }
         };
-        match self.modules.get_mut(name) {
-            None => {
+
+        match self.modules.entry(name) {
+            Entry::Occupied(mut m) => {
+                let mut def = m.get_mut();
+                if let ModuleDefinition::Module(_) = def {
+                    let ModuleDefinition::Module(def) = std::mem::replace(def, ModuleDefinition::Imported) else { unreachable!() };
+                    self.parse_module_trait_definition(def)?;
+                } else {
+                    return Ok(())
+                }
+            }
+            Entry::Vacant(_) => {
                 // todo support non module imports
                 return Err(ValidationError::ModuleError(format!(
                     "Module {name} does not exist"
                 )));
             }
-            Some(m) if !m.imported => {
-                let old = std::mem::replace(m, ModuleTraitDefinition::imported(name));
-                self.parse_trait_definition_for_module(name, old.definition)?;
-            }
-            Some(_) => {}
         };
+
         Ok(())
     }
 
@@ -972,20 +1066,15 @@ impl<'vm> ProgramParser<'vm> {
     }
 
     // dont use this for function scopes!
-    fn parse_scope(&mut self, scope: Scope<'vm>) -> Result<(usize, Register), ValidationError> {
-        let current = self.builder.sp;
-        self.builder.enter_scope();
-        let res = self.builder.sp;
+    fn parse_scope(&mut self, scope: Scope<'vm>, named: &'vm str) -> Result<(usize, Register), ValidationError> {
+        let current = self.builder.current_scope();
+        self.builder.enter_scope(named);
+        let res = self.builder.current_scope();
         for e in scope.elements {
             self.parse_element(e)?;
         }
         let next = self.last;
         self.builder.exit_scope(current, next);
         Ok((res, next))
-    }
-
-    pub(crate) fn build(mut self) -> VM<'vm> {
-        self.builder.add_halt_instruction(self.last);
-        self.builder.build()
     }
 }

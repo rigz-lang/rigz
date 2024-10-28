@@ -7,6 +7,24 @@ fn expressions(c: &mut Criterion) {
             let _ = eval("2 + 2").expect("Run Failed");
         })
     });
+
+    c.bench_function("factorial(10)", |b| {
+        b.iter(|| {
+            let _ = eval(
+                r#"
+                fn factorial(n)
+                    if n <= 1
+                        1
+                    else
+                        n - factorial (n - 1)
+                    end
+                end
+                factorial 10
+            "#,
+            )
+            .expect("Run Failed");
+        })
+    });
 }
 
 criterion_group!(benches, expressions);
