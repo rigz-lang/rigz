@@ -2,8 +2,9 @@ use crate::VMError;
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 use std::str::FromStr;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Serialize, Deserialize)]
 pub enum RigzType {
     None,
     Any,
@@ -16,7 +17,6 @@ pub enum RigzType {
     Map(Box<RigzType>, Box<RigzType>),
     Error,
     This,
-    VM,
     Range,
     Type {
         base_type: Box<RigzType>,
@@ -27,23 +27,46 @@ pub enum RigzType {
     Custom(CustomType),
 }
 
+impl Default for RigzType {
+    fn default() -> Self {
+        RigzType::Type {
+            base_type: Box::new(RigzType::Any),
+            optional: false,
+            can_return_error: true,
+        }
+    }
+}
+
+impl RigzType {
+    #[inline]
+    pub fn is_vm(&self) -> bool {
+        if let RigzType::Custom(c) = &self {
+            if c.name.as_str() == "VM" {
+                return true
+            }
+        }
+        false
+    }
+}
+
 impl FromStr for RigzType {
     type Err = VMError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let rigz_type = match s {
             "None" => RigzType::None,
-            "Bool" => RigzType::Float,
+            "Any" => RigzType::Any,
+            "Bool" => RigzType::Bool,
             "Float" => RigzType::Float,
             "Int" => RigzType::Int,
             "Number" => RigzType::Number,
             "Self" => RigzType::This,
             "Error" => RigzType::Error,
+            // todo lists & maps are [<Type>] & {<Type>, <Type>} or {<Type>}
             "List" => RigzType::List(Box::new(RigzType::Any)),
             "Map" => RigzType::Map(Box::new(RigzType::Any), Box::new(RigzType::Any)),
             "Range" => RigzType::Range,
             "String" => RigzType::String,
-            "VM" => RigzType::VM,
             s => {
                 if let Some(s) = s.strip_suffix("!?") {
                     RigzType::Type {
@@ -93,7 +116,6 @@ impl Display for RigzType {
             RigzType::Map(k, v) => write!(f, "Map<{k},{v}>"),
             RigzType::Error => write!(f, "Error"),
             RigzType::This => write!(f, "Self"),
-            RigzType::VM => write!(f, "VM"),
             RigzType::Range => write!(f, "Range"),
             RigzType::Type {
                 base_type,
@@ -113,7 +135,7 @@ impl Display for RigzType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Serialize, Deserialize)]
 pub struct CustomType {
     pub name: String,
     pub fields: Vec<(String, RigzType)>,

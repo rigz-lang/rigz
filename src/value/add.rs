@@ -8,48 +8,52 @@ impl Add for Value {
     #[inline]
     fn add(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (Value::Error(v), _) | (_, Value::Error(v)) => Value::Error(v),
+            (Value::Error(v), _) | (_, Value::Error(v)) => v.into(),
+            (Value::Type(t), a) | (a, Value::Type(t)) => Value::Error(
+                VMError::UnsupportedOperation(format!("Invalid Operation (+): {t} and {a}")),
+            ),
             (Value::None, v) | (v, Value::None) => v,
             (Value::Bool(a), Value::Bool(b)) => Value::Bool(a | b),
             (Value::Number(a), Value::Number(b)) => Value::Number(a + b),
             (Value::Number(a), Value::String(b)) => {
                 let s = Value::String(b.clone());
                 match s.to_number() {
-                    None => {
+                    Err(_) => {
                         let mut res = a.to_string();
                         res.push_str(b.as_str());
                         Value::String(res)
                     }
-                    Some(r) => Value::Number(a + r),
+                    Ok(r) => Value::Number(a + r),
                 }
             }
             (Value::String(a), Value::Number(b)) => {
                 let s = Value::String(a.clone());
                 match s.to_number() {
-                    None => {
+                    Err(_) => {
                         let mut res = a.to_string();
                         res.push_str(b.to_string().as_str());
                         Value::String(res)
                     }
-                    Some(r) => Value::Number(b + r),
+                    Ok(r) => Value::Number(b + r),
                 }
             }
             (Value::Number(a), Value::Range(r)) | (Value::Range(r), Value::Number(a)) => {
                 match r + a {
                     None => {
                         VMError::UnsupportedOperation(format!("Unable to perform add {a} to range"))
-                            .to_value()
+                            .into()
                     }
                     Some(r) => Value::Range(r),
                 }
             }
             (Value::Range(a), Value::Range(b)) => match a + b {
-                None => VMError::UnsupportedOperation("Unable to perform add ranges".to_string())
-                    .to_value(),
+                None => {
+                    VMError::UnsupportedOperation("Unable to perform add ranges".to_string()).into()
+                }
                 Some(r) => Value::Range(r),
             },
             (Value::Range(a), Value::String(b)) | (Value::String(b), Value::Range(a)) => {
-                VMError::UnsupportedOperation(format!("Cannot perform {a} + {b}")).to_value()
+                VMError::UnsupportedOperation(format!("Cannot perform {a} + {b}")).into()
             }
             (Value::String(a), Value::String(b)) => {
                 let mut result = a.clone();

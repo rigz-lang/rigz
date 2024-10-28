@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use rigz_vm::{Binary, BinaryOperation, Clear, Instruction, VMBuilder};
+use rigz_vm::{Binary, BinaryOperation, Clear, Instruction, RigzBuilder, VMBuilder};
 
 fn builder_benchmark(c: &mut Criterion) {
     c.bench_function("Builder: 2 + 2", |b| {

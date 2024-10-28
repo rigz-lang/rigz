@@ -1,4 +1,4 @@
-use crate::lifecycle::Lifecycle;
+use crate::lifecycle::{Lifecycle, TestResults};
 use crate::RigzBuilder;
 use crate::{
     generate_builder, CallFrame, Instruction, Module, Register, Scope, VMError, Value, Variable,
@@ -9,6 +9,7 @@ use log_derive::logfn_inputs;
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::ops::DerefMut;
+use std::time::Instant;
 
 pub enum VMState {
     Running,
@@ -114,7 +115,7 @@ impl<'vm> Default for VM<'vm> {
     #[inline]
     fn default() -> Self {
         Self {
-            scopes: vec![Scope::new()],
+            scopes: vec![Scope::default()],
             current: RefCell::new(CallFrame::main()),
             frames: vec![],
             modules: Default::default(),
@@ -141,7 +142,8 @@ impl<'vm> VM<'vm> {
         register: Register,
         value: RegisterValue,
     ) -> Option<RefCell<RegisterValue>> {
-        self.current.borrow_mut()
+        self.current
+            .borrow_mut()
             .registers
             .insert(register, RefCell::new(value))
     }
@@ -158,7 +160,7 @@ impl<'vm> VM<'vm> {
     ) -> Option<RefCell<RegisterValue>> {
         let current = self.current.borrow();
         match current.parent {
-            None => panic!("insert_parent_register called with no parent"),
+            None => panic!("insert_parent_register called with no parent, this is a bug"),
             Some(i) => self.frames[i]
                 .borrow_mut()
                 .registers
@@ -240,6 +242,7 @@ impl<'vm> VM<'vm> {
     // todo create update_registers to support multiple mutable values at the same time
 
     #[inline]
+    // todo I don't think this is working as expected but it's not used as-is
     pub fn handle_scope(&mut self, scope: usize, original: Register, output: Register) -> Value {
         match self.call_frame(scope, output) {
             Ok(_) => {}
@@ -331,6 +334,58 @@ impl<'vm> VM<'vm> {
         match self.run() {
             Value::Error(e) => Err(e),
             v => Ok(v),
+        }
+    }
+
+    pub fn test(&mut self) -> TestResults {
+        // todo support parallel tests
+        let test_scopes: Vec<_> = self.scopes.iter().enumerate().filter_map(|(index, s)| {
+            match &s.lifecycle {
+                None => None,
+                Some(l) => match l {
+                    Lifecycle::Test(_) => {
+                        let Instruction::Ret(o) = s.instructions.last().expect("No instructions for scope") else { unreachable!("Invalid Scope") };
+                        Some((index, *o, s.named))
+                    },
+                    _ => None
+                }
+            }
+        }).collect();
+
+        let mut passed = 0;
+        let mut failed = 0;
+        let start = Instant::now();
+        let mut failure_messages = Vec::new();
+        for (s, r, named) in test_scopes {
+            print!("test {named} ... ");
+            self.sp = s;
+            self.current = RefCell::new(CallFrame {
+                scope_id: s,
+                pc: 0,
+                registers: Default::default(),
+                variables: Default::default(),
+                parent: None,
+                output: r,
+            });
+            let v = self.run();
+            match v {
+                Value::Error(e) => {
+                    println!("\x1b[31mFAILED\x1b[0m");
+                    failed += 1;
+                    failure_messages.push((named, e));
+                }
+                _ => {
+                    println!("\x1b[32mok\x1b[0m");
+                    passed += 1;
+                }
+            };
+        }
+
+        TestResults {
+            passed,
+            failed,
+            failure_messages,
+            duration: Instant::now() - start
         }
     }
 

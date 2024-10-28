@@ -42,8 +42,15 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        fn enter_scope(&mut self) -> &mut Self {
-            self.scopes.push(Scope::new());
+        fn enter_scope(&mut self, named: &'vm str) -> &mut Self {
+            self.scopes.push(Scope::new(named));
+            self.sp = self.scopes.len() - 1;
+            self
+        }
+
+        #[inline]
+        fn enter_lifecycle_scope(&mut self, named: &'vm str, lifecycle: Lifecycle) -> &mut Self {
+            self.scopes.push(Scope::lifecycle(named, lifecycle));
             self.sp = self.scopes.len() - 1;
             self
         }

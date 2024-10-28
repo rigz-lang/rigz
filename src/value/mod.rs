@@ -17,7 +17,6 @@ use crate::number::Number;
 use crate::value_range::ValueRange;
 use crate::{impl_from, RigzType, VMError};
 use indexmap::IndexMap;
-use log::trace;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
@@ -35,7 +34,7 @@ pub enum Value {
     Map(IndexMap<Value, Value>),
     Range(ValueRange),
     Error(VMError),
-    // todo create dedicated object value to avoid map usage everywhere, might need to be a trait
+    Type(RigzType), // todo create dedicated object value to avoid map usage everywhere, might need to be a trait
 }
 
 impl_from! {
@@ -44,6 +43,7 @@ impl_from! {
     VMError, Value, Value::Error;
     Vec<Value>, Value, Value::List;
     ValueRange, Value, Value::Range;
+    RigzType, Value, Value::Type;
     IndexMap<Value, Value>, Value, Value::Map;
 }
 
@@ -69,8 +69,12 @@ impl PartialOrd for Value {
         }
 
         match (self, other) {
+            // todo some of these should probably use None?
             (Value::Error(_), _) => Some(Ordering::Less),
             (_, Value::Error(_)) => Some(Ordering::Greater),
+            (Value::Type(a), Value::Type(b)) => a.partial_cmp(b),
+            (Value::Type(_), _) => Some(Ordering::Less),
+            (_, Value::Type(_)) => Some(Ordering::Greater),
             (Value::None, _) => Some(Ordering::Less),
             (_, Value::None) => Some(Ordering::Greater),
             (Value::Bool(a), Value::Bool(b)) => a.partial_cmp(b),
@@ -95,31 +99,115 @@ impl PartialOrd for Value {
 
 impl Value {
     #[inline]
-    pub fn to_number(&self) -> Option<Number> {
+    pub fn to_number(&self) -> Result<Number, VMError> {
         match self {
-            Value::None => Some(Number::zero()),
+            Value::None => Ok(Number::zero()),
             Value::Bool(b) => {
                 let n = if *b { Number::one() } else { Number::zero() };
-                Some(n)
+                Ok(n)
             }
-            Value::Number(n) => Some(*n),
+            Value::Number(n) => Ok(*n),
             Value::String(s) => match s.parse() {
-                Ok(n) => Some(n),
-                Err(e) => {
-                    trace!("Failed to convert {} to number: {}", s, e);
-                    None
-                }
+                Ok(n) => Ok(n),
+                Err(e) => Err(VMError::ConversionError(format!(
+                    "Cannot convert {s} to Number: {e}"
+                ))),
             },
-            _ => None,
+            v => Err(VMError::ConversionError(format!(
+                "Cannot convert {v} to Number"
+            ))),
         }
     }
 
-    pub fn to_float(&self) -> Option<f64> {
-        self.to_number().map(|n| n.to_float())
+    pub fn to_float(&self) -> Result<f64, VMError> {
+        Ok(self.to_number()?.to_float())
     }
 
-    pub fn to_int(&self) -> Option<i64> {
-        self.to_number().map(|n| n.to_int())
+    pub fn to_int(&self) -> Result<i64, VMError> {
+        Ok(self.to_number()?.to_int())
+    }
+
+    pub fn to_usize(&self) -> Result<usize, VMError> {
+        self.to_number()?.to_usize()
+    }
+
+    pub fn as_bool(&mut self) -> &mut bool {
+        if let Value::Bool(m) = self {
+            return m
+        }
+
+        *self = Value::Bool(self.to_bool());
+        self.as_bool()
+    }
+
+    pub fn as_float(&mut self) -> Result<&mut f64, VMError> {
+        if let Value::Number(m) = self {
+            return match m {
+                Number::Int(_) => {
+                    *m = Number::Float(m.to_float());
+                    let Number::Float(f) = m else { unreachable!() };
+                    Ok(f)
+                },
+                Number::Float(f) => Ok(f)
+            }
+        }
+
+        *self = Value::Number(Number::Float(self.to_float()?));
+        self.as_float()
+    }
+
+    pub fn as_number(&mut self) -> Result<&mut Number, VMError> {
+        if let Value::Number(m) = self {
+            return Ok(m)
+        }
+
+        *self = Value::Number(self.to_number()?);
+        self.as_number()
+    }
+
+    pub fn as_int(&mut self) -> Result<&mut i64, VMError> {
+        if let Value::Number(m) = self {
+            return match m {
+                Number::Int(i) => {
+                    Ok(i)
+                },
+                Number::Float(_) => {
+                    *m = Number::Int(m.to_int());
+                    let Number::Int(i) = m else { unreachable!() };
+                    Ok(i)
+                }
+            }
+        }
+
+        *self = Value::Number(Number::Int(self.to_int()?));
+        self.as_int()
+    }
+
+    pub fn as_string(&mut self) -> &mut String {
+        if let Value::String(m) = self {
+            return m
+        }
+
+        *self = Value::String(self.to_string());
+        self.as_string()
+    }
+
+    pub fn as_map(&mut self) -> &mut IndexMap<Value, Value> {
+        if let Value::Map(m) = self {
+            return m
+        }
+
+        *self = Value::Map(self.to_map());
+        self.as_map()
+    }
+
+    pub fn as_list(&mut self) -> &mut Vec<Value> {
+        if let Value::List(m) = self {
+            return m
+        }
+
+        *self = Value::List(self.to_list());
+        self.as_list()
     }
 
     #[inline]
@@ -127,6 +215,7 @@ impl Value {
         match self {
             Value::None => false,
             Value::Error(_) => false,
+            Value::Type(_) => false,
             Value::Bool(b) => *b,
             Value::Number(n) => !n.is_zero(),
             Value::String(s) => {
@@ -175,6 +264,7 @@ impl Value {
             }
             Value::Range(r) => r.to_list(),
             Value::Error(e) => vec![Value::Error(e.clone())],
+            Value::Type(e) => vec![Value::Type(e.clone())],
         }
     }
 
@@ -199,6 +289,10 @@ impl Value {
                 let e = e.clone();
                 IndexMap::from([(e.clone().into(), e.into())])
             }
+            Value::Type(e) => {
+                let e = e.clone();
+                IndexMap::from([(e.clone().into(), e.into())])
+            }
             Value::Range(r) => r.to_map(),
         }
     }
@@ -215,6 +309,11 @@ impl Value {
             Value::Map(_) => RigzType::Map(Box::new(RigzType::Any), Box::new(RigzType::Any)),
             Value::Range(_) => RigzType::Range,
             Value::Error(_) => RigzType::Error,
+            Value::Type(r) => RigzType::Type {
+                base_type: Box::new(r.clone()),
+                optional: false,
+                can_return_error: false,
+            },
         }
     }
 
@@ -225,21 +324,21 @@ impl Value {
             (v, RigzType::Bool) => Value::Bool(v.to_bool()),
             (v, RigzType::String) => Value::String(v.to_string()),
             (v, RigzType::Number) => match v.to_number() {
-                None => {
-                    VMError::ConversionError(format!("Cannot convert {} to Number", v)).to_value()
-                }
-                Some(n) => Value::Number(n),
+                Err(e) => e.into(),
+                Ok(n) => n.into(),
             },
             (s, RigzType::Any) => s,
             (v, RigzType::Int) => match v.to_int() {
-                None => VMError::ConversionError(format!("Cannot convert {} to Int", v)).to_value(),
-                Some(n) => Value::Number(n.into()),
+                Err(_) => {
+                    VMError::ConversionError(format!("Cannot convert {} to Int", v)).to_value()
+                }
+                Ok(n) => n.into(),
             },
             (v, RigzType::Float) => match v.to_float() {
-                None => {
+                Err(_) => {
                     VMError::ConversionError(format!("Cannot convert {} to Float", v)).to_value()
                 }
-                Some(n) => Value::Number(n.into()),
+                Ok(n) => n.into(),
             },
             (v, RigzType::List(_)) => Value::List(v.to_list()),
             (v, RigzType::Map(_, _)) => Value::Map(v.to_map()),
@@ -270,7 +369,8 @@ impl Display for Value {
         match self {
             Value::None => write!(f, "none"),
             // todo dedicated to_string instead of debug
-            Value::Error(e) => write!(f, "{:?}", e),
+            Value::Error(e) => write!(f, "{}", e),
+            Value::Type(e) => write!(f, "{}", e),
             Value::Bool(v) => write!(f, "{}", v),
             Value::Number(v) => write!(f, "{}", v),
             Value::String(v) => write!(f, "{}", v),
@@ -308,6 +408,7 @@ impl Hash for Value {
         match self {
             Value::None => 0.hash(state),
             Value::Error(e) => e.hash(state),
+            Value::Type(e) => e.hash(state),
             Value::Bool(b) => b.hash(state),
             Value::Number(n) => n.hash(state),
             Value::String(s) => s.hash(state),
@@ -332,8 +433,12 @@ impl PartialEq for Value {
         match (self, other) {
             (Value::None, Value::None) => true,
             (Value::Error(a), Value::Error(b)) => *a == *b,
+            (Value::Type(a), Value::Type(b)) => *a == *b,
             (Value::Error(_), _) => false,
             (_, Value::Error(_)) => false,
+            // todo Should I check against string values?
+            (Value::Type(_), _) => false,
+            (_, Value::Type(_)) => false,
             (Value::None, Value::Bool(false)) => true,
             (Value::None, Value::Number(n)) => n.is_zero(),
             (Value::Bool(false), Value::Number(n)) => n.is_zero(),

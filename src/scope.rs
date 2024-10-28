@@ -1,3 +1,4 @@
+use crate::lifecycle::Lifecycle;
 use crate::Instruction;
 
 /**
@@ -7,14 +8,39 @@ for root, this is a halt
 otherwise inner scope returns should cascade to function call or root
 */
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Scope<'vm> {
     pub instructions: Vec<Instruction<'vm>>,
+    pub lifecycle: Option<Lifecycle>,
+    pub named: &'vm str,
+}
+
+impl Default for Scope<'_> {
+    fn default() -> Self {
+        Scope {
+            lifecycle: None,
+            named: "main",
+            instructions: Default::default()
+        }
+    }
 }
 
 impl<'vm> Scope<'vm> {
     #[inline]
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(named: &'vm str) -> Self {
+        Scope {
+            lifecycle: None,
+            named,
+            ..Default::default()
+        }
+    }
+
+    #[inline]
+    pub fn lifecycle(named: &'vm str, lifecycle: Lifecycle) -> Self {
+        Scope {
+            lifecycle: Some(lifecycle),
+            named,
+            ..Default::default()
+        }
     }
 }

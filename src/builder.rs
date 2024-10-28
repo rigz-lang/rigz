@@ -1,4 +1,3 @@
-use std::fmt::Debug;
 use crate::lifecycle::Lifecycle;
 use crate::vm::RegisterValue;
 use crate::vm::VMOptions;
@@ -9,6 +8,7 @@ use crate::{
 };
 use indexmap::IndexMap;
 use log::Level;
+use std::fmt::Debug;
 
 #[derive(Clone, Debug)]
 pub struct VMBuilder<'vm> {
@@ -36,7 +36,9 @@ pub trait RigzBuilder<'vm>: Debug + Default {
 
     fn current_scope(&self) -> usize;
 
-    fn enter_scope(&mut self) -> &mut Self;
+    fn enter_scope(&mut self, named: &'vm str) -> &mut Self;
+
+    fn enter_lifecycle_scope(&mut self, named: &'vm str, lifecycle: Lifecycle) -> &mut Self;
 
     fn exit_scope(&mut self, current: usize, output: Register) -> &mut Self;
 
@@ -389,6 +391,14 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     }
 
     #[inline]
+    fn add_puts_instruction(
+        &mut self,
+        values: Vec<Register>,
+    ) -> &mut Self {
+        self.add_instruction(Instruction::Puts(values))
+    }
+
+    #[inline]
     fn add_log_instruction(
         &mut self,
         level: Level,
@@ -449,7 +459,7 @@ impl<'vm> VMBuilder<'vm> {
     pub fn new() -> Self {
         Self {
             sp: 0,
-            scopes: vec![Scope::new()],
+            scopes: vec![Scope::default()],
             modules: IndexMap::new(),
             options: Default::default(),
             lifecycles: Default::default(),

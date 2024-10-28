@@ -238,7 +238,7 @@ impl<'vm> VM<'vm> {
                 match self.get_module_clone(module) {
                     Ok(module) => {
                         let args = self.resolve_registers(args);
-                        let v = module.call(func, args).unwrap_or_else(|e| e.into());
+                        let v = module.call(func, args.into()).unwrap_or_else(|e| e.into());
                         self.insert_register(output, v.into());
                     }
                     Err(e) => {
@@ -258,7 +258,7 @@ impl<'vm> VM<'vm> {
                         let this = self.resolve_register(this);
                         let args = self.resolve_registers(args);
                         let v = module
-                            .call_extension(this, func, args)
+                            .call_extension(this, func, args.into())
                             .unwrap_or_else(|e| e.into());
                         self.insert_register(output, v.into());
                     }
@@ -279,7 +279,7 @@ impl<'vm> VM<'vm> {
                         let args = self.resolve_registers(args);
                         match self.update_register(this, |v| {
                             // todo remove args.clone
-                            module.call_mutable_extension(v, func, args.clone())
+                            module.call_mutable_extension(v, func, args.clone().into())
                         }) {
                             Ok(Some(v)) => {
                                 self.insert_register(output, v.into());
@@ -305,7 +305,7 @@ impl<'vm> VM<'vm> {
                     Ok(module) => {
                         let args = self.resolve_registers(args);
                         let value = module
-                            .vm_extension(self, func, args)
+                            .vm_extension(self, func, args.into())
                             .unwrap_or_else(|e| e.into());
                         self.insert_register(output, value.into());
                     }
@@ -403,20 +403,17 @@ impl<'vm> VM<'vm> {
             }
             Instruction::GetVariable(name, reg) => {
                 let r = match self.current.borrow().get_variable(name, self) {
-                    None => {
-                        None
-                    }
+                    None => None,
                     Some(s) => Some(s),
                 };
                 match r {
                     None => {
-                        self.insert_register(
-                            reg,
+                        return VMState::Done(
                             VMError::VariableDoesNotExist(format!(
                                 "Variable {} does not exist",
                                 name
                             ))
-                                .into(),
+                            .into(),
                         );
                     }
                     Some(s) => {
@@ -427,9 +424,7 @@ impl<'vm> VM<'vm> {
             }
             Instruction::GetMutableVariable(name, reg) => {
                 let og = match self.current.borrow().get_mutable_variable(name, self) {
-                    Ok(None) => {
-                        None
-                    }
+                    Ok(None) => None,
                     Err(e) => {
                         self.insert_register(reg, e.into());
                         None
@@ -438,13 +433,12 @@ impl<'vm> VM<'vm> {
                 };
                 match og {
                     None => {
-                        self.insert_register(
-                            reg,
+                        return VMState::Done(
                             VMError::VariableDoesNotExist(format!(
                                 "Variable {} does not exist",
                                 name
                             ))
-                                .into(),
+                            .into(),
                         );
                     }
                     Some(og) => self.swap_register(og, reg),
@@ -463,13 +457,20 @@ impl<'vm> VM<'vm> {
                 log!(level, "{}", res)
             }
             Instruction::Puts(args) => {
-                let mut puts = String::new();
-                for r in args {
-                    let arg = self.resolve_register(r);
-                    puts.push_str(", ");
-                    puts.push_str(arg.to_string().as_str());
+                if args.is_empty() {
+                    println!()
+                } else {
+                    let mut puts = String::new();
+                    let len = args.len() - 1;
+                    for (index, r) in args.into_iter().enumerate() {
+                        let arg = self.resolve_register(r);
+                        puts.push_str(arg.to_string().as_str());
+                        if index < len {
+                            puts.push_str(", ");
+                        }
+                    }
+                    println!("{}", puts)
                 }
-                println!("{}", puts)
             }
             Instruction::Ret(r) => {
                 return VMState::error(VMError::UnsupportedOperation(format!(

@@ -9,6 +9,10 @@ impl Shr for Value {
     #[inline]
     fn shr(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
+            (Value::Error(v), _) | (_, Value::Error(v)) => Value::Error(v),
+            (Value::Type(t), a) | (a, Value::Type(t)) => Value::Error(
+                VMError::UnsupportedOperation(format!("Invalid Operation (>>): {t} and {a}")),
+            ),
             (Value::None, _) => Value::None,
             (rhs, Value::None) => rhs,
             (rhs, Value::Bool(b)) => {
@@ -29,8 +33,8 @@ impl Shr for Value {
             (Value::Number(a), Value::String(b)) => {
                 let s = Value::String(b.clone());
                 match s.to_number() {
-                    None => VMError::UnsupportedOperation(format!("{} >> {}", a, b)).to_value(),
-                    Some(r) => Value::Number(a >> r),
+                    Err(_) => VMError::UnsupportedOperation(format!("{} >> {}", a, b)).to_value(),
+                    Ok(r) => Value::Number(a >> r),
                 }
             }
             (Value::String(lhs), Value::Number(rhs)) => {

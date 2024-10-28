@@ -1,13 +1,145 @@
-use crate::{VMError, Value, VM};
+use crate::{impl_from, VMError, Value, VM};
+use derive_more::IntoIterator;
 use dyn_clone::DynClone;
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
+
+#[derive(Clone, IntoIterator)]
+pub struct RigzArgs(pub Vec<Value>);
+
+impl Debug for RigzArgs {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
+impl From<Vec<Value>> for RigzArgs {
+    #[inline]
+    fn from(value: Vec<Value>) -> Self {
+        RigzArgs(value)
+    }
+}
+
+impl From<RigzArgs> for Vec<Value> {
+    #[inline]
+    fn from(value: RigzArgs) -> Self {
+        value.0
+    }
+}
+
+impl RigzArgs {
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    #[inline]
+    pub fn first(self) -> Result<Value, VMError> {
+        if self.is_empty() {
+            return Err(VMError::RuntimeError(
+                "Invalid args, expected 1 argument".to_string(),
+            ));
+        }
+        let mut args = self.0;
+        Ok(args.remove(0))
+    }
+
+    #[inline]
+    pub fn take<const N: usize>(self) -> Result<[Value; N], VMError> {
+        if self.len() < N {
+            return Err(VMError::RuntimeError(format!(
+                "Invalid args, expected {N} argument{}",
+                if N > 1 { "s" } else { "" }
+            )));
+        }
+
+        let mut results = [(); N].map(|_| Value::None);
+        for (i, v) in self.0.into_iter().enumerate().take(N) {
+            results[i] = v;
+        }
+        Ok(results)
+    }
+
+    #[inline]
+    pub fn var_args<const Start: usize, const Count: usize>(self) -> Result<([Value; Start], [Vec<Value>; Count]), VMError> {
+        if self.len() < Start {
+            return Err(VMError::RuntimeError(format!(
+                "Invalid args, expected {Start} argument{}",
+                if Start > 1 { "s" } else { "" }
+            )));
+        }
+
+        let mut results = [(); Start].map(|_| Value::None);
+        let mut var = [(); Count].map(|_| Vec::new());
+        for (i, v) in self.0.into_iter().enumerate() {
+            if i < Start {
+                results[i] = v;
+                continue
+            }
+
+            var[(i - Start) % Count].push(v);
+        }
+        let min = var[0].len();
+        if var.iter().any(|v| v.len() != min) {
+            Err(VMError::RuntimeError(format!("Invalid var args, expected all args to contain {min}")))
+        } else {
+            Ok((results, var))
+        }
+    }
+}
+
+#[cfg(test)]
+mod rigz_args {
+    use crate::RigzArgs;
+
+    #[test]
+    fn take() {
+        let args = RigzArgs(vec![1.into(), 2.into()]);
+        let [first] = args.take().expect("Failed to take first");
+        assert_eq!(first, 1.into());
+    }
+
+    #[test]
+    fn var_args_one() {
+        let args = RigzArgs(vec![1.into(), 2.into(), 3.into()]);
+        let ([first], [var]) = args.var_args().expect("Failed to get var_args");
+        assert_eq!(first, 1.into());
+        assert_eq!(var, vec![2.into(), 3.into()]);
+    }
+
+    #[test]
+    fn var_args_skip_first() {
+        let args = RigzArgs(vec![1.into(), 2.into(), 3.into()]);
+        let ([], [var]) = args.var_args().expect("Failed to get var_args");
+        assert_eq!(var, vec![1.into(), 2.into(), 3.into()]);
+    }
+
+    #[test]
+    fn var_args_two() {
+        let args = RigzArgs(vec![1.into(), 2.into(), 3.into()]);
+        let ([first], [var1, var2]) = args.var_args().expect("Failed to get var_args");
+        assert_eq!(first, 1.into());
+        assert_eq!(var1, vec![2.into()]);
+        assert_eq!(var2, vec![3.into()]);
+    }
+
+    #[test]
+    fn var_args_error() {
+        let args = RigzArgs(vec![1.into(), 2.into(), 3.into(), 3.into()]);
+        assert!(args.var_args::<1, 2>().is_err(), "different lengths of var args allowed");
+    }
+}
 
 /// modules will be cloned when used, until DynClone can be removed, ideally they're Copy + Clone
 #[allow(unused_variables)]
 pub trait Module<'vm>: Debug + DynClone {
     fn name(&self) -> &'static str;
 
-    fn call(&self, function: &'vm str, args: Vec<Value>) -> Result<Value, VMError> {
+    fn call(&self, function: &'vm str, args: RigzArgs) -> Result<Value, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "{} does not implement `call`",
             self.name()
@@ -16,9 +148,9 @@ pub trait Module<'vm>: Debug + DynClone {
 
     fn call_extension(
         &self,
-        value: Value,
+        this: Value,
         function: &'vm str,
-        args: Vec<Value>,
+        args: RigzArgs,
     ) -> Result<Value, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "{} does not implement `call_extension`",
@@ -28,9 +160,9 @@ pub trait Module<'vm>: Debug + DynClone {
 
     fn call_mutable_extension(
         &self,
-        value: &mut Value,
+        this: &mut Value,
         function: &'vm str,
-        args: Vec<Value>,
+        args: RigzArgs,
     ) -> Result<Option<Value>, VMError> {
         Ok(Some(
             VMError::UnsupportedOperation(format!(
@@ -45,7 +177,7 @@ pub trait Module<'vm>: Debug + DynClone {
         &self,
         vm: &mut VM<'vm>,
         function: &'vm str,
-        args: Vec<Value>,
+        args: RigzArgs,
     ) -> Result<Value, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "{} does not implement `vm_extension`",
