@@ -6,14 +6,15 @@
       "scope": "source.rigz",
       "path": ".",
       "file-types": [
-        "rigz"
+        "rigz",
+        "rg"
       ],
       "highlights": "queries/highlights.scm",
       "injection-regex": "rigz"
     }
   ],
   "metadata": {
-    "version": "2.0.1",
+    "version": "0.2.2",
     "license": "MIT",
     "description": "Rigz grammar for tree-sitter",
     "links": {

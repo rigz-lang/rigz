@@ -456,13 +456,9 @@
     "named": true,
     "fields": {},
     "children": {
-      "multiple": true,
+      "multiple": false,
       "required": false,
       "types": [
-        {
-          "type": "type",
-          "named": true
-        },
         {
           "type": "type_identifier",
           "named": true
@@ -695,6 +691,14 @@
     "named": false
   },
   {
+    "type": "List",
+    "named": false
+  },
+  {
+    "type": "Map",
+    "named": false
+  },
+  {
     "type": "None",
     "named": false
   },
@@ -708,6 +712,10 @@
   },
   {
     "type": "String",
+    "named": false
+  },
+  {
+    "type": "VM",
     "named": false
   },
   {

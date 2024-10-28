@@ -146,16 +146,16 @@ Extension Function
                 (identifier)))))))
 
 ==================
-Extension Function
+Extension Function (VM)
 ==================
 import VM
 VM.last
 ---
 (program
-    (statement (import (type (type_identifier))))
+    (statement (import (type)))
     (statement
         (expression
             (function_call
               (function_identifier
-                (type (type_identifier))
+                (type)
                 (identifier))))))

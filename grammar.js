@@ -70,6 +70,7 @@ module.exports = grammar({
         $.do_scope,
         $.if_else,
         $.unless,
+        // todo support string interpolation
         seq("(", $.expression, ")")
     ), optional(choice($.cast, $.unless_guard, $.if_guard)))),
     do_scope: $ => seq(optional($.lifecycle), "do", $.scope),
@@ -128,9 +129,13 @@ module.exports = grammar({
         "Number",
         "String",
         "Range",
-        seq("[", $.type, "]"),
-        seq("{", $.type, "}"),
-        seq("{", $.type, $.type, "}"),
+        "List",
+        "Map",
+        "VM",
+        // todo requires VM updates
+        // seq("[", $.type, "]"),
+        // seq("{", $.type, "}"),
+        // seq("{", $.type, $.type, "}"),
         "Error",
         $.type_identifier,
     ), optional("!"), optional("?"))),
