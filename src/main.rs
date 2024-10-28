@@ -29,15 +29,14 @@ pub struct CLI {
 #[derive(Subcommand)]
 pub enum Commands {
     Run(RunArgs),
-    // Repl(ReplArgs),
+    Repl(ReplArgs),
     // Debug(DebugArgs),
-    // Test(TestArgs)
+    Test(TestArgs)
 }
 
 
 fn main() {
     let cli = CLI::parse();
-    pretty_env_logger::init();
     match cli.verbose {
         0 => {
             log::set_max_level(LevelFilter::Error)
@@ -63,6 +62,7 @@ fn main() {
             }
         }
     }
+    pretty_env_logger::init();
     match cli.command {
         None => {
             let mut c = CLI::command();
@@ -71,9 +71,9 @@ fn main() {
         Some(c) => {
             match c {
                 Commands::Run(args) => run(args),
-                // Commands::Repl(args) => repl(args),
+                Commands::Repl(args) => repl(args),
+                Commands::Test(args) => test(args),
                 // Commands::Debug(args) => debug(args),
-                // Commands::Test(args) => test(args),
             }
         }
     }
