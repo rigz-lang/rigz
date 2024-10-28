@@ -1,0 +1,10 @@
+[package]
+name = "rigz_ast"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+indexmap = "2.6.0"
+logos = "0.14"
+# rigz_vm = { version = "0.31" }
+rigz_vm = { path = "rigz_vm" } # local testing - create symbolic link, ln -s <path>/rigz_vm
