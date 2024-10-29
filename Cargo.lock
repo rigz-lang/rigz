@@ -260,6 +260,8 @@ dependencies = [
 [[package]]
 name = "rigz_vm"
 version = "0.32.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68c74935f5023be425c038e0e58f8581df08e7c15c348e2731c87d082465a496"
 dependencies = [
  "crossbeam",
  "derive_more",
