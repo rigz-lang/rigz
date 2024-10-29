@@ -1,5 +1,5 @@
 use rigz_vm::{
-    BinaryOperation, Lifecycle, Module, RigzBuilder, RigzType, UnaryOperation, VMBuilder, Value, VM,
+    BinaryOperation, Lifecycle, RigzType, UnaryOperation, Value,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -71,14 +71,15 @@ pub enum Element<'lex> {
     Expression(Expression<'lex>),
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum ImportValue<'lex> {
-    TypeValue(&'lex str),
-    Identifier(&'lex str),
-    FilePath(String),
-    UrlPath(String),
-    // todo support tree shaking?
-}
+// todo use this for imports later
+// #[derive(Clone, Debug, PartialEq)]
+// pub enum ImportValue<'lex> {
+//     TypeValue(&'lex str),
+//     Identifier(&'lex str),
+//     FilePath(String),
+//     UrlPath(String),
+//     // todo support tree shaking?
+// }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Exposed<'lex> {

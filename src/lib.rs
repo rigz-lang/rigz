@@ -3,6 +3,12 @@ mod program;
 mod token;
 mod validate;
 
+#[cfg(feature = "derive")]
+mod ast_derive;
+
+#[cfg(feature = "derive")]
+pub use rigz_vm::derive::*;
+
 use logos::Logos;
 pub use modules::ParsedModule;
 pub use program::{
@@ -320,8 +326,10 @@ impl<'lex> Parser<'lex> {
                     "test" => {
                         let lifecycle = Lifecycle::Test(TestLifecycle);
                         self.consume_token_eat_newlines(TokenKind::FunctionDef)?;
-                        Statement::FunctionDefinition(self.parse_function_definition(Some(lifecycle))?)
-                            .into()
+                        Statement::FunctionDefinition(
+                            self.parse_function_definition(Some(lifecycle))?,
+                        )
+                        .into()
                     }
                     _ => {
                         return Err(ParsingError::ParseError(format!(
@@ -329,7 +337,7 @@ impl<'lex> Parser<'lex> {
                         )))
                     }
                 }
-            },
+            }
             _ => self.parse_expression()?.into(),
         };
         match self.peek_token() {
@@ -891,7 +899,7 @@ impl<'lex> Parser<'lex> {
 
     fn parse_function_argument(&mut self) -> Result<FunctionArgument<'lex>, ParsingError> {
         // todo support mut, vm changes required
-        let mut var_arg = self.check_var_arg()?;
+        let var_arg = self.check_var_arg()?;
         let next = self.next_required_token()?;
         if let TokenKind::Identifier(name) = next.kind {
             let mut default_type = true;

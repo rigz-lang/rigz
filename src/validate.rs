@@ -1,5 +1,5 @@
-use std::fmt::{Display, Formatter};
 use crate::program::{Element, Program};
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq)]
 pub enum ValidationError {
