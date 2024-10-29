@@ -751,10 +751,6 @@
     "named": false
   },
   {
-    "type": "error",
-    "named": false
-  },
-  {
     "type": "false",
     "named": false
   },
@@ -789,6 +785,10 @@
   {
     "type": "number",
     "named": true
+  },
+  {
+    "type": "raise",
+    "named": false
   },
   {
     "type": "self",

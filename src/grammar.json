@@ -1312,7 +1312,7 @@
       "members": [
         {
           "type": "STRING",
-          "value": "error"
+          "value": "raise"
         },
         {
           "type": "SYMBOL",

@@ -18,6 +18,7 @@
   "import"
   "let"
   "mut"
+  "raise"
   "unless"
 ] @keyword
 

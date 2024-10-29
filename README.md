@@ -23,3 +23,22 @@ parser_config.rigz = {
 ```
 
 2. curl "https://gitlab.com/magicfoodhand/tree-sitter-rigz/-/raw/main/queries/highlights.scm?ref_type=heads" -o ~/.local/share/nvim/lazy/nvim-treesitter/queries/rigz/highlights.scm
+
+# Rust Derive Macro Highlighting
+
+```scheme
+(macro_invocation
+  (scoped_identifier
+    name: (identifier) @name (#eq? @name derive_module!))
+
+  (token_tree (raw_string_literal) @rigz_string)
+)
+
+(macro_invocation
+  (scoped_identifier
+    path: (identifier) @path (#eq? @path rigz_ast_derive)
+    name: (identifier) @name (#eq? @name derive_module!))
+
+  (token_tree (raw_string_literal) @rigz_string)
+)
+```
