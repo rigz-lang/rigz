@@ -580,8 +580,9 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 name = "rigz_ast"
 version = "0.1.0"
 dependencies = [
- "indexmap",
  "logos",
+ "proc-macro2",
+ "quote",
  "rigz_vm",
 ]
 
@@ -600,7 +601,6 @@ name = "rigz_runtime"
 version = "0.3.0"
 dependencies = [
  "criterion",
- "indexmap",
  "log",
  "logos",
  "pretty_env_logger",
@@ -620,6 +620,8 @@ dependencies = [
  "log",
  "log-derive",
  "nohash-hasher",
+ "proc-macro2",
+ "quote",
  "serde",
 ]
 

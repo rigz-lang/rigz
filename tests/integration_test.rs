@@ -60,7 +60,7 @@ mod runtime {
                 VM.first will be altered if an imported module has a default implementation
             */
             vm_register_invalid("import VM; VM.get_register 42" = VMError::EmptyRegister("R42 is empty".to_string()))
-            error("error 'something went wrong'" = VMError::RuntimeError("something went wrong".into()))
+            raise_error("raise 'something went wrong'" = VMError::RuntimeError("something went wrong".into()))
             assert("assert_eq 1, 2" = VMError::RuntimeError("Assertion Failed\n\t\tLeft: 1\n\t\tRight: 2".to_string()))
             stack_overflow(r#"fn foo
                 foo
@@ -71,8 +71,8 @@ mod runtime {
     }
 
     mod valid {
+        use rigz_ast::IndexMap;
         use super::*;
-        use indexmap::IndexMap;
 
         run_expected! {
             raw_value("'Hello World'" = Value::String("Hello World".to_string()))

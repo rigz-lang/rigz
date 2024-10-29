@@ -1,10 +1,9 @@
 mod program;
 
+use log::Level;
 use rigz_ast::*;
 pub use program::Program;
-use indexmap::map::Entry;
-use indexmap::IndexMap;
-use crate::modules::{FileModule, JSONModule, StdModule, VMModule};
+use crate::modules::{FileModule, JSONModule, LogModule, StdModule, VMModule};
 use crate::RuntimeError;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -36,6 +35,7 @@ pub(crate) struct ProgramParser<'vm, T: RigzBuilder<'vm>> {
     pub(crate) modules: IndexMap<&'vm str, ModuleDefinition>,
     // todo nested functions are global, they should be removed if invalid
     pub(crate) function_scopes: IndexMap<&'vm str, FunctionCallSignatures<'vm>>,
+    pub(crate) constants: IndexMap<Value, usize>,
 }
 
 impl<'vm, T: RigzBuilder<'vm>> Default for ProgramParser<'vm, T> {
@@ -47,6 +47,7 @@ impl<'vm, T: RigzBuilder<'vm>> Default for ProgramParser<'vm, T> {
             last: 0,
             modules: Default::default(),
             function_scopes: Default::default(),
+            constants: Default::default(),
         }
     }
 }
@@ -59,6 +60,7 @@ impl<'vm> ProgramParser<'vm, VMBuilder<'vm>> {
             last,
             modules,
             function_scopes,
+            constants
         } = self;
         ProgramParser {
             builder: builder.build(),
@@ -66,6 +68,7 @@ impl<'vm> ProgramParser<'vm, VMBuilder<'vm>> {
             last,
             modules,
             function_scopes,
+            constants,
         }
     }
 }
@@ -115,6 +118,8 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             .expect("Failed to register VMModule");
         self.register_module(StdModule {})
             .expect("Failed to register StdModule");
+        self.register_module(LogModule {})
+            .expect("Failed to register LogModule");
         self.register_module(JSONModule {})
             .expect("Failed to register JSONModule");
         self.register_module(FileModule {})
@@ -585,12 +590,25 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             }
             Expression::Symbol(s) => {
                 let next = self.next_register();
-                // todo create a symbols cache in VM
+                let index = self.find_or_create_constant(s.into());
                 self.builder
-                    .add_load_instruction(next, Value::String(s.to_string()).into());
+                    .add_load_instruction(next, RegisterValue::Constant(index));
             }
         }
         Ok(())
+    }
+
+    fn find_or_create_constant(&mut self, value: Value) -> usize {
+        match self.constants.entry(value) {
+            Entry::Occupied(e) => {
+                *e.get()
+            }
+            Entry::Vacant(e) => {
+                let (index, _) = self.builder.add_constant(e.key().clone());
+                e.insert(index);
+                index
+            }
+        }
     }
 
     fn call_inline_extension(
@@ -741,6 +759,18 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         Ok(())
     }
 
+    fn str_to_log_level(raw: &str) -> Result<Level, ValidationError> {
+        let level = match raw.to_lowercase().as_str() {
+            "info" => Level::Info,
+            "warn" => Level::Info,
+            "debug" => Level::Debug,
+            "trace" => Level::Trace,
+            "error" => Level::Error,
+            s => return Err(ValidationError::InvalidFunction(format!("Invalid log level {s}")))
+        };
+        Ok(level)
+    }
+
     fn call_function(
         &mut self,
         rigz_type: Option<RigzType>,
@@ -749,6 +779,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
     ) -> Result<(), ValidationError> {
         self.check_module_exists(name)?;
         let function_call_signatures = self.get_function(name)?;
+        // todo if this is best match it should still be called
         if name == "puts" && function_call_signatures.is_empty() {
             let mut args = Vec::with_capacity(arguments.len());
             for arg in arguments {
@@ -756,6 +787,35 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 args.push(self.last);
             }
             self.builder.add_puts_instruction(args);
+            return Ok(());
+        }
+
+        // todo if this is best match it should still be called
+        if name == "log" && function_call_signatures.is_empty() && arguments.len() > 2 {
+            let mut args = Vec::with_capacity(arguments.len());
+            let mut arguments = arguments.into_iter();
+            let level = match arguments.next().unwrap() {
+                Expression::Value(Value::String(s)) => {
+                    Self::str_to_log_level(s.as_str())?
+                }
+                Expression::Symbol(s) => {
+                    Self::str_to_log_level(s)?
+                }
+                // todo support identifiers here
+                e => return Err(ValidationError::InvalidFunction(format!("Unable to create log level for {e:?}, must be string or symbol")))
+            };
+
+            let template = match arguments.next().unwrap() {
+                Expression::Value(Value::String(s)) => s,
+                // todo support identifiers here
+                e => return Err(ValidationError::InvalidFunction(format!("Unable to create log template for {e:?}, must be string")))
+            };
+
+            for arg in arguments {
+                self.parse_expression(arg)?;
+                args.push(self.last);
+            }
+            self.builder.add_log_instruction(level, template.leak(), args);
             return Ok(());
         }
 

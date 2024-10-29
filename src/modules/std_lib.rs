@@ -1,4 +1,3 @@
-use indexmap::IndexMap;
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
 
