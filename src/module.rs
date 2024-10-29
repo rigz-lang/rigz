@@ -1,4 +1,4 @@
-use crate::{impl_from, VMError, Value, VM};
+use crate::{VMError, Value, VM};
 use derive_more::IntoIterator;
 use dyn_clone::DynClone;
 use std::fmt::{Debug, Formatter};
@@ -65,27 +65,31 @@ impl RigzArgs {
     }
 
     #[inline]
-    pub fn var_args<const Start: usize, const Count: usize>(self) -> Result<([Value; Start], [Vec<Value>; Count]), VMError> {
-        if self.len() < Start {
+    pub fn var_args<const START: usize, const COUNT: usize>(
+        self,
+    ) -> Result<([Value; START], [Vec<Value>; COUNT]), VMError> {
+        if self.len() < START {
             return Err(VMError::RuntimeError(format!(
-                "Invalid args, expected {Start} argument{}",
-                if Start > 1 { "s" } else { "" }
+                "Invalid args, expected {START} argument{}",
+                if START > 1 { "s" } else { "" }
             )));
         }
 
-        let mut results = [(); Start].map(|_| Value::None);
-        let mut var = [(); Count].map(|_| Vec::new());
+        let mut results = [(); START].map(|_| Value::None);
+        let mut var = [(); COUNT].map(|_| Vec::new());
         for (i, v) in self.0.into_iter().enumerate() {
-            if i < Start {
+            if i < START {
                 results[i] = v;
-                continue
+                continue;
             }
 
-            var[(i - Start) % Count].push(v);
+            var[(i - START) % COUNT].push(v);
         }
         let min = var[0].len();
         if var.iter().any(|v| v.len() != min) {
-            Err(VMError::RuntimeError(format!("Invalid var args, expected all args to contain {min}")))
+            Err(VMError::RuntimeError(format!(
+                "Invalid var args, expected all args to contain {min}"
+            )))
         } else {
             Ok((results, var))
         }
@@ -130,7 +134,10 @@ mod rigz_args {
     #[test]
     fn var_args_error() {
         let args = RigzArgs(vec![1.into(), 2.into(), 3.into(), 3.into()]);
-        assert!(args.var_args::<1, 2>().is_err(), "different lengths of var args allowed");
+        assert!(
+            args.var_args::<1, 2>().is_err(),
+            "different lengths of var args allowed"
+        );
     }
 }
 

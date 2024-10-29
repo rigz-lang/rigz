@@ -647,6 +647,8 @@ dependencies = [
  "log-derive",
  "nohash-hasher",
  "pretty_env_logger",
+ "proc-macro2",
+ "quote",
  "serde",
 ]
 

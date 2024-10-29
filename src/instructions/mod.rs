@@ -402,10 +402,7 @@ impl<'vm> VM<'vm> {
                 }
             }
             Instruction::GetVariable(name, reg) => {
-                let r = match self.current.borrow().get_variable(name, self) {
-                    None => None,
-                    Some(s) => Some(s),
-                };
+                let r = self.current.borrow().get_variable(name, self);
                 match r {
                     None => {
                         return VMState::Done(

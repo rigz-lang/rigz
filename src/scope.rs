@@ -20,7 +20,7 @@ impl Default for Scope<'_> {
         Scope {
             lifecycle: None,
             named: "main",
-            instructions: Default::default()
+            instructions: Default::default(),
         }
     }
 }

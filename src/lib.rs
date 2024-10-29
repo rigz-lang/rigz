@@ -14,8 +14,13 @@ mod value;
 mod value_range;
 mod vm;
 
+#[cfg(feature = "derive")]
+pub mod derive;
+
 pub use builder::{RigzBuilder, VMBuilder};
 pub use call_frame::{CallFrame, Variable};
+pub use indexmap::map::Entry;
+pub use indexmap::IndexMap;
 pub use instructions::{
     Binary, BinaryAssign, BinaryOperation, Clear, Instruction, Unary, UnaryAssign, UnaryOperation,
 };

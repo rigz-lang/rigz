@@ -1,8 +1,8 @@
 use crate::VMError;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 use std::str::FromStr;
-use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Serialize, Deserialize)]
 pub enum RigzType {
@@ -42,7 +42,7 @@ impl RigzType {
     pub fn is_vm(&self) -> bool {
         if let RigzType::Custom(c) = &self {
             if c.name.as_str() == "VM" {
-                return true
+                return true;
             }
         }
         false

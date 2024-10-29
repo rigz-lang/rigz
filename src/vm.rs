@@ -339,18 +339,23 @@ impl<'vm> VM<'vm> {
 
     pub fn test(&mut self) -> TestResults {
         // todo support parallel tests
-        let test_scopes: Vec<_> = self.scopes.iter().enumerate().filter_map(|(index, s)| {
-            match &s.lifecycle {
+        let test_scopes: Vec<_> = self
+            .scopes
+            .iter()
+            .enumerate()
+            .filter_map(|(index, s)| match &s.lifecycle {
                 None => None,
-                Some(l) => match l {
-                    Lifecycle::Test(_) => {
-                        let Instruction::Ret(o) = s.instructions.last().expect("No instructions for scope") else { unreachable!("Invalid Scope") };
-                        Some((index, *o, s.named))
-                    },
-                    _ => None
-                }
-            }
-        }).collect();
+                Some(Lifecycle::Test(_)) => {
+                    let Instruction::Ret(o) =
+                        s.instructions.last().expect("No instructions for scope")
+                    else {
+                        unreachable!("Invalid Scope")
+                    };
+                    Some((index, *o, s.named))
+                },
+                Some(_) => None,
+            })
+            .collect();
 
         let mut passed = 0;
         let mut failed = 0;
@@ -385,7 +390,7 @@ impl<'vm> VM<'vm> {
             passed,
             failed,
             failure_messages,
-            duration: Instant::now() - start
+            duration: Instant::now() - start,
         }
     }
 

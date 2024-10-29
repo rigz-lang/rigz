@@ -1,5 +1,9 @@
 mod vm_test {
-    use rigz_vm::{BinaryAssign, BinaryOperation, Instruction, Lifecycle, Module, Number, RegisterValue, RigzArgs, RigzBuilder, RigzType, Scope, TestLifecycle, TestResults, VMBuilder, VMError, Value, VM};
+    use rigz_vm::{
+        BinaryAssign, BinaryOperation, Instruction, Lifecycle, Module, Number, RegisterValue,
+        RigzArgs, RigzBuilder, RigzType, Scope, TestLifecycle, TestResults, VMBuilder, VMError,
+        Value, VM,
+    };
     use std::str::FromStr;
 
     #[test]
@@ -313,115 +317,52 @@ mod vm_test {
             scopes: vec![
                 Scope {
                     instructions: vec![
-                        Instruction::Call(
-                            2,
-                            2,
-                        ),
-                        Instruction::Move(
-                            2,
-                            100,
-                        ),
-                        Instruction::Halt(
-                            100,
-                        ),
+                        Instruction::Call(2, 2),
+                        Instruction::Move(2, 100),
+                        Instruction::Halt(100),
                     ],
                     ..Default::default()
                 },
                 Scope {
                     instructions: vec![
-                        Instruction::Load(
-                            1,
-                            RegisterValue::Value(42.into())
-                        ),
-                        Instruction::Load(
-                            0,
-                            RegisterValue::Register(
-                                1,
-                            ),
-                        ),
-                        Instruction::Ret(
-                            0,
-                        ),
+                        Instruction::Load(1, RegisterValue::Value(42.into())),
+                        Instruction::Load(0, RegisterValue::Register(1)),
+                        Instruction::Ret(0),
                     ],
                     ..Default::default()
                 },
                 Scope {
                     instructions: vec![
-                        Instruction::Load(
-                            96,
-                            RegisterValue::Value(
-                                41.into(),
-                            ),
-                        ),
-                        Instruction::Load(
-                            82,
-                            RegisterValue::Register(
-                                96,
-                            ),
-                        ),
-                        Instruction::Call(
-                            1,
-                            0,
-                        ),
-                        Instruction::Move(
-                            0,
-                            97,
-                        ),
-                        Instruction::Load(
-                            83,
-                            RegisterValue::Register(
-                                97,
-                            ),
-                        ),
-                        Instruction::Load(
-                            98,
-                            RegisterValue::Value(
-                                "".into(),
-                            ),
-                        ),
-                        Instruction::Load(
-                            84,
-                            RegisterValue::Register(
-                                98,
-                            ),
-                        ),
+                        Instruction::Load(96, RegisterValue::Value(41.into())),
+                        Instruction::Load(82, RegisterValue::Register(96)),
+                        Instruction::Call(1, 0),
+                        Instruction::Move(0, 97),
+                        Instruction::Load(83, RegisterValue::Register(97)),
+                        Instruction::Load(98, RegisterValue::Value("".into())),
+                        Instruction::Load(84, RegisterValue::Register(98)),
                         Instruction::CallModule {
                             module: "Std",
                             func: "assert_eq",
-                            args: vec![
-                                82,
-                                83,
-                                84,
-                            ],
+                            args: vec![82, 83, 84],
                             output: 99,
                         },
-                        Instruction::Load(
-                            2,
-                            RegisterValue::Register(
-                                99,
-                            ),
-                        ),
-                        Instruction::Ret(
-                            2,
-                        ),
+                        Instruction::Load(2, RegisterValue::Register(99)),
+                        Instruction::Ret(2),
                     ],
                     named: "test",
-                    lifecycle: Some(
-                        Lifecycle::Test(
-                            TestLifecycle,
-                        ),
-                    ),
+                    lifecycle: Some(Lifecycle::Test(TestLifecycle)),
                 },
             ],
             ..Default::default()
         };
-        assert_eq!(vm.test(), TestResults {
-            passed: 0,
-            failed: 1,
-            failure_messages: vec![(
-                "test", VMError::InvalidModule("Std".to_string())
-            )],
-            duration: Default::default(),
-        })
+        assert_eq!(
+            vm.test(),
+            TestResults {
+                passed: 0,
+                failed: 1,
+                failure_messages: vec![("test", VMError::InvalidModule("Std".to_string()))],
+                duration: Default::default(),
+            }
+        )
     }
 }

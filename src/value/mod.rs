@@ -133,7 +133,7 @@ impl Value {
 
     pub fn as_bool(&mut self) -> &mut bool {
         if let Value::Bool(m) = self {
-            return m
+            return m;
         }
 
         *self = Value::Bool(self.to_bool());
@@ -147,9 +147,9 @@ impl Value {
                     *m = Number::Float(m.to_float());
                     let Number::Float(f) = m else { unreachable!() };
                     Ok(f)
-                },
-                Number::Float(f) => Ok(f)
-            }
+                }
+                Number::Float(f) => Ok(f),
+            };
         }
 
         *self = Value::Number(Number::Float(self.to_float()?));
@@ -158,7 +158,7 @@ impl Value {
 
     pub fn as_number(&mut self) -> Result<&mut Number, VMError> {
         if let Value::Number(m) = self {
-            return Ok(m)
+            return Ok(m);
         }
 
         *self = Value::Number(self.to_number()?);
@@ -168,15 +168,13 @@ impl Value {
     pub fn as_int(&mut self) -> Result<&mut i64, VMError> {
         if let Value::Number(m) = self {
             return match m {
-                Number::Int(i) => {
-                    Ok(i)
-                },
+                Number::Int(i) => Ok(i),
                 Number::Float(_) => {
                     *m = Number::Int(m.to_int());
                     let Number::Int(i) = m else { unreachable!() };
                     Ok(i)
                 }
-            }
+            };
         }
 
         *self = Value::Number(Number::Int(self.to_int()?));
@@ -185,7 +183,7 @@ impl Value {
 
     pub fn as_string(&mut self) -> &mut String {
         if let Value::String(m) = self {
-            return m
+            return m;
         }
 
         *self = Value::String(self.to_string());
@@ -194,7 +192,7 @@ impl Value {
 
     pub fn as_map(&mut self) -> &mut IndexMap<Value, Value> {
         if let Value::Map(m) = self {
-            return m
+            return m;
         }
 
         *self = Value::Map(self.to_map());
@@ -203,7 +201,7 @@ impl Value {
 
     pub fn as_list(&mut self) -> &mut Vec<Value> {
         if let Value::List(m) = self {
-            return m
+            return m;
         }
 
         *self = Value::List(self.to_list());

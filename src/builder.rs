@@ -391,10 +391,7 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     }
 
     #[inline]
-    fn add_puts_instruction(
-        &mut self,
-        values: Vec<Register>,
-    ) -> &mut Self {
+    fn add_puts_instruction(&mut self, values: Vec<Register>) -> &mut Self {
         self.add_instruction(Instruction::Puts(values))
     }
 
