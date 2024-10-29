@@ -16,6 +16,8 @@ pub use program::{
     FunctionDefinition, FunctionSignature, FunctionType, ModuleTraitDefinition, Program, Scope,
     Statement, TraitDefinition,
 };
+
+// todo it'd be nice for rigz_vm to not be required by the ast parser, rigz_value?, changes to vm will require crate updates
 pub use rigz_vm::*;
 use std::collections::VecDeque;
 use std::fmt::Debug;

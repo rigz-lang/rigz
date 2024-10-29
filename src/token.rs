@@ -208,7 +208,7 @@ pub(crate) enum TokenKind<'lex> {
     VariableArgs,
     #[token("mod")]
     Module,
-    #[token("error")]
+    #[token("raise")]
     Error,
     #[token("=>")]
     Into,
@@ -273,7 +273,7 @@ impl Display for TokenKind<'_> {
             TokenKind::Export => write!(f, "export"),
             TokenKind::VariableArgs => write!(f, "var"),
             TokenKind::Module => write!(f, "mod"),
-            TokenKind::Error => write!(f, "error"),
+            TokenKind::Error => write!(f, "raise"),
             TokenKind::Try => write!(f, "try"),
             TokenKind::Catch => write!(f, "catch"),
             TokenKind::Range => write!(f, ".."),

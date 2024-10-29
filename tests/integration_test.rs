@@ -90,6 +90,11 @@ mod valid {
         // todo map_key_equals_values "a = {1, '2', true, none}",
         inline_unless_works "a = b unless c",
         instance_methods "a.b.c.d 1, 2, 3",
+        error_def r#"
+        fn error(template: String, var args) -> None
+            log :error, template, args
+        end
+        "#,
         function_def r#"
         fn say(message: String) -> None
             puts message

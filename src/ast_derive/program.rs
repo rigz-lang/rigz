@@ -8,12 +8,12 @@ impl ToTokens for Element<'_> {
         let t = match self {
             Element::Expression(e) => {
                 quote! {
-                    Element::Expression(#e),
+                    Element::Expression(#e)
                 }
             }
             Element::Statement(s) => {
                 quote! {
-                    Element::Statement(#s),
+                    Element::Statement(#s)
                 }
             }
         };
@@ -79,7 +79,7 @@ impl ToTokens for Expression<'_> {
             Expression::InstanceFunctionCall(ex, calls, args) => {
                 let args = csv_vec(args);
                 quote! {
-                    Expression::InstanceFunctionCall(#ex, vec![#(#calls, )*], #args)
+                    Expression::InstanceFunctionCall(#ex, vec![#(#calls)*], #args)
                 }
             }
             Expression::Scope(s) => {
