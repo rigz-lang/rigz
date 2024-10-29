@@ -5,7 +5,8 @@ version = "0.32.0"
 edition = "2021"
 readme = "README.md"
 license = "MIT"
-repository = "https://gitlab.com/magicfoodhand/rigz_vm"
+repository = "https://gitlab.com/inapinch/rigz/rigz_vm"
+keywords = ["rigz", "vm"]
 
 [features]
 default = []
