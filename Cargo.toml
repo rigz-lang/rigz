@@ -1,9 +1,9 @@
 [package]
 name = "rigz_ast_derive"
 version = "0.1.0"
-description = "A `cargo generate` template for quick-starting a procedural macro crate"
-keywords = ["template", "proc_macro", "procmacro"]
-edition = "2018"
+description = "Procedural macro to generate ParsedModules for rigz, generate a trait for the module implementation and parse input at compile time."
+keywords = ["rigz", "proc_macro", "procmacro"]
+edition = "2021"
 readme = "README.md"
 license = "MIT"
 repository = "https://gitlab.com/inapinch/rigz/rigz_ast_derive"
@@ -15,8 +15,8 @@ proc-macro = true
 quote = "1"
 proc-macro2 = "1.0"
 syn = "2.0"
-rigz_ast = { path = "rigz_ast" }
+# rigz_ast = { version = "0.1" }
+rigz_ast = { path = "rigz_ast", features = ["derive"] }
 
 [dev-dependencies]
-indexmap = "2.6.0"
 serde_json = "1.0.132"

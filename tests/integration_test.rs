@@ -1,4 +1,3 @@
-use indexmap::IndexMap;
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
 
@@ -70,6 +69,7 @@ derive_module!(
     end"#
 );
 
+#[allow(unused_variables)]
 impl RigzStd for StdModule {
     fn any_clone(&self, this: Value) -> Value {
         todo!()
@@ -159,11 +159,20 @@ impl RigzStd for StdModule {
         todo!()
     }
 
-    fn map_with(&self, this: IndexMap<Value, Value>, key: Vec<Value>, value: Vec<Value>) -> IndexMap<Value, Value> {
+    fn map_with(
+        &self,
+        this: IndexMap<Value, Value>,
+        key: Vec<Value>,
+        value: Vec<Value>,
+    ) -> IndexMap<Value, Value> {
         todo!()
     }
 
-    fn map_concat(&self, this: IndexMap<Value, Value>, value: IndexMap<Value, Value>) -> IndexMap<Value, Value> {
+    fn map_concat(
+        &self,
+        this: IndexMap<Value, Value>,
+        value: IndexMap<Value, Value>,
+    ) -> IndexMap<Value, Value> {
         todo!()
     }
 
@@ -212,6 +221,7 @@ impl RigzStd for StdModule {
     }
 }
 
+#[allow(unused_variables)]
 impl<'vm> RigzVM<'vm> for VMModule {
     fn mut_vm_get_register(&self, vm: &mut VM<'vm>, register: Number) -> Result<Value, VMError> {
         todo!()
@@ -230,6 +240,7 @@ impl<'vm> RigzVM<'vm> for VMModule {
     }
 }
 
+#[allow(unused_variables)]
 impl RigzFile for FileModule {
     fn read(&self, path: String, encoding: String) -> Result<String, VMError> {
         todo!()
@@ -240,6 +251,7 @@ impl RigzFile for FileModule {
     }
 }
 
+#[allow(unused_variables)]
 impl RigzJSON for JSONModule {
     fn any_to_json(&self, value: Value) -> Result<String, VMError> {
         match serde_json::to_string(&value) {
