@@ -42,17 +42,19 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        fn enter_scope(&mut self, named: &'vm str) -> &mut Self {
+        fn enter_scope(&mut self, named: &'vm str) -> usize {
+            let next = self.scopes.len();
             self.scopes.push(Scope::new(named));
             self.sp = self.scopes.len() - 1;
-            self
+            next
         }
 
         #[inline]
-        fn enter_lifecycle_scope(&mut self, named: &'vm str, lifecycle: Lifecycle) -> &mut Self {
+        fn enter_lifecycle_scope(&mut self, named: &'vm str, lifecycle: Lifecycle) -> usize {
+            let next = self.scopes.len();
             self.scopes.push(Scope::lifecycle(named, lifecycle));
-            self.sp = self.scopes.len() - 1;
-            self
+            self.sp = next;
+            next
         }
 
         #[inline]
@@ -86,9 +88,10 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        fn add_constant(&mut self, value: Value) -> &mut Self {
+        fn add_constant(&mut self, value: Value) -> usize {
+            let index = self.constants.len();
             self.constants.push(value);
-            self
+            index
         }
     };
 }

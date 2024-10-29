@@ -10,7 +10,8 @@ mod value;
 pub use objects::rigz_type_to_rust_str;
 
 pub fn csv_vec<T: ToTokens>(values: &Vec<T>) -> Tokens {
-    quote! { vec![#(#values, )*] }
+    let values: Vec<_> = values.into_iter().map(|v| quote! { #v, }).collect();
+    quote! { vec![#(#values)*] }
 }
 
 pub fn option<T: ToTokens>(value: &Option<T>) -> Tokens {

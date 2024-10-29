@@ -28,7 +28,7 @@ impl<'vm> Default for VMBuilder<'vm> {
 }
 
 pub trait RigzBuilder<'vm>: Debug + Default {
-    fn add_constant(&mut self, value: Value) -> &mut Self;
+    fn add_constant(&mut self, value: Value) -> usize;
 
     fn add_instruction(&mut self, instruction: Instruction<'vm>) -> &mut Self;
 
@@ -36,9 +36,9 @@ pub trait RigzBuilder<'vm>: Debug + Default {
 
     fn current_scope(&self) -> usize;
 
-    fn enter_scope(&mut self, named: &'vm str) -> &mut Self;
+    fn enter_scope(&mut self, named: &'vm str) -> usize;
 
-    fn enter_lifecycle_scope(&mut self, named: &'vm str, lifecycle: Lifecycle) -> &mut Self;
+    fn enter_lifecycle_scope(&mut self, named: &'vm str, lifecycle: Lifecycle) -> usize;
 
     fn exit_scope(&mut self, current: usize, output: Register) -> &mut Self;
 
