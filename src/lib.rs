@@ -2,12 +2,13 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use rigz_ast::{rigz_type_to_rust_str, FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser, RigzType, Tokens};
+use rigz_ast::{
+    rigz_type_to_rust_str, FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser,
+    RigzType, Tokens,
+};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use syn::{parse_macro_input, parse_str, LitStr, Type};
-
-
 
 // todo create derive_macro for ParsedModule that doesn't require implementing a custom trait, i.e. Module is implemented manually
 
@@ -693,9 +694,7 @@ fn convert_type_for_arg(name: Ident, rigz_type: &RigzType, mutable: bool) -> Opt
             RigzType::Bool => quote! { #name.as_bool() },
             RigzType::List(_) => quote! { #name.as_list() },
             RigzType::Map(_, _) => quote! { #name.as_map() },
-            RigzType::Type {
-                ..
-            } => return None, // todo this will need to be improved
+            RigzType::Type { .. } => return None, // todo this will need to be improved
             r => todo!("call arg {r:?} is not supported"),
         }
     } else {
@@ -708,9 +707,7 @@ fn convert_type_for_arg(name: Ident, rigz_type: &RigzType, mutable: bool) -> Opt
             RigzType::Bool => quote! { #name.to_bool() },
             RigzType::List(_) => quote! { #name.to_list() },
             RigzType::Map(_, _) => quote! { #name.to_map() },
-            RigzType::Type {
-                ..
-            } => return None, // todo this will need to be improved
+            RigzType::Type { .. } => return None, // todo this will need to be improved
             r => todo!("call arg {r:?} is not supported"),
         }
     };
