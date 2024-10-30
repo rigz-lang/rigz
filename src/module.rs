@@ -83,7 +83,8 @@ impl RigzArgs {
                 continue;
             }
 
-            var[(i - START) % COUNT].push(v);
+            let Value::List(l) = v else { return Err(VMError::RuntimeError(format!("Invalid Var Args at {i} - {v}")))};
+            var[i - START] = l;
         }
         let min = var[0].len();
         if var.iter().any(|v| v.len() != min) {
@@ -109,7 +110,7 @@ mod rigz_args {
 
     #[test]
     fn var_args_one() {
-        let args = RigzArgs(vec![1.into(), 2.into(), 3.into()]);
+        let args = RigzArgs(vec![1.into(), vec![2.into(), 3.into()].into()]);
         let ([first], [var]) = args.var_args().expect("Failed to get var_args");
         assert_eq!(first, 1.into());
         assert_eq!(var, vec![2.into(), 3.into()]);
@@ -117,14 +118,14 @@ mod rigz_args {
 
     #[test]
     fn var_args_skip_first() {
-        let args = RigzArgs(vec![1.into(), 2.into(), 3.into()]);
+        let args = RigzArgs(vec![vec![1.into(), 2.into(), 3.into()].into()]);
         let ([], [var]) = args.var_args().expect("Failed to get var_args");
         assert_eq!(var, vec![1.into(), 2.into(), 3.into()]);
     }
 
     #[test]
     fn var_args_two() {
-        let args = RigzArgs(vec![1.into(), 2.into(), 3.into()]);
+        let args = RigzArgs(vec![1.into(), vec![2.into()].into(), vec![3.into()].into()]);
         let ([first], [var1, var2]) = args.var_args().expect("Failed to get var_args");
         assert_eq!(first, 1.into());
         assert_eq!(var1, vec![2.into()]);
@@ -133,10 +134,10 @@ mod rigz_args {
 
     #[test]
     fn var_args_error() {
-        let args = RigzArgs(vec![1.into(), 2.into(), 3.into(), 3.into()]);
+        let args = RigzArgs(vec![1.into(), vec![2.into()].into(), vec![3.into(), 3.into()].into()]);
         assert!(
             args.var_args::<1, 2>().is_err(),
-            "different lengths of var args allowed"
+            "different lengths of var args were permitted"
         );
     }
 }

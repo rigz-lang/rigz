@@ -196,7 +196,8 @@ impl<'vm> VM<'vm> {
                         }
                         Some(s) => s,
                     };
-                    self.insert_register(output, RegisterValue::Register(s));
+                    let v = self.resolve_register(s);
+                    self.insert_register(output, v.into());
                 };
             }
             Instruction::Clear(clear) => self.handle_clear(clear),
