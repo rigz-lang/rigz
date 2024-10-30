@@ -256,14 +256,16 @@ impl ToTokens for FunctionArgument<'_> {
 
 impl ToTokens for FunctionSignature<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let FunctionSignature { arguments, return_type, self_type, positional } = self;
+        let FunctionSignature { arguments, return_type, self_type, positional, var_args_start } = self;
         let args = csv_vec(arguments);
         let s = option(self_type);
+        let v = option(var_args_start);
         tokens.extend(quote! {
             FunctionSignature {
                 arguments: #args,
                 return_type: #return_type,
                 self_type: #s,
+                var_args_start: #v,
                 positional: #positional
             }
         })

@@ -12,7 +12,7 @@ pub struct FunctionSignature<'vm> {
     pub arguments: Vec<FunctionArgument<'vm>>,
     pub return_type: FunctionType,
     pub self_type: Option<FunctionType>,
-    // todo varargs are only valid for positional arguments
+    pub var_args_start: Option<usize>,
     pub positional: bool,
 }
 

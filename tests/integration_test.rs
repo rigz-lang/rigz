@@ -134,6 +134,7 @@ test_parse_equivalent! {
                         positional: true,
                         return_type: FunctionType::new(RigzType::String),
                         self_type: None,
+                        var_args_start: None
                     },
                     body: Scope {
                      elements: vec![
@@ -165,6 +166,7 @@ test_parse_equivalent! {
                         positional: true,
                         return_type: FunctionType::new(RigzType::default()),
                         self_type: None,
+                        var_args_start: None
                     },
                     body: Scope {
                     elements: vec![
@@ -204,6 +206,7 @@ test_parse! {
                             return_type: FunctionType::new(RigzType::default()),
                             self_type: None,
                             positional: true,
+                            var_args_start: None
                         },
                     },
                     FunctionDeclaration::Declaration {
@@ -213,6 +216,7 @@ test_parse! {
                             return_type: FunctionType::mutable(RigzType::This),
                             self_type: Some(FunctionType::mutable(RigzType::String)),
                             positional: true,
+                            var_args_start: None
                         },
                     },
                     FunctionDeclaration::Definition(FunctionDefinition {
@@ -229,6 +233,7 @@ test_parse! {
                             return_type: FunctionType::new(RigzType::None),
                             self_type: None,
                             positional: true,
+                            var_args_start: None
                         },
                         body: Scope {
                             elements: vec![
@@ -337,6 +342,7 @@ test_parse! {
                     ],
                     return_type: FunctionType::new(RigzType::default()),
                     self_type: None,
+                    var_args_start: None
                 },
                 body: Scope {
                     elements: vec![

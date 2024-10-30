@@ -249,7 +249,7 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
 name = "rigz_ast"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "logos",
  "proc-macro2",
@@ -259,9 +259,7 @@ dependencies = [
 
 [[package]]
 name = "rigz_vm"
-version = "0.32.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68c74935f5023be425c038e0e58f8581df08e7c15c348e2731c87d082465a496"
+version = "0.33.0"
 dependencies = [
  "crossbeam",
  "derive_more",

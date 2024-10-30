@@ -17,7 +17,7 @@ pub use program::{
     Statement, TraitDefinition,
 };
 
-// todo it'd be nice for rigz_vm to not be required by the ast parser, rigz_value?, changes to vm will require crate updates
+// todo it'd be nice for rigz_vm to not be required by the ast parser, rigz_value?, changes to vm will require lots of downstream crate updates
 pub use rigz_vm::*;
 use std::collections::VecDeque;
 use std::fmt::Debug;
@@ -325,6 +325,7 @@ impl<'lex> Parser<'lex> {
             TokenKind::Lifecycle(lifecycle) => {
                 self.consume_token(TokenKind::Lifecycle(lifecycle))?;
                 match lifecycle {
+                    // todo support multiple lifecycles & @test.assert_eq, @test.assert_neq, @test.assert
                     "test" => {
                         let lifecycle = Lifecycle::Test(TestLifecycle);
                         self.consume_token_eat_newlines(TokenKind::FunctionDef)?;
@@ -612,6 +613,7 @@ impl<'lex> Parser<'lex> {
                     TokenKind::Comma
                     | TokenKind::Rparen
                     | TokenKind::Rcurly
+                    | TokenKind::Rbracket
                     | TokenKind::If
                     | TokenKind::Assign // for maps
                     | TokenKind::Unless
@@ -852,15 +854,16 @@ impl<'lex> Parser<'lex> {
         }
     }
 
-    fn parse_function_arguments(&mut self) -> Result<Vec<FunctionArgument<'lex>>, ParsingError> {
+    fn parse_function_arguments(&mut self) -> Result<(Vec<FunctionArgument<'lex>>, Option<usize>), ParsingError> {
         let mut args = Vec::new();
         let next = self.peek_required_token()?;
         if next.kind != TokenKind::Lparen {
-            return Ok(args);
+            return Ok((args, None));
         }
 
         self.consume_token(TokenKind::Lparen)?;
 
+        let mut var_arg_start = None;
         loop {
             match self.peek_token() {
                 None => break,
@@ -873,16 +876,23 @@ impl<'lex> Parser<'lex> {
                     continue;
                 }
                 Some(_) => {
-                    args.push(self.parse_function_argument()?);
+                    let arg = self.parse_function_argument(var_arg_start.is_some())?;
+                    if arg.var_arg {
+                        var_arg_start = Some(args.len());
+                    }
+                    args.push(arg);
                 }
             }
         }
-        Ok(args)
+        Ok((args, var_arg_start))
     }
 
-    fn check_var_arg(&mut self) -> Result<bool, ParsingError> {
+    fn check_var_arg(&mut self, existing_var_arg: bool) -> Result<bool, ParsingError> {
         let next = self.peek_required_token()?;
         if next.kind == TokenKind::VariableArgs {
+            if existing_var_arg {
+                return Err(ParsingError::ParseError(format!("Multiple var args are not allowed {next:?}, everything after after first declaration is considered a var arg")));
+            }
             self.consume_token(TokenKind::VariableArgs)?;
             Ok(true)
         } else {
@@ -899,9 +909,9 @@ impl<'lex> Parser<'lex> {
         Err(ParsingError::ParseError(format!("Invalid value {token:?}")))
     }
 
-    fn parse_function_argument(&mut self) -> Result<FunctionArgument<'lex>, ParsingError> {
+    fn parse_function_argument(&mut self, existing_var_arg: bool) -> Result<FunctionArgument<'lex>, ParsingError> {
         // todo support mut, vm changes required
-        let var_arg = self.check_var_arg()?;
+        let var_arg = self.check_var_arg(existing_var_arg)?;
         let next = self.next_required_token()?;
         if let TokenKind::Identifier(name) = next.kind {
             let mut default_type = true;
@@ -987,8 +997,10 @@ impl<'lex> Parser<'lex> {
         &mut self,
         mut_self: bool,
     ) -> Result<FunctionSignature<'lex>, ParsingError> {
+        let (arguments, var_args_start) = self.parse_function_arguments()?;
         Ok(FunctionSignature {
-            arguments: self.parse_function_arguments()?,
+            arguments,
+            var_args_start,
             return_type: self.parse_return_type(mut_self)?,
             positional: true,
             self_type: None,
