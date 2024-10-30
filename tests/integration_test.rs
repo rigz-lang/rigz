@@ -270,7 +270,7 @@ impl RigzJSON for JSONModule {
 
 #[test]
 fn blah() {
-    let json = JSONModule {};
+    let json = JSONModule;
     assert_eq!(
         "5",
         json.call("parse", vec![5.into()].into())

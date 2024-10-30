@@ -312,7 +312,7 @@ fn final_definition(
 ) -> TokenStream {
     let tokens = quote! {
         #[derive(Copy, Clone, Debug)]
-        pub struct #module_name {}
+        pub struct #module_name;
 
         #module_def
 
