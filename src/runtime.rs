@@ -74,16 +74,15 @@ impl<'vm> Runtime<'vm> {
         program.create_runtime()
     }
 
-    /// Does not include default modules
-    pub fn create_with_modules(
+    /// Use register_module to add modules
+    pub fn create_without_modules(
         input: &'vm str,
-        modules: Vec<impl ParsedModule<'vm> + 'static>,
     ) -> Result<Self, RuntimeError> {
         let mut parser = Parser::prepare(input).map_err(|e| e.into())?;
         let program = parser.parse().map_err(|e| e.into())?;
         program.validate().map_err(|e| e.into())?;
         let program: Program = program.into();
-        program.create_vm_with_modules(modules)
+        program.create_runtime_without_modules()
     }
 
     /// Meant for REPL, skips requirement that programs must end in expression
@@ -93,14 +92,17 @@ impl<'vm> Runtime<'vm> {
         program.create_runtime()
     }
 
-    /// Does not include default modules
-    pub fn create_unverified_with_modules(
+    /// Use register_module to add modules, meant for repl
+    pub fn create_unverified_without_modules(
         input: &'vm str,
-        modules: Vec<impl ParsedModule<'vm> + 'static>,
     ) -> Result<Self, RuntimeError> {
         let mut parser = Parser::prepare(input).map_err(|e| e.into())?;
         let program: Program = parser.parse().map_err(|e| e.into())?.into();
-        program.create_vm_with_modules(modules)
+        program.create_runtime_without_modules()
+    }
+
+    pub fn register_module(&mut self, module: impl ParsedModule<'vm> + 'static) {
+        self.parser.register_module(module);
     }
 
     pub fn run(&mut self) -> Result<Value, RuntimeError> {
@@ -119,5 +121,11 @@ impl<'vm> Runtime<'vm> {
 
 pub fn eval(input: &str) -> Result<Value, RuntimeError> {
     let mut runtime = Runtime::create(input)?;
+    runtime.run()
+}
+
+pub fn eval_print_vm(input: &str) -> Result<Value, RuntimeError> {
+    let mut runtime = Runtime::create(input)?;
+    println!("VM - {:#?}", runtime.vm());
     runtime.run()
 }

@@ -1,4 +1,6 @@
-use rigz_ast::{Element, ParsedModule};
+pub(crate) mod expression;
+
+use rigz_ast::Element;
 use crate::prepare::ProgramParser;
 use crate::{Runtime, RuntimeError};
 
@@ -17,7 +19,6 @@ impl <'lex> Into<Program<'lex>> for rigz_ast::Program<'lex> {
 
 impl<'lex> Program<'lex> {
     #[inline]
-    /// skips program validation (used for REPL to support statements as last line)
     pub fn create_runtime(self) -> Result<Runtime<'lex>, RuntimeError> {
         let mut builder = ProgramParser::new();
         builder.parse_program(self).map_err(|e| e.into())?;
@@ -25,12 +26,10 @@ impl<'lex> Program<'lex> {
     }
 
     #[inline]
-    /// skips program validation (used for REPL to support statements as last line)
-    pub fn create_vm_with_modules(
+    pub fn create_runtime_without_modules(
         self,
-        modules: Vec<impl ParsedModule<'lex> + 'static>,
     ) -> Result<Runtime<'lex>, RuntimeError> {
-        let mut builder = ProgramParser::with_modules(modules).map_err(|e| e.into())?;
+        let mut builder = ProgramParser::default();
         builder.parse_program(self).map_err(|e| e.into())?;
         Ok(builder.create().into())
     }

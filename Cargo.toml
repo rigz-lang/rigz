@@ -9,8 +9,8 @@ repository = "https://gitlab.com/inapinch/rigz/rigz_runtime"
 
 [dependencies]
 logos = "0.14"
-rigz_ast = { path = "rigz_ast_derive/rigz_ast" } # local testing - create symbolic link, ln -s <path>/rigz_vm
-rigz_ast_derive = { path = "rigz_ast_derive" } # local testing - create symbolic link, ln -s <path>/rigz_vm
+rigz_ast = { version = "0.2"} # , path = "rigz_ast_derive/rigz_ast" } # ensure using same ast as derive
+rigz_ast_derive = { version = "0.2"} #, path = "rigz_ast_derive"}  # local testing - create symbolic link, ln -s <path>/rigz_vm
 log = "0.4"
 serde_json = "1.0"
 

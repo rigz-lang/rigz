@@ -1,6 +1,6 @@
 mod runtime {
     #[allow(unused_imports)] // used by macro
-    use rigz_runtime::runtime::eval;
+    use rigz_runtime::runtime::{eval, eval_print_vm};
     use rigz_ast::{VMError, Value};
 
     macro_rules! run_expected {
@@ -10,6 +10,20 @@ mod runtime {
                 fn $name() {
                     let input = $input;
                     let v = eval(input);
+                    assert_eq!(v, Ok($expected), "VM eval failed {input}");
+                }
+            )*
+        };
+    }
+
+    #[allow(unused_macros)]
+    macro_rules! run_debug_vm {
+        ($($name:ident($input:literal = $expected:expr))*) => {
+            $(
+                 #[test]
+                fn $name() {
+                    let input = $input;
+                    let v = eval_print_vm(input);
                     assert_eq!(v, Ok($expected), "VM eval failed {input}");
                 }
             )*
@@ -139,6 +153,9 @@ mod runtime {
             binary_expr_instance_call(r#"
             11.4 + 1.2.ceil
             "# = 13.4.into())
+            create_list(r#"
+            [1, 2, 3, 4]
+            "# = vec![1.into(), 2.into(), 3.into(), 4.into()].into())
             create_dynamic_list(r#"
                 [{d = 1}]
             "# = Value::List(vec![Value::Map(IndexMap::from([("d".into(), 1.into())]))]))
@@ -202,6 +219,14 @@ mod runtime {
             end
             factorial 4
             "#=24.into())
+            var_args_module(r#"
+            let a = []
+            a.with 1, 2, 3
+            "# = Value::List(vec![1.into(), 2.into(), 3.into()]))
+            var_args_module_str(r#"
+            let a = ""
+            a.with 1, 2, 3
+            "# = "123".into())
             // todo variable should not be necessary for fib calls
             fib_recursive(r#"
             fn fib(n: Number) -> Number
@@ -219,7 +244,7 @@ mod runtime {
                 if self <= 1
                     self
                 else
-                    b = self - 2
+                    b = (self - 2)
                     (self - 1).fib + b.fib
                 end
             end
