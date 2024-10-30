@@ -1,6 +1,6 @@
 [package]
 name = "rigz"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 description = "CLI for running rigz locally"
@@ -13,11 +13,9 @@ default = []
 clap = {version = "4.5.15", features = ["env", "derive"]}
 log = { version = "0.4.22", features = [] }
 pretty_env_logger = "0.5.0"
-# rigz_runtime = "0.3.0"
-rigz_runtime = { path = "rigz_runtime" }
+rigz_runtime = {version = "0.3.0"} #, path = "rigz_runtime" }
 tree-sitter-highlight = "0.24.3"
-tree-sitter-rigz = { version = "0.2.0", path = "tree-sitter-rigz" }
-# tree-sitter-rigz = { path = "tree-sitter-rigz" }
+tree-sitter-rigz = { version = "0.3.0" } # , path = "tree-sitter-rigz" }
 rustyline = "14.0.0"
 chrono = "0.4.38"
 crossterm = "0.28.1"

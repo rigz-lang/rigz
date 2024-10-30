@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
-use std::fmt::Debug;
 use std::ops::DerefMut;
 use clap::Args;
 use rigz_runtime::{Runtime, RuntimeError, VMError, Value};
@@ -12,13 +11,11 @@ use tree_sitter_highlight::{Highlight, HighlightConfiguration, HighlightEvent, H
 
 #[derive(Args)]
 pub struct ReplArgs {
-    #[arg(short, long, default_value = "false")]
-    persist_output: bool,
-    #[arg(short, long, default_value = "false")]
+    #[arg(short, long, default_value = "false", help= "Save History on exit")]
     save_history: bool,
 }
 
-static NAMES: [&'static str; 10] = [
+static NAMES: [&str; 10] = [
     "comment",
     "number",
     "string",
@@ -38,12 +35,14 @@ struct RigzHelper<'r> {
 
 impl rustyline::highlight::Highlighter for RigzHelper<'_> {
     // todo this could definitely be optimized
+    #[allow(unused_variables)]
     fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
         let mut m = self.highlighter.borrow_mut();
         let s = highlight(m.deref_mut(), self.config, line.as_bytes());
         Cow::Owned(s)
     }
 
+    #[allow(unused_variables)]
     fn highlight_char(&self, line: &str, pos: usize, forced: bool) -> bool {
         true
     }
@@ -82,6 +81,7 @@ pub(crate) fn repl(args: ReplArgs) {
     let rigz_helper = RigzHelper {
         highlighter: RefCell::new(Highlighter::new()),
         config: &rigz_config
+        // todo pass in runtime to auto complete identifiers and functions
     };
 
     let mut runtime = Runtime::new();
@@ -92,7 +92,7 @@ pub(crate) fn repl(args: ReplArgs) {
     let mut last_success = 0;
     loop {
         if needs_reset {
-            let mut vm = runtime.vm_mut();
+            let vm = runtime.vm_mut();
             let len = vm.scopes[vm.sp].instructions.len();
             for _ in last_success..len {
                 vm.scopes[vm.sp].instructions.remove(last_success);
@@ -104,7 +104,9 @@ pub(crate) fn repl(args: ReplArgs) {
             last_success = vm.current.borrow().pc;
         };
 
-        let mut next = r.readline("> ").expect("Failed to read line");
+        // todo add line numbers, runtime will need to keep track of them too for error messages
+        let next = r.readline("> ").expect("Failed to read line");
+        // todo listen for Ctrl+C, Up & Down arrows
         match next.trim() {
             "exit" => {
                 if args.save_history {
@@ -129,7 +131,7 @@ pub(crate) fn repl(args: ReplArgs) {
                     }
                     Err(RuntimeError::Run(p)) => {
                         needs_reset = match p {
-                            VMError::EmptyRegister(e) => {
+                            VMError::EmptyRegister(_) => {
                                 // imports and function definitions create an empty register
                                 false
                             }
@@ -147,15 +149,14 @@ pub(crate) fn repl(args: ReplArgs) {
 
 fn highlight_value(highlighter: &mut Highlighter, rigz_config: &HighlightConfiguration, value: Value) {
     print!("=> ");
-    let mut r = highlight(highlighter, rigz_config, value.to_string().as_bytes());
-    r.push('\n');
+    let r = highlight(highlighter, rigz_config, value.to_string().as_bytes());
     println!("{r}")
 }
 
 fn highlight(highlighter: &mut Highlighter, rigz_config: &HighlightConfiguration, bytes: &[u8]) -> String  {
     let mut current = None;
     let mut result = String::new();
-    for event in highlighter.highlight(&rigz_config, bytes, None, |_| None).unwrap() {
+    for event in highlighter.highlight(rigz_config, bytes, None, |_| None).unwrap() {
         match event.unwrap() {
             HighlightEvent::Source { start, end } => {
                 let str = String::from_utf8(bytes[start..end].to_vec()).expect("Failed to read string");
@@ -169,7 +170,7 @@ fn highlight(highlighter: &mut Highlighter, rigz_config: &HighlightConfiguration
                             1 => "\x1b[31m",
                             2 => "\x1b[32m",
                             3 => "\x1b[33m",
-                            4 | 5 | 6 => "\x1b[34m",
+                            4..=6 => "\x1b[34m",
                             7 => "\x1b[35m",
                             8 => "\x1b[36m",
                             0 => "\x1b[37m",

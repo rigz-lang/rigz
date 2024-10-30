@@ -3,15 +3,11 @@ mod repl;
 mod test;
 mod debug;
 
-use std::io::Read;
-use std::path::PathBuf;
-use clap::{Args, CommandFactory, Parser, Subcommand};
-use crate::debug::DebugArgs;
+use clap::{CommandFactory, Parser, Subcommand};
 use crate::repl::ReplArgs;
 use crate::run::RunArgs;
 use crate::test::TestArgs;
-use debug::debug;
-use log::{log, warn, LevelFilter};
+use log::{warn, LevelFilter};
 use repl::repl;
 use run::run;
 use test::test;
@@ -20,7 +16,7 @@ use test::test;
 #[command(version, about, long_about = None)]
 #[command(next_line_help = true)]
 pub struct CLI {
-    #[arg(short, long, env = "RIGZ_VERBOSE", default_value = "0")]
+    #[arg(short, long, env = "RIGZ_VERBOSE", default_value = "0", help = "0 - 4, sets the log level from Error - Trace, negative numbers disable all logging")]
     verbose: i8,
     #[command(subcommand)]
     command: Option<Commands>,

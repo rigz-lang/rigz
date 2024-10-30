@@ -1,11 +1,12 @@
-use std::fs::{read_to_string, File};
+use std::fs::read_to_string;
 use std::io;
 use std::path::PathBuf;
 use clap::Args;
-use rigz_runtime::{Runtime, RuntimeError};
+use rigz_runtime::Runtime;
 
 #[derive(Args)]
 pub struct TestArgs {
+    #[arg(help = "Test Entrypoint")]
     input: PathBuf,
 }
 

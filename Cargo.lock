@@ -860,7 +860,7 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
 name = "rigz"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "clap",
@@ -876,16 +876,21 @@ dependencies = [
 
 [[package]]
 name = "rigz_ast"
-version = "0.1.0"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a96862f7862fefcfe77bc0ce8cde12a9a646f5431f11e34feca593382ce761a9"
 dependencies = [
- "indexmap",
  "logos",
+ "proc-macro2",
+ "quote",
  "rigz_vm",
 ]
 
 [[package]]
 name = "rigz_ast_derive"
-version = "0.1.0"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef11efa1895e4bead72e3586f803c3fc5d07885c21d0e5e36934222bfba333cd"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -896,8 +901,9 @@ dependencies = [
 [[package]]
 name = "rigz_runtime"
 version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59fab1b5a1fae8f85b3e535b564865366e767533c9952a48e6b4f3bda53654f8"
 dependencies = [
- "indexmap",
  "log",
  "logos",
  "rigz_ast",
@@ -907,7 +913,9 @@ dependencies = [
 
 [[package]]
 name = "rigz_vm"
-version = "0.32.0"
+version = "0.33.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce58f366298ac05a92d7e96a640774ddd549e8b4bd7f65230838cb1efbc21583"
 dependencies = [
  "crossbeam",
  "derive_more",
@@ -916,6 +924,8 @@ dependencies = [
  "log",
  "log-derive",
  "nohash-hasher",
+ "proc-macro2",
+ "quote",
  "serde",
 ]
 
@@ -1177,7 +1187,9 @@ checksum = "e8ddffe35a0e5eeeadf13ff7350af564c6e73993a24db62caee1822b185c2600"
 
 [[package]]
 name = "tree-sitter-rigz"
-version = "0.2.2"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88ec09cdb64b9b82b6c66d2e25649d38502163a9e43832f8311841f24ceedfd3"
 dependencies = [
  "cc",
  "tree-sitter-language",
