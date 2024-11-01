@@ -122,7 +122,6 @@ pub(crate) enum TokenKind<'lex> {
     #[token("%", |_| BinaryOperation::Rem)]
     #[token("&&", |_| BinaryOperation::And)]
     #[token("||", |_| BinaryOperation::Or)]
-    #[token("&", |_| BinaryOperation::BitAnd)]
     #[token("^", |_| BinaryOperation::Xor)]
     #[token("?:", |_| BinaryOperation::Elvis)]
     BinOp(BinaryOperation),
@@ -147,6 +146,8 @@ pub(crate) enum TokenKind<'lex> {
     Minus,
     #[token("|")] // todo support union types
     Pipe,
+    #[token("&")] // todo support union types
+    And,
     #[token(".")]
     Period,
     #[token(",")]
@@ -248,6 +249,7 @@ impl Display for TokenKind<'_> {
             TokenKind::Not => write!(f, "!"),
             TokenKind::TypeValue(t) => write!(f, "{}", *t),
             TokenKind::Minus => write!(f, "-"),
+            TokenKind::And => write!(f, "&"),
             TokenKind::Pipe => write!(f, "|"),
             TokenKind::Period => write!(f, "."),
             TokenKind::Comma => write!(f, ","),

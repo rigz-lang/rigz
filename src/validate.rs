@@ -1,7 +1,7 @@
 use crate::program::{Element, Program};
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ValidationError {
     MissingExpression(String),
     ModuleError(String),

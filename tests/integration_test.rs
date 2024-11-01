@@ -105,6 +105,12 @@ mod valid {
                 c = 42
             end
         "#,
+        list_string r#"
+            let s: [String] = ["1", "a"]
+        "#,
+        map_string r#"
+            let m: {String} = { a = "1", b = "a"}
+        "#,
         // if_else_root_return r#"
         //     if c
         //         return c * 42
@@ -383,6 +389,88 @@ test_parse! {
                 )
             )
         ]
+    },
+    union_type "a: String | Number | Bool = false" = Program {
+        elements: vec![
+            Statement::Assignment {
+                lhs: Assign::TypedIdentifier("a", false, RigzType::Union(vec![RigzType::String, RigzType::Number, RigzType::Bool])),
+                expression: Expression::Value(false.into()),
+            }.into()
+        ],
+    },
+    composite_type r#"
+        type Foo = {
+            foo: Number
+        }
+        type Bar = {
+            bar: Number
+        }
+        a: Foo & Bar = { foo = 1, bar = 7}
+    "# = Program {
+        elements: vec![
+            Statement::TypeDefinition("Foo", RigzType::Custom(CustomType {
+                name: "Foo".to_string(),
+                fields: vec![
+                    ("foo".into(), RigzType::Number)
+                ],
+            })).into(),
+            Statement::TypeDefinition("Bar", RigzType::Custom(CustomType {
+                name: "Bar".to_string(),
+                fields: vec![
+                    ("bar".into(), RigzType::Number)
+                ],
+            })).into(),
+            Statement::Assignment {
+                lhs: Assign::TypedIdentifier("a", false, RigzType::Composite(vec![RigzType::Custom(CustomType {
+                    name: "Foo".to_string(),
+                    fields: vec![],
+                }), RigzType::Custom(CustomType {
+                    name: "Bar".to_string(),
+                    fields: vec![],
+                })])),
+                expression: Expression::Map(vec![
+                    (Expression::Identifier("foo"), Expression::Value(1.into())),
+                    (Expression::Identifier("bar"), Expression::Value(7.into())),
+                ])
+            }.into()
+        ],
+    },
+    union_composite_type_parens r#"
+        type Message = { message: String }
+        type Id = { id: Number }
+        type Result = String | (Message & Id)
+        mut s: Result = ""
+    "# = Program {
+        elements: vec![
+            Statement::TypeDefinition("Message", RigzType::Custom(CustomType {
+                name: "Message".to_string(),
+                fields: vec![
+                    ("message".into(), RigzType::String)
+                ],
+            })).into(),
+            Statement::TypeDefinition("Id", RigzType::Custom(CustomType {
+                name: "Id".to_string(),
+                fields: vec![
+                    ("id".into(), RigzType::Number)
+                ],
+            })).into(),
+            Statement::TypeDefinition("Result", RigzType::Union(vec![
+                RigzType::String, RigzType::Composite(vec![RigzType::Custom(CustomType {
+                    name: "Message".to_string(),
+                    fields: vec![],
+                }), RigzType::Custom(CustomType {
+                    name: "Id".to_string(),
+                    fields: vec![],
+                })])
+            ])).into(),
+            Statement::Assignment {
+                lhs: Assign::TypedIdentifier("s", true, RigzType::Custom(CustomType {
+                    name: "Result".to_string(),
+                    fields: vec![],
+                })),
+                expression: Expression::Value("".into())
+            }.into()
+        ],
     },
     // todo support later
     // define_function_named_args r#"

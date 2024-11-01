@@ -71,15 +71,13 @@ pub enum Element<'lex> {
     Expression(Expression<'lex>),
 }
 
-// todo use this for imports later
-// #[derive(Clone, Debug, PartialEq)]
-// pub enum ImportValue<'lex> {
-//     TypeValue(&'lex str),
-//     Identifier(&'lex str),
-//     FilePath(String),
-//     UrlPath(String),
-//     // todo support tree shaking?
-// }
+#[derive(Clone, Debug, PartialEq)]
+pub enum ImportValue<'lex> {
+    TypeValue(&'lex str),
+    FilePath(&'lex str),
+    UrlPath(&'lex str),
+    // todo support tree shaking?
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Exposed<'lex> {
@@ -100,8 +98,9 @@ pub enum Statement<'lex> {
     },
     FunctionDefinition(FunctionDefinition<'lex>),
     Trait(TraitDefinition<'lex>),
-    Import(Exposed<'lex>),
+    Import(ImportValue<'lex>),
     Export(Exposed<'lex>),
+    TypeDefinition(&'lex str, RigzType)
     // todo support later
     // If {
     //     condition: Expression<'lex>,
@@ -119,6 +118,7 @@ pub enum Statement<'lex> {
 pub enum Assign<'lex> {
     This,
     Identifier(&'lex str, bool),
+    TypedIdentifier(&'lex str, bool, RigzType),
 }
 
 #[derive(Clone, Debug, PartialEq)]
