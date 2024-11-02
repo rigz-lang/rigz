@@ -12,7 +12,8 @@ members = [
     "crates/ast_derive",
     "crates/vm",
     "crates/runtime",
-    "crates/tree-sitter"
+    "crates/tree-sitter",
+    "crates/lsp"
 ]
 
 [workspace.dependencies]
@@ -30,9 +31,9 @@ default = []
 clap = {version = "4.5.15", features = ["env", "derive"]}
 pretty_env_logger = "0.5.0"
 log.workspace = true
-rigz_runtime = { workspace = true}
+rigz_runtime.workspace = true
 tree-sitter-highlight = "0.24.3"
-tree-sitter-rigz = { workspace = true }
+tree-sitter-rigz.workspace = true
 rustyline = "14.0.0"
 chrono = "0.4.38"
 crossterm = "0.28.1"
