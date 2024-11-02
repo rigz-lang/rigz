@@ -1,6 +1,6 @@
 [package]
 name = "rigz_ast_derive"
-version = "0.2.0"
+version = "0.3.0"
 description = "Procedural macro to generate ParsedModules for rigz, generate a trait for the module implementation and parse input at compile time."
 keywords = ["rigz", "proc_macro", "procmacro"]
 edition = "2021"
@@ -15,7 +15,7 @@ proc-macro = true
 quote = "1"
 proc-macro2 = "1.0"
 syn = "2.0"
-rigz_ast = { version = "0.2", features = ["derive"] } #, path = "rigz_ast" }
+rigz_ast = { features = ["derive"] , workspace = true }
 
 [dev-dependencies]
 serde_json = "1.0"
