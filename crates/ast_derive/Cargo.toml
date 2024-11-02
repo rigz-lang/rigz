@@ -6,7 +6,7 @@ keywords = ["rigz", "proc_macro", "procmacro"]
 edition = "2021"
 readme = "README.md"
 license = "MIT"
-repository = "https://gitlab.com/inapinch/rigz/rigz_ast_derive"
+repository = "https://gitlab.com/inapinch/rigz/crates/ast_derive"
 
 [lib]
 proc-macro = true

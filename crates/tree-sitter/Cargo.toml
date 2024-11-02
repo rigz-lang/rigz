@@ -6,7 +6,7 @@ license = "MIT"
 readme = "README.md"
 keywords = ["incremental", "parsing", "tree-sitter", "rigz"]
 categories = ["parsing", "text-editors"]
-repository = "https://gitlab.com/inapinch/rigz/tree-sitter-rigz"
+repository = "https://gitlab.com/inapinch/rigz/crates/tree-sitter"
 edition = "2021"
 autoexamples = false
 

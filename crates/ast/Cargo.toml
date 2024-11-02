@@ -5,7 +5,7 @@ description = "AST parser for the rigz programming language"
 edition = "2021"
 readme = "README.md"
 license = "MIT"
-repository = "https://gitlab.com/inapinch/rigz/rigz_ast"
+repository = "https://gitlab.com/inapinch/rigz/crates/ast"
 keywords = ["rigz", "ast"]
 
 [features]

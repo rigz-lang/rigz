@@ -1,7 +1,11 @@
 [package]
-name = "lsp"
+name = "rigz_lsp"
 version = "0.1.0"
 edition = "2021"
+readme = "README.md"
+license = "MIT"
+repository = "https://gitlab.com/inapinch/rigz/crates/lsp"
+keywords = ["rigz", "lsp"]
 
 [dependencies]
 lsp-server = "0.7.7"

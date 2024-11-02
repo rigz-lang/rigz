@@ -838,17 +838,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lsp"
-version = "0.1.0"
-dependencies = [
- "ctrlc",
- "lsp-server",
- "lsp-types",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "lsp-server"
 version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1207,6 +1196,17 @@ dependencies = [
  "rigz_ast",
  "serde_json",
  "syn 2.0.85",
+]
+
+[[package]]
+name = "rigz_lsp"
+version = "0.1.0"
+dependencies = [
+ "ctrlc",
+ "lsp-server",
+ "lsp-types",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

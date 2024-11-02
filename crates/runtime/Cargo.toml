@@ -5,7 +5,7 @@ edition = "2021"
 description = "Handles parsing and converting rigz to its VM instructions (for syntax highlighting use tree-sitter-rigz instead)"
 readme = "README.md"
 license = "MIT"
-repository = "https://gitlab.com/inapinch/rigz/rigz_runtime"
+repository = "https://gitlab.com/inapinch/rigz/crates/runtime"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

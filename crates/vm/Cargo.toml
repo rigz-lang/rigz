@@ -5,7 +5,7 @@ version = "0.34.0"
 edition = "2021"
 readme = "README.md"
 license = "MIT"
-repository = "https://gitlab.com/inapinch/rigz/rigz_vm"
+repository = "https://gitlab.com/inapinch/rigz/crates/vm"
 keywords = ["rigz", "vm"]
 
 [features]
