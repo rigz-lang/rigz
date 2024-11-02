@@ -1,0 +1,6 @@
+fn foo = 42
+
+@test
+fn test_foo
+    assert_eq 42, foo
+end

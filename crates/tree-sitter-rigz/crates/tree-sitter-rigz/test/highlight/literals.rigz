@@ -1,0 +1,13 @@
+none
+# <- @constant.builtin
+true
+# <- @constant.builtin
+
+false
+# <- @constant.builtin
+
+12.4
+# <- number
+
+"hello"
+# <- string

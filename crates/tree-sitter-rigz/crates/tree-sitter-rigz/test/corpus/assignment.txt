@@ -1,0 +1,73 @@
+==================
+Assignment
+==================
+a = "2"
+---
+(program
+    (statement
+        (assignment
+            (identifier)
+            (expression
+                (value
+                    (string)
+                ))
+        )
+    )
+)
+
+==================
+Assignment (let)
+==================
+let a = 42
+---
+(program
+    (statement
+        (assignment
+            (identifier)
+            (expression
+                (value
+                    (number)
+                ))
+        )
+    )
+)
+
+==================
+Assignment cast
+==================
+let a = 42 as String
+---
+(program
+    (statement
+        (assignment
+            (identifier)
+            (expression
+                (value
+                    (number))
+                (cast (type))
+            )
+        )
+    )
+)
+
+==================
+Assignment unless
+==================
+let a = 42 unless true
+---
+(program
+    (statement
+        (assignment
+            (identifier)
+            (expression
+                (value
+                    (number))
+                (unless_guard
+                    (expression
+                        (value (bool))
+                    )
+                )
+            )
+        )
+    )
+)
