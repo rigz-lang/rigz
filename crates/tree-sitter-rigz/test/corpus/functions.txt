@@ -1,0 +1,161 @@
+==================
+Define Function
+==================
+fn add(a, b)
+  a + b
+end
+---
+(program
+    (statement
+        (function_definition
+            (function_identifier (identifier))
+            (function_arg
+                (identifier)
+            )
+            (function_arg
+                (identifier)
+            )
+            (scope
+            (program
+                (statement
+                    (expression
+                        (binary
+                            (expression
+                                (function_call
+                                    (function_identifier (identifier))
+                                )
+                            )
+                            (expression
+                                (function_call
+                                    (function_identifier (identifier))
+                                )
+                            )
+                        )
+                    )
+                )
+            ))
+        )
+    )
+)
+
+==================
+Call Multiple
+==================
+puts puts 42
+---
+(program
+    (statement
+        (expression
+            (function_call
+                (function_identifier (identifier))
+                (expression
+                    (function_call
+                        (function_identifier (identifier))
+                        (expression
+                            (value
+                                (number)
+                            )))
+                    )
+            )
+        )
+    )
+)
+
+==================
+Call Multiple (parens)
+==================
+puts(puts 42, 43, 24), 54
+---
+(program
+    (statement
+        (expression
+            (function_call
+                (function_identifier  (identifier))
+                (expression
+                    (expression
+                        (function_call
+                            (function_identifier  (identifier))
+                            (expression
+                                (value
+                                    (number)
+                                )
+                            )
+                            (expression
+                                (value
+                                    (number)
+                                )
+                            )
+                            (expression
+                                (value
+                                    (number)
+                                )
+                            )
+                        )
+                    )
+                )
+                (expression
+                  (value
+                    (number)
+                  )
+                )
+            )
+        )
+    )
+)
+
+==================
+Hello World (number)
+==================
+puts 42
+---
+(program
+    (statement
+        (expression
+            (function_call
+                (function_identifier (identifier))
+                (expression
+                    (value
+                        (number)
+                    ))
+            )
+        )
+    )
+)
+
+==================
+Extension Function
+==================
+(1 + 3).to_s
+---
+(program
+    (statement
+        (expression
+          (function_call
+            (expression
+              (expression
+                (binary
+                  (expression
+                    (value
+                      (number)))
+                  (expression
+                    (value
+                      (number)))))
+              )
+            (function_call
+              (function_identifier
+                (identifier)))))))
+
+==================
+Extension Function (VM)
+==================
+import VM
+VM.last
+---
+(program
+    (statement (import (type)))
+    (statement
+        (expression
+            (function_call
+              (function_identifier
+                (type)
+                (identifier))))))
