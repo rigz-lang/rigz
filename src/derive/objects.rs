@@ -51,6 +51,18 @@ impl ToTokens for RigzType {
                     RigzType::Function(#args, #ret)
                 }
             }
+            RigzType::Union(args) => {
+                let args = csv_vec(args);
+                quote! {
+                    RigzType::Union(#args)
+                }
+            }
+            RigzType::Composite(args) => {
+                let args = csv_vec(args);
+                quote! {
+                    RigzType::Composite(#args)
+                }
+            }
         };
         tokens.extend(t)
     }

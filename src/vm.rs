@@ -1,15 +1,15 @@
-use crate::lifecycle::{Lifecycle, TestResults};
-use crate::RigzBuilder;
+use crate::{Module, Register, RigzBuilder, VMError, Value};
 use crate::{
-    generate_builder, CallFrame, Instruction, Module, Register, Scope, VMError, Value, Variable,
+    generate_builder, CallFrame, Instruction, Scope, Variable,
 };
-use indexmap::map::Entry;
-use indexmap::IndexMap;
 use log_derive::logfn_inputs;
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::ops::DerefMut;
-use std::time::Instant;
+use std::time::{Duration, Instant};
+use indexmap::IndexMap;
+use indexmap::map::Entry;
+use crate::lifecycle::{Lifecycle, TestResults};
 
 pub enum VMState {
     Running,
@@ -42,7 +42,7 @@ pub struct VMOptions {
 impl Default for VMOptions {
     fn default() -> Self {
         VMOptions {
-            enable_logging: false,
+            enable_logging: true,
             disable_modules: false,
             disable_variable_cleanup: false,
             max_depth: 1024,
@@ -90,7 +90,7 @@ impl<T: Into<Value>> From<T> for RegisterValue {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct VM<'vm> {
     pub scopes: Vec<Scope<'vm>>,
     pub current: RefCell<CallFrame<'vm>>,
@@ -337,6 +337,56 @@ impl<'vm> VM<'vm> {
         }
     }
 
+    pub fn eval_within(&mut self, duration: Duration) -> Result<Value, VMError> {
+        match self.run_within(duration) {
+            Value::Error(e) => Err(e),
+            v => Ok(v),
+        }
+    }
+
+    pub fn run(&mut self) -> Value {
+        loop {
+            match self.step() {
+                None => {}
+                Some(v) => return v
+            }
+        }
+    }
+
+    #[inline]
+    fn step(&mut self) -> Option<Value> {
+        let instruction = match self.next_instruction() {
+            // TODO this should probably be an error requiring explicit halt, result would be none
+            None => return Some(Value::None),
+            Some(s) => s,
+        };
+
+        match self.process_instruction(instruction) {
+            VMState::Ran(v) => {
+                return Some(VMError::RuntimeError(format!("Unexpected ran state: {}", v)).into())
+            }
+            VMState::Running => {}
+            VMState::Done(v) => return Some(v),
+        };
+        None
+    }
+
+    pub fn run_within(&mut self, duration: Duration) -> Value {
+        let now = Instant::now();
+        let end = now + duration;
+        loop {
+            let current = Instant::now();
+            if current > end {
+                return Value::Error(VMError::TimeoutError(format!("Exceeded runtime {duration:?} - {:?}", end - current)))
+            }
+
+            match self.step() {
+                None => {}
+                Some(v) => return v
+            }
+        }
+    }
+
     pub fn test(&mut self) -> TestResults {
         // todo support parallel tests
         let test_scopes: Vec<_> = self
@@ -391,24 +441,6 @@ impl<'vm> VM<'vm> {
             failed,
             failure_messages,
             duration: Instant::now() - start,
-        }
-    }
-
-    pub fn run(&mut self) -> Value {
-        loop {
-            let instruction = match self.next_instruction() {
-                // TODO this should probably be an error requiring explicit halt, result would be none
-                None => return Value::None,
-                Some(s) => s,
-            };
-
-            match self.process_instruction(instruction) {
-                VMState::Ran(v) => {
-                    return VMError::RuntimeError(format!("Unexpected ran state: {}", v)).to_value()
-                }
-                VMState::Running => {}
-                VMState::Done(v) => return v,
-            };
         }
     }
 

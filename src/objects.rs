@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 use std::str::FromStr;
+use itertools::Itertools;
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Serialize, Deserialize)]
 pub enum RigzType {
@@ -24,6 +25,8 @@ pub enum RigzType {
         can_return_error: bool,
     },
     Function(Vec<RigzType>, Box<RigzType>),
+    Union(Vec<RigzType>),
+    Composite(Vec<RigzType>),
     Custom(CustomType),
 }
 
@@ -31,7 +34,7 @@ impl Default for RigzType {
     fn default() -> Self {
         RigzType::Type {
             base_type: Box::new(RigzType::Any),
-            optional: false,
+            optional: true,
             can_return_error: true,
         }
     }
@@ -62,7 +65,7 @@ impl FromStr for RigzType {
             "Number" => RigzType::Number,
             "Self" => RigzType::This,
             "Error" => RigzType::Error,
-            // todo lists & maps are [<Type>] & {<Type>, <Type>} or {<Type>}
+            // lists & maps can be [<Type>], {<Type>, <Type>}, or {<Type>}. This is handled within AST
             "List" => RigzType::List(Box::new(RigzType::Any)),
             "Map" => RigzType::Map(Box::new(RigzType::Any), Box::new(RigzType::Any)),
             "Range" => RigzType::Range,
@@ -86,10 +89,6 @@ impl FromStr for RigzType {
                         optional: true,
                         can_return_error: false,
                     }
-                } else if s.contains("<") {
-                    return Err(VMError::RuntimeError(
-                        "Types containing < are not supported yet".to_string(),
-                    ));
                 } else {
                     RigzType::Custom(CustomType {
                         name: s.to_string(),
@@ -112,8 +111,8 @@ impl Display for RigzType {
             RigzType::Float => write!(f, "Float"),
             RigzType::Number => write!(f, "Number"),
             RigzType::String => write!(f, "String"),
-            RigzType::List(t) => write!(f, "List<{t}>"),
-            RigzType::Map(k, v) => write!(f, "Map<{k},{v}>"),
+            RigzType::List(t) => write!(f, "[{t}]"),
+            RigzType::Map(k, v) => write!(f, "{{{k},{v}}}"),
             RigzType::Error => write!(f, "Error"),
             RigzType::This => write!(f, "Self"),
             RigzType::Range => write!(f, "Range"),
@@ -130,6 +129,8 @@ impl Display for RigzType {
                 )
             }
             RigzType::Function(args, result) => write!(f, "Function<{args:?},{result}>"),
+            RigzType::Union(args) => write!(f, "{}", args.iter().map(|m| m.to_string()).join(" | ")),
+            RigzType::Composite(args) => write!(f, "{}", args.iter().map(|m| m.to_string()).join(" & ")),
             RigzType::Custom(c) => write!(f, "{}", c.name),
         }
     }

@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 pub trait Reverse {
     type Output;
 

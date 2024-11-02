@@ -99,7 +99,7 @@ impl RigzArgs {
 
 #[cfg(test)]
 mod rigz_args {
-    use crate::RigzArgs;
+    use crate::{RigzArgs, Value};
 
     #[test]
     fn take() {
@@ -110,7 +110,7 @@ mod rigz_args {
 
     #[test]
     fn var_args_one() {
-        let args = RigzArgs(vec![1.into(), vec![2.into(), 3.into()].into()]);
+        let args = RigzArgs(vec![1.into(), vec![Value::Number(2.into()), 3.into()].into()]);
         let ([first], [var]) = args.var_args().expect("Failed to get var_args");
         assert_eq!(first, 1.into());
         assert_eq!(var, vec![2.into(), 3.into()]);
@@ -118,14 +118,14 @@ mod rigz_args {
 
     #[test]
     fn var_args_skip_first() {
-        let args = RigzArgs(vec![vec![1.into(), 2.into(), 3.into()].into()]);
+        let args = RigzArgs(vec![Value::List(vec![1.into(), 2.into(), 3.into()])]);
         let ([], [var]) = args.var_args().expect("Failed to get var_args");
         assert_eq!(var, vec![1.into(), 2.into(), 3.into()]);
     }
 
     #[test]
     fn var_args_two() {
-        let args = RigzArgs(vec![1.into(), vec![2.into()].into(), vec![3.into()].into()]);
+        let args = RigzArgs(vec![1.into(), Value::List(vec![2.into()]), vec![Value::Number(3.into())].into()]);
         let ([first], [var1, var2]) = args.var_args().expect("Failed to get var_args");
         assert_eq!(first, 1.into());
         assert_eq!(var1, vec![2.into()]);
@@ -134,7 +134,7 @@ mod rigz_args {
 
     #[test]
     fn var_args_error() {
-        let args = RigzArgs(vec![1.into(), vec![2.into()].into(), vec![3.into(), 3.into()].into()]);
+        let args = RigzArgs(vec![1.into(), Value::List(vec![2.into()]), Value::List(vec![3.into(), 3.into()])]);
         assert!(
             args.var_args::<1, 2>().is_err(),
             "different lengths of var args were permitted"
@@ -142,9 +142,13 @@ mod rigz_args {
     }
 }
 
-/// modules will be cloned when used, until DynClone can be removed, ideally they're Copy + Clone
+pub trait ValueVM: DynClone {}
+
+dyn_clone::clone_trait_object!(ValueVM);
+
 #[allow(unused_variables)]
 pub trait Module<'vm>: Debug + DynClone {
+
     fn name(&self) -> &'static str;
 
     fn call(&self, function: &'vm str, args: RigzArgs) -> Result<Value, VMError> {

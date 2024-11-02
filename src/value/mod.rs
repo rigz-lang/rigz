@@ -12,15 +12,16 @@ mod reverse;
 mod shl;
 mod shr;
 mod sub;
+mod error;
 
-use crate::number::Number;
-use crate::value_range::ValueRange;
-use crate::{impl_from, RigzType, VMError};
+pub use error::VMError;
+
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
+use crate::{impl_from, Number, RigzType, ValueRange};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -41,10 +42,8 @@ impl_from! {
     bool, Value, Value::Bool;
     String, Value, Value::String;
     VMError, Value, Value::Error;
-    Vec<Value>, Value, Value::List;
     ValueRange, Value, Value::Range;
     RigzType, Value, Value::Type;
-    IndexMap<Value, Value>, Value, Value::Map;
 }
 
 impl From<&'_ str> for Value {
@@ -57,6 +56,20 @@ impl<T: Into<Number>> From<T> for Value {
     #[inline]
     fn from(value: T) -> Self {
         Value::Number(value.into())
+    }
+}
+
+impl<T: Into<Value>> From<Vec<T>> for Value {
+    #[inline]
+    fn from(value: Vec<T>) -> Self {
+        Value::List(value.into_iter().map(|v| v.into()).collect())
+    }
+}
+
+impl<K: Into<Value>, V: Into<Value>> From<IndexMap<K, V>> for Value {
+    #[inline]
+    fn from(value: IndexMap<K, V>) -> Self {
+        Value::Map(value.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
     }
 }
 

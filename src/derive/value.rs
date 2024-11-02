@@ -113,6 +113,7 @@ impl ToTokens for VMError {
                 quote! { VMError::InvalidModuleFunction(#s.into()) }
             }
             VMError::LifecycleError(s) => quote! { VMError::LifecycleError(#s.into()) },
+            VMError::TimeoutError(s) => quote! { VMError::TimeoutError(#s.into()) },
         };
         tokens.extend(t)
     }

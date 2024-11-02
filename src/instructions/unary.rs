@@ -1,44 +1,4 @@
-use crate::instructions::Clear;
-use crate::{Register, Reverse, VMError, Value, VM};
-use std::fmt::{Display, Formatter};
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Unary {
-    pub op: UnaryOperation,
-    pub from: Register,
-    pub output: Register,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct UnaryAssign {
-    pub op: UnaryOperation,
-    pub from: Register,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum UnaryOperation {
-    Neg,
-    Not,
-    Reverse,
-    Print,
-    EPrint,
-    PrintLn,
-    EPrintLn,
-}
-
-impl Display for UnaryOperation {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            UnaryOperation::Neg => write!(f, "-"),
-            UnaryOperation::Not => write!(f, "!"),
-            UnaryOperation::Reverse => write!(f, "rev"),
-            UnaryOperation::Print => write!(f, "print"),
-            UnaryOperation::EPrint => write!(f, "eprint"),
-            UnaryOperation::PrintLn => write!(f, "println"),
-            UnaryOperation::EPrintLn => write!(f, "eprintln"),
-        }
-    }
-}
+use crate::{Clear, Register, Reverse, Unary, UnaryAssign, UnaryOperation, VMError, Value, VM};
 
 fn eval_unary(unary_operation: UnaryOperation, val: Value) -> Value {
     match unary_operation {
@@ -96,7 +56,7 @@ impl<'vm> VM<'vm> {
                 "Invalid Register Passed to unary_clear: {} != {}",
                 c, from
             ))
-            .into(),
+                .into(),
             Clear::One(c) => self.remove_register_eval_scope(c),
             c => VMError::RuntimeError(format!("Invalid Option Passed to unary_clear: {:?}", c))
                 .into(),

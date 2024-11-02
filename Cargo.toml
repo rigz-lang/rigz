@@ -1,7 +1,7 @@
 [package]
 name = "rigz_vm"
 description = "Register based VM for rigz"
-version = "0.33.0"
+version = "0.34.0"
 edition = "2021"
 readme = "README.md"
 license = "MIT"
@@ -11,12 +11,13 @@ keywords = ["rigz", "vm"]
 [features]
 default = []
 derive = ["dep:proc-macro2", "dep:quote"]
+log_std_out = []
 
 [dependencies]
-crossbeam = "0.8"
 derive_more = { version = "1.0.0", features = ["into_iterator"] }
 dyn-clone = "1.0.17"
 indexmap = { version = "2.6.0", features = ["serde"] }
+itertools = "0.13.0"
 log = "0.4.22"
 log-derive = "0.4.1"
 nohash-hasher = "0.2.0"

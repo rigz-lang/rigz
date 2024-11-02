@@ -1,14 +1,13 @@
-use crate::lifecycle::Lifecycle;
 use crate::vm::RegisterValue;
 use crate::vm::VMOptions;
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, Binary, BinaryAssign,
-    BinaryOperation, CallFrame, Clear, Instruction, Module, Register, RigzType, Scope, Unary,
+    BinaryOperation, CallFrame, Clear, Instruction, Lifecycle, Module, Register, RigzType, Scope, Unary,
     UnaryAssign, UnaryOperation, Value, VM,
 };
-use indexmap::IndexMap;
 use log::Level;
 use std::fmt::Debug;
+use indexmap::IndexMap;
 
 #[derive(Clone, Debug)]
 pub struct VMBuilder<'vm> {

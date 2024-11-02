@@ -2,7 +2,7 @@ use quote::{quote, ToTokens};
 
 pub type Tokens = proc_macro2::TokenStream;
 
-mod instructions;
+mod operations;
 mod lifecycle;
 mod objects;
 mod value;
