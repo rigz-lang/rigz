@@ -1,0 +1,43 @@
+[package]
+name = "rigz_vm"
+description = "Register based VM for rigz"
+version = "0.34.0"
+edition = "2021"
+readme = "README.md"
+license = "MIT"
+repository = "https://gitlab.com/inapinch/rigz/rigz_vm"
+keywords = ["rigz", "vm"]
+
+[features]
+default = []
+derive = ["dep:proc-macro2", "dep:quote"]
+log_std_out = []
+
+[dependencies]
+derive_more = { version = "1.0.0", features = ["into_iterator"] }
+dyn-clone = "1.0.17"
+indexmap = { version = "2.6.0", features = ["serde"] }
+itertools = "0.13.0"
+log = "0.4.22"
+log-derive = "0.4.1"
+nohash-hasher = "0.2.0"
+quote = { version = "1", optional = true }
+proc-macro2 = { version = "1.0", optional = true }
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+backtrace-on-stack-overflow = "0.3.0"
+criterion = { version = "0.5", features = ["html_reports"] }
+pretty_env_logger = "0.5.0"
+
+[[bench]]
+name = "number_benchmarks"
+harness = false
+
+[[bench]]
+name = "value_benchmarks"
+harness = false
+
+[[bench]]
+name = "vm_benchmarks"
+harness = false
