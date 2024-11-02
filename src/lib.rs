@@ -11,20 +11,21 @@ pub use rigz_vm::derive::*;
 
 use logos::Logos;
 pub use modules::ParsedModule;
+// Scope will collide with rigz_vm Scope if this is program::*
 pub use program::{
     Assign, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration,
-    FunctionDefinition, FunctionSignature, FunctionType, ModuleTraitDefinition, Program, Scope,
+    FunctionDefinition, FunctionSignature, FunctionType, ImportValue, ModuleTraitDefinition, Program, Scope,
     Statement, TraitDefinition,
 };
 
 // todo it'd be nice for rigz_vm to not be required by the ast parser, rigz_value?, changes to vm will require lots of downstream crate updates
+// Currently the Module trait depends on VM, it would be possible to create a VMModule trait but this causes issues for rigz_ast_derive
 pub use rigz_vm::*;
 use std::collections::VecDeque;
 use std::fmt::Debug;
 pub use token::ParsingError;
 use token::{Symbol, Token, TokenKind, TokenValue};
-pub use validate::ValidationError;
-use crate::program::ImportValue;
+pub use validate::*;
 
 #[derive(Debug)]
 pub struct Parser<'lex> {

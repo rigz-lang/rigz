@@ -16,4 +16,4 @@ derive = ["dep:proc-macro2", "dep:quote", "rigz_vm/derive"]
 logos = "0.14"
 quote = { version = "1", optional = true }
 proc-macro2 = { version = "1.0", optional = true }
-rigz_vm = { version = "0.34" , path = "rigz_vm" } # local testing - create symbolic link, ln -s <path>/rigz_vm
+rigz_vm.workspace = true

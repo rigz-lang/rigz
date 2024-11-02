@@ -2,6 +2,7 @@ use crate::{Assign, Element, Exposed, Expression, FunctionArgument, FunctionDecl
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use rigz_vm::derive::{boxed, csv_vec, option};
+use crate::program::ImportValue;
 
 impl ToTokens for Element<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -130,6 +131,18 @@ impl ToTokens for Assign<'_> {
         let t = match self {
             Assign::This => quote! { Assign::This },
             Assign::Identifier(name, mutable) => quote! { Assign::Identifier(#name, #mutable) },
+            Assign::TypedIdentifier(n, mutable, rt) => quote! { Assign::TypedIdentifier(#n, #mutable, #rt) },
+        };
+        tokens.extend(t)
+    }
+}
+
+impl ToTokens for ImportValue<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let t = match self {
+            ImportValue::TypeValue(s) => quote! {ImportValue::TypeValue(#s)},
+            ImportValue::FilePath(s) => quote! {ImportValue::FilePath(#s)},
+            ImportValue::UrlPath(s) => quote! {ImportValue::UrlPath(#s)},
         };
         tokens.extend(t)
     }
@@ -199,6 +212,11 @@ impl ToTokens for Statement<'_> {
             Statement::Export(ex) => {
                 quote! {
                     Statement::Export(#ex)
+                }
+            }
+            Statement::TypeDefinition(name, typ) => {
+                quote! {
+                    Statement::TypeDefinition(#name, #typ)
                 }
             }
         };

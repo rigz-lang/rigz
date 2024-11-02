@@ -1,5 +1,4 @@
 use rigz_ast::*;
-use rigz_vm::{BinaryOperation, RigzType, Value};
 
 macro_rules! test_parse {
     ($($name:ident $input:literal = $expected:expr,)*) => {
