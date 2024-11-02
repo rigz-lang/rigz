@@ -1,0 +1,19 @@
+[package]
+name = "rigz_ast"
+version = "0.3.0"
+description = "AST parser for the rigz programming language"
+edition = "2021"
+readme = "README.md"
+license = "MIT"
+repository = "https://gitlab.com/inapinch/rigz/rigz_ast"
+keywords = ["rigz", "ast"]
+
+[features]
+default = []
+derive = ["dep:proc-macro2", "dep:quote", "rigz_vm/derive"]
+
+[dependencies]
+logos = "0.14"
+quote = { version = "1", optional = true }
+proc-macro2 = { version = "1.0", optional = true }
+rigz_vm.workspace = true
