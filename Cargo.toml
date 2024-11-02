@@ -9,9 +9,9 @@ repository = "https://gitlab.com/inapinch/rigz/rigz_cli"
 [workspace]
 members = [
     "crates/ast",
-    "crates/rigz_ast_derive",
+    "crates/ast_derive",
     "crates/rigz_vm",
-    "crates/rigz_runtime",
+    "crates/runtime",
     "crates/tree-sitter-rigz"
 ]
 
@@ -20,7 +20,7 @@ log = { version = "0.4.22", features = [] }
 rigz_vm = {version = "0.34", path = "crates/rigz_vm"}
 rigz_ast = {version = "0.3", path = "crates/ast" }
 rigz_ast_derive = {version = "0.3", path = "crates/ast_derive"}
-rigz_runtime = {version = "0.3.0", path = "crates/rigz_runtime" }
+rigz_runtime = {version = "0.3.0", path = "crates/runtime" }
 tree-sitter-rigz = { version = "0.3.0", path = "crates/tree-sitter-rigz" }
 
 [features]
