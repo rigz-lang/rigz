@@ -1,0 +1,21 @@
+[package]
+name = "rigz_ast_derive"
+version = "0.3.0"
+description = "Procedural macro to generate ParsedModules for rigz, generate a trait for the module implementation and parse input at compile time."
+keywords = ["rigz", "proc_macro", "procmacro"]
+edition = "2021"
+readme = "README.md"
+license = "MIT"
+repository = "https://gitlab.com/inapinch/rigz/rigz_ast_derive"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1"
+proc-macro2 = "1.0"
+syn = "2.0"
+rigz_ast = { features = ["derive"] , workspace = true }
+
+[dev-dependencies]
+serde_json = "1.0"
