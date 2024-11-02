@@ -6,16 +6,33 @@ license = "MIT"
 description = "CLI for running rigz locally"
 repository = "https://gitlab.com/inapinch/rigz/rigz_cli"
 
+[workspace]
+members = [
+    "crates/rigz_ast",
+    "crates/rigz_ast_derive",
+    "crates/rigz_vm",
+    "crates/rigz_runtime",
+    "crates/tree-sitter-rigz"
+]
+
+[workspace.dependencies]
+log = { version = "0.4.22", features = [] }
+rigz_vm = {version = "0.34", path = "crates/rigz_vm"}
+rigz_ast = {version = "0.3", path = "crates/rigz_ast" }
+rigz_ast_derive = {version = "0.3", path = "crates/rigz_ast_derive"}
+rigz_runtime = {version = "0.3.0", path = "crates/rigz_runtime" }
+tree-sitter-rigz = { version = "0.3.0", path = "crates/tree-sitter-rigz" }
+
 [features]
 default = []
 
 [dependencies]
 clap = {version = "4.5.15", features = ["env", "derive"]}
-log = { version = "0.4.22", features = [] }
 pretty_env_logger = "0.5.0"
-rigz_runtime = {version = "0.3.0"} #, path = "rigz_runtime" }
+log.workspace = true
+rigz_runtime = { workspace = true}
 tree-sitter-highlight = "0.24.3"
-tree-sitter-rigz = { version = "0.3.0" } # , path = "tree-sitter-rigz" }
+tree-sitter-rigz = { workspace = true }
 rustyline = "14.0.0"
 chrono = "0.4.38"
 crossterm = "0.28.1"
