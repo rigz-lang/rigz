@@ -5,6 +5,7 @@
 //!
 //! ```
 //! let code = r#"
+//!     puts 'hello world'
 //! "#;
 //! let mut parser = tree_sitter::Parser::new();
 //! let language = tree_sitter_rigz::LANGUAGE;
