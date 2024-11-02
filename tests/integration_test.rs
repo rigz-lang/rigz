@@ -155,7 +155,7 @@ mod runtime {
             "# = 13.4.into())
             create_list(r#"
             [1, 2, 3, 4]
-            "# = vec![1.into(), 2.into(), 3.into(), 4.into()].into())
+            "# = Value::List(vec![1.into(), 2.into(), 3.into(), 4.into()]))
             create_dynamic_list(r#"
                 [{d = 1}]
             "# = Value::List(vec![Value::Map(IndexMap::from([("d".into(), 1.into())]))]))

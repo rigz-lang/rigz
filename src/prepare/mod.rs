@@ -4,7 +4,8 @@ use std::collections::HashMap;
 use log::Level;
 use rigz_ast::*;
 pub use program::Program;
-use crate::{FileModule, JSONModule, LogModule, RuntimeError, StdModule, VMModule};
+use crate::{FileModule, JSONModule, LogModule, RigzBuilder, StdModule, VMModule};
+use crate::RuntimeError;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub(crate) enum CallSite<'vm> {
@@ -38,20 +39,23 @@ pub(crate) struct ProgramParser<'vm, T: RigzBuilder<'vm>> {
     // todo nested functions are global, they should be removed if invalid
     pub(crate) function_scopes: IndexMap<&'vm str, FunctionCallSignatures<'vm>>,
     pub(crate) constants: IndexMap<Value, usize>,
-    pub(crate) identifiers: HashMap<&'vm str, RigzType>
+    pub(crate) identifiers: HashMap<&'vm str, RigzType>,
+    pub(crate) types: HashMap<&'vm str, RigzType>,
 }
 
 impl<'vm, T: RigzBuilder<'vm>> Default for ProgramParser<'vm, T> {
     fn default() -> Self {
-        let builder = T::default();
+        let mut builder = T::default();
+        let none = builder.add_constant(Value::None);
         ProgramParser {
             builder,
             current: 0,
             last: 0,
             modules: Default::default(),
             function_scopes: Default::default(),
-            constants: Default::default(),
-            identifiers: Default::default()
+            constants: IndexMap::from([(Value::None, none)]),
+            identifiers: Default::default(),
+            types: Default::default(),
         }
     }
 }
@@ -65,7 +69,8 @@ impl<'vm> ProgramParser<'vm, VMBuilder<'vm>> {
             modules,
             function_scopes,
             constants,
-            identifiers
+            identifiers,
+            types
         } = self;
         ProgramParser {
             builder: builder.build(),
@@ -74,7 +79,8 @@ impl<'vm> ProgramParser<'vm, VMBuilder<'vm>> {
             modules,
             function_scopes,
             constants,
-            identifiers
+            identifiers,
+            types
         }
     }
 }
@@ -173,6 +179,19 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 }
             }
             Statement::Assignment {
+                lhs: Assign::TypedIdentifier(name, mutable, rigz_type),
+                expression,
+            } => {
+                self.identifiers.insert(name, rigz_type);
+                // todo validate expression is rigz_type
+                self.parse_expression(expression)?;
+                if mutable {
+                    self.builder.add_load_mut_instruction(name, self.last);
+                } else {
+                    self.builder.add_load_let_instruction(name, self.last);
+                }
+            }
+            Statement::Assignment {
                 lhs: Assign::This,
                 expression,
             } => {
@@ -191,6 +210,19 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 let this = self.next_register();
                 self.builder
                     .add_get_mutable_variable_instruction(name, this);
+                self.parse_expression(expression)?;
+                let rhs = self.last;
+                self.builder.add_binary_assign_instruction(op, this, rhs);
+            }
+            Statement::BinaryAssignment {
+                lhs: Assign::TypedIdentifier(name, _, rigz_type),
+                op,
+                expression,
+            } => {
+                let this = self.next_register();
+                self.builder
+                    .add_get_mutable_variable_instruction(name, this);
+                // todo validate expression is rigz_type
                 self.parse_expression(expression)?;
                 let rhs = self.last;
                 self.builder.add_binary_assign_instruction(op, this, rhs);
@@ -224,6 +256,9 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             // },
             Statement::FunctionDefinition(fd) => {
                 self.parse_function_definition(fd)?;
+            }
+            Statement::TypeDefinition(name, def) => {
+                self.types.insert(name, def);
             }
         }
         Ok(())
@@ -410,7 +445,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             None => {}
             Some((s, _)) => {
                 // todo support parsing only required functions
-                self.parse_import(Exposed::TypeValue(s))?;
+                self.parse_import(ImportValue::TypeValue(s))?;
             }
         };
         Ok(())
@@ -771,6 +806,11 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         Ok(level)
     }
 
+    fn load_none(&mut self) {
+        let next = self.next_register();
+        self.builder.add_load_instruction(next, RegisterValue::Constant(0));
+    }
+
     fn call_function(
         &mut self,
         rigz_type: Option<RigzType>,
@@ -786,12 +826,13 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 args.push(self.last);
             }
             self.builder.add_puts_instruction(args);
+            self.load_none();
             return Ok(());
         }
 
         // todo this should check if another function named log exists first
-        if name == "log" && arguments.len() > 2 {
-            let mut args = Vec::with_capacity(arguments.len());
+        if name == "log" && arguments.len() >= 2 {
+            let mut args = Vec::with_capacity(arguments.len() - 2);
             let mut arguments = arguments.into_iter();
             let level = match arguments.next().unwrap() {
                 Expression::Value(Value::String(s)) => {
@@ -806,8 +847,10 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
 
             let template = match arguments.next().unwrap() {
                 Expression::Value(Value::String(s)) => s,
-                // todo support identifiers here
-                e => return Err(ValidationError::InvalidFunction(format!("Unable to create log template for {e:?}, must be string")))
+                _ => {
+                    arguments.len();
+                    "{}".to_string()
+                }
             };
 
             for arg in arguments {
@@ -815,6 +858,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 args.push(self.last);
             }
             self.builder.add_log_instruction(level, template.leak(), args);
+            self.load_none();
             return Ok(());
         }
 
@@ -1087,13 +1131,14 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         Ok(())
     }
 
-    fn parse_import(&mut self, import: Exposed<'vm>) -> Result<(), ValidationError> {
+    fn parse_import(&mut self, import: ImportValue<'vm>) -> Result<(), ValidationError> {
         let name = match import {
-            Exposed::TypeValue(tv) => tv,
-            Exposed::Identifier(i) => {
-                return Err(ValidationError::InvalidImport(format!(
-                    "Identifier imports are not supported yet {i}"
-                )))
+            ImportValue::TypeValue(tv) => tv,
+            ImportValue::FilePath(f) => {
+                todo!("File imports are not supported yet {f}")
+            }
+            ImportValue::UrlPath(url) => {
+                todo!("Url imports are not supported yet {url}")
             }
         };
 

@@ -41,6 +41,7 @@ derive_module!(
         fn String.concat(value: String) -> String
         fn String.with(var value) -> String
         fn String.trim -> String
+        fn String.split(pattern: String) -> [String]
 
         fn assert(condition: Bool, message = '') -> None!
         fn assert_eq(lhs, rhs, message = '') -> None!
@@ -221,6 +222,10 @@ impl RigzStd for StdModule {
 
     fn string_trim(&self, this: String) -> String {
         this.trim().to_string()
+    }
+
+    fn string_split(&self, this: String, pattern: String) -> Vec<String> {
+        this.split(&pattern).map(|s| s.to_string()).collect()
     }
 
     // todo support formatting message

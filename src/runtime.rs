@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 use crate::prepare::{Program, ProgramParser};
-use rigz_ast::{VMError, Value, ValidationError, VM, Parser, ParsedModule, ParsingError, TestResults};
+use rigz_ast::{VMError, Value, ValidationError, Parser, ParsedModule, ParsingError, TestResults};
+use rigz_vm::VM;
 
 pub struct Runtime<'vm> {
     parser: ProgramParser<'vm, VM<'vm>>,
@@ -13,7 +14,7 @@ impl<'vm> From<ProgramParser<'vm, VM<'vm>>> for Runtime<'vm> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum RuntimeError {
     Parse(ParsingError),
     Validation(ValidationError),
