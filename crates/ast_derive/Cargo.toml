@@ -1,6 +1,6 @@
 [package]
 name = "rigz_ast_derive"
-version = "0.3.0"
+version = "0.4.0"
 description = "Procedural macro to generate ParsedModules for rigz, generate a trait for the module implementation and parse input at compile time."
 keywords = ["rigz", "proc_macro", "procmacro"]
 edition = "2021"

@@ -1,6 +1,6 @@
 [package]
 name = "rigz"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 license = "MIT"
 description = "CLI for running rigz locally"
@@ -18,10 +18,10 @@ members = [
 
 [workspace.dependencies]
 log = { version = "0.4.22", features = [] }
-rigz_vm = {version = "0.34", path = "crates/vm"}
-rigz_ast = {version = "0.3", path = "crates/ast" }
-rigz_ast_derive = {version = "0.3", path = "crates/ast_derive"}
-rigz_runtime = {version = "0.3.0", path = "crates/runtime" }
+rigz_vm = {version = "0.35", path = "crates/vm"}
+rigz_ast = {version = "0.4", path = "crates/ast" }
+rigz_ast_derive = {version = "0.4", path = "crates/ast_derive"}
+rigz_runtime = {version = "0.4", path = "crates/runtime" }
 tree-sitter-rigz = { version = "0.3.0", path = "crates/tree-sitter" }
 
 [features]
