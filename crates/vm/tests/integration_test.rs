@@ -362,7 +362,7 @@ mod vm_test {
             TestResults {
                 passed: 0,
                 failed: 1,
-                failure_messages: vec![("test", VMError::InvalidModule("Std".to_string()))],
+                failure_messages: vec![("test".into(), VMError::InvalidModule("Std".to_string()))],
                 duration: Default::default(),
             }
         )

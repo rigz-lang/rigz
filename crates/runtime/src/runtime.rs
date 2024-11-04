@@ -1,7 +1,6 @@
 use std::fmt::{Display, Formatter};
 use crate::prepare::{Program, ProgramParser};
-use rigz_ast::{VMError, Value, ValidationError, Parser, ParsedModule, ParsingError, TestResults};
-use rigz_vm::VM;
+use rigz_ast::{VMError, Value, ValidationError, Parser, ParsedModule, ParsingError, TestResults, VM};
 
 pub struct Runtime<'vm> {
     parser: ProgramParser<'vm, VM<'vm>>,
@@ -123,6 +122,11 @@ impl<'vm> Runtime<'vm> {
 pub fn eval(input: &str) -> Result<Value, RuntimeError> {
     let mut runtime = Runtime::create(input)?;
     runtime.run()
+}
+
+pub fn test(input: &str) -> Result<TestResults, RuntimeError> {
+    let mut runtime = Runtime::create(input)?;
+    Ok(runtime.test())
 }
 
 pub fn eval_print_vm(input: &str) -> Result<Value, RuntimeError> {

@@ -10,11 +10,14 @@ repository = "https://gitlab.com/inapinch/rigz/crates/runtime"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = []
+log_std_out = ["rigz_ast/log_std_out"]
+
 [dependencies]
 logos = "0.14"
 rigz_ast = { workspace = true }
 rigz_ast_derive = { workspace = true }
-rigz_vm = { workspace = true }
 log = "0.4"
 serde_json = "1.0"
 

@@ -41,14 +41,14 @@ pub struct MemoizedLifecycle {
 pub struct TestLifecycle;
 
 #[derive(Clone, Debug, Eq)]
-pub struct TestResults<'vm> {
+pub struct TestResults {
     pub passed: usize,
     pub failed: usize,
-    pub failure_messages: Vec<(&'vm str, VMError)>,
+    pub failure_messages: Vec<(String, VMError)>,
     pub duration: Duration,
 }
 
-impl PartialEq for TestResults<'_> {
+impl PartialEq for TestResults {
     fn eq(&self, other: &Self) -> bool {
         self.passed == other.passed
             && self.failed == other.failed
@@ -56,7 +56,7 @@ impl PartialEq for TestResults<'_> {
     }
 }
 
-impl Display for TestResults<'_> {
+impl Display for TestResults {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let success = self.failed == 0;
 

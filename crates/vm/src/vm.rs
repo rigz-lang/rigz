@@ -1,4 +1,4 @@
-use crate::{Module, Register, RigzBuilder, VMError, Value};
+use crate::{out, outln, Module, Register, RigzBuilder, VMError, Value};
 use crate::{
     generate_builder, CallFrame, Instruction, Scope, Variable,
 };
@@ -412,7 +412,7 @@ impl<'vm> VM<'vm> {
         let start = Instant::now();
         let mut failure_messages = Vec::new();
         for (s, r, named) in test_scopes {
-            print!("test {named} ... ");
+            out!("test {named} ... ");
             self.sp = s;
             self.current = RefCell::new(CallFrame {
                 scope_id: s,
@@ -425,12 +425,12 @@ impl<'vm> VM<'vm> {
             let v = self.run();
             match v {
                 Value::Error(e) => {
-                    println!("\x1b[31mFAILED\x1b[0m");
+                    outln!("\x1b[31mFAILED\x1b[0m");
                     failed += 1;
-                    failure_messages.push((named, e));
+                    failure_messages.push((named.to_string(), e));
                 }
                 _ => {
-                    println!("\x1b[32mok\x1b[0m");
+                    outln!("\x1b[32mok\x1b[0m");
                     passed += 1;
                 }
             };

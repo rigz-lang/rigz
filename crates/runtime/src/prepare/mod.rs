@@ -215,7 +215,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 self.builder.add_binary_assign_instruction(op, this, rhs);
             }
             Statement::BinaryAssignment {
-                lhs: Assign::TypedIdentifier(name, _, rigz_type),
+                lhs: Assign::TypedIdentifier(name, _, _),
                 op,
                 expression,
             } => {
@@ -415,7 +415,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 FunctionDeclaration::Declaration {
                     ..
                 } => {
-                    todo!("Support Function Declarations in Trait definition, call site is determined by impl")
+                    return Err(ValidationError::NotImplemented("Support Function Declarations in Trait definition, call site is determined by impl".to_string()))
                 }
                 FunctionDeclaration::Definition(fd) => self.parse_function_definition(fd)?,
             }
@@ -680,7 +680,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             let call_args = self.setup_call_args(args, fcs)?;
             self.process_extension_call(name, call_args, vm_module, mutable, this, call);
         } else {
-            todo!("Multiple extensions match")
+            return Err(ValidationError::NotImplemented(format!("Multiple extension functions match for {name}")))
         }
         *current = self.last;
         Ok(())
@@ -1135,10 +1135,10 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         let name = match import {
             ImportValue::TypeValue(tv) => tv,
             ImportValue::FilePath(f) => {
-                todo!("File imports are not supported yet {f}")
+                return Err(ValidationError::NotImplemented(format!("File imports are not supported yet {f}")))
             }
             ImportValue::UrlPath(url) => {
-                todo!("Url imports are not supported yet {url}")
+                return Err(ValidationError::NotImplemented(format!("Url imports are not supported yet {url}")))
             }
         };
 

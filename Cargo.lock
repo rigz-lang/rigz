@@ -1219,7 +1219,6 @@ dependencies = [
  "pretty_env_logger",
  "rigz_ast",
  "rigz_ast_derive",
- "rigz_vm",
  "serde_json",
 ]
 

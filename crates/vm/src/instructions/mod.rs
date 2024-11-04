@@ -2,7 +2,7 @@ mod binary;
 mod unary;
 
 use log::{log, Level};
-use crate::{Binary, BinaryAssign, Number, Register, Unary, UnaryAssign, VMError, Value, VM};
+use crate::{outln, Binary, BinaryAssign, Number, Register, Unary, UnaryAssign, VMError, Value, VM};
 use crate::objects::RigzType;
 use crate::vm::{RegisterValue, VMState};
 
@@ -454,7 +454,7 @@ impl<'vm> VM<'vm> {
             }
             Instruction::Puts(args) => {
                 if args.is_empty() {
-                    println!()
+                    outln!();
                 } else {
                     let mut puts = String::new();
                     let len = args.len() - 1;
@@ -465,7 +465,7 @@ impl<'vm> VM<'vm> {
                             puts.push_str(", ");
                         }
                     }
-                    println!("{}", puts)
+                    outln!("{}", puts);
                 }
             }
             Instruction::Ret(r) => {

@@ -11,6 +11,7 @@ keywords = ["rigz", "ast"]
 [features]
 default = []
 derive = ["dep:proc-macro2", "dep:quote", "rigz_vm/derive"]
+log_std_out = ["rigz_vm/log_std_out"]
 
 [dependencies]
 logos = "0.14"

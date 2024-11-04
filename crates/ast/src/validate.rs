@@ -9,6 +9,7 @@ pub enum ValidationError {
     InvalidFunction(String),
     InvalidImport(String),
     InvalidExport(String),
+    NotImplemented(String),
 }
 
 impl Display for ValidationError {
@@ -20,6 +21,7 @@ impl Display for ValidationError {
             ValidationError::InvalidFunction(e) => write!(f, "Invalid Function: {e}"),
             ValidationError::InvalidImport(e) => write!(f, "Invalid Import: {e}"),
             ValidationError::InvalidExport(e) => write!(f, "Invalid Export: {e}"),
+            ValidationError::NotImplemented(e) => write!(f, "Not Implemented: {e}"),
         }
     }
 }

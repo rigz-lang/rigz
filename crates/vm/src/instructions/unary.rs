@@ -1,23 +1,23 @@
-use crate::{Clear, Register, Reverse, Unary, UnaryAssign, UnaryOperation, VMError, Value, VM};
+use crate::{err, errln, out, outln, Clear, Register, Reverse, Unary, UnaryAssign, UnaryOperation, VMError, Value, VM};
 
 fn eval_unary(unary_operation: UnaryOperation, val: Value) -> Value {
     match unary_operation {
         UnaryOperation::Neg => -val,
         UnaryOperation::Not => !val,
         UnaryOperation::PrintLn => {
-            println!("{}", val);
+            outln!("{}", val);
             Value::None
         }
         UnaryOperation::EPrintLn => {
-            eprintln!("{}", val);
+            errln!("{}", val);
             Value::None
         }
         UnaryOperation::Print => {
-            print!("{}", val);
+            out!("{}", val);
             Value::None
         }
         UnaryOperation::EPrint => {
-            eprint!("{}", val);
+            err!("{}", val);
             Value::None
         }
         UnaryOperation::Reverse => val.reverse(),

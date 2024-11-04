@@ -35,7 +35,8 @@ pub enum Value {
     Map(IndexMap<Value, Value>),
     Range(ValueRange),
     Error(VMError),
-    Type(RigzType), // todo create dedicated object value to avoid map usage everywhere, might need to be a trait
+    // todo create dedicated object value to avoid map usage everywhere, might need to be a trait. Create to_o method for value
+    Type(RigzType),
 }
 
 impl_from! {
