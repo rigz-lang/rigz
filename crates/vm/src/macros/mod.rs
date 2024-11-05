@@ -4,7 +4,7 @@ mod builder;
 macro_rules! outln {
     () => {
         #[cfg(feature = "log_std_out")]
-        log::info!();
+        log::info!("");
         #[cfg(not(feature = "log_std_out"))]
         println!();
     };
@@ -20,7 +20,7 @@ macro_rules! outln {
 macro_rules! out {
     () => {
         #[cfg(feature = "log_std_out")]
-        log::info!();
+        log::info!("");
         #[cfg(not(feature = "log_std_out"))]
         print!()
     };
@@ -36,7 +36,7 @@ macro_rules! out {
 macro_rules! err {
     () => {
         #[cfg(feature = "log_std_out")]
-        log::error!();
+        log::error!("");
         #[cfg(not(feature = "log_std_out"))]
         eprint!();
     };
