@@ -111,7 +111,6 @@ pub enum Statement<'lex> {
     //     condition: Expression<'lex>,
     //     then: Scope<'lex>,
     // },
-    // Return(Option<Expression<'lex>>), // import, exports
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -150,6 +149,7 @@ pub enum Expression<'lex> {
         then: Scope<'lex>,
     },
     // todo support later
+    // Return(Option<Expression<'lex>>), // import, exports
     // Index(Box<Expression<'lex>>, Vec<Expression<'lex>>),
 }
 
