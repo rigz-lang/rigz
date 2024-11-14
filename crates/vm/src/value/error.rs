@@ -1,6 +1,6 @@
-use std::fmt::{Display, Formatter};
-use serde::{Deserialize, Serialize};
 use crate::Value;
+use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 // Tagged to avoid confusion with string deserialization
 pub enum VMError {
@@ -28,7 +28,7 @@ impl Display for VMError {
             VMError::InvalidModule(m) => write!(f, "Invalid Module: {m}"),
             VMError::InvalidModuleFunction(m) => write!(f, "Invalid Module Function: {m}"),
             VMError::LifecycleError(m) => write!(f, "Lifecycle Error: {m}"),
-            VMError::TimeoutError(m) => write!(f, "Timeout Error: {m}")
+            VMError::TimeoutError(m) => write!(f, "Timeout Error: {m}"),
         }
     }
 }

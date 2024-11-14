@@ -1,4 +1,7 @@
-use crate::{err, errln, out, outln, Clear, Register, Reverse, Unary, UnaryAssign, UnaryOperation, VMError, Value, VM};
+use crate::{
+    err, errln, out, outln, Clear, Register, Reverse, Unary, UnaryAssign, UnaryOperation, VMError,
+    Value, VM,
+};
 
 fn eval_unary(unary_operation: UnaryOperation, val: Value) -> Value {
     match unary_operation {
@@ -56,7 +59,7 @@ impl<'vm> VM<'vm> {
                 "Invalid Register Passed to unary_clear: {} != {}",
                 c, from
             ))
-                .into(),
+            .into(),
             Clear::One(c) => self.remove_register_eval_scope(c),
             c => VMError::RuntimeError(format!("Invalid Option Passed to unary_clear: {:?}", c))
                 .into(),

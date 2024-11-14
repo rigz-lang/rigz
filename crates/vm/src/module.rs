@@ -83,7 +83,11 @@ impl RigzArgs {
                 continue;
             }
 
-            let Value::List(l) = v else { return Err(VMError::RuntimeError(format!("Invalid Var Args at {i} - {v}")))};
+            let Value::List(l) = v else {
+                return Err(VMError::RuntimeError(format!(
+                    "Invalid Var Args at {i} - {v}"
+                )));
+            };
             var[i - START] = l;
         }
         let min = var[0].len();
@@ -110,7 +114,10 @@ mod rigz_args {
 
     #[test]
     fn var_args_one() {
-        let args = RigzArgs(vec![1.into(), vec![Value::Number(2.into()), 3.into()].into()]);
+        let args = RigzArgs(vec![
+            1.into(),
+            vec![Value::Number(2.into()), 3.into()].into(),
+        ]);
         let ([first], [var]) = args.var_args().expect("Failed to get var_args");
         assert_eq!(first, 1.into());
         assert_eq!(var, vec![2.into(), 3.into()]);
@@ -125,7 +132,11 @@ mod rigz_args {
 
     #[test]
     fn var_args_two() {
-        let args = RigzArgs(vec![1.into(), Value::List(vec![2.into()]), vec![Value::Number(3.into())].into()]);
+        let args = RigzArgs(vec![
+            1.into(),
+            Value::List(vec![2.into()]),
+            vec![Value::Number(3.into())].into(),
+        ]);
         let ([first], [var1, var2]) = args.var_args().expect("Failed to get var_args");
         assert_eq!(first, 1.into());
         assert_eq!(var1, vec![2.into()]);
@@ -134,7 +145,11 @@ mod rigz_args {
 
     #[test]
     fn var_args_error() {
-        let args = RigzArgs(vec![1.into(), Value::List(vec![2.into()]), Value::List(vec![3.into(), 3.into()])]);
+        let args = RigzArgs(vec![
+            1.into(),
+            Value::List(vec![2.into()]),
+            Value::List(vec![3.into(), 3.into()]),
+        ]);
         assert!(
             args.var_args::<1, 2>().is_err(),
             "different lengths of var args were permitted"
@@ -142,13 +157,8 @@ mod rigz_args {
     }
 }
 
-pub trait ValueVM: DynClone {}
-
-dyn_clone::clone_trait_object!(ValueVM);
-
 #[allow(unused_variables)]
 pub trait Module<'vm>: Debug + DynClone {
-
     fn name(&self) -> &'static str;
 
     fn call(&self, function: &'vm str, args: RigzArgs) -> Result<Value, VMError> {

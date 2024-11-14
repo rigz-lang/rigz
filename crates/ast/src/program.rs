@@ -1,10 +1,15 @@
-use rigz_vm::{
-    BinaryOperation, Lifecycle, RigzType, UnaryOperation, Value,
-};
+use rigz_vm::{BinaryOperation, Lifecycle, RigzType, UnaryOperation, Value};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Program<'lex> {
     pub elements: Vec<Element<'lex>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ArgType {
+    Positional,
+    List,
+    Map,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -13,7 +18,7 @@ pub struct FunctionSignature<'vm> {
     pub return_type: FunctionType,
     pub self_type: Option<FunctionType>,
     pub var_args_start: Option<usize>,
-    pub positional: bool,
+    pub arg_type: ArgType,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -58,6 +63,7 @@ pub struct FunctionArgument<'vm> {
     pub default: Option<Value>,
     pub function_type: FunctionType,
     pub var_arg: bool,
+    pub rest: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -100,17 +106,16 @@ pub enum Statement<'lex> {
     Trait(TraitDefinition<'lex>),
     Import(ImportValue<'lex>),
     Export(Exposed<'lex>),
-    TypeDefinition(&'lex str, RigzType)
-    // todo support later
-    // If {
-    //     condition: Expression<'lex>,
-    //     then: Scope<'lex>,
-    //     branch: Option<Scope<'lex>>,
-    // },
-    // Unless {
-    //     condition: Expression<'lex>,
-    //     then: Scope<'lex>,
-    // },
+    TypeDefinition(&'lex str, RigzType), // todo support later
+                                         // If {
+                                         //     condition: Expression<'lex>,
+                                         //     then: Scope<'lex>,
+                                         //     branch: Option<Scope<'lex>>,
+                                         // },
+                                         // Unless {
+                                         //     condition: Expression<'lex>,
+                                         //     then: Scope<'lex>,
+                                         // },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -118,6 +123,19 @@ pub enum Assign<'lex> {
     This,
     Identifier(&'lex str, bool),
     TypedIdentifier(&'lex str, bool, RigzType),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum RigzArguments<'lex> {
+    Positional(Vec<Expression<'lex>>),
+    Mixed(Vec<Expression<'lex>>, Vec<(&'lex str, Expression<'lex>)>),
+    Named(Vec<(&'lex str, Expression<'lex>)>),
+}
+
+impl<'lex> From<Vec<Expression<'lex>>> for RigzArguments<'lex> {
+    fn from(value: Vec<Expression<'lex>>) -> Self {
+        RigzArguments::Positional(value)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -133,9 +151,9 @@ pub enum Expression<'lex> {
         Box<Expression<'lex>>,
     ),
     UnaryExp(UnaryOperation, Box<Expression<'lex>>),
-    FunctionCall(&'lex str, Vec<Expression<'lex>>),
-    TypeFunctionCall(RigzType, &'lex str, Vec<Expression<'lex>>),
-    InstanceFunctionCall(Box<Expression<'lex>>, Vec<&'lex str>, Vec<Expression<'lex>>),
+    FunctionCall(&'lex str, RigzArguments<'lex>),
+    TypeFunctionCall(RigzType, &'lex str, RigzArguments<'lex>),
+    InstanceFunctionCall(Box<Expression<'lex>>, Vec<&'lex str>, RigzArguments<'lex>),
     Scope(Scope<'lex>),
     Cast(Box<Expression<'lex>>, RigzType),
     Symbol(&'lex str),
@@ -148,8 +166,8 @@ pub enum Expression<'lex> {
         condition: Box<Expression<'lex>>,
         then: Scope<'lex>,
     },
+    Return(Option<Box<Expression<'lex>>>),
     // todo support later
-    // Return(Option<Expression<'lex>>), // import, exports
     // Index(Box<Expression<'lex>>, Vec<Expression<'lex>>),
 }
 

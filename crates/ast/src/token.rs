@@ -144,9 +144,9 @@ pub(crate) enum TokenKind<'lex> {
     TypeValue(&'lex str),
     #[token("-")]
     Minus,
-    #[token("|")] // todo support union types
+    #[token("|")]
     Pipe,
-    #[token("&")] // todo support union types
+    #[token("&")]
     And,
     #[token(".")]
     Period,

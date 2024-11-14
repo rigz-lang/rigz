@@ -1,8 +1,12 @@
-use crate::{Assign, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration, FunctionDefinition, FunctionSignature, FunctionType, ModuleTraitDefinition, Scope, Statement, TraitDefinition};
+use crate::program::{ArgType, ImportValue, RigzArguments};
+use crate::{
+    Assign, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration,
+    FunctionDefinition, FunctionSignature, FunctionType, ModuleTraitDefinition, Scope, Statement,
+    TraitDefinition,
+};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use rigz_vm::derive::{boxed, csv_vec, option};
-use crate::program::ImportValue;
+use rigz_vm::derive::{boxed, csv_tuple_vec, csv_vec, option};
 
 impl ToTokens for Element<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -66,19 +70,16 @@ impl ToTokens for Expression<'_> {
                 }
             }
             Expression::FunctionCall(name, args) => {
-                let args = csv_vec(args);
                 quote! {
                     Expression::FunctionCall(#name, #args)
                 }
             }
             Expression::TypeFunctionCall(ty, name, args) => {
-                let args = csv_vec(args);
                 quote! {
                     Expression::TypeFunctionCall(#ty, #name, #args)
                 }
             }
             Expression::InstanceFunctionCall(ex, calls, args) => {
-                let args = csv_vec(args);
                 quote! {
                     Expression::InstanceFunctionCall(#ex, vec![#(#calls)*], #args)
                 }
@@ -121,8 +122,42 @@ impl ToTokens for Expression<'_> {
                     }
                 }
             }
+            Expression::Return(ret) => match ret {
+                None => quote! { Expression::Return(None) },
+                Some(b) => {
+                    let b = boxed(b);
+                    quote! { Expression::Return(Some(#b)) }
+                }
+            },
         };
         tokens.extend(t)
+    }
+}
+
+impl ToTokens for RigzArguments<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let t = match self {
+            RigzArguments::Positional(v) => {
+                let v = csv_vec(v);
+                quote! {
+                    RigzArguments::Positional(#v)
+                }
+            }
+            RigzArguments::Mixed(a, n) => {
+                let a = csv_vec(a);
+                let n = csv_tuple_vec(n);
+                quote! {
+                    RigzArguments::Mixed(#a, #n)
+                }
+            }
+            RigzArguments::Named(n) => {
+                let n = csv_tuple_vec(n);
+                quote! {
+                    RigzArguments::Named(#n)
+                }
+            }
+        };
+        tokens.extend(t);
     }
 }
 
@@ -131,7 +166,9 @@ impl ToTokens for Assign<'_> {
         let t = match self {
             Assign::This => quote! { Assign::This },
             Assign::Identifier(name, mutable) => quote! { Assign::Identifier(#name, #mutable) },
-            Assign::TypedIdentifier(n, mutable, rt) => quote! { Assign::TypedIdentifier(#n, #mutable, #rt) },
+            Assign::TypedIdentifier(n, mutable, rt) => {
+                quote! { Assign::TypedIdentifier(#n, #mutable, #rt) }
+            }
         };
         tokens.extend(t)
     }
@@ -259,22 +296,46 @@ impl ToTokens for FunctionType {
 
 impl ToTokens for FunctionArgument<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let FunctionArgument { name, default, function_type, var_arg } = self;
+        let FunctionArgument {
+            name,
+            default,
+            function_type,
+            var_arg,
+            rest,
+        } = self;
         let d = option(default);
         tokens.extend(quote! {
             FunctionArgument {
                 name: #name,
                 default: #d,
                 function_type: #function_type,
-                var_arg: #var_arg
+                var_arg: #var_arg,
+                rest: #rest
             }
         })
     }
 }
 
+impl ToTokens for ArgType {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let t = match self {
+            ArgType::Positional => quote! { ArgType::Positional },
+            ArgType::List => quote! { ArgType::List },
+            ArgType::Map => quote! { ArgType::Map },
+        };
+        tokens.extend(t)
+    }
+}
+
 impl ToTokens for FunctionSignature<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let FunctionSignature { arguments, return_type, self_type, positional, var_args_start } = self;
+        let FunctionSignature {
+            arguments,
+            return_type,
+            self_type,
+            arg_type,
+            var_args_start,
+        } = self;
         let args = csv_vec(arguments);
         let s = option(self_type);
         let v = option(var_args_start);
@@ -284,7 +345,7 @@ impl ToTokens for FunctionSignature<'_> {
                 return_type: #return_type,
                 self_type: #s,
                 var_args_start: #v,
-                positional: #positional
+                arg_type: #arg_type
             }
         })
     }
@@ -316,7 +377,10 @@ impl ToTokens for FunctionDeclaration<'_> {
 
 impl ToTokens for ModuleTraitDefinition<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let ModuleTraitDefinition { auto_import, definition } = self;
+        let ModuleTraitDefinition {
+            auto_import,
+            definition,
+        } = self;
         tokens.extend(quote! {
             ModuleTraitDefinition {
                 auto_import: #auto_import,

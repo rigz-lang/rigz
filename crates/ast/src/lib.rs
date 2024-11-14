@@ -13,9 +13,9 @@ use logos::Logos;
 pub use modules::ParsedModule;
 // Scope will collide with rigz_vm Scope if this is program::*
 pub use program::{
-    Assign, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration,
-    FunctionDefinition, FunctionSignature, FunctionType, ImportValue, ModuleTraitDefinition, Program, Scope,
-    Statement, TraitDefinition,
+    ArgType, Assign, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration,
+    FunctionDefinition, FunctionSignature, FunctionType, ImportValue, ModuleTraitDefinition,
+    Program, RigzArguments, Scope, Statement, TraitDefinition,
 };
 
 // todo it'd be nice for rigz_vm to not be required by the ast parser, rigz_value?, changes to vm will require lots of downstream crate updates
@@ -283,7 +283,10 @@ impl<'lex> Parser<'lex> {
                     self.consume_token(TokenKind::Assign)?;
                     Statement::TypeDefinition(name, self.parse_rigz_type(Some(name), false)?).into()
                 } else {
-                    return Err(ParsingError::ParseError(format!("Invalid type definition expected TypeValue, received {:?}", next)))
+                    return Err(ParsingError::ParseError(format!(
+                        "Invalid type definition expected TypeValue, received {:?}",
+                        next
+                    )));
                 }
             }
             TokenKind::This => {
@@ -451,6 +454,17 @@ impl<'lex> Parser<'lex> {
                     }
                 }
             }
+            TokenKind::Return => match self.peek_token() {
+                None => Expression::Return(None),
+                Some(t) => {
+                    if t.terminal() {
+                        self.consume_token(t.kind)?;
+                        Expression::Return(None)
+                    } else {
+                        Expression::Return(Some(Box::new(self.parse_expression()?)))
+                    }
+                }
+            },
             _ => {
                 return Err(ParsingError::ParseError(format!(
                     "Invalid Token for Expression {:?}",
@@ -493,7 +507,10 @@ impl<'lex> Parser<'lex> {
                 }
                 TokenKind::As => {
                     self.consume_token(TokenKind::As)?;
-                    Ok(Expression::Cast(Box::new(exp), self.parse_rigz_type(None, false)?))
+                    Ok(Expression::Cast(
+                        Box::new(exp),
+                        self.parse_rigz_type(None, false)?,
+                    ))
                 }
                 TokenKind::BinOp(_) | TokenKind::Pipe | TokenKind::Minus | TokenKind::Period => {
                     Ok(self.parse_inline_expression(exp)?)
@@ -529,16 +546,12 @@ impl<'lex> Parser<'lex> {
                 self.consume_token(TokenKind::Colon)?;
                 Some(self.parse_rigz_type(None, false)?)
             }
-            _ => None
+            _ => None,
         };
         self.consume_token(TokenKind::Assign)?;
         let lhs = match rigz_type {
-            None => {
-                Assign::Identifier(id, mutable)
-            }
-            Some(rigz_type) => {
-                Assign::TypedIdentifier(id, mutable, rigz_type)
-            }
+            None => Assign::Identifier(id, mutable),
+            Some(rigz_type) => Assign::TypedIdentifier(id, mutable, rigz_type),
         };
         Ok(Statement::Assignment {
             lhs,
@@ -650,6 +663,7 @@ impl<'lex> Parser<'lex> {
                     | TokenKind::If
                     | TokenKind::Assign // for maps
                     | TokenKind::Unless
+                    | TokenKind::Colon // named args
                     | TokenKind::End => {
                         self.tokens.push_front(next);
                         break;
@@ -792,9 +806,10 @@ impl<'lex> Parser<'lex> {
         Ok(Expression::unary(op, exp))
     }
 
-    fn parse_args(&mut self) -> Result<Vec<Expression<'lex>>, ParsingError> {
+    fn parse_args(&mut self) -> Result<RigzArguments<'lex>, ParsingError> {
         let mut args = Vec::new();
         let mut needs_comma = false;
+        let mut named = None;
         loop {
             match self.peek_token() {
                 None => break,
@@ -805,21 +820,59 @@ impl<'lex> Parser<'lex> {
                     // binary operations are handled within parse_expression
                     | TokenKind::BinOp(_)
                     | TokenKind::Pipe
+                    | TokenKind::And
                     | TokenKind::Minus => break,
+                    TokenKind::Identifier(id) => {
+                        self.consume_token(TokenKind::Identifier(id))?;
+                        match self.peek_token() {
+                            None if named.is_none() => {
+                                args.push(self.parse_identifier_expression(id)?);
+                                needs_comma = true
+                            }
+                            None => {
+                                return Err(ParsingError::ParseError(format!("Expected : after {id} {t:?}")))
+                            }
+                            Some(s) => {
+                                if s.kind == TokenKind::Colon {
+                                    self.consume_token(TokenKind::Colon)?;
+                                    match &mut named {
+                                        None => {
+                                            named = Some(vec![(id, self.parse_expression()?)]);
+                                        }
+                                        Some(v) => {
+                                            v.push((id, self.parse_expression()?));
+                                            needs_comma = true
+                                        }
+                                    }
+                                } else {
+                                    args.push(self.parse_identifier_expression(id)?);
+                                    needs_comma = true
+                                }
+                            }
+                        };
+                    }
                     TokenKind::Comma => {
                         self.consume_token(TokenKind::Comma)?;
                         needs_comma = false;
                         continue;
                     }
-                    _ if !needs_comma => {
+                    _ if named.is_none() && !needs_comma => {
                         args.push(self.parse_expression()?);
                         needs_comma = true
                     }
+                    _ if named.is_some() && !needs_comma => {
+                        return Err(ParsingError::ParseError(format!("Positional args cannot be used after named args {t:?}")))
+                    },
                     _ => break
                 },
             }
         }
-        Ok(args)
+
+        match named {
+            None => Ok(args.into()),
+            Some(n) if args.is_empty() => Ok(RigzArguments::Named(n)),
+            Some(n) => Ok(RigzArguments::Mixed(args, n)),
+        }
     }
 
     fn parse_list(&mut self) -> Result<Vec<Expression<'lex>>, ParsingError> {
@@ -855,12 +908,28 @@ impl<'lex> Parser<'lex> {
                 Some(t) if t.kind == TokenKind::Comma => {
                     self.consume_token(TokenKind::Comma)?;
                 }
-                // todo support {a, b, c, 1, 2, 3}
                 Some(_) => {
                     let key = self.parse_expression()?;
-                    self.consume_token(TokenKind::Assign)?;
-                    let value = self.parse_expression()?;
-                    args.push((key, value));
+                    let t = self.next_required_token()?;
+                    match t.kind {
+                        TokenKind::Assign => {
+                            let value = self.parse_expression()?;
+                            args.push((key, value));
+                        }
+                        TokenKind::Comma => {
+                            if let Expression::Identifier(id) = key {
+                                args.push((Expression::Value(id.into()), key));
+                            } else {
+                                args.push((key.clone(), key));
+                            }
+                        }
+                        TokenKind::Rcurly => break,
+                        _ => {
+                            return Err(ParsingError::ParseError(format!(
+                                "Invalid Map Token {t:?}"
+                            )))
+                        }
+                    }
                 }
             }
         }
@@ -885,21 +954,32 @@ impl<'lex> Parser<'lex> {
         }
     }
 
-    fn parse_function_arguments(&mut self) -> Result<(Vec<FunctionArgument<'lex>>, Option<usize>), ParsingError> {
+    fn parse_function_arguments(
+        &mut self,
+    ) -> Result<(Vec<FunctionArgument<'lex>>, Option<usize>, ArgType), ParsingError> {
         let mut args = Vec::new();
         let next = self.peek_required_token()?;
-        if next.kind != TokenKind::Lparen {
-            return Ok((args, None));
+        if !(next.kind == TokenKind::Lparen
+            || next.kind == TokenKind::Lcurly
+            || next.kind == TokenKind::Lbracket)
+        {
+            return Ok((args, None, ArgType::Positional));
         }
 
-        self.consume_token(TokenKind::Lparen)?;
+        let (terminal, arg_type) = match next.kind {
+            TokenKind::Lparen => (TokenKind::Rparen, ArgType::Positional),
+            TokenKind::Lcurly => (TokenKind::Rcurly, ArgType::Map),
+            TokenKind::Lbracket => (TokenKind::Rbracket, ArgType::List),
+            _ => unreachable!(),
+        };
+        self.consume_token(next.kind)?;
 
         let mut var_arg_start = None;
         loop {
             match self.peek_token() {
                 None => break,
-                Some(t) if t.kind == TokenKind::Rparen => {
-                    self.consume_token(TokenKind::Rparen)?;
+                Some(t) if t.kind == terminal => {
+                    self.consume_token(terminal)?;
                     break;
                 }
                 Some(t) if t.kind == TokenKind::Comma => {
@@ -915,7 +995,7 @@ impl<'lex> Parser<'lex> {
                 }
             }
         }
-        Ok((args, var_arg_start))
+        Ok((args, var_arg_start, arg_type))
     }
 
     fn check_var_arg(&mut self, existing_var_arg: bool) -> Result<bool, ParsingError> {
@@ -940,52 +1020,76 @@ impl<'lex> Parser<'lex> {
         Err(ParsingError::ParseError(format!("Invalid value {token:?}")))
     }
 
-    fn parse_function_argument(&mut self, existing_var_arg: bool) -> Result<FunctionArgument<'lex>, ParsingError> {
+    fn parse_function_argument(
+        &mut self,
+        existing_var_arg: bool,
+    ) -> Result<FunctionArgument<'lex>, ParsingError> {
         // todo support mut, vm changes required
         let var_arg = self.check_var_arg(existing_var_arg)?;
         let next = self.next_required_token()?;
-        if let TokenKind::Identifier(name) = next.kind {
-            let mut default_type = true;
-            let next = self.peek_required_token()?;
-            let mut rigz_type = match next.kind {
-                TokenKind::Colon => {
-                    self.consume_token(TokenKind::Colon)?;
-                    default_type = false;
-                    self.parse_rigz_type(None, false)?
+        match next.kind {
+            TokenKind::Identifier(name) => self.parse_identifier_argument(var_arg, name, false),
+            TokenKind::Range => {
+                let next = self.next_required_token()?;
+                if let TokenKind::Identifier(arg) = next.kind {
+                    self.parse_identifier_argument(var_arg, arg, true)
+                } else {
+                    // todo should a named variable always be required?
+                    Err(ParsingError::ParseError(format!(
+                        "Invalid Function Argument after .. {:?}",
+                        next
+                    )))
                 }
-                _ => RigzType::Any,
-            };
-
-            if rigz_type == RigzType::None {
-                return Err(ParsingError::ParseError(format!(
-                    "None is not a valid argument type: {next:?}"
-                )));
             }
-
-            let default = match self.peek_required_token()?.kind {
-                TokenKind::Assign => {
-                    self.consume_token(TokenKind::Assign)?;
-                    let v = self.parse_value()?;
-                    if default_type {
-                        rigz_type = v.rigz_type();
-                    }
-                    Some(v)
-                }
-                _ => None,
-            };
-
-            Ok(FunctionArgument {
-                name,
-                default,
-                function_type: rigz_type.into(),
-                var_arg,
-            })
-        } else {
-            Err(ParsingError::ParseError(format!(
+            _ => Err(ParsingError::ParseError(format!(
                 "Invalid Function Argument {:?}",
                 next
-            )))
+            ))),
         }
+    }
+
+    fn parse_identifier_argument(
+        &mut self,
+        var_arg: bool,
+        name: &'lex str,
+        rest: bool,
+    ) -> Result<FunctionArgument<'lex>, ParsingError> {
+        let mut default_type = true;
+        let next = self.peek_required_token()?;
+        let mut rigz_type = match next.kind {
+            TokenKind::Colon => {
+                self.consume_token(TokenKind::Colon)?;
+                default_type = false;
+                self.parse_rigz_type(None, false)?
+            }
+            _ => RigzType::Any,
+        };
+
+        if rigz_type == RigzType::None {
+            return Err(ParsingError::ParseError(format!(
+                "None is not a valid argument type: {next:?}"
+            )));
+        }
+
+        let default = match self.peek_required_token()?.kind {
+            TokenKind::Assign => {
+                self.consume_token(TokenKind::Assign)?;
+                let v = self.parse_value()?;
+                if default_type {
+                    rigz_type = v.rigz_type();
+                }
+                Some(v)
+            }
+            _ => None,
+        };
+
+        Ok(FunctionArgument {
+            name,
+            default,
+            function_type: rigz_type.into(),
+            var_arg,
+            rest,
+        })
     }
 
     fn parse_return_type(&mut self, mut_self: bool) -> Result<FunctionType, ParsingError> {
@@ -1011,30 +1115,37 @@ impl<'lex> Parser<'lex> {
         Ok(FunctionType { rigz_type, mutable })
     }
 
-    fn parse_rigz_type(&mut self, name: Option<&'lex str>, paren: bool) -> Result<RigzType, ParsingError> {
+    fn parse_rigz_type(
+        &mut self,
+        name: Option<&'lex str>,
+        paren: bool,
+    ) -> Result<RigzType, ParsingError> {
         let next = self.next_required_token()?;
         let rigz_type: RigzType = match next.kind {
             // TokenKind::TypeValue("Fn") => {}
             // TokenKind::TypeValue("FnMut") => {}
-            TokenKind::TypeValue(id) => {
-                match id.parse() {
-                    Ok(t) => t,
-                    Err(e) => return Err(ParsingError::ParseError(format!("Invalid type {:?}", e))),
-                }
-            }
+            TokenKind::TypeValue(id) => match id.parse() {
+                Ok(t) => t,
+                Err(e) => return Err(ParsingError::ParseError(format!("Invalid type {:?}", e))),
+            },
             TokenKind::Lbracket => {
                 let t = self.peek_required_token()?;
                 match t.kind {
                     TokenKind::Rbracket => {
                         self.consume_token(TokenKind::Rbracket)?;
                         RigzType::List(Box::new(RigzType::default()))
-                    },
+                    }
                     TokenKind::TypeValue(_) => {
                         let l = RigzType::List(Box::new(self.parse_rigz_type(None, paren)?));
                         self.consume_token(TokenKind::Rbracket)?;
                         l
                     }
-                    _ => return Err(ParsingError::ParseError(format!("Invalid list type {:?}", t))),
+                    _ => {
+                        return Err(ParsingError::ParseError(format!(
+                            "Invalid list type {:?}",
+                            t
+                        )))
+                    }
                 }
             }
             TokenKind::Lcurly => {
@@ -1045,17 +1156,17 @@ impl<'lex> Parser<'lex> {
                     let t = self.peek_required_token()?;
                     if t.terminal() {
                         self.consume_token(t.kind)?;
-                        continue
+                        continue;
                     }
                     match t.kind {
                         TokenKind::Identifier(_) if name.is_some() => {
                             custom_type = Some(self.parse_custom_type(name.unwrap())?);
-                            break
+                            break;
                         }
                         TokenKind::Rcurly => {
                             self.consume_token(TokenKind::Rcurly)?;
                             break;
-                        },
+                        }
                         TokenKind::TypeValue(_) if key_type.is_none() => {
                             key_type = Some(self.parse_rigz_type(None, paren)?);
                         }
@@ -1063,20 +1174,26 @@ impl<'lex> Parser<'lex> {
                             self.consume_token(TokenKind::Comma)?;
                             value_type = Some(self.parse_rigz_type(None, paren)?);
                         }
-                        _ => return Err(ParsingError::ParseError(format!("Invalid map type {:?}", t))),
+                        _ => {
+                            return Err(ParsingError::ParseError(format!(
+                                "Invalid map type {:?}",
+                                t
+                            )))
+                        }
                     }
                 }
 
                 match custom_type {
-                    None => {
-                        match (key_type, value_type) {
-                            (None, None) => RigzType::Map(Box::new(RigzType::default()), Box::new(RigzType::default())),
-                            (Some(t), None) => RigzType::Map(Box::new(t.clone()), Box::new(t)),
-                            (Some(k), Some(v)) => RigzType::Map(Box::new(k), Box::new(v)),
-                            _ => unreachable!()
-                        }
-                    }
-                    Some(t) => RigzType::Custom(t)
+                    None => match (key_type, value_type) {
+                        (None, None) => RigzType::Map(
+                            Box::new(RigzType::default()),
+                            Box::new(RigzType::default()),
+                        ),
+                        (Some(t), None) => RigzType::Map(Box::new(t.clone()), Box::new(t)),
+                        (Some(k), Some(v)) => RigzType::Map(Box::new(k), Box::new(v)),
+                        _ => unreachable!(),
+                    },
+                    Some(t) => RigzType::Custom(t),
                 }
             }
             TokenKind::Lparen => {
@@ -1084,22 +1201,20 @@ impl<'lex> Parser<'lex> {
                 self.consume_token(TokenKind::Rparen)?;
                 t
             }
-            _ => return Err(ParsingError::ParseError(format!("Invalid type {:?}", next)))
+            _ => return Err(ParsingError::ParseError(format!("Invalid type {:?}", next))),
         };
 
         let rt = match self.peek_token() {
             None => rigz_type,
-            Some(t) => {
-                match t.kind {
-                    TokenKind::Pipe => {
-                        RigzType::Union(self.parse_complex_type(rigz_type, true, paren)?)
-                    }
-                    TokenKind::And => {
-                        RigzType::Composite(self.parse_complex_type(rigz_type, false, paren)?)
-                    }
-                    _ => rigz_type,
+            Some(t) => match t.kind {
+                TokenKind::Pipe => {
+                    RigzType::Union(self.parse_complex_type(rigz_type, true, paren)?)
                 }
-            }
+                TokenKind::And => {
+                    RigzType::Composite(self.parse_complex_type(rigz_type, false, paren)?)
+                }
+                _ => rigz_type,
+            },
         };
         Ok(rt)
     }
@@ -1118,17 +1233,17 @@ impl<'lex> Parser<'lex> {
                 }
                 TokenKind::Rcurly => {
                     self.consume_token(TokenKind::Rcurly)?;
-                    break
+                    break;
                 }
                 TokenKind::Comma if needs_separator => {
                     self.consume_token(TokenKind::Comma)?;
                     needs_separator = false;
                 }
-                _ if t.terminal() => {
-                    self.consume_token(t.kind)?
-                }
+                _ if t.terminal() => self.consume_token(t.kind)?,
                 _ => {
-                    return Err(ParsingError::ParseError(format!("Invalid token for custom type {t:?}")));
+                    return Err(ParsingError::ParseError(format!(
+                        "Invalid token for custom type {t:?}"
+                    )));
                 }
             }
         }
@@ -1138,7 +1253,12 @@ impl<'lex> Parser<'lex> {
         })
     }
 
-    fn parse_complex_type(&mut self, rigz_type: RigzType, union: bool, paren: bool) -> Result<Vec<RigzType>, ParsingError> {
+    fn parse_complex_type(
+        &mut self,
+        rigz_type: RigzType,
+        union: bool,
+        paren: bool,
+    ) -> Result<Vec<RigzType>, ParsingError> {
         if union {
             self.consume_token(TokenKind::Pipe)?;
         } else {
@@ -1152,11 +1272,11 @@ impl<'lex> Parser<'lex> {
                 None => break,
                 Some(t) if t.terminal() => {
                     self.consume_token(t.kind)?;
-                    break
+                    break;
                 }
                 Some(t) if needs_sep => {
                     if t.kind == TokenKind::Rparen && paren {
-                        break
+                        break;
                     }
                     match t.kind {
                         TokenKind::Assign => break,
@@ -1170,7 +1290,10 @@ impl<'lex> Parser<'lex> {
                                 self.consume_token(separator)?;
                                 needs_sep = false;
                             } else {
-                                return Err(ParsingError::ParseError(format!("Unexpected token in {} type - {t:?}", if union {"union"} else {"composite"})))
+                                return Err(ParsingError::ParseError(format!(
+                                    "Unexpected token in {} type - {t:?}",
+                                    if union { "union" } else { "composite" }
+                                )));
                             }
                         }
                     }
@@ -1183,7 +1306,7 @@ impl<'lex> Parser<'lex> {
                         RigzType::Composite(u) if !union => {
                             complex.extend(u);
                         }
-                        t => complex.push(t)
+                        t => complex.push(t),
                     }
                     needs_sep = true;
                 }
@@ -1196,12 +1319,12 @@ impl<'lex> Parser<'lex> {
         &mut self,
         mut_self: bool,
     ) -> Result<FunctionSignature<'lex>, ParsingError> {
-        let (arguments, var_args_start) = self.parse_function_arguments()?;
+        let (arguments, var_args_start, arg_type) = self.parse_function_arguments()?;
         Ok(FunctionSignature {
             arguments,
             var_args_start,
             return_type: self.parse_return_type(mut_self)?,
-            positional: true,
+            arg_type,
             self_type: None,
         })
     }

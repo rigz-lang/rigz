@@ -145,7 +145,12 @@ impl RigzStd for StdModule {
         this.insert(key, value);
     }
 
-    fn map_with(&self, this: IndexMap<Value, Value>, key: Vec<Value>, value: Vec<Value>) -> IndexMap<Value, Value> {
+    fn map_with(
+        &self,
+        this: IndexMap<Value, Value>,
+        key: Vec<Value>,
+        value: Vec<Value>,
+    ) -> IndexMap<Value, Value> {
         let mut this = this;
         for (k, v) in key.into_iter().zip(value.into_iter()) {
             this.insert(k, v);
@@ -153,7 +158,11 @@ impl RigzStd for StdModule {
         this
     }
 
-    fn map_concat(&self, this: IndexMap<Value, Value>, value: IndexMap<Value, Value>) -> IndexMap<Value, Value> {
+    fn map_concat(
+        &self,
+        this: IndexMap<Value, Value>,
+        value: IndexMap<Value, Value>,
+    ) -> IndexMap<Value, Value> {
         let mut this = this;
         this.extend(value);
         this
@@ -178,27 +187,21 @@ impl RigzStd for StdModule {
     fn number_ceil(&self, this: Number) -> Number {
         match this {
             Number::Int(_) => this,
-            Number::Float(f) => {
-                (f.ceil() as i64).into()
-            }
+            Number::Float(f) => (f.ceil() as i64).into(),
         }
     }
 
     fn number_round(&self, this: Number) -> Number {
         match this {
             Number::Int(_) => this,
-            Number::Float(f) => {
-                (f.round() as i64).into()
-            }
+            Number::Float(f) => (f.round() as i64).into(),
         }
     }
 
     fn number_trunc(&self, this: Number) -> Number {
         match this {
             Number::Int(_) => this,
-            Number::Float(f) => {
-                (f.trunc() as i64).into()
-            }
+            Number::Float(f) => (f.trunc() as i64).into(),
         }
     }
 
@@ -236,15 +239,14 @@ impl RigzStd for StdModule {
             } else {
                 format!("Assertion Failed: {message}")
             };
-            return Err(VMError::RuntimeError(message))
+            return Err(VMError::RuntimeError(message));
         }
         Ok(())
     }
 
-
     fn assert_eq(&self, lhs: Value, rhs: Value, message: String) -> Result<(), VMError> {
         if lhs == rhs {
-            return Ok(())
+            return Ok(());
         }
 
         let base = format!("\tLeft: {lhs}\n\t\tRight: {rhs}");
@@ -259,7 +261,7 @@ impl RigzStd for StdModule {
 
     fn assert_neq(&self, lhs: Value, rhs: Value, message: String) -> Result<(), VMError> {
         if lhs != rhs {
-            return Ok(())
+            return Ok(());
         }
 
         let base = format!("\tLeft: {lhs}\n\t\tRight: {rhs}");

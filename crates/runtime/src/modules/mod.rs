@@ -1,8 +1,8 @@
 mod file;
 mod json;
+mod log;
 mod std_lib;
 mod vm;
-mod log;
 
 pub use file::FileModule;
 pub use json::JSONModule;

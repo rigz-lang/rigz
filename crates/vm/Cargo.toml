@@ -9,7 +9,7 @@ repository = "https://gitlab.com/inapinch/rigz/crates/vm"
 keywords = ["rigz", "vm"]
 
 [features]
-default = []
+default = ["derive"]
 derive = ["dep:proc-macro2", "dep:quote"]
 log_std_out = []
 

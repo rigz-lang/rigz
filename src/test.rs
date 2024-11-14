@@ -1,8 +1,8 @@
+use clap::Args;
+use rigz_runtime::Runtime;
 use std::fs::read_to_string;
 use std::io;
 use std::path::PathBuf;
-use clap::Args;
-use rigz_runtime::Runtime;
 
 #[derive(Args)]
 pub struct TestArgs {
@@ -37,7 +37,7 @@ pub(crate) fn test(args: TestArgs) {
                     Err(e) => eprintln!("Failed to parse tests {} - {e}", path_to_string(&file)),
                 };
             }
-            Err(e) => eprintln!("Failed to open {} - {e}", path_to_string(&file))
+            Err(e) => eprintln!("Failed to open {} - {e}", path_to_string(&file)),
         }
     }
     // final result, passed, failed, ignored, finished in 0.0s
@@ -46,6 +46,6 @@ pub(crate) fn test(args: TestArgs) {
 fn path_to_string(path_buf: &PathBuf) -> String {
     match path_buf.to_str() {
         None => format!("Invalid Path {path_buf:?}"),
-        Some(s) => s.to_string()
+        Some(s) => s.to_string(),
     }
 }

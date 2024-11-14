@@ -3,6 +3,7 @@ mod bitand;
 mod bitor;
 mod bitxor;
 mod div;
+mod error;
 mod logical;
 mod mul;
 mod neg;
@@ -12,16 +13,15 @@ mod reverse;
 mod shl;
 mod shr;
 mod sub;
-mod error;
 
 pub use error::VMError;
 
+use crate::{impl_from, Number, RigzType, ValueRange};
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
-use crate::{impl_from, Number, RigzType, ValueRange};
-use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -70,7 +70,12 @@ impl<T: Into<Value>> From<Vec<T>> for Value {
 impl<K: Into<Value>, V: Into<Value>> From<IndexMap<K, V>> for Value {
     #[inline]
     fn from(value: IndexMap<K, V>) -> Self {
-        Value::Map(value.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
+        Value::Map(
+            value
+                .into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
+        )
     }
 }
 
@@ -97,7 +102,7 @@ impl PartialOrd for Value {
             (Value::Number(a), Value::Number(b)) => a.partial_cmp(b),
             (Value::Number(_), _) => Some(Ordering::Less),
             (_, Value::Number(_)) => Some(Ordering::Greater),
-            // todo (Value::Range(a), Value::Range(b)) => a.partial_cmp(b),
+            (Value::Range(a), Value::Range(b)) => a.partial_cmp(b),
             (Value::Range(_), _) => Some(Ordering::Less),
             (_, Value::Range(_)) => Some(Ordering::Greater),
             (Value::String(a), Value::String(b)) => a.partial_cmp(b),
@@ -409,7 +414,7 @@ impl Display for Value {
                         values.push(',')
                     }
                 }
-                write!(f, "[{}]", values)
+                write!(f, "{{{}}}", values)
             }
         }
     }

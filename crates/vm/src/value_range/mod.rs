@@ -3,6 +3,7 @@ mod add;
 use crate::{impl_from, Value};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::ops::{Neg, Range};
 
@@ -11,6 +12,33 @@ use std::ops::{Neg, Range};
 pub enum ValueRange {
     Int(Range<i64>),
     Char(Range<char>),
+}
+
+fn range_compare<Idx: PartialOrd>(a: &Range<Idx>, b: &Range<Idx>) -> Ordering {
+    if a.start <= b.start && a.end <= b.end {
+        Ordering::Less
+    } else if a.start >= b.start && a.end >= b.end {
+        Ordering::Greater
+    } else if a.start <= b.start && a.end >= b.end {
+        Ordering::Greater
+    } else {
+        Ordering::Less
+    }
+}
+
+impl PartialOrd for ValueRange {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self == other {
+            return Some(Ordering::Equal);
+        }
+
+        match (self, other) {
+            (ValueRange::Int(a), ValueRange::Int(b)) => Some(range_compare(a, b)),
+            (ValueRange::Char(a), ValueRange::Char(b)) => Some(range_compare(a, b)),
+            (ValueRange::Int(_), ValueRange::Char(_)) => Some(Ordering::Less),
+            (ValueRange::Char(_), ValueRange::Int(_)) => Some(Ordering::Greater),
+        }
+    }
 }
 
 impl Neg for ValueRange {

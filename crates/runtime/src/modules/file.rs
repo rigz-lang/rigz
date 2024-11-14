@@ -21,9 +21,8 @@ impl RigzFile for FileModule {
             )));
         }
 
-        Ok(read_to_string(&path).map_err(|e| VMError::RuntimeError(format!(
-            "Failed to read {path} - {e}"
-        )))?)
+        Ok(read_to_string(&path)
+            .map_err(|e| VMError::RuntimeError(format!("Failed to read {path} - {e}")))?)
     }
 
     fn write(&self, path: String, contents: String, encoding: String) -> Result<(), VMError> {

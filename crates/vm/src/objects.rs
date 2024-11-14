@@ -1,9 +1,9 @@
 use crate::VMError;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 use std::str::FromStr;
-use itertools::Itertools;
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Serialize, Deserialize)]
 pub enum RigzType {
@@ -129,8 +129,12 @@ impl Display for RigzType {
                 )
             }
             RigzType::Function(args, result) => write!(f, "Function<{args:?},{result}>"),
-            RigzType::Union(args) => write!(f, "{}", args.iter().map(|m| m.to_string()).join(" | ")),
-            RigzType::Composite(args) => write!(f, "{}", args.iter().map(|m| m.to_string()).join(" & ")),
+            RigzType::Union(args) => {
+                write!(f, "{}", args.iter().map(|m| m.to_string()).join(" | "))
+            }
+            RigzType::Composite(args) => {
+                write!(f, "{}", args.iter().map(|m| m.to_string()).join(" & "))
+            }
             RigzType::Custom(c) => write!(f, "{}", c.name),
         }
     }

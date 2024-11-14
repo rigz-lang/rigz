@@ -66,7 +66,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         definition_provider: Some(OneOf::Left(true)),
         ..Default::default()
     })
-        .unwrap();
+    .unwrap();
     let initialization_params = match connection.initialize(server_capabilities) {
         Ok(it) => it,
         Err(e) => {
@@ -103,7 +103,11 @@ fn main_loop(
                         eprintln!("got gotoDefinition request #{id}: {params:?}");
                         let result = Some(GotoDefinitionResponse::Array(Vec::new()));
                         let result = serde_json::to_value(&result).unwrap();
-                        let resp = Response { id, result: Some(result), error: None };
+                        let resp = Response {
+                            id,
+                            result: Some(result),
+                            error: None,
+                        };
                         connection.sender.send(Message::Response(resp))?;
                         continue;
                     }

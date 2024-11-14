@@ -1,10 +1,10 @@
+use clap::Args;
+use rigz_runtime::eval;
+use rigz_runtime::runtime::eval_print_vm;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::process::exit;
-use clap::Args;
-use rigz_runtime::eval;
-use rigz_runtime::runtime::eval_print_vm;
 
 #[derive(Args)]
 pub struct RunArgs {
@@ -19,7 +19,8 @@ pub struct RunArgs {
 pub(crate) fn run(args: RunArgs) {
     let mut file = File::open(args.main).expect("Failed to open main");
     let mut contents = String::new();
-    file.read_to_string(&mut contents).expect("Failed to read main");
+    file.read_to_string(&mut contents)
+        .expect("Failed to read main");
     let v = if args.print_vm {
         eval_print_vm(contents.as_str())
     } else {

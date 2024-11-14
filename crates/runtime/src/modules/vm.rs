@@ -29,7 +29,7 @@ impl<'vm> RigzVM<'vm> for VMModule {
             None => return Err(VMError::EmptyRegister("Registers are empty".to_string())),
             Some((o, v)) => (*o, v.borrow().clone()),
         };
-        let v = resolve_register_value(vm, og, first);
+        let v = first.resolve(vm, og);
         Ok(v)
     }
 
@@ -38,7 +38,7 @@ impl<'vm> RigzVM<'vm> for VMModule {
             None => return Err(VMError::EmptyRegister("Registers are empty".to_string())),
             Some((o, v)) => (*o, v.borrow().clone()),
         };
-        let v = resolve_register_value(vm, og, last);
+        let v = last.resolve(vm, og);
         Ok(v)
     }
 
@@ -53,14 +53,5 @@ impl<'vm> RigzVM<'vm> for VMModule {
             Ok(n) => n,
         };
         Ok(vm.remove_register_eval_scope(u))
-    }
-}
-
-fn resolve_register_value(vm: &mut VM, index: Register, register_value: RegisterValue) -> Value {
-    match register_value {
-        RegisterValue::ScopeId(s, out) => vm.handle_scope(s, index, out),
-        RegisterValue::Register(r) => vm.resolve_register(r),
-        RegisterValue::Value(v) => v,
-        RegisterValue::Constant(c) => vm.get_constant(c),
     }
 }

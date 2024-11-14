@@ -143,8 +143,7 @@ mod vm_test {
         pretty_env_logger::init();
         let mut builder = VMBuilder::new();
         // a = 1 + 2; a + 2
-        let scope = builder
-            .enter_scope("test");
+        let scope = builder.enter_scope("test");
         builder
             .add_load_instruction(2, Value::Number(Number::Int(1)).into())
             .add_load_instruction(3, Value::Number(Number::Int(2)).into())
@@ -165,9 +164,9 @@ mod vm_test {
     #[test]
     fn simple_scope() {
         let mut builder = VMBuilder::new();
-        let scope = builder
-            .enter_scope("test");
-        builder.add_load_instruction(2, Value::String("hello".to_string()).into())
+        let scope = builder.enter_scope("test");
+        builder
+            .add_load_instruction(2, Value::String("hello".to_string()).into())
             .exit_scope(0, 2)
             .add_load_instruction(4, RegisterValue::ScopeId(scope, 2))
             .add_halt_instruction(4);

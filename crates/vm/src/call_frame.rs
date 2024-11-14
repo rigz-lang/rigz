@@ -1,10 +1,10 @@
 use crate::{Register, RegisterValue, VMError, Value, VM};
+use indexmap::IndexMap;
 use log::warn;
 use log_derive::{logfn, logfn_inputs};
 use nohash_hasher::BuildNoHashHasher;
 use std::cell::RefCell;
 use std::ops::Deref;
-use indexmap::IndexMap;
 
 #[derive(Clone, Debug)]
 pub enum Variable {

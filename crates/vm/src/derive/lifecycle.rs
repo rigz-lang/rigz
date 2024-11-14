@@ -1,7 +1,9 @@
-use crate::{EventLifecycle, Lifecycle, MemoizedLifecycle, Stage, StatefulLifecycle, TestLifecycle};
+use crate::derive::csv_vec;
+use crate::{
+    EventLifecycle, Lifecycle, MemoizedLifecycle, Stage, StatefulLifecycle, TestLifecycle,
+};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use crate::derive::csv_vec;
 
 impl ToTokens for Lifecycle {
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -18,6 +20,12 @@ impl ToTokens for Lifecycle {
             Lifecycle::Test(l) => quote! {
                 Lifecycle::Test(#l)
             },
+            Lifecycle::Composite(l) => {
+                let csv = csv_vec(l);
+                quote! {
+                    Lifecycle::Composite(#csv)
+                }
+            }
         };
         tokens.extend(t)
     }
@@ -38,12 +46,15 @@ impl ToTokens for EventLifecycle {
 impl ToTokens for MemoizedLifecycle {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let MemoizedLifecycle { scope_id, results } = self;
-        let results: Vec<_> = results.into_iter().map(|(k, v)| {
-            let k = csv_vec(k);
-            quote! {
-                (#k, #v),
-            }
-        }).collect();
+        let results: Vec<_> = results
+            .into_iter()
+            .map(|(k, v)| {
+                let k = csv_vec(k);
+                quote! {
+                    (#k, #v),
+                }
+            })
+            .collect();
         tokens.extend(quote! {
             MemoizedLifecycle {
                 scope_id: #scope_id,

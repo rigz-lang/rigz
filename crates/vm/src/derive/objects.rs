@@ -1,7 +1,7 @@
+use crate::derive::{boxed, csv_vec};
 use crate::{CustomType, RigzType};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use crate::derive::{boxed, csv_vec};
 
 impl ToTokens for RigzType {
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -75,8 +75,8 @@ impl ToTokens for CustomType {
             .into_iter()
             .map(|(name, ty)| {
                 quote! {
-                            (#name.into(), #ty),
-                        }
+                    (#name.into(), #ty),
+                }
             })
             .collect();
         tokens.extend(quote! {

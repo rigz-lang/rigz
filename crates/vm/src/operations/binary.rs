@@ -1,5 +1,5 @@
-use std::fmt::{Display, Formatter};
 use crate::Register;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Binary {

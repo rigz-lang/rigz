@@ -9,6 +9,7 @@ pub enum Lifecycle {
     After(StatefulLifecycle),
     Memo(MemoizedLifecycle),
     Test(TestLifecycle),
+    Composite(Vec<Lifecycle>),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

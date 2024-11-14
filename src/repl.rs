@@ -1,17 +1,17 @@
-use std::borrow::Cow;
-use std::cell::RefCell;
-use std::ops::DerefMut;
 use clap::Args;
 use rigz_runtime::{Runtime, RuntimeError, VMError, Value};
-use rustyline::{Editor, Helper};
 use rustyline::completion::Completer;
 use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
+use rustyline::{Editor, Helper};
+use std::borrow::Cow;
+use std::cell::RefCell;
+use std::ops::DerefMut;
 use tree_sitter_highlight::{Highlight, HighlightConfiguration, HighlightEvent, Highlighter};
 
 #[derive(Args)]
 pub struct ReplArgs {
-    #[arg(short, long, default_value = "false", help= "Save History on exit")]
+    #[arg(short, long, default_value = "false", help = "Save History on exit")]
     save_history: bool,
 }
 
@@ -25,7 +25,7 @@ static NAMES: [&str; 10] = [
     "operator",
     "keyword",
     "function.method",
-    "constant.builtin"
+    "constant.builtin",
 ];
 
 struct RigzHelper<'r> {
@@ -56,13 +56,9 @@ impl Hinter for RigzHelper<'_> {
     type Hint = String;
 }
 
-impl Validator for RigzHelper<'_> {
+impl Validator for RigzHelper<'_> {}
 
-}
-
-impl Helper for RigzHelper<'_> {
-
-}
+impl Helper for RigzHelper<'_> {}
 
 pub(crate) fn repl(args: ReplArgs) {
     let mut highlighter = Highlighter::new();
@@ -74,14 +70,14 @@ pub(crate) fn repl(args: ReplArgs) {
         tree_sitter_rigz::HIGHLIGHTS_QUERY,
         tree_sitter_rigz::INJECTIONS_QUERY,
         tree_sitter_rigz::LOCALS_QUERY,
-    ).unwrap();
+    )
+    .unwrap();
 
     rigz_config.configure(&NAMES);
 
     let rigz_helper = RigzHelper {
         highlighter: RefCell::new(Highlighter::new()),
-        config: &rigz_config
-        // todo pass in runtime to auto complete identifiers and functions
+        config: &rigz_config, // todo pass in runtime to auto complete identifiers and functions
     };
 
     let mut runtime = Runtime::new();
@@ -114,8 +110,8 @@ pub(crate) fn repl(args: ReplArgs) {
                     println!("REPL history saved to {path}");
                     r.save_history(&path).expect("Failed to save history");
                 }
-                break
-            },
+                break;
+            }
             "" => continue,
             next => {
                 // currently eval will convert VMError into a runtime error
@@ -147,19 +143,31 @@ pub(crate) fn repl(args: ReplArgs) {
     }
 }
 
-fn highlight_value(highlighter: &mut Highlighter, rigz_config: &HighlightConfiguration, value: Value) {
+fn highlight_value(
+    highlighter: &mut Highlighter,
+    rigz_config: &HighlightConfiguration,
+    value: Value,
+) {
     print!("=> ");
     let r = highlight(highlighter, rigz_config, value.to_string().as_bytes());
     println!("{r}")
 }
 
-fn highlight(highlighter: &mut Highlighter, rigz_config: &HighlightConfiguration, bytes: &[u8]) -> String  {
+fn highlight(
+    highlighter: &mut Highlighter,
+    rigz_config: &HighlightConfiguration,
+    bytes: &[u8],
+) -> String {
     let mut current = None;
     let mut result = String::new();
-    for event in highlighter.highlight(rigz_config, bytes, None, |_| None).unwrap() {
+    for event in highlighter
+        .highlight(rigz_config, bytes, None, |_| None)
+        .unwrap()
+    {
         match event.unwrap() {
             HighlightEvent::Source { start, end } => {
-                let str = String::from_utf8(bytes[start..end].to_vec()).expect("Failed to read string");
+                let str =
+                    String::from_utf8(bytes[start..end].to_vec()).expect("Failed to read string");
                 match current {
                     None => {
                         result.push_str(str.as_str());
@@ -176,7 +184,7 @@ fn highlight(highlighter: &mut Highlighter, rigz_config: &HighlightConfiguration
                             0 => "\x1b[37m",
                             _ => {
                                 result.push_str(str.as_str());
-                                continue
+                                continue;
                             }
                         };
                         result.push_str(format!("{start}{str}\x1b[0m").as_str())

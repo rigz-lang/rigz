@@ -1,7 +1,7 @@
 mod runtime {
+    use rigz_ast::{VMError, Value};
     #[allow(unused_imports)] // used by macro
     use rigz_runtime::runtime::{eval, eval_print_vm};
-    use rigz_ast::{VMError, Value};
 
     macro_rules! run_expected {
         ($($name:ident($input:literal = $expected:expr))*) => {
@@ -85,8 +85,8 @@ mod runtime {
     }
 
     mod valid {
-        use rigz_ast::IndexMap;
         use super::*;
+        use rigz_ast::IndexMap;
 
         run_expected! {
             raw_value("'Hello World'" = Value::String("Hello World".to_string()))
@@ -110,6 +110,12 @@ mod runtime {
             a = 3
             1.to_s + foo a
             "# = 7.into())
+            named_for_positional(r#"
+            fn foo(bar: Number) -> Number
+                bar * 24
+            end
+            foo bar: 3
+            "# = 72.into())
             call_function_multiple_times(r#"
             fn foo(number: Number) -> Number
                 number * 2

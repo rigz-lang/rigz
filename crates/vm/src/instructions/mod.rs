@@ -1,10 +1,12 @@
 mod binary;
 mod unary;
 
-use log::{log, Level};
-use crate::{outln, Binary, BinaryAssign, Number, Register, Unary, UnaryAssign, VMError, Value, VM};
 use crate::objects::RigzType;
 use crate::vm::{RegisterValue, VMState};
+use crate::{
+    outln, Binary, BinaryAssign, Number, Register, Unary, UnaryAssign, VMError, Value, VM,
+};
+use log::{log, Level};
 
 // todo simplify clear usage
 #[derive(Clone, Debug, PartialEq, Eq)]

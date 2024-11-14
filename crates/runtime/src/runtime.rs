@@ -1,6 +1,8 @@
-use std::fmt::{Display, Formatter};
 use crate::prepare::{Program, ProgramParser};
-use rigz_ast::{VMError, Value, ValidationError, Parser, ParsedModule, ParsingError, TestResults, VM};
+use rigz_ast::{
+    ParsedModule, Parser, ParsingError, TestResults, VMError, ValidationError, Value, VM,
+};
+use std::fmt::{Display, Formatter};
 
 pub struct Runtime<'vm> {
     parser: ProgramParser<'vm, VM<'vm>>,
@@ -75,9 +77,7 @@ impl<'vm> Runtime<'vm> {
     }
 
     /// Use register_module to add modules
-    pub fn create_without_modules(
-        input: &'vm str,
-    ) -> Result<Self, RuntimeError> {
+    pub fn create_without_modules(input: &'vm str) -> Result<Self, RuntimeError> {
         let mut parser = Parser::prepare(input).map_err(|e| e.into())?;
         let program = parser.parse().map_err(|e| e.into())?;
         program.validate().map_err(|e| e.into())?;
@@ -93,9 +93,7 @@ impl<'vm> Runtime<'vm> {
     }
 
     /// Use register_module to add modules, meant for repl
-    pub fn create_unverified_without_modules(
-        input: &'vm str,
-    ) -> Result<Self, RuntimeError> {
+    pub fn create_unverified_without_modules(input: &'vm str) -> Result<Self, RuntimeError> {
         let mut parser = Parser::prepare(input).map_err(|e| e.into())?;
         let program: Program = parser.parse().map_err(|e| e.into())?.into();
         program.create_runtime_without_modules()

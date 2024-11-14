@@ -1,13 +1,13 @@
+use crate::derive::csv_vec;
 use crate::{Number, VMError, Value, ValueRange};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use crate::derive::csv_vec;
 
 impl ToTokens for Number {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
             Number::Int(n) => quote! { Number::Int(#n) },
-            Number::Float(n) => quote! { Number::Float(#n) }
+            Number::Float(n) => quote! { Number::Float(#n) },
         };
         tokens.extend(t)
     }

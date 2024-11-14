@@ -1,12 +1,12 @@
-mod run;
-mod repl;
-mod test;
 mod debug;
+mod repl;
+mod run;
+mod test;
 
-use clap::{CommandFactory, Parser, Subcommand};
 use crate::repl::ReplArgs;
 use crate::run::RunArgs;
 use crate::test::TestArgs;
+use clap::{CommandFactory, Parser, Subcommand};
 use log::{warn, LevelFilter};
 use repl::repl;
 use run::run;
@@ -16,7 +16,13 @@ use test::test;
 #[command(version, about, long_about = None)]
 #[command(next_line_help = true)]
 pub struct CLI {
-    #[arg(short, long, env = "RIGZ_VERBOSE", default_value = "0", help = "0 - 4, sets the log level from Error - Trace, negative numbers disable all logging")]
+    #[arg(
+        short,
+        long,
+        env = "RIGZ_VERBOSE",
+        default_value = "0",
+        help = "0 - 4, sets the log level from Error - Trace, negative numbers disable all logging"
+    )]
     verbose: i8,
     #[command(subcommand)]
     command: Option<Commands>,
@@ -27,28 +33,17 @@ pub enum Commands {
     Run(RunArgs),
     Repl(ReplArgs),
     // Debug(DebugArgs),
-    Test(TestArgs)
+    Test(TestArgs),
 }
-
 
 fn main() {
     let cli = CLI::parse();
     match cli.verbose {
-        0 => {
-            log::set_max_level(LevelFilter::Error)
-        }
-        1 => {
-            log::set_max_level(LevelFilter::Warn)
-        }
-        2 => {
-            log::set_max_level(LevelFilter::Info)
-        }
-        3 => {
-            log::set_max_level(LevelFilter::Debug)
-        }
-        4 => {
-            log::set_max_level(LevelFilter::Trace)
-        }
+        0 => log::set_max_level(LevelFilter::Error),
+        1 => log::set_max_level(LevelFilter::Warn),
+        2 => log::set_max_level(LevelFilter::Info),
+        3 => log::set_max_level(LevelFilter::Debug),
+        4 => log::set_max_level(LevelFilter::Trace),
         unsupported => {
             if unsupported.is_negative() {
                 log::set_max_level(LevelFilter::Off);

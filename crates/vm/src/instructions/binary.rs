@@ -1,4 +1,4 @@
-use crate::{Clear, Logical, Register, VMError, Value, VM, Binary, BinaryAssign, BinaryOperation};
+use crate::{Binary, BinaryAssign, BinaryOperation, Clear, Logical, Register, VMError, Value, VM};
 
 #[inline]
 fn eval_binary_operation(binary_operation: BinaryOperation, lhs: Value, rhs: Value) -> Value {
@@ -98,14 +98,14 @@ impl<'vm> VM<'vm> {
                     "Invalid Register Passed to binary_clear: {} must be {} or {}",
                     c, lhs, rhs
                 ))
-                    .into(),
+                .into(),
             ),
             Clear::Two(c1, c2) => {
                 let v = VMError::RuntimeError(format!(
                     "Invalid Registers Passed to binary_clear: {} and {} must be either {} or {}",
                     c1, c2, lhs, rhs
                 ))
-                    .to_value();
+                .to_value();
                 (v.clone(), v)
             }
             c => {
@@ -113,7 +113,7 @@ impl<'vm> VM<'vm> {
                     "Invalid Option Passed to binary_clear: {:?}",
                     c
                 ))
-                    .to_value();
+                .to_value();
                 (v.clone(), v)
             }
         };

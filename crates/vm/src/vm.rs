@@ -1,15 +1,13 @@
+use crate::lifecycle::{Lifecycle, TestResults};
+use crate::{generate_builder, CallFrame, Instruction, Scope, Variable};
 use crate::{out, outln, Module, Register, RigzBuilder, VMError, Value};
-use crate::{
-    generate_builder, CallFrame, Instruction, Scope, Variable,
-};
+use indexmap::map::Entry;
+use indexmap::IndexMap;
 use log_derive::logfn_inputs;
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::ops::DerefMut;
 use std::time::{Duration, Instant};
-use indexmap::IndexMap;
-use indexmap::map::Entry;
-use crate::lifecycle::{Lifecycle, TestResults};
 
 pub enum VMState {
     Running,
@@ -75,6 +73,17 @@ pub enum RegisterValue {
     Register(Register),
     Value(Value),
     Constant(usize),
+}
+
+impl RegisterValue {
+    pub fn resolve(self, vm: &mut VM<'_>, register: Register) -> Value {
+        match self {
+            RegisterValue::ScopeId(scope, output) => vm.handle_scope(scope, register, output),
+            RegisterValue::Register(r) => vm.resolve_register(r),
+            RegisterValue::Value(v) => v,
+            RegisterValue::Constant(c) => vm.get_constant(c),
+        }
+    }
 }
 
 impl From<usize> for RegisterValue {
@@ -192,12 +201,8 @@ impl<'vm> VM<'vm> {
 
     #[inline]
     pub fn resolve_register(&mut self, register: Register) -> Value {
-        match self.get_register(register) {
-            RegisterValue::ScopeId(scope, output) => self.handle_scope(scope, register, output),
-            RegisterValue::Register(r) => self.resolve_register(r),
-            RegisterValue::Value(v) => v,
-            RegisterValue::Constant(c) => self.get_constant(c),
-        }
+        let v = self.get_register(register);
+        v.resolve(self, register)
     }
 
     pub fn get_module_clone(&self, module: &'vm str) -> Result<Box<dyn Module<'vm>>, VMError> {
@@ -265,12 +270,8 @@ impl<'vm> VM<'vm> {
     /// Value is replaced with None, shifting the registers breaks the program.
 
     pub fn remove_register_eval_scope(&mut self, register: Register) -> Value {
-        match self.remove_register(register) {
-            RegisterValue::ScopeId(scope, output) => self.handle_scope(scope, register, output),
-            RegisterValue::Register(r) => self.remove_register_eval_scope(r),
-            RegisterValue::Value(v) => v,
-            RegisterValue::Constant(c) => self.get_constant(c),
-        }
+        let rv = self.remove_register(register);
+        rv.resolve(self, register)
     }
 
     pub fn get_constant(&self, index: usize) -> Value {
@@ -348,7 +349,7 @@ impl<'vm> VM<'vm> {
         loop {
             match self.step() {
                 None => {}
-                Some(v) => return v
+                Some(v) => return v,
             }
         }
     }
@@ -377,12 +378,15 @@ impl<'vm> VM<'vm> {
         loop {
             let current = Instant::now();
             if current > end {
-                return Value::Error(VMError::TimeoutError(format!("Exceeded runtime {duration:?} - {:?}", end - current)))
+                return Value::Error(VMError::TimeoutError(format!(
+                    "Exceeded runtime {duration:?} - {:?}",
+                    end - current
+                )));
             }
 
             match self.step() {
                 None => {}
-                Some(v) => return v
+                Some(v) => return v,
             }
         }
     }
@@ -402,7 +406,7 @@ impl<'vm> VM<'vm> {
                         unreachable!("Invalid Scope")
                     };
                     Some((index, *o, s.named))
-                },
+                }
                 Some(_) => None,
             })
             .collect();
