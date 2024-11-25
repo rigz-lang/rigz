@@ -40,8 +40,30 @@ pub enum Instruction<'vm> {
     },
     Copy(Register, Register),
     Move(Register, Register),
-    Call(usize, Register),
-    CallSelf(usize, Register, Register, bool),
+    Call {
+        scope: usize,
+        args: Vec<Register>,
+        output: Register,
+    },
+    CallMemo {
+        scope: usize,
+        args: Vec<Register>,
+        output: Register,
+    },
+    CallSelf {
+        scope: usize,
+        this: Register,
+        args: Vec<Register>,
+        output: Register,
+        mutable: bool,
+    },
+    CallSelfMemo {
+        scope: usize,
+        this: Register,
+        args: Vec<Register>,
+        output: Register,
+        mutable: bool,
+    },
     Log(Level, &'vm str, Vec<Register>),
     Puts(Vec<Register>),
     CallEq(Register, Register, usize, Register),
@@ -218,18 +240,24 @@ impl<'vm> VM<'vm> {
                 Ok(_) => {}
                 Err(e) => return VMState::Done(e.into()),
             },
-            Instruction::Call(scope_index, register) => {
-                match self.call_frame(scope_index, register) {
-                    Ok(_) => {}
-                    Err(e) => return e.into(),
-                }
-            }
-            Instruction::CallSelf(scope_index, output, this, mutable) => {
-                match self.call_frame_self(scope_index, output, this, mutable) {
-                    Ok(_) => {}
-                    Err(e) => return e.into(),
-                }
-            }
+            Instruction::Call {
+                scope,
+                output,
+                args,
+            } => match self.call_frame(scope, args, output) {
+                Ok(_) => {}
+                Err(e) => return e.into(),
+            },
+            Instruction::CallSelf {
+                scope,
+                output,
+                this,
+                mutable,
+                args,
+            } => match self.call_frame_self(scope, this, output, args, mutable) {
+                Ok(_) => {}
+                Err(e) => return e.into(),
+            },
             Instruction::CallModule {
                 module,
                 func,
@@ -335,7 +363,7 @@ impl<'vm> VM<'vm> {
                 let a = self.resolve_register(a);
                 let b = self.resolve_register(b);
                 if a == b {
-                    match self.call_frame(scope_index, output) {
+                    match self.call_frame(scope_index, vec![], output) {
                         Ok(_) => {}
                         Err(e) => return e.into(),
                     };
@@ -345,7 +373,7 @@ impl<'vm> VM<'vm> {
                 let a = self.resolve_register(a);
                 let b = self.resolve_register(b);
                 if a != b {
-                    match self.call_frame(scope_index, output) {
+                    match self.call_frame(scope_index, vec![], output) {
                         Ok(_) => {}
                         Err(e) => return e.into(),
                     };
@@ -359,14 +387,14 @@ impl<'vm> VM<'vm> {
             } => {
                 let r = if self.resolve_register(truthy).to_bool() {
                     let (if_scope, output) = if_scope;
-                    match self.call_frame(if_scope, output) {
+                    match self.call_frame(if_scope, vec![], output) {
                         Ok(_) => {}
                         Err(e) => return e.into(),
                     };
                     output
                 } else {
                     let (else_scope, output) = else_scope;
-                    match self.call_frame(else_scope, output) {
+                    match self.call_frame(else_scope, vec![], output) {
                         Ok(_) => {}
                         Err(e) => return e.into(),
                     };
@@ -380,7 +408,7 @@ impl<'vm> VM<'vm> {
                 output,
             } => {
                 if self.resolve_register(truthy).to_bool() {
-                    match self.call_frame(if_scope, output) {
+                    match self.call_frame(if_scope, vec![], output) {
                         Ok(_) => {}
                         Err(e) => return e.into(),
                     };
@@ -394,7 +422,7 @@ impl<'vm> VM<'vm> {
                 output,
             } => {
                 if !self.resolve_register(truthy).to_bool() {
-                    match self.call_frame(unless_scope, output) {
+                    match self.call_frame(unless_scope, vec![], output) {
                         Ok(_) => {}
                         Err(e) => return e.into(),
                     };
@@ -569,6 +597,24 @@ impl<'vm> VM<'vm> {
                 };
                 self.insert_register(output, v);
             }
+            Instruction::CallMemo {
+                scope,
+                output,
+                args,
+            } => match self.call_frame_memo(scope, args, output) {
+                Ok(_) => {}
+                Err(e) => return VMState::error(e),
+            },
+            Instruction::CallSelfMemo {
+                scope,
+                this,
+                output,
+                mutable,
+                args,
+            } => match self.call_frame_self_memo(scope, this, output, args, mutable) {
+                Ok(_) => {}
+                Err(e) => return VMState::error(e),
+            },
         };
         VMState::Running
     }
@@ -576,44 +622,10 @@ impl<'vm> VM<'vm> {
     fn instance_get(&mut self, source: Register, attr: Register, output: Register) {
         let attr = self.resolve_register(attr);
         let source = self.resolve_register(source);
-        let v = match (source, attr) {
-            // todo support ranges as attr
-            (Value::String(source), Value::Number(n)) => match n.to_usize() {
-                Ok(index) => match source.chars().nth(index) {
-                    None => VMError::UnsupportedOperation(format!(
-                        "Cannot read {}th index of {}",
-                        index, source
-                    ))
-                    .into(),
-                    Some(c) => Value::String(c.to_string()),
-                },
-                Err(e) => e.into(),
-            },
-            (Value::List(source), Value::Number(n)) => match n.to_usize() {
-                Ok(index) => match source.get(index) {
-                    None => VMError::UnsupportedOperation(format!(
-                        "Cannot read {}th index of {:?}",
-                        index, source
-                    ))
-                    .into(),
-                    Some(c) => c.clone(),
-                },
-                Err(e) => e.into(),
-            },
-            (Value::Map(source), index) => match source.get(&index) {
-                None => VMError::UnsupportedOperation(format!(
-                    "Cannot read {} index of {:?}",
-                    index, source
-                ))
-                .into(),
-                Some(c) => c.clone(),
-            },
-            (Value::Number(source), Value::Number(n)) => {
-                Value::Bool(source.to_bits() & (1 << n.to_int()) != 0)
-            }
-            (source, attr) => {
-                VMError::UnsupportedOperation(format!("Cannot read {} for {}", attr, source)).into()
-            }
+        let v = match source.get(attr) {
+            Ok(Some(v)) => v,
+            Ok(None) => Value::None,
+            Err(e) => e.into(),
         };
         self.insert_register(output, v.into());
     }

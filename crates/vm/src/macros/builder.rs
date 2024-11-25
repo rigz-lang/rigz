@@ -42,17 +42,22 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        fn enter_scope(&mut self, named: &'vm str) -> usize {
+        fn enter_scope(&mut self, named: &'vm str, args: Vec<(&'vm str, bool)>) -> usize {
             let next = self.scopes.len();
-            self.scopes.push(Scope::new(named));
+            self.scopes.push(Scope::new(named, args));
             self.sp = self.scopes.len() - 1;
             next
         }
 
         #[inline]
-        fn enter_lifecycle_scope(&mut self, named: &'vm str, lifecycle: Lifecycle) -> usize {
+        fn enter_lifecycle_scope(
+            &mut self,
+            named: &'vm str,
+            lifecycle: Lifecycle,
+            args: Vec<(&'vm str, bool)>,
+        ) -> usize {
             let next = self.scopes.len();
-            self.scopes.push(Scope::lifecycle(named, lifecycle));
+            self.scopes.push(Scope::lifecycle(named, args, lifecycle));
             self.sp = next;
             next
         }

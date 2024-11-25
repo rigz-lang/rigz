@@ -3,6 +3,7 @@ use crate::{generate_builder, CallFrame, Instruction, Scope, Variable};
 use crate::{out, outln, Module, Register, RigzBuilder, VMError, Value};
 use indexmap::map::Entry;
 use indexmap::IndexMap;
+use itertools::Itertools;
 use log_derive::logfn_inputs;
 use std::cell::RefCell;
 use std::fmt::Debug;
@@ -69,16 +70,18 @@ impl VMOptions {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RegisterValue {
-    ScopeId(usize, Register),
+    ScopeId(usize, Vec<Register>, Register),
     Register(Register),
     Value(Value),
     Constant(usize),
 }
 
 impl RegisterValue {
-    pub fn resolve(self, vm: &mut VM<'_>, register: Register) -> Value {
+    pub fn resolve(self, vm: &mut VM, register: Register) -> Value {
         match self {
-            RegisterValue::ScopeId(scope, output) => vm.handle_scope(scope, register, output),
+            RegisterValue::ScopeId(scope, args, output) => {
+                vm.handle_scope(scope, register, args, output)
+            }
             RegisterValue::Register(r) => vm.resolve_register(r),
             RegisterValue::Value(v) => v,
             RegisterValue::Constant(c) => vm.get_constant(c),
@@ -231,7 +234,7 @@ impl<'vm> VM<'vm> {
                             "Constants cannot be mutated {c}"
                         )))
                     }
-                    RegisterValue::ScopeId(s, o) => {
+                    RegisterValue::ScopeId(s, _, o) => {
                         return Err(VMError::UnsupportedOperation(format!(
                             "Scopes are not implemented yet - Scope {s} R{o}"
                         )))
@@ -248,8 +251,14 @@ impl<'vm> VM<'vm> {
 
     #[inline]
     // todo I don't think this is working as expected but it's not used as-is
-    pub fn handle_scope(&mut self, scope: usize, original: Register, output: Register) -> Value {
-        match self.call_frame(scope, output) {
+    pub fn handle_scope(
+        &mut self,
+        scope: usize,
+        original: Register,
+        args: Vec<Register>,
+        output: Register,
+    ) -> Value {
+        match self.call_frame(scope, args, output) {
             Ok(_) => {}
             Err(e) => return e.into(),
         };
@@ -499,7 +508,12 @@ impl<'vm> VM<'vm> {
     }
 
     #[inline]
-    pub fn call_frame(&mut self, scope_index: usize, output: Register) -> Result<(), VMError> {
+    pub fn call_frame(
+        &mut self,
+        scope_index: usize,
+        args: Vec<Register>,
+        output: Register,
+    ) -> Result<(), VMError> {
         if self.scopes.len() <= scope_index {
             return Err(VMError::ScopeDoesNotExist(format!(
                 "{} does not exist",
@@ -522,6 +536,114 @@ impl<'vm> VM<'vm> {
 
         self.frames.push(current);
         self.sp = scope_index;
+        let args = self.scopes[scope_index].args.clone().into_iter().zip(args);
+        for ((arg, mutable), reg) in args {
+            if mutable {
+                self.load_mut(arg, reg)?;
+            } else {
+                self.load_let(arg, reg)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn call_frame_memo(
+        &mut self,
+        scope_index: usize,
+        args: Vec<Register>,
+        output: Register,
+    ) -> Result<(), VMError> {
+        let call_args = self.resolve_registers(args.clone());
+        let value = match self.scopes.get_mut(scope_index) {
+            None => {
+                return Err(VMError::ScopeDoesNotExist(format!(
+                    "Invalid Scope {scope_index}"
+                )))
+            }
+            Some(s) => {
+                match &mut s.lifecycle {
+                    None => {
+                        return Err(VMError::ScopeDoesNotExist(format!(
+                            "Invalid Scope {scope_index}, does not contain @memo lifecycle"
+                        )))
+                    }
+                    Some(l) => {
+                        let mut memo = match l {
+                            Lifecycle::Memo(m) => m,
+                            Lifecycle::Composite(c) => {
+                                let index = c.iter().find_position(|l| {
+                                    if let Lifecycle::Memo(_) = l {
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                });
+                                match index {
+                                    None => {
+                                        return Err(VMError::ScopeDoesNotExist(format!("Invalid Scope {scope_index}, does not contain @memo lifecycle")))
+                                    }
+                                    Some((index, _)) => {
+                                        let Lifecycle::Memo(m) = c.get_mut(index).unwrap() else { unreachable!() };
+                                        m
+                                    }
+                                }
+                            }
+                            _ => {
+                                return Err(VMError::ScopeDoesNotExist(format!(
+                                    "Invalid Scope {scope_index}, does not contain @memo lifecycle"
+                                )))
+                            }
+                        };
+
+                        match memo.results.get(&call_args) {
+                            None => None,
+                            Some(value) => Some(value.clone()),
+                        }
+                    }
+                }
+            }
+        };
+        let value = match value {
+            None => {
+                self.call_frame(scope_index, args, output)?;
+                let value = match self.run_scope() {
+                    VMState::Running => unreachable!(),
+                    VMState::Done(v) => v,
+                    VMState::Ran(v) => v,
+                };
+                let mut s = self.scopes.get_mut(scope_index).unwrap();
+                match &mut s.lifecycle {
+                    None => unreachable!(),
+                    Some(l) => {
+                        let mut memo = match l {
+                            Lifecycle::Memo(m) => m,
+                            Lifecycle::Composite(c) => {
+                                let (index, _) = c
+                                    .iter()
+                                    .find_position(|l| {
+                                        if let Lifecycle::Memo(_) = l {
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    })
+                                    .unwrap();
+                                let Lifecycle::Memo(m) = c.get_mut(index).unwrap() else {
+                                    unreachable!()
+                                };
+                                m
+                            }
+                            _ => unreachable!(),
+                        };
+
+                        memo.results.insert(call_args, value.clone());
+                        value
+                    }
+                }
+            }
+            Some(s) => s,
+        };
+        self.insert_register(output, value.into());
         Ok(())
     }
 
@@ -529,11 +651,12 @@ impl<'vm> VM<'vm> {
     pub fn call_frame_self(
         &mut self,
         scope_index: usize,
-        output: Register,
         this: Register,
+        output: Register,
+        args: Vec<Register>,
         mutable: bool,
     ) -> Result<(), VMError> {
-        self.call_frame(scope_index, output)?;
+        self.call_frame(scope_index, args, output)?;
         let var = if mutable {
             Variable::Mut(this)
         } else {
@@ -541,6 +664,18 @@ impl<'vm> VM<'vm> {
         };
         self.current.borrow_mut().variables.insert("self", var);
         Ok(())
+    }
+
+    #[inline]
+    pub fn call_frame_self_memo(
+        &mut self,
+        scope_index: usize,
+        this: Register,
+        output: Register,
+        args: Vec<Register>,
+        mutable: bool,
+    ) -> Result<(), VMError> {
+        todo!()
     }
 
     /// Snapshots can't include modules or messages from in progress lifecycles

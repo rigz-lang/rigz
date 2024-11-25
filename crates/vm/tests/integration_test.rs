@@ -84,11 +84,11 @@ mod vm_test {
         let mut builder = VMBuilder::new();
         let scope = builder
             .add_load_instruction(2, Value::String(String::from_str("abc").unwrap()).into())
-            .enter_scope("test");
+            .enter_scope("test", vec![]);
         builder
             .add_copy_instruction(2, 3)
             .exit_scope(0, 3)
-            .add_call_instruction(scope, 3);
+            .add_call_instruction(scope, vec![], 3);
         let mut vm = builder.build();
         vm.eval().unwrap();
         assert_eq!(
@@ -143,13 +143,13 @@ mod vm_test {
         pretty_env_logger::init();
         let mut builder = VMBuilder::new();
         // a = 1 + 2; a + 2
-        let scope = builder.enter_scope("test");
+        let scope = builder.enter_scope("test", vec![]);
         builder
             .add_load_instruction(2, Value::Number(Number::Int(1)).into())
             .add_load_instruction(3, Value::Number(Number::Int(2)).into())
             .add_add_instruction(2, 3, 4)
             .exit_scope(0, 4)
-            .add_load_instruction(5, RegisterValue::ScopeId(scope, 4))
+            .add_load_instruction(5, RegisterValue::ScopeId(scope, vec![], 4))
             .add_load_let_instruction("a", 5)
             .add_get_variable_instruction("a", 6)
             .add_load_instruction(7, Value::Number(Number::Int(2)).into())
@@ -164,11 +164,11 @@ mod vm_test {
     #[test]
     fn simple_scope() {
         let mut builder = VMBuilder::new();
-        let scope = builder.enter_scope("test");
+        let scope = builder.enter_scope("test", vec![]);
         builder
             .add_load_instruction(2, Value::String("hello".to_string()).into())
             .exit_scope(0, 2)
-            .add_load_instruction(4, RegisterValue::ScopeId(scope, 2))
+            .add_load_instruction(4, RegisterValue::ScopeId(scope, vec![], 2))
             .add_halt_instruction(4);
         let mut vm = builder.build();
         assert_eq!(vm.eval().unwrap(), Value::String("hello".to_string()))
@@ -177,19 +177,19 @@ mod vm_test {
     #[test]
     fn function_scope() {
         let mut builder = VMBuilder::new();
-        let scope = builder.enter_scope("test");
+        let scope = builder.enter_scope("test", vec![]);
         builder
             .add_binary_instruction(BinaryOperation::Add, 1, 2, 3)
             .exit_scope(0, 3)
             .add_load_instruction(1, RegisterValue::Value(1.into()))
             .add_load_instruction(2, RegisterValue::Value(2.into()))
-            .add_call_instruction(scope, 3)
+            .add_call_instruction(scope, vec![], 3)
             .add_load_instruction(1, RegisterValue::Register(3))
             .add_load_instruction(2, RegisterValue::Value(3.into()))
-            .add_call_instruction(scope, 3)
+            .add_call_instruction(scope, vec![], 3)
             .add_load_instruction(1, RegisterValue::Register(3))
             .add_load_instruction(2, RegisterValue::Value(4.into()))
-            .add_call_instruction(scope, 3)
+            .add_call_instruction(scope, vec![], 3)
             .add_halt_instruction(3);
         let mut vm = builder.build();
         assert_eq!(vm.eval().unwrap(), 10.into())
@@ -231,9 +231,27 @@ mod vm_test {
                         Instruction::Load(89, RegisterValue::Value(2.into())),
                         Instruction::LoadMutRegister("a", 89),
                         Instruction::GetMutableVariable("a", 85),
-                        Instruction::CallSelf(1, 85, 85, true),
-                        Instruction::CallSelf(1, 85, 85, true),
-                        Instruction::CallSelf(1, 85, 85, true),
+                        Instruction::CallSelf {
+                            scope: 1,
+                            args: vec![],
+                            this: 85,
+                            output: 85,
+                            mutable: true,
+                        },
+                        Instruction::CallSelf {
+                            scope: 1,
+                            args: vec![],
+                            this: 85,
+                            output: 85,
+                            mutable: true,
+                        },
+                        Instruction::CallSelf {
+                            scope: 1,
+                            args: vec![],
+                            this: 85,
+                            output: 85,
+                            mutable: true,
+                        },
                         // GetVariable creates a copy
                         Instruction::GetMutableVariable("a", 90),
                         Instruction::Halt(90),
@@ -281,11 +299,29 @@ mod vm_test {
                         Instruction::Load(89, RegisterValue::Value(4.2.into())),
                         Instruction::LoadMutRegister("f", 89),
                         Instruction::GetMutableVariable("f", 85),
-                        Instruction::CallSelf(1, 85, 85, true),
+                        Instruction::CallSelf {
+                            scope: 1,
+                            args: vec![],
+                            this: 85,
+                            output: 85,
+                            mutable: true,
+                        },
                         Instruction::GetMutableVariable("f", 85),
-                        Instruction::CallSelf(1, 85, 85, true),
+                        Instruction::CallSelf {
+                            scope: 1,
+                            args: vec![],
+                            this: 85,
+                            output: 85,
+                            mutable: true,
+                        },
                         Instruction::GetMutableVariable("f", 85),
-                        Instruction::CallSelf(1, 85, 85, true),
+                        Instruction::CallSelf {
+                            scope: 1,
+                            args: vec![],
+                            this: 85,
+                            output: 85,
+                            mutable: true,
+                        },
                         Instruction::GetVariable("f", 90),
                         Instruction::Halt(90),
                     ],
@@ -318,7 +354,11 @@ mod vm_test {
             scopes: vec![
                 Scope {
                     instructions: vec![
-                        Instruction::Call(2, 2),
+                        Instruction::Call {
+                            scope: 2,
+                            output: 2,
+                            args: vec![],
+                        },
                         Instruction::Move(2, 100),
                         Instruction::Halt(100),
                     ],
@@ -336,7 +376,11 @@ mod vm_test {
                     instructions: vec![
                         Instruction::Load(96, RegisterValue::Value(41.into())),
                         Instruction::Load(82, RegisterValue::Register(96)),
-                        Instruction::Call(1, 0),
+                        Instruction::Call {
+                            scope: 1,
+                            output: 0,
+                            args: vec![],
+                        },
                         Instruction::Move(0, 97),
                         Instruction::Load(83, RegisterValue::Register(97)),
                         Instruction::Load(98, RegisterValue::Value("".into())),
@@ -352,6 +396,7 @@ mod vm_test {
                     ],
                     named: "test",
                     lifecycle: Some(Lifecycle::Test(TestLifecycle)),
+                    args: Vec::new(),
                 },
             ],
             ..Default::default()

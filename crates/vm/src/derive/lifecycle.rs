@@ -33,11 +33,10 @@ impl ToTokens for Lifecycle {
 
 impl ToTokens for EventLifecycle {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let EventLifecycle { event, scope_id } = self;
+        let EventLifecycle { event } = self;
         tokens.extend(quote! {
             EventLifecycle {
-                event: #event.into(),
-                scope_id: #scope_id
+                event: #event.into()
             }
         })
     }
@@ -45,7 +44,7 @@ impl ToTokens for EventLifecycle {
 
 impl ToTokens for MemoizedLifecycle {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let MemoizedLifecycle { scope_id, results } = self;
+        let MemoizedLifecycle { results } = self;
         let results: Vec<_> = results
             .into_iter()
             .map(|(k, v)| {
@@ -57,7 +56,6 @@ impl ToTokens for MemoizedLifecycle {
             .collect();
         tokens.extend(quote! {
             MemoizedLifecycle {
-                scope_id: #scope_id,
                 results: HashMap::from(#(#results)*)
             }
         });
@@ -78,11 +76,10 @@ impl ToTokens for Stage {
 
 impl ToTokens for StatefulLifecycle {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let StatefulLifecycle { stage, scope_id } = self;
+        let StatefulLifecycle { stage } = self;
         tokens.extend(quote! {
             StatefulLifecycle {
                 stage: #stage,
-                scope_id: #scope_id
             }
         })
     }

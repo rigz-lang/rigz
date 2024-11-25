@@ -1,5 +1,5 @@
 use clap::Args;
-use rigz_runtime::{Runtime, RuntimeError, VMError, Value};
+use rigz_runtime::{ParsingError, Runtime, RuntimeError, VMError, Value};
 use rustyline::completion::Completer;
 use rustyline::hint::Hinter;
 use rustyline::validate::Validator;

@@ -10,6 +10,7 @@ pub enum ParsingError {
     NonAsciiError,
     BoolParseError,
     ParseError(String),
+    Eoi(String),
 }
 
 impl Display for ParsingError {
@@ -19,6 +20,7 @@ impl Display for ParsingError {
             ParsingError::NonAsciiError => write!(f, "Invalid Character"),
             ParsingError::BoolParseError => write!(f, "Invalid Bool"),
             ParsingError::ParseError(s) => write!(f, "{}", s),
+            ParsingError::Eoi(s) => write!(f, "Unexpected end of input: {}", s),
         }
     }
 }

@@ -556,10 +556,20 @@ fn base_call(
                 {
                     // todo optional logic is wrong
                     if *optional {
-                        quote! {
-                            match #base_call {
-                                None => Ok(Value::None),
-                                Some(s) => Ok(s.into())
+                        if *can_return_error {
+                            quote! {
+                                match #base_call {
+                                    Ok(Some(v)) => Ok(v),
+                                    Ok(None) => Ok(Value::None),
+                                    Err(e) => Err(e)
+                                }
+                            }
+                        } else {
+                            quote! {
+                                match #base_call {
+                                    None => Ok(Value::None),
+                                    Some(s) => Ok(s.into())
+                                }
                             }
                         }
                     } else if *can_return_error && base_type.as_ref() == &RigzType::None {

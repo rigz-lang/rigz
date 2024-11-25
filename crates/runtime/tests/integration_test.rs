@@ -190,21 +190,19 @@ mod runtime {
             end"# = Value::None.into())
             to_json("import JSON; {a=5}.to_json" = r#"{"a":5}"#.into())
             json_parse("import JSON; JSON.parse '5'" = 5.into())
-            // memoization lifecycle
-            // fib_recursive_dynamic_programming(r#"
-            // @memo
-            // fn fib(n: Number) -> Number
-            //     if n <= 1
-            //         n
-            //     else
-            //         a = (fib n - 1)
-            //         b = (fib n - 2)
-            //         a + b
-            //     end
-            // end
-            // fib 6
-            // fib 6
-            // "# = 8.into())
+            format("format '{}', 1 + 2" = "3".into())
+            fib_recursive_dynamic_programming(r#"
+            @memo
+            fn fib(n: Number) -> Number
+                if n <= 1
+                    n
+                else
+                    b = n - 2
+                    (fib n - 1) + fib b
+                end
+            end
+            fib 513
+            "# = 8.into())
             if_else_true(r#"if 0 == ""
                 42
             else

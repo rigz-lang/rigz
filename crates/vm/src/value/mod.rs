@@ -16,9 +16,9 @@ mod sub;
 
 pub use error::VMError;
 
-use crate::{impl_from, Number, RigzType, ValueRange};
+use crate::{impl_from, Number, Object, RigzType, ValueRange};
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -378,6 +378,40 @@ impl Value {
             (v, t) => VMError::ConversionError(format!("Cannot convert value {} to {:?}", v, t))
                 .to_value(),
         }
+    }
+
+    pub fn get(self, attr: Value) -> Result<Option<Value>, VMError> {
+        let v = match (self, attr) {
+            // todo support ranges as attr
+            (Value::String(source), Value::Number(n)) => match n.to_usize() {
+                Ok(index) => match source.chars().nth(index) {
+                    None => return Ok(None),
+                    Some(c) => Value::String(c.to_string()),
+                },
+                Err(e) => e.into(),
+            },
+            (Value::List(source), Value::Number(n)) => match n.to_usize() {
+                Ok(index) => match source.get(index) {
+                    None => return Ok(None),
+                    Some(c) => c.clone(),
+                },
+                Err(e) => e.into(),
+            },
+            (Value::Map(source), index) => match source.get(&index) {
+                None => return Ok(None),
+                Some(c) => c.clone(),
+            },
+            (Value::Number(source), Value::Number(n)) => {
+                Value::Bool(source.to_bits() & (1 << n.to_int()) != 0)
+            }
+            (source, attr) => {
+                return Err(VMError::UnsupportedOperation(format!(
+                    "Cannot read {} for {}",
+                    attr, source
+                )))
+            }
+        };
+        Ok(Some(v))
     }
 }
 

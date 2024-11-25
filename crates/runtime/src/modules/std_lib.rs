@@ -15,6 +15,7 @@ derive_module!(
         fn Any.to_list -> List
         fn Any.to_map -> Map
         fn Any.type -> String
+        fn Any.get(index) -> Any!?
 
         fn mut List.extend(value: List)
         fn List.first -> Any?
@@ -32,16 +33,6 @@ derive_module!(
         fn Map.entries -> List
         fn Map.keys -> List
         fn Map.values -> List
-
-        fn Number.ceil -> Number
-        fn Number.round -> Number
-        fn Number.trunc -> Number
-
-        fn mut String.push(value)
-        fn String.concat(value: String) -> String
-        fn String.with(var value) -> String
-        fn String.trim -> String
-        fn String.split(pattern: String) -> [String]
 
         fn assert(condition: Bool, message = '') -> None!
         fn assert_eq(lhs, rhs, message = '') -> None!
@@ -99,6 +90,10 @@ impl RigzStd for StdModule {
 
     fn any_type(&self, this: Value) -> String {
         this.rigz_type().to_string()
+    }
+
+    fn any_get(&self, this: Value, index: Value) -> Result<Option<Value>, VMError> {
+        this.get(index)
     }
 
     fn mut_list_extend(&self, this: &mut Vec<Value>, value: Vec<Value>) {
@@ -182,53 +177,6 @@ impl RigzStd for StdModule {
 
     fn map_values(&self, this: IndexMap<Value, Value>) -> Vec<Value> {
         this.values().map(|v| v.clone()).collect()
-    }
-
-    fn number_ceil(&self, this: Number) -> Number {
-        match this {
-            Number::Int(_) => this,
-            Number::Float(f) => (f.ceil() as i64).into(),
-        }
-    }
-
-    fn number_round(&self, this: Number) -> Number {
-        match this {
-            Number::Int(_) => this,
-            Number::Float(f) => (f.round() as i64).into(),
-        }
-    }
-
-    fn number_trunc(&self, this: Number) -> Number {
-        match this {
-            Number::Int(_) => this,
-            Number::Float(f) => (f.trunc() as i64).into(),
-        }
-    }
-
-    fn mut_string_push(&self, this: &mut String, value: Value) {
-        this.push_str(value.to_string().as_str())
-    }
-
-    fn string_concat(&self, this: String, value: String) -> String {
-        let mut this = this;
-        this.push_str(value.to_string().as_str());
-        this
-    }
-
-    fn string_with(&self, this: String, value: Vec<Value>) -> String {
-        let mut this = this;
-        for v in value {
-            this.push_str(v.to_string().as_str())
-        }
-        this
-    }
-
-    fn string_trim(&self, this: String) -> String {
-        this.trim().to_string()
-    }
-
-    fn string_split(&self, this: String, pattern: String) -> Vec<String> {
-        this.split(&pattern).map(|s| s.to_string()).collect()
     }
 
     // todo support formatting message

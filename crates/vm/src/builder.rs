@@ -35,9 +35,14 @@ pub trait RigzBuilder<'vm>: Debug + Default {
 
     fn current_scope(&self) -> usize;
 
-    fn enter_scope(&mut self, named: &'vm str) -> usize;
+    fn enter_scope(&mut self, named: &'vm str, args: Vec<(&'vm str, bool)>) -> usize;
 
-    fn enter_lifecycle_scope(&mut self, named: &'vm str, lifecycle: Lifecycle) -> usize;
+    fn enter_lifecycle_scope(
+        &mut self,
+        named: &'vm str,
+        lifecycle: Lifecycle,
+        args: Vec<(&'vm str, bool)>,
+    ) -> usize;
 
     fn exit_scope(&mut self, current: usize, output: Register) -> &mut Self;
 
@@ -235,19 +240,67 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     }
 
     #[inline]
-    fn add_call_instruction(&mut self, scope_id: usize, register: Register) -> &mut Self {
-        self.add_instruction(Instruction::Call(scope_id, register))
+    fn add_call_instruction(
+        &mut self,
+        scope: usize,
+        args: Vec<Register>,
+        output: Register,
+    ) -> &mut Self {
+        self.add_instruction(Instruction::Call {
+            scope,
+            args,
+            output,
+        })
     }
 
     #[inline]
     fn add_call_self_instruction(
         &mut self,
-        scope_id: usize,
+        scope: usize,
+        args: Vec<Register>,
         output: Register,
         this: Register,
         mutable: bool,
     ) -> &mut Self {
-        self.add_instruction(Instruction::CallSelf(scope_id, output, this, mutable))
+        self.add_instruction(Instruction::CallSelf {
+            scope,
+            this,
+            output,
+            args,
+            mutable,
+        })
+    }
+
+    #[inline]
+    fn add_call_memo_instruction(
+        &mut self,
+        scope: usize,
+        args: Vec<Register>,
+        output: Register,
+    ) -> &mut Self {
+        self.add_instruction(Instruction::CallMemo {
+            scope,
+            args,
+            output,
+        })
+    }
+
+    #[inline]
+    fn add_call_self_memo_instruction(
+        &mut self,
+        scope: usize,
+        args: Vec<Register>,
+        output: Register,
+        this: Register,
+        mutable: bool,
+    ) -> &mut Self {
+        self.add_instruction(Instruction::CallSelfMemo {
+            scope,
+            this,
+            output,
+            args,
+            mutable,
+        })
     }
 
     #[inline]

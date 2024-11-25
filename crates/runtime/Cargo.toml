@@ -15,11 +15,13 @@ default = []
 log_std_out = ["rigz_ast/log_std_out"]
 
 [dependencies]
+chrono = "0.4.38"
 logos = "0.14"
 rigz_ast = { workspace = true }
 rigz_ast_derive = { workspace = true }
 log = "0.4"
 serde_json = "1.0"
+uuid = { version = "1.11.0", features = ["v1", "v3", "v4", "v5", "v6", "v7", "v8"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

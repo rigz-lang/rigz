@@ -30,6 +30,7 @@ pub use validate::*;
 #[derive(Debug)]
 pub struct Parser<'lex> {
     tokens: VecDeque<Token<'lex>>,
+    line: usize,
 }
 
 // TODO better error messages
@@ -50,7 +51,7 @@ impl<'lex> Parser<'lex> {
 
         let mut lexer = TokenKind::lexer(input);
         let mut tokens = VecDeque::new();
-        let mut line = 0;
+        let mut line = 1;
         // todo use relative column numbers
         // let mut offset = 0;
         // let mut start = 0;
@@ -81,7 +82,7 @@ impl<'lex> Parser<'lex> {
                 tokens.push_back(Token { kind, span, line })
             }
         }
-        Ok(Parser { tokens })
+        Ok(Parser { tokens, line })
     }
 
     pub fn parse(&mut self) -> Result<Program<'lex>, ParsingError> {
@@ -216,11 +217,11 @@ impl<'lex> Parser<'lex> {
     }
 
     fn eoi_error(location: &'static str) -> ParsingError {
-        ParsingError::ParseError(format!("Unexpected end of input: {location}"))
+        ParsingError::Eoi(location.to_string())
     }
 
     fn eoi_error_string(message: String) -> ParsingError {
-        ParsingError::ParseError(format!("Unexpected end of input: {message}"))
+        ParsingError::Eoi(message)
     }
 
     fn parse_element(&mut self) -> Result<Element<'lex>, ParsingError> {
@@ -338,25 +339,7 @@ impl<'lex> Parser<'lex> {
                 self.consume_token(TokenKind::Trait)?;
                 Statement::Trait(self.parse_trait_definition()?).into()
             }
-            TokenKind::Lifecycle(lifecycle) => {
-                self.consume_token(TokenKind::Lifecycle(lifecycle))?;
-                match lifecycle {
-                    // todo support multiple lifecycles & @test.assert_eq, @test.assert_neq, @test.assert
-                    "test" => {
-                        let lifecycle = Lifecycle::Test(TestLifecycle);
-                        self.consume_token_eat_newlines(TokenKind::FunctionDef)?;
-                        Statement::FunctionDefinition(
-                            self.parse_function_definition(Some(lifecycle))?,
-                        )
-                        .into()
-                    }
-                    _ => {
-                        return Err(ParsingError::ParseError(format!(
-                            "Lifecycle {lifecycle} is not supported"
-                        )))
-                    }
-                }
-            }
+            TokenKind::Lifecycle(lifecycle) => self.parse_lifecycle_func(lifecycle)?.into(),
             _ => self.parse_expression()?.into(),
         };
         match self.peek_token() {
@@ -367,6 +350,53 @@ impl<'lex> Parser<'lex> {
             Some(_) => {}
         }
         Ok(ele)
+    }
+
+    fn parse_lifecycle(&mut self, lifecycle: &'lex str) -> Result<Lifecycle, ParsingError> {
+        self.consume_token(TokenKind::Lifecycle(lifecycle))?;
+        match lifecycle {
+            // todo support @test.assert_eq, @test.assert_neq, @test.assert
+            "test" => Ok(Lifecycle::Test(TestLifecycle)),
+            "memo" => Ok(Lifecycle::Memo(MemoizedLifecycle::default())),
+            "on" => {
+                let e = self.parse_paren_expression()?;
+                match e {
+                    Expression::Value(Value::String(s)) => {
+                        Ok(Lifecycle::On(EventLifecycle { event: s }))
+                    }
+                    _ => Err(ParsingError::ParseError(format!(
+                        "Expressions not supported for `on` lifecycle {e:?}"
+                    ))),
+                }
+            }
+            _ => Err(ParsingError::ParseError(format!(
+                "Lifecycle {lifecycle} is not supported"
+            ))),
+        }
+    }
+
+    fn parse_lifecycle_func(
+        &mut self,
+        initial_lifecycle: &'lex str,
+    ) -> Result<Statement<'lex>, ParsingError> {
+        let mut lifecycle = self.parse_lifecycle(initial_lifecycle)?;
+        loop {
+            let next = self.peek_required_token_eat_newlines()?;
+            if let TokenKind::Lifecycle(t) = next.kind {
+                match &mut lifecycle {
+                    Lifecycle::Composite(v) => {
+                        v.push(self.parse_lifecycle(t)?);
+                    }
+                    l => {
+                        *l = Lifecycle::Composite(vec![l.clone(), self.parse_lifecycle(t)?]);
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+        self.consume_token_eat_newlines(TokenKind::FunctionDef)?;
+        Ok(Statement::FunctionDefinition(self.parse_function_definition(Some(lifecycle))?).into())
     }
 
     fn parse_import(&mut self) -> Result<Statement<'lex>, ParsingError> {

@@ -1,7 +1,10 @@
-use crate::VMError;
+use crate::{Number, VMError, Value};
+use dyn_clone::DynClone;
+use indexmap::IndexMap;
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
+use serde::de::Error;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 use std::str::FromStr;
 
@@ -39,6 +42,82 @@ impl Default for RigzType {
         }
     }
 }
+
+pub trait Object: Debug + Display + DynClone {
+    fn name(&self) -> &'static str;
+
+    fn from_map(index_map: IndexMap<Value, Value>) -> Result<Self, VMError>
+    where
+        Self: Sized;
+
+    fn to_map(&self) -> IndexMap<Value, Value>;
+
+    fn to_float(&self) -> Result<f64, VMError> {
+        Err(VMError::ConversionError(format!(
+            "Cannot convert {} to float",
+            self.name()
+        )))
+    }
+    fn to_int(&self) -> Result<i64, VMError> {
+        Err(VMError::ConversionError(format!(
+            "Cannot convert {} to int",
+            self.name()
+        )))
+    }
+
+    fn to_number(&self) -> Result<Number, VMError> {
+        Err(VMError::ConversionError(format!(
+            "Cannot convert {} to number",
+            self.name()
+        )))
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct NumberObject(pub Number);
+
+impl Display for NumberObject {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Object for NumberObject {
+    fn name(&self) -> &'static str {
+        "Number"
+    }
+
+    fn from_map(index_map: IndexMap<Value, Value>) -> Result<Self, VMError>
+    where
+        Self: Sized,
+    {
+        match index_map.get(&Value::String("value".into())) {
+            None => Err(VMError::ConversionError(format!(
+                "Cannot convert map {:?} to Number Object",
+                index_map
+            ))),
+            Some(v) => v.to_number().map(|n| NumberObject(n)),
+        }
+    }
+
+    fn to_map(&self) -> IndexMap<Value, Value> {
+        IndexMap::from([("value".into(), self.0.into())])
+    }
+
+    fn to_float(&self) -> Result<f64, VMError> {
+        Ok(self.0.to_float())
+    }
+
+    fn to_int(&self) -> Result<i64, VMError> {
+        Ok(self.0.to_int())
+    }
+
+    fn to_number(&self) -> Result<Number, VMError> {
+        Ok(self.0)
+    }
+}
+
+dyn_clone::clone_trait_object!(Object);
 
 impl RigzType {
     #[inline]

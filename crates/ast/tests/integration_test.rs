@@ -81,6 +81,7 @@ mod valid {
         do_one_line "do = 1 + 2",
         valid_bin_exp "1 + 2",
         valid_function "fn hello = none",
+        valid_function_default_type "fn hello -> Any!? = none",
         valid_function_dollar_sign "fn $ = none",
         outer_paren_func "(foo 1, 2, 3)",
         named_args_in_func "foo a: 1, b: 2, c: 3",

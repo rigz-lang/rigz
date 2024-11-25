@@ -15,7 +15,6 @@ pub enum Lifecycle {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventLifecycle {
     pub event: String,
-    pub scope_id: usize,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -29,12 +28,10 @@ pub enum Stage {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StatefulLifecycle {
     pub stage: Stage,
-    pub scope_id: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct MemoizedLifecycle {
-    pub scope_id: usize,
     pub results: HashMap<Vec<Value>, Value>,
 }
 
