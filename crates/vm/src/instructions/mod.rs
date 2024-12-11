@@ -41,6 +41,7 @@ pub enum Instruction<'vm> {
     },
     Copy(Register, Register),
     Move(Register, Register),
+    CallRegister(Register, Register),
     Call {
         scope: usize,
         args: Vec<Register>,
@@ -253,6 +254,18 @@ impl<'vm> VM<'vm> {
                 Ok(_) => {}
                 Err(e) => return VMState::Done(e.into()),
             },
+            Instruction::CallRegister(scope_register, output) => {
+                let r = match self.get_register(scope_register) {
+                    RegisterValue::ScopeId(..) => scope_register,
+                    v => {
+                        return VMState::error(VMError::UnsupportedOperation(format!(
+                            "Call Register called on non-scope value {v:?}"
+                        )))
+                    }
+                };
+                let v = self.resolve_register(r);
+                self.insert_register(output, v.into());
+            }
             Instruction::Call {
                 scope,
                 output,

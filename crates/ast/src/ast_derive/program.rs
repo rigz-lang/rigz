@@ -87,6 +87,7 @@ impl ToTokens for Expression<'_> {
                 }
             }
             Expression::InstanceFunctionCall(ex, calls, args) => {
+                let ex = boxed(ex);
                 quote! {
                     Expression::InstanceFunctionCall(#ex, vec![#(#calls)*], #args)
                 }

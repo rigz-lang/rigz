@@ -111,14 +111,19 @@ fn match_args_ref<'a, 'vm>(
 #[derive(Clone)]
 pub(crate) enum CallSignature<'vm> {
     Function(FunctionCallSignature<'vm>, CallSite<'vm>),
-    Lambda(Vec<RigzType>, RigzType),
+    // call signature is owning function
+    Lambda(
+        (FunctionCallSignature<'vm>, Register),
+        Vec<(RigzType, Register)>,
+        (RigzType, Register),
+    ),
 }
 
 impl<'vm> CallSignature<'vm> {
     fn rigz_type(&self) -> RigzType {
         match self {
             CallSignature::Function(fc, _) => fc.return_type.0.rigz_type.clone(),
-            CallSignature::Lambda(_, rt) => rt.clone(),
+            CallSignature::Lambda(_, _, rt) => rt.0.clone(),
         }
     }
 }
@@ -503,7 +508,17 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             let rt = &arg.function_type.rigz_type;
             match rt {
                 RigzType::Function(args, ret) => {
-                    let cs = CallSignature::Lambda(args.clone(), *ret.clone());
+                    let lambda = self.next_register();
+                    let args: Vec<_> = args
+                        .iter()
+                        .map(|t| (t.clone(), self.next_register()))
+                        .collect();
+                    let output = self.next_register();
+                    let cs = CallSignature::Lambda(
+                        (type_definition.clone(), lambda),
+                        args.clone(),
+                        (*ret.clone(), output),
+                    );
                     match self.function_scopes.entry(arg.name) {
                         Entry::Occupied(mut entry) => {
                             entry.get_mut().push(cs);
@@ -923,7 +938,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 let (s, output) = self.parse_scope(s, "do")?;
                 let next = self.next_register();
                 self.builder
-                    .add_load_instruction(next, RegisterValue::ScopeId(s, output));
+                    .add_load_instruction(next, RegisterValue::ScopeId(s, output, vec![]));
             }
             Expression::Cast(e, t) => {
                 self.parse_expression(*e)?;
@@ -1000,7 +1015,11 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     let call_args = self.setup_call_args(args, fcs)?;
                     self.process_extension_call(name, call_args, vm_module, mutable, this, call);
                 }
-                CallSignature::Lambda(args, ret) => {}
+                CallSignature::Lambda(..) => {
+                    return Err(ValidationError::InvalidFunction(format!(
+                        "extension lambdas are not supported {name}"
+                    )))
+                }
             };
         } else {
             return Err(ValidationError::NotImplemented(format!(
@@ -1270,7 +1289,26 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     }
                 }
             }
-            CallSignature::Lambda(args, ret) => {}
+            CallSignature::Lambda((_, lambda), args, ret) => {
+                let next = self.next_register();
+                self.builder
+                    .add_load_instruction(next, RegisterValue::Register(lambda));
+                let arguments = if let RigzArguments::Positional(a) = arguments {
+                    a
+                } else {
+                    return Err(ValidationError::NotImplemented(format!(
+                        "Non-positional args not supported for lambdas - {name}"
+                    )));
+                };
+                for (arg, actual) in args.iter().zip(arguments) {
+                    self.parse_expression(actual)?;
+                    let actual = self.last;
+                    self.builder
+                        .add_load_instruction(arg.1, RegisterValue::Register(actual));
+                }
+                self.builder.add_call_register_instruction(next, ret.1);
+                self.last = next;
+            }
         };
         Ok(())
     }
@@ -1361,9 +1399,9 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                             (None, Some(_)) | (Some(_), None) => {}
                         }
                     }
-                    CallSignature::Lambda(args, ret) => {
+                    cs => {
                         // todo ensure best match
-                        fcs = Some(CallSignature::Lambda(args, ret))
+                        fcs = Some(cs)
                     }
                 }
             }
@@ -1455,7 +1493,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     var_args_start,
                     body,
                 } => {
-                    self.parse_lambda(arg.name, arguments, var_args_start, body)?;
+                    self.parse_anon_lambda(&fcs, arg.name, arguments, var_args_start, body)?;
                 }
                 _ => {
                     self.parse_expression(expression)?;
@@ -1503,7 +1541,11 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
 
                 self.process_extension_call(name, call_args, vm_module, mutable, this, call);
             }
-            CallSignature::Lambda(args, ret) => {}
+            CallSignature::Lambda(..) => {
+                return Err(ValidationError::InvalidFunction(format!(
+                    "extension lambdas are not supported {name}"
+                )))
+            }
         };
         Ok(())
     }
@@ -1653,5 +1695,78 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         self.builder.exit_scope(current, next);
         self.identifiers = current_vars;
         Ok((res, next))
+    }
+
+    fn parse_anon_lambda(
+        &mut self,
+        fcs: &FunctionCallSignature<'vm>,
+        name: &'vm str,
+        fn_args: Vec<FunctionArgument<'vm>>,
+        var_args_start: Option<usize>,
+        exp: Box<Expression<'vm>>,
+    ) -> Result<(), ValidationError> {
+        if var_args_start.is_some() {
+            return Err(ValidationError::NotImplemented(format!(
+                "var args not implemented for lambas {name}"
+            )));
+        }
+
+        let (expected_reg, args, output) = match self.function_scopes.get(name) {
+            None => {
+                return Err(ValidationError::InvalidFunction(format!(
+                    "Lambda arguments do not exist for {name}"
+                )))
+            }
+            Some(all_sigs) => {
+                let fcs = all_sigs.iter().find(|all| match all {
+                    CallSignature::Function(_, _) => false,
+                    CallSignature::Lambda((acs, _), _, _) => acs == fcs,
+                });
+
+                let Some(CallSignature::Lambda((_, expected_reg), args, (_rigz_type, output))) =
+                    fcs
+                else {
+                    return Err(ValidationError::InvalidFunction(format!(
+                        "Lambda argument not found for {name}"
+                    )));
+                };
+                (
+                    *expected_reg,
+                    args.iter().map(|(_, r)| *r).collect(),
+                    *output,
+                )
+            }
+        };
+        let current = self.builder.current_scope();
+        let anon = self
+            .builder
+            .enter_scope(name, fn_args.iter().map(|a| (a.name, false)).collect());
+        let old: Vec<_> = fn_args
+            .iter()
+            .map(|a| {
+                (
+                    a.name,
+                    self.identifiers
+                        .insert(a.name, a.function_type.rigz_type.clone()),
+                )
+            })
+            .collect();
+        self.parse_expression(*exp)?;
+        old.into_iter().for_each(|(name, rt)| match rt {
+            None => {
+                self.identifiers.remove(name);
+            }
+            Some(s) => {
+                self.identifiers.insert(name, s);
+            }
+        });
+        let last = self.last;
+        self.builder.add_copy_instruction(last, output);
+        self.builder.exit_scope(current, output);
+        // todo ensure fn_args match signature
+        self.builder
+            .add_load_instruction(expected_reg, RegisterValue::ScopeId(anon, output, args));
+        self.last = output;
+        Ok(())
     }
 }

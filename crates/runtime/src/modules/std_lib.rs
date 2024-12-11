@@ -25,24 +25,36 @@ derive_module!(
             [for v in self: v if func v]
         end
 
-       /*
-        fn Map.filter(func: |Any, Any| -> Bool) -> Map
-            {for k, v in self: k, v if func k, v}
+        fn List.map(func: |Any| -> Any) -> List
+            [for v in self: func v]
         end
 
-       fn List.map(func: |Any| -> Any) -> List
-            [for v in self: func v]
+        fn Map.filter(func: |Any, Any| -> Bool) -> Map
+            {for k, v in self: k, v if func k, v}
         end
 
         fn Map.map(func: |Any, Any| -> (Any, Any)) -> Map
             {for k, v in self: func k, v}
         end
 
+        /*
         fn List.reduce(init: Any, func: |Any| -> Any) -> Any
+            if self
+                init
+            else
+                (first, ..rest) = self.split_front
+                rest.reduce(init + first, func)
+            end
+        end
+
         fn Map.reduce(init: Any, func: |Any, Any| -> Any) -> Any
+
+        end
         */
 
         fn mut List.extend(value: List)
+        fn mut List.clear -> None
+        fn List.empty = self.to_bool
         fn List.first -> Any?
         fn List.last -> Any?
         fn mut List.push(var value)
@@ -50,6 +62,8 @@ derive_module!(
         fn List.with(var value) -> List
 
         fn mut Map.extend(value: Map)
+        fn mut Map.clear -> None
+        fn Map.empty = self.to_bool
         fn Map.first -> Any?
         fn Map.last -> Any?
         fn mut Map.insert(key, value)
@@ -172,6 +186,10 @@ impl RigzStd for StdModule {
         this.extend(value)
     }
 
+    fn mut_list_clear(&self, this: &mut Vec<Value>) {
+        this.clear()
+    }
+
     fn list_first(&self, this: Vec<Value>) -> Option<Value> {
         this.first().cloned()
     }
@@ -198,6 +216,10 @@ impl RigzStd for StdModule {
 
     fn mut_map_extend(&self, this: &mut IndexMap<Value, Value>, value: IndexMap<Value, Value>) {
         this.extend(value)
+    }
+
+    fn mut_map_clear(&self, this: &mut IndexMap<Value, Value>) {
+        this.clear()
     }
 
     fn map_first(&self, this: IndexMap<Value, Value>) -> Option<Value> {

@@ -103,7 +103,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                             }
                                         }
                                     },
-                                    CallSignature::Lambda(_, ret) => Some(ret.clone()),
+                                    CallSignature::Lambda(_, _, ret) => Some(ret.0.clone()),
                                 })
                                 .collect();
                             match matched.len() {
@@ -142,7 +142,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                         .self_type
                                         .as_ref()
                                         .map(|_| f.return_type.0.rigz_type.clone()),
-                                    CallSignature::Lambda(_, ret) => Some(ret.clone()),
+                                    CallSignature::Lambda(_, _, ret) => Some(ret.0.clone()),
                                 })
                                 .collect();
                             match matched.len() {
@@ -222,7 +222,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     None => Some(f.return_type.0.rigz_type.clone()),
                     Some(_) => None,
                 },
-                CallSignature::Lambda(_, ret) => Some(ret.clone()),
+                CallSignature::Lambda(_, _, ret) => Some(ret.0.clone()),
             })
             .collect();
 

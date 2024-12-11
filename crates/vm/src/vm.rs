@@ -70,7 +70,7 @@ impl VMOptions {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RegisterValue {
-    ScopeId(usize, Register),
+    ScopeId(usize, Register, Vec<Register>),
     Register(Register),
     Value(Value),
     Constant(usize),
@@ -79,8 +79,8 @@ pub enum RegisterValue {
 impl RegisterValue {
     pub fn resolve(self, vm: &mut VM, register: Register) -> Value {
         match self {
-            RegisterValue::ScopeId(scope, output) => {
-                vm.handle_scope(scope, register, vec![], output)
+            RegisterValue::ScopeId(scope, output, args) => {
+                vm.handle_scope(scope, register, args, output)
             }
             RegisterValue::Register(r) => vm.resolve_register(r),
             RegisterValue::Value(v) => v,
@@ -218,7 +218,7 @@ impl<'vm> VM<'vm> {
                             "Constants cannot be mutated {c}"
                         )))
                     }
-                    RegisterValue::ScopeId(s, o) => {
+                    RegisterValue::ScopeId(s, o, _args) => {
                         return Err(VMError::UnsupportedOperation(format!(
                             "Scopes are not implemented yet - Scope {s} R{o}"
                         )))

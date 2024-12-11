@@ -268,6 +268,7 @@ mod runtime {
             "# = vec![1, 2, 3].into())
             trailing_if_false(r#"v = 'a'; v if v.is_num"# = Value::None)
             instance_trailing_if(r#"a = 'a'; a.to_i if a.is_num"# = Value::None)
+            filter(r#"[1, 2, 3, 'a', 'b'].filter(|v| v.is_num)"# = vec![1, 2, 3].into())
             // self_fib_recursive(r#"
             // fn Number.fib -> Number
             //     if self <= 1
@@ -284,7 +285,7 @@ mod runtime {
     mod debug {
         use super::*;
         run_debug_vm! {
-            filter(r#"[1, 2, 3, 'a', 'b'].filter(|v| v.is_num)"# = vec![1, 2, 3].into())
+            list_map(r#"[1, 2, 3].map(|v| v * v)"# = vec![1, 4, 9].into())
             // fib_recursive(r#"
             // fn fib(n: Number) -> Number
             //     if n <= 1
