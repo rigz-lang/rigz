@@ -108,7 +108,22 @@ fn match_args_ref<'a, 'vm>(
     res
 }
 
-type FunctionCallSignatures<'vm> = Vec<(FunctionCallSignature<'vm>, CallSite<'vm>)>;
+#[derive(Clone)]
+pub(crate) enum CallSignature<'vm> {
+    Function(FunctionCallSignature<'vm>, CallSite<'vm>),
+    Lambda(Vec<RigzType>, RigzType),
+}
+
+impl<'vm> CallSignature<'vm> {
+    fn rigz_type(&self) -> RigzType {
+        match self {
+            CallSignature::Function(fc, _) => fc.return_type.0.rigz_type.clone(),
+            CallSignature::Lambda(_, rt) => rt.clone(),
+        }
+    }
+}
+
+type FunctionCallSignatures<'vm> = Vec<CallSignature<'vm>>;
 
 pub(crate) enum ModuleDefinition {
     Imported,
@@ -192,7 +207,7 @@ impl<'vm> ProgramParser<'vm, VM<'vm>> {
 }
 
 struct BestMatch<'vm> {
-    fcs: (FunctionCallSignature<'vm>, CallSite<'vm>),
+    fcs: CallSignature<'vm>,
     mutable: bool,
     vm_module: bool,
     this: Option<usize>,
@@ -246,48 +261,135 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         }
     }
 
+    fn parse_lambda(
+        &mut self,
+        name: &'vm str,
+        arguments: Vec<FunctionArgument<'vm>>,
+        var_args_start: Option<usize>,
+        body: Box<Expression<'vm>>,
+    ) -> Result<(), ValidationError> {
+        let old: Vec<_> = arguments
+            .iter()
+            .map(|a| {
+                (
+                    a.name,
+                    self.identifiers
+                        .insert(a.name, a.function_type.rigz_type.clone()),
+                )
+            })
+            .collect();
+        let rigz_type = self.rigz_type(&body)?;
+        let body = match *body {
+            Expression::Scope(s) => s,
+            ex => Scope {
+                elements: vec![Element::Expression(ex)],
+            },
+        };
+        let fd = FunctionDefinition {
+            name,
+            body,
+            type_definition: FunctionSignature {
+                arguments,
+                return_type: FunctionType {
+                    rigz_type,
+                    mutable: false,
+                },
+                self_type: None,
+                arg_type: ArgType::Positional,
+                var_args_start,
+            },
+            lifecycle: None,
+        };
+        self.parse_function_definition(fd)?;
+        old.into_iter().for_each(|(name, rt)| match rt {
+            None => {
+                self.identifiers.remove(name);
+            }
+            Some(s) => {
+                self.identifiers.insert(name, s);
+            }
+        });
+        Ok(())
+    }
+
+    fn parse_assignment(
+        &mut self,
+        lhs: Assign<'vm>,
+        expression: Expression<'vm>,
+    ) -> Result<(), ValidationError> {
+        match lhs {
+            Assign::Identifier(name, mutable) => match expression {
+                Expression::Lambda {
+                    arguments,
+                    var_args_start,
+                    body,
+                } => self.parse_lambda(name, arguments, var_args_start, body)?,
+                exp => {
+                    let ext = self.rigz_type(&exp)?;
+                    self.identifiers.insert(name, ext);
+                    self.parse_expression(exp)?;
+                    if mutable {
+                        self.builder.add_load_mut_instruction(name, self.last);
+                    } else {
+                        self.builder.add_load_let_instruction(name, self.last);
+                    }
+                }
+            },
+            Assign::TypedIdentifier(name, mutable, rigz_type) => {
+                match expression {
+                    Expression::Lambda {
+                        arguments,
+                        var_args_start,
+                        body,
+                    } => {
+                        // todo ensure lambda matches typed identifier
+                        self.parse_lambda(name, arguments, var_args_start, body)?
+                    }
+                    exp => {
+                        let ext = self.rigz_type(&exp)?;
+                        if ext != rigz_type {
+                            return Err(ValidationError::InvalidType(format!(
+                                "{ext} cannot be assigned to {rigz_type}"
+                            )));
+                        }
+                        self.identifiers.insert(name, ext);
+                        self.parse_expression(exp)?;
+                        if mutable {
+                            self.builder.add_load_mut_instruction(name, self.last);
+                        } else {
+                            self.builder.add_load_let_instruction(name, self.last);
+                        }
+                    }
+                }
+            }
+            Assign::This => {
+                let this = self.mutable_this();
+                match expression {
+                    Expression::Lambda {
+                        arguments,
+                        var_args_start,
+                        body,
+                    } => self.parse_lambda("self", arguments, var_args_start, body)?,
+                    exp => {
+                        let ext = self.rigz_type(&exp)?;
+                        self.identifiers.insert("self", ext);
+                        self.parse_expression(exp)?;
+                        let rhs = self.last;
+                        self.builder
+                            .add_load_instruction(this, RegisterValue::Register(rhs));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn parse_statement(
         &mut self,
         statement: Statement<'vm>,
     ) -> Result<(), ValidationError> {
         match statement {
-            Statement::Assignment {
-                lhs: Assign::Identifier(name, mutable),
-                expression,
-            } => {
-                self.identifiers.insert(name, self.rigz_type(&expression)?);
-                self.parse_expression(expression)?;
-                if mutable {
-                    self.builder.add_load_mut_instruction(name, self.last);
-                } else {
-                    self.builder.add_load_let_instruction(name, self.last);
-                }
-            }
-            Statement::Assignment {
-                lhs: Assign::TypedIdentifier(name, mutable, rigz_type),
-                expression,
-            } => {
-                self.identifiers.insert(name, rigz_type);
-                // todo validate expression is rigz_type
-                self.parse_expression(expression)?;
-                if mutable {
-                    self.builder.add_load_mut_instruction(name, self.last);
-                } else {
-                    self.builder.add_load_let_instruction(name, self.last);
-                }
-            }
-            Statement::Assignment {
-                lhs: Assign::This,
-                expression,
-            } => {
-                self.identifiers
-                    .insert("self", self.rigz_type(&expression)?);
-                let this = self.mutable_this();
-                self.parse_expression(expression)?;
-                let rhs = self.last;
-                self.builder
-                    .add_load_instruction(this, RegisterValue::Register(rhs));
-            }
+            Statement::Assignment { lhs, expression } => self.parse_assignment(lhs, expression)?,
             Statement::BinaryAssignment {
                 lhs: Assign::Identifier(name, _),
                 op,
@@ -388,13 +490,9 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             Some(l) => {
                 let memoized = match &l {
                     Lifecycle::Memo(_) => true,
-                    Lifecycle::Composite(all) => all.iter().any(|l| {
-                        if let Lifecycle::Memo(_) = l {
-                            true
-                        } else {
-                            false
-                        }
-                    }),
+                    Lifecycle::Composite(all) => {
+                        all.iter().any(|l| matches!(l, Lifecycle::Memo(_)))
+                    }
                     _ => false,
                 };
                 self.builder.enter_lifecycle_scope(name, l, args);
@@ -402,8 +500,23 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             }
         };
         for arg in &type_definition.arguments {
-            self.identifiers
-                .insert(arg.name, arg.function_type.rigz_type.clone());
+            let rt = &arg.function_type.rigz_type;
+            match rt {
+                RigzType::Function(args, ret) => {
+                    let cs = CallSignature::Lambda(args.clone(), *ret.clone());
+                    match self.function_scopes.entry(arg.name) {
+                        Entry::Occupied(mut entry) => {
+                            entry.get_mut().push(cs);
+                        }
+                        Entry::Vacant(entry) => {
+                            entry.insert(vec![cs]);
+                        }
+                    }
+                }
+                _ => {
+                    self.identifiers.insert(arg.name, rt.clone());
+                }
+            }
         }
         // todo store arguments variable
         let f_def = self.builder.current_scope();
@@ -411,12 +524,13 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         let self_type = type_definition.self_type.clone();
         match self.function_scopes.entry(name) {
             Entry::Occupied(mut entry) => {
-                entry
-                    .get_mut()
-                    .push((type_definition, CallSite::Scope(f_def, output, memoized)));
+                entry.get_mut().push(CallSignature::Function(
+                    type_definition,
+                    CallSite::Scope(f_def, output, memoized),
+                ));
             }
             Entry::Vacant(e) => {
-                e.insert(vec![(
+                e.insert(vec![CallSignature::Function(
                     type_definition,
                     CallSite::Scope(f_def, output, memoized),
                 )]);
@@ -454,12 +568,16 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     let type_definition = self.parse_type_signature(name, type_definition)?;
                     match self.function_scopes.entry(name) {
                         Entry::Occupied(mut entry) => {
-                            entry
-                                .get_mut()
-                                .push((type_definition, CallSite::Module(module_name)));
+                            entry.get_mut().push(CallSignature::Function(
+                                type_definition,
+                                CallSite::Module(module_name),
+                            ));
                         }
                         Entry::Vacant(e) => {
-                            e.insert(vec![(type_definition, CallSite::Module(module_name))]);
+                            e.insert(vec![CallSignature::Function(
+                                type_definition,
+                                CallSite::Module(module_name),
+                            )]);
                         }
                     }
                 }
@@ -557,6 +675,9 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         match expression {
             Expression::This => {
                 let _ = self.this();
+            }
+            Expression::Tuple(v) => {
+                self.parse_tuple(v)?;
             }
             // Expression::Index(_, _) => {}
             Expression::Value(v) => self.parse_value(v),
@@ -663,6 +784,90 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             Expression::TypeFunctionCall(rigz_type, name, args) => {
                 self.call_function(Some(rigz_type), name, args)?;
             }
+            Expression::Lambda { .. } => {
+                return Err(ValidationError::MissingExpression(
+                    "Dangling lambda cannot be used".to_string(),
+                ))
+            }
+            Expression::ForList {
+                var,
+                expression: exp,
+                body,
+            } => {
+                let current = self.builder.current_scope();
+                // todo extract type from expression
+                let old = self.identifiers.insert(var, RigzType::Any);
+                let inner_scope = self.builder.enter_scope("for-list", vec![(var, false)]);
+                self.parse_expression(*body)?;
+                let output = self.last;
+                self.builder.exit_scope(current, output);
+                match old {
+                    None => {
+                        self.identifiers.remove(var);
+                    }
+                    Some(t) => {
+                        self.identifiers.insert(var, t);
+                    }
+                }
+                self.parse_expression(*exp)?;
+                let this = self.last;
+                self.last = output;
+                self.builder
+                    .add_for_list_instruction(this, inner_scope, output);
+            }
+            Expression::ForMap {
+                k_var,
+                v_var,
+                expression,
+                key,
+                value,
+            } => {
+                if k_var == v_var {
+                    return Err(ValidationError::MissingExpression(format!(
+                        "Cannot use same identifier for key & value, {k_var}"
+                    )));
+                }
+
+                let current = self.builder.current_scope();
+                let k_old = self.identifiers.insert(k_var, RigzType::Any);
+                let v_old = self.identifiers.insert(v_var, RigzType::Any);
+                let inner_scope = self
+                    .builder
+                    .enter_scope("for-map", vec![(k_var, false), (v_var, false)]);
+                match value {
+                    None => {
+                        self.parse_expression(*key)?;
+                    }
+                    Some(value) => {
+                        self.parse_tuple(vec![*key, *value])?;
+                    }
+                }
+                let output = self.last;
+                self.builder.exit_scope(current, output);
+                match k_old {
+                    None => {
+                        self.identifiers.remove(k_var);
+                    }
+                    Some(t) => {
+                        self.identifiers.insert(k_var, t);
+                    }
+                }
+                match v_old {
+                    None => {
+                        self.identifiers.remove(k_var);
+                    }
+                    Some(t) => {
+                        self.identifiers.insert(k_var, t);
+                    }
+                }
+                let key = self.next_register();
+                let value = self.next_register();
+                self.parse_expression(*expression)?;
+                let this = self.last;
+                self.last = output;
+                self.builder
+                    .add_for_map_instruction(this, inner_scope, key, value, output);
+            }
             Expression::InstanceFunctionCall(exp, calls, args) => {
                 let len = calls.len();
                 assert!(len > 0, "Invalid Instance Function Call no calls");
@@ -718,7 +923,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 let (s, output) = self.parse_scope(s, "do")?;
                 let next = self.next_register();
                 self.builder
-                    .add_load_instruction(next, RegisterValue::ScopeId(s, vec![], output));
+                    .add_load_instruction(next, RegisterValue::ScopeId(s, output));
             }
             Expression::Cast(e, t) => {
                 self.parse_expression(*e)?;
@@ -771,27 +976,32 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
     ) -> Result<(), ValidationError> {
         if function_call_signatures.len() == 1 {
             let mut fcs = function_call_signatures.into_iter();
-            let (fcs, call) = fcs.next().unwrap();
-            let (vm_module, mutable, this) = match &fcs.self_type {
-                None => {
-                    return Err(ValidationError::InvalidFunction(format!(
-                        "Function is not an extension function {name}"
-                    )))
-                }
-                Some((f, this)) => {
-                    if this != current {
-                        self.builder.add_load_instruction(*this, (*current).into());
-                    }
-                    let is_vm = if let RigzType::Custom(CustomType { name, .. }) = &f.rigz_type {
-                        name.as_str() == "VM"
-                    } else {
-                        false
+            match fcs.next().unwrap() {
+                CallSignature::Function(fcs, call) => {
+                    let (vm_module, mutable, this) = match &fcs.self_type {
+                        None => {
+                            return Err(ValidationError::InvalidFunction(format!(
+                                "Function is not an extension function {name}"
+                            )))
+                        }
+                        Some((f, this)) => {
+                            if this != current {
+                                self.builder.add_load_instruction(*this, (*current).into());
+                            }
+                            let is_vm =
+                                if let RigzType::Custom(CustomType { name, .. }) = &f.rigz_type {
+                                    name.as_str() == "VM"
+                                } else {
+                                    false
+                                };
+                            (is_vm, f.mutable, *this)
+                        }
                     };
-                    (is_vm, f.mutable, *this)
+                    let call_args = self.setup_call_args(args, fcs)?;
+                    self.process_extension_call(name, call_args, vm_module, mutable, this, call);
                 }
+                CallSignature::Lambda(args, ret) => {}
             };
-            let call_args = self.setup_call_args(args, fcs)?;
-            self.process_extension_call(name, call_args, vm_module, mutable, this, call);
         } else {
             return Err(ValidationError::NotImplemented(format!(
                 "Multiple extension functions match for {name}"
@@ -836,6 +1046,46 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         if values_only {
             self.builder
                 .add_load_instruction(l, Value::List(base).into());
+        }
+        self.last = l;
+        Ok(())
+    }
+
+    fn parse_tuple(&mut self, list: Vec<Expression<'vm>>) -> Result<(), ValidationError> {
+        let mut base = Vec::new();
+        let mut values_only = true;
+        let l = self.next_register();
+        for (index, v) in list.into_iter().enumerate() {
+            if values_only {
+                match v {
+                    Expression::Value(v) => {
+                        base.push(v);
+                    }
+                    e => {
+                        values_only = false;
+                        self.builder
+                            .add_load_instruction(l, Value::Tuple(base).into());
+                        base = Vec::new();
+                        let index = Number::Int(index as i64);
+                        let k_next = self.next_register();
+                        self.parse_expression(e)?;
+                        self.builder.add_load_instruction(k_next, index.into());
+                        self.builder
+                            .add_instance_set_instruction(l, k_next, self.last, l);
+                    }
+                }
+            } else {
+                let index = Number::Int(index as i64);
+                let k_next = self.next_register();
+                self.parse_expression(v)?;
+                self.builder.add_load_instruction(k_next, index.into());
+                self.builder
+                    .add_instance_set_instruction(l, k_next, self.last, l);
+            }
+        }
+        if values_only {
+            self.builder
+                .add_load_instruction(l, Value::Tuple(base).into());
         }
         self.last = l;
         Ok(())
@@ -957,7 +1207,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             if let RigzArguments::Positional(arguments) = &arguments {
                 if arguments.len() >= 2 {
                     let mut args = Vec::with_capacity(arguments.len() - 2);
-                    let mut arguments = arguments.into_iter();
+                    let mut arguments = arguments.iter();
                     let level = match arguments.next().unwrap() {
                         Expression::Value(Value::String(s)) => Self::str_to_log_level(s.as_str())?,
                         Expression::Symbol(s) => Self::str_to_log_level(s)?,
@@ -993,30 +1243,35 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             this: _,
         } = self.best_matched_function(name, rigz_type, &arguments)?;
 
-        let (fcs, call) = fcs;
-        let call_args = self.setup_call_args(arguments, fcs)?;
+        match fcs {
+            CallSignature::Function(fcs, call) => {
+                let call_args = self.setup_call_args(arguments, fcs)?;
 
-        match call {
-            CallSite::Scope(s, o, memo) => {
-                if memo {
-                    self.builder.add_call_memo_instruction(s, call_args, o);
-                } else {
-                    self.builder.add_call_instruction(s, call_args, o);
+                match call {
+                    CallSite::Scope(s, o, memo) => {
+                        if memo {
+                            self.builder.add_call_memo_instruction(s, call_args, o);
+                        } else {
+                            self.builder.add_call_instruction(s, call_args, o);
+                        }
+                        let next = self.next_register();
+                        self.builder.add_move_instruction(o, next);
+                    }
+                    CallSite::Module(m) => {
+                        let output = self.next_register();
+                        if vm_module {
+                            self.builder.add_call_vm_extension_module_instruction(
+                                m, name, call_args, output,
+                            );
+                        } else {
+                            self.builder
+                                .add_call_module_instruction(m, name, call_args, output);
+                        }
+                    }
                 }
-                let next = self.next_register();
-                self.builder.add_move_instruction(o, next);
             }
-            CallSite::Module(m) => {
-                let output = self.next_register();
-                if vm_module {
-                    self.builder
-                        .add_call_vm_extension_module_instruction(m, name, call_args, output);
-                } else {
-                    self.builder
-                        .add_call_module_instruction(m, name, call_args, output);
-                }
-            }
-        }
+            CallSignature::Lambda(args, ret) => {}
+        };
         Ok(())
     }
 
@@ -1033,71 +1288,83 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
 
         let function_call_signatures = self.get_function(name)?;
         if function_call_signatures.len() == 1 {
-            let (inner_fcs, call_site) = &function_call_signatures[0];
-            let arguments = inner_fcs.convert_ref(arguments);
-            if arguments.len() <= inner_fcs.arguments.len() {
-                match &inner_fcs.self_type {
-                    None => {}
-                    Some((ft, current_this)) => {
-                        vm_module = ft.rigz_type.is_vm();
-                        this = Some(*current_this);
-                        mutable = ft.mutable;
-                    }
-                }
-                fcs = Some((inner_fcs.clone(), *call_site));
-            } else {
-                if inner_fcs.var_args_start.is_none() {
-                    return Err(ValidationError::InvalidFunction(format!(
-                        "Expected function with var_args {name}"
-                    )));
-                }
-            }
-        } else {
-            for (fc, call_site) in function_call_signatures {
-                let arguments = fc.convert_ref(arguments);
-                let arg_len = arguments.len();
-                let fc_arg_len = fc.arguments.len();
-                match (&fc.self_type, &rigz_type) {
-                    (None, None) => {
-                        if arg_len <= fc_arg_len {
-                            fcs = Some((fc, call_site));
-                            break;
-                        } else {
-                            match fc.var_args_start {
-                                None => {}
-                                Some(i) => {
-                                    if (fc_arg_len - 1) % (arg_len - i) == 0 {
-                                        fcs = Some((fc, call_site));
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    (Some((ft, current_this)), Some(s)) => {
-                        if &ft.rigz_type == s {
-                            if arg_len <= fc_arg_len {
+            match &function_call_signatures[0] {
+                CallSignature::Function(inner_fcs, call_site) => {
+                    let arguments = inner_fcs.convert_ref(arguments);
+                    if arguments.len() <= inner_fcs.arguments.len() {
+                        match &inner_fcs.self_type {
+                            None => {}
+                            Some((ft, current_this)) => {
                                 vm_module = ft.rigz_type.is_vm();
                                 this = Some(*current_this);
                                 mutable = ft.mutable;
-                                fcs = Some((fc, call_site));
-                                break;
-                            } else {
-                                match fc.var_args_start {
-                                    None => {}
-                                    Some(i) => {
-                                        if (fc_arg_len - 1) % (arg_len - i) == 0 {
-                                            mutable = ft.mutable;
-                                            this = Some(*current_this);
-                                            fcs = Some((fc, call_site));
-                                            break;
+                            }
+                        }
+                        fcs = Some(CallSignature::Function(inner_fcs.clone(), *call_site));
+                    } else if inner_fcs.var_args_start.is_none() {
+                        return Err(ValidationError::InvalidFunction(format!(
+                            "Expected function with var_args {name}"
+                        )));
+                    }
+                }
+                lambda => fcs = Some(lambda.clone()),
+            }
+        } else {
+            for cs in function_call_signatures {
+                match cs {
+                    CallSignature::Function(fc, call_site) => {
+                        let arguments = fc.convert_ref(arguments);
+                        let arg_len = arguments.len();
+                        let fc_arg_len = fc.arguments.len();
+                        match (&fc.self_type, &rigz_type) {
+                            (None, None) => {
+                                if arg_len <= fc_arg_len {
+                                    fcs = Some(CallSignature::Function(fc, call_site));
+                                    break;
+                                } else {
+                                    match fc.var_args_start {
+                                        None => {}
+                                        Some(i) => {
+                                            if (fc_arg_len - 1) % (arg_len - i) == 0 {
+                                                fcs = Some(CallSignature::Function(fc, call_site));
+                                                break;
+                                            }
                                         }
                                     }
                                 }
                             }
+                            (Some((ft, current_this)), Some(s)) => {
+                                if &ft.rigz_type == s {
+                                    if arg_len <= fc_arg_len {
+                                        vm_module = ft.rigz_type.is_vm();
+                                        this = Some(*current_this);
+                                        mutable = ft.mutable;
+                                        fcs = Some(CallSignature::Function(fc, call_site));
+                                        break;
+                                    } else {
+                                        match fc.var_args_start {
+                                            None => {}
+                                            Some(i) => {
+                                                if (fc_arg_len - 1) % (arg_len - i) == 0 {
+                                                    mutable = ft.mutable;
+                                                    this = Some(*current_this);
+                                                    fcs = Some(CallSignature::Function(
+                                                        fc, call_site,
+                                                    ));
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            (None, Some(_)) | (Some(_), None) => {}
                         }
                     }
-                    (None, Some(_)) | (Some(_), None) => {}
+                    CallSignature::Lambda(args, ret) => {
+                        // todo ensure best match
+                        fcs = Some(CallSignature::Lambda(args, ret))
+                    }
                 }
             }
         }
@@ -1151,7 +1418,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     let mut a = Vec::with_capacity(var_arg_count);
                     a.resize(var_arg_count, Vec::new());
                     let mut last_var_arg = 0;
-                    for (index, ex) in vars.into_iter().enumerate() {
+                    for (index, ex) in vars.iter().enumerate() {
                         last_var_arg = index % var_arg_count;
                         a[last_var_arg].push(ex.clone());
                     }
@@ -1170,7 +1437,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                 .push(Expression::Value(arg.default.clone().unwrap()))
                         }
                     }
-                    args.extend(a.into_iter().map(|e| Expression::List(e)));
+                    args.extend(a.into_iter().map(Expression::List));
                     args
                 }
             }
@@ -1181,8 +1448,19 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 fcs.name
             )));
         }
-        for (_, expression) in fcs.arguments.iter().zip(arguments) {
-            self.parse_expression(expression)?;
+        for (arg, expression) in fcs.arguments.iter().zip(arguments) {
+            match expression {
+                Expression::Lambda {
+                    arguments,
+                    var_args_start,
+                    body,
+                } => {
+                    self.parse_lambda(arg.name, arguments, var_args_start, body)?;
+                }
+                _ => {
+                    self.parse_expression(expression)?;
+                }
+            }
             call_args.push(self.last);
         }
         Ok(call_args)
@@ -1201,29 +1479,32 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             vm_module,
             this,
         } = self.best_matched_function(name, Some(rigz_type), &arguments)?;
-        let (fcs, call) = fcs;
-        let call_args = self.setup_call_args(arguments, fcs)?;
+        match fcs {
+            CallSignature::Function(fcs, call) => {
+                let call_args = self.setup_call_args(arguments, fcs)?;
 
-        let this = match this {
-            None => {
-                return Err(ValidationError::InvalidFunction(format!(
-                    "Invalid function matched for {name}, required extension function"
-                )))
+                let this = match this {
+                    None => {
+                        return Err(ValidationError::InvalidFunction(format!(
+                            "Invalid function matched for {name}, required extension function"
+                        )))
+                    }
+                    Some(t) => t,
+                };
+
+                match &call {
+                    CallSite::Scope(_, _, _) => {
+                        self.parse_extension_expression(mutable, this, this_exp)?;
+                    }
+                    CallSite::Module(_) => {
+                        self.parse_extension_expression(mutable, this, this_exp)?;
+                    }
+                }
+
+                self.process_extension_call(name, call_args, vm_module, mutable, this, call);
             }
-            Some(t) => t,
+            CallSignature::Lambda(args, ret) => {}
         };
-
-        match &call {
-            CallSite::Scope(_, _, _) => {
-                self.parse_extension_expression(mutable, this, this_exp)?;
-            }
-            CallSite::Module(_) => {
-                self.parse_extension_expression(mutable, this, this_exp)?;
-            }
-        }
-
-        self.process_extension_call(name, call_args, vm_module, mutable, this, call);
-
         Ok(())
     }
 

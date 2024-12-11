@@ -43,9 +43,15 @@ impl ToTokens for Expression<'_> {
                     Expression::List(#values)
                 }
             }
+            Expression::Tuple(e) => {
+                let values = csv_vec(e);
+                quote! {
+                    Expression::Tuple(#values)
+                }
+            }
             Expression::Map(m) => {
                 let values: Vec<_> = m
-                    .into_iter()
+                    .iter()
                     .map(|(k, v)| {
                         quote! { (#k, #v), }
                     })
@@ -65,6 +71,7 @@ impl ToTokens for Expression<'_> {
                 }
             }
             Expression::UnaryExp(op, ex) => {
+                let ex = boxed(ex);
                 quote! {
                     Expression::UnaryExp(#op, #ex)
                 }
@@ -129,6 +136,62 @@ impl ToTokens for Expression<'_> {
                     quote! { Expression::Return(Some(#b)) }
                 }
             },
+            Expression::Lambda {
+                arguments,
+                var_args_start,
+                body,
+            } => {
+                let arguments = csv_vec(arguments);
+                let body = boxed(body);
+                quote! {
+                    Expression::Lambda {
+                        arguments: #arguments,
+                        var_args_start: #var_args_start,
+                        body: #body
+                    }
+                }
+            }
+            Expression::ForList {
+                var,
+                expression,
+                body,
+            } => {
+                let e = boxed(expression);
+                let b = boxed(body);
+                quote! {
+                    Expression::ForList {
+                        var: #var,
+                        expression: #e,
+                        body: #b,
+                    }
+                }
+            }
+            Expression::ForMap {
+                k_var,
+                v_var,
+                expression,
+                key,
+                value,
+            } => {
+                let expression = boxed(expression);
+                let key = boxed(key);
+                let value = match value {
+                    None => quote! { None },
+                    Some(v) => {
+                        let v = boxed(v);
+                        quote! { Some(#v) }
+                    }
+                };
+                quote! {
+                    Expression::ForMap {
+                        k_var: #k_var,
+                        v_var: #v_var,
+                        expression: #expression,
+                        key: #key,
+                        value: #value,
+                    }
+                }
+            }
         };
         tokens.extend(t)
     }

@@ -46,6 +46,11 @@ impl Div for Value {
                 let result = a.split(b.as_str());
                 Value::List(result.map(|s| Value::String(s.to_string())).collect())
             }
+            (Value::Tuple(a), Value::Tuple(b)) => {
+                Value::Tuple(a.into_iter().zip(b).map(|(a, b)| a / b).collect())
+            }
+            (Value::Tuple(a), b) => Value::Tuple(a.into_iter().map(|a| a / b.clone()).collect()),
+            (b, Value::Tuple(a)) => Value::Tuple(a.into_iter().map(|a| b.clone() / a).collect()),
             // (Value::List(a), Value::List(b)) => {
             //     let mut result = a.clone();
             //     result.extend(b);

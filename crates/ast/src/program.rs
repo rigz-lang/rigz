@@ -35,9 +35,9 @@ pub struct FunctionType {
     pub mutable: bool,
 }
 
-impl Into<FunctionType> for RigzType {
-    fn into(self) -> FunctionType {
-        FunctionType::new(self)
+impl From<RigzType> for FunctionType {
+    fn from(val: RigzType) -> Self {
+        FunctionType::new(val)
     }
 }
 
@@ -169,6 +169,24 @@ pub enum Expression<'lex> {
     Return(Option<Box<Expression<'lex>>>),
     // todo support later
     // Index(Box<Expression<'lex>>, Vec<Expression<'lex>>),
+    Tuple(Vec<Expression<'lex>>),
+    Lambda {
+        arguments: Vec<FunctionArgument<'lex>>,
+        var_args_start: Option<usize>,
+        body: Box<Expression<'lex>>,
+    },
+    ForList {
+        var: &'lex str,
+        expression: Box<Expression<'lex>>,
+        body: Box<Expression<'lex>>,
+    },
+    ForMap {
+        k_var: &'lex str,
+        v_var: &'lex str,
+        expression: Box<Expression<'lex>>,
+        key: Box<Expression<'lex>>,
+        value: Option<Box<Expression<'lex>>>,
+    },
 }
 
 impl<'lex> From<Vec<Expression<'lex>>> for Expression<'lex> {

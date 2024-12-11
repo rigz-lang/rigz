@@ -48,6 +48,11 @@ impl Mul for Value {
             (Value::String(a), Value::String(b)) => {
                 Value::List(vec![Value::String(a)]) * Value::String(b)
             }
+            (Value::Tuple(a), Value::Tuple(b)) => {
+                Value::Tuple(a.into_iter().zip(b).map(|(a, b)| a * b).collect())
+            }
+            (Value::Tuple(a), b) => Value::Tuple(a.into_iter().map(|a| a * b.clone()).collect()),
+            (b, Value::Tuple(a)) => Value::Tuple(a.into_iter().map(|a| b.clone() * a).collect()),
             // (Value::String(a), b) => {
             //     let mut result = a.clone();
             //     result.push_str(b.to_string().as_str());

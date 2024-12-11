@@ -126,7 +126,7 @@ mod vm_test {
     }
 
     #[test]
-    fn module_works<'vm>() {
+    fn module_works() {
         let mut builder = VMBuilder::new();
         let module = TestModule {};
         builder
@@ -149,7 +149,7 @@ mod vm_test {
             .add_load_instruction(3, Value::Number(Number::Int(2)).into())
             .add_add_instruction(2, 3, 4)
             .exit_scope(0, 4)
-            .add_load_instruction(5, RegisterValue::ScopeId(scope, vec![], 4))
+            .add_load_instruction(5, RegisterValue::ScopeId(scope, 4))
             .add_load_let_instruction("a", 5)
             .add_get_variable_instruction("a", 6)
             .add_load_instruction(7, Value::Number(Number::Int(2)).into())
@@ -168,7 +168,7 @@ mod vm_test {
         builder
             .add_load_instruction(2, Value::String("hello".to_string()).into())
             .exit_scope(0, 2)
-            .add_load_instruction(4, RegisterValue::ScopeId(scope, vec![], 2))
+            .add_load_instruction(4, RegisterValue::ScopeId(scope, 2))
             .add_halt_instruction(4);
         let mut vm = builder.build();
         assert_eq!(vm.eval().unwrap(), Value::String("hello".to_string()))
@@ -410,5 +410,22 @@ mod vm_test {
                 duration: Default::default(),
             }
         )
+    }
+
+    #[test]
+    fn for_list() {
+        let mut builder = VMBuilder::new();
+        // [for v in [1, 2, 3]: v * v]
+        let scope = builder
+            .add_load_instruction(1, vec![1, 2, 3].into())
+            .enter_scope("for-list", vec![("v", false)]);
+        builder
+            .add_get_variable_instruction("v", 2)
+            .add_mul_instruction(2, 3, 3)
+            .exit_scope(0, 3)
+            .add_for_list_instruction(1, scope, 3)
+            .add_halt_instruction(3);
+        let mut vm = builder.build();
+        assert_eq!(vm.run(), vec![1, 4, 9].into())
     }
 }

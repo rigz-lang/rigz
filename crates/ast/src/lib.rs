@@ -96,9 +96,9 @@ impl<'lex> Parser<'lex> {
     pub fn parse_module_trait_definition(
         &mut self,
     ) -> Result<ModuleTraitDefinition<'lex>, ParsingError> {
-        let mut next = self.next_required_token()?;
+        let mut next = self.next_required_token("parse_module_trait_definition")?;
         let auto_import = if next.kind == TokenKind::Import {
-            next = self.next_required_token()?;
+            next = self.next_required_token("parse_module_trait_definition")?;
             true
         } else {
             false
@@ -164,19 +164,22 @@ impl<'lex> Parser<'lex> {
         !self.tokens.is_empty()
     }
 
-    fn peek_required_token(&self) -> Result<Token<'lex>, ParsingError> {
+    fn peek_required_token(&self, location: &'static str) -> Result<Token<'lex>, ParsingError> {
         match self.peek_token() {
-            None => Err(Self::eoi_error("peek_required_token")),
+            None => Err(Self::eoi_error("peek_required_token", location)),
             Some(t) => Ok(t),
         }
     }
 
-    fn peek_required_token_eat_newlines(&mut self) -> Result<Token<'lex>, ParsingError> {
+    fn peek_required_token_eat_newlines(
+        &mut self,
+        location: &'static str,
+    ) -> Result<Token<'lex>, ParsingError> {
         match self.peek_token() {
-            None => Err(Self::eoi_error("peek_required_token")),
+            None => Err(Self::eoi_error("peek_required_token", location)),
             Some(t) if t.kind == TokenKind::Newline => {
                 self.consume_token(TokenKind::Newline)?;
-                self.peek_required_token_eat_newlines()
+                self.peek_required_token_eat_newlines(location)
             }
             Some(t) => Ok(t),
         }
@@ -186,9 +189,9 @@ impl<'lex> Parser<'lex> {
         self.tokens.pop_front()
     }
 
-    fn next_required_token(&mut self) -> Result<Token<'lex>, ParsingError> {
+    fn next_required_token(&mut self, caller: &'static str) -> Result<Token<'lex>, ParsingError> {
         match self.next_token() {
-            None => Err(Self::eoi_error("next_required_token")),
+            None => Err(Self::eoi_error("next_required_token", caller)),
             Some(t) => Ok(t),
         }
     }
@@ -216,8 +219,8 @@ impl<'lex> Parser<'lex> {
         }
     }
 
-    fn eoi_error(location: &'static str) -> ParsingError {
-        ParsingError::Eoi(location.to_string())
+    fn eoi_error(location: &'static str, caller: &'static str) -> ParsingError {
+        ParsingError::Eoi(format!("{location} - {caller}"))
     }
 
     fn eoi_error_string(message: String) -> ParsingError {
@@ -226,7 +229,7 @@ impl<'lex> Parser<'lex> {
 
     fn parse_element(&mut self) -> Result<Element<'lex>, ParsingError> {
         let token = match self.peek_token() {
-            None => return Err(Self::eoi_error("parse_element")),
+            None => return Err(Self::eoi_error_string("parse_element".to_string())),
             Some(t) => t,
         };
         let ele = match token.kind {
@@ -279,7 +282,7 @@ impl<'lex> Parser<'lex> {
             }
             TokenKind::Type => {
                 self.consume_token(TokenKind::Type)?;
-                let next = self.next_required_token()?;
+                let next = self.next_required_token("parse_element - TypeDefinition")?;
                 if let TokenKind::TypeValue(name) = next.kind {
                     self.consume_token(TokenKind::Assign)?;
                     Statement::TypeDefinition(name, self.parse_rigz_type(Some(name), false)?).into()
@@ -381,7 +384,7 @@ impl<'lex> Parser<'lex> {
     ) -> Result<Statement<'lex>, ParsingError> {
         let mut lifecycle = self.parse_lifecycle(initial_lifecycle)?;
         loop {
-            let next = self.peek_required_token_eat_newlines()?;
+            let next = self.peek_required_token_eat_newlines("parse_lifecycle_func")?;
             if let TokenKind::Lifecycle(t) = next.kind {
                 match &mut lifecycle {
                     Lifecycle::Composite(v) => {
@@ -396,12 +399,14 @@ impl<'lex> Parser<'lex> {
             }
         }
         self.consume_token_eat_newlines(TokenKind::FunctionDef)?;
-        Ok(Statement::FunctionDefinition(self.parse_function_definition(Some(lifecycle))?).into())
+        Ok(Statement::FunctionDefinition(
+            self.parse_function_definition(Some(lifecycle))?,
+        ))
     }
 
     fn parse_import(&mut self) -> Result<Statement<'lex>, ParsingError> {
         self.consume_token(TokenKind::Import)?;
-        let next = self.next_required_token()?;
+        let next = self.next_required_token("parse_import")?;
         let import_value = match next.kind {
             TokenKind::TypeValue(tv) => {
                 ImportValue::TypeValue(tv)
@@ -422,7 +427,7 @@ impl<'lex> Parser<'lex> {
 
     fn parse_expression(&mut self) -> Result<Expression<'lex>, ParsingError> {
         let next = self
-            .next_required_token()
+            .next_required_token("parse_expression")
             .map_err(|e| ParsingError::ParseError(format!("Invalid Expression {e}")))?;
         let exp = match next.kind {
             TokenKind::Minus => self.parse_unary_expression(UnaryOperation::Neg)?,
@@ -432,7 +437,7 @@ impl<'lex> Parser<'lex> {
             TokenKind::This => self.parse_this_expression()?,
             TokenKind::Symbol(s) => self.parse_symbol_expression(s)?,
             TokenKind::Lparen => self.parse_paren_expression()?,
-            TokenKind::Lbracket => self.parse_list()?.into(),
+            TokenKind::Lbracket => self.parse_list()?,
             TokenKind::Lcurly => self.parse_map()?,
             TokenKind::Do => Expression::Scope(self.parse_scope()?),
             TokenKind::Unless => Expression::Unless {
@@ -458,19 +463,27 @@ impl<'lex> Parser<'lex> {
                         )))
                     }
                 };
-                self.consume_token(TokenKind::Period)?;
-                let func_name = self.next_required_token()?;
-                if let TokenKind::Identifier(func_name) = func_name.kind {
-                    Expression::TypeFunctionCall(type_value, func_name, self.parse_args()?)
-                } else {
-                    return Err(ParsingError::ParseError(format!(
-                        "Invalid Token for Type Function Call {:?}",
-                        func_name
-                    )));
+                let next = self.peek_token();
+                match next {
+                    None => Expression::Value(Value::Type(type_value)),
+                    Some(t) if t.kind == TokenKind::Period => {
+                        self.consume_token(TokenKind::Period)?;
+                        let func_name =
+                            self.next_required_token("parse_expression - TypeFunctionCall")?;
+                        if let TokenKind::Identifier(func_name) = func_name.kind {
+                            Expression::TypeFunctionCall(type_value, func_name, self.parse_args()?)
+                        } else {
+                            return Err(ParsingError::ParseError(format!(
+                                "Invalid Token for Type Function Call {:?}",
+                                func_name
+                            )));
+                        }
+                    }
+                    Some(_) => Expression::Value(Value::Type(type_value)),
                 }
             }
             TokenKind::Error => {
-                let next = self.next_required_token()?;
+                let next = self.next_required_token("parse_expression - Error")?;
                 match next.kind {
                     TokenKind::Value(v) => {
                         Expression::Value(Value::Error(VMError::RuntimeError(v.to_string())))
@@ -495,6 +508,23 @@ impl<'lex> Parser<'lex> {
                     }
                 }
             },
+            TokenKind::Pipe => {
+                let (arguments, var_args_start) = self.parse_lambda_arguments()?;
+                let body = self.parse_expression()?;
+                Expression::Lambda {
+                    arguments,
+                    var_args_start,
+                    body: Box::new(body),
+                }
+            }
+            TokenKind::BinOp(BinaryOperation::Or) => {
+                let body = self.parse_expression()?;
+                Expression::Lambda {
+                    arguments: vec![],
+                    var_args_start: None,
+                    body: Box::new(body),
+                }
+            }
             _ => {
                 return Err(ParsingError::ParseError(format!(
                     "Invalid Token for Expression {:?}",
@@ -552,7 +582,7 @@ impl<'lex> Parser<'lex> {
 
     fn parse_assignment(&mut self, mutable: bool) -> Result<Statement<'lex>, ParsingError> {
         let next = self
-            .next_required_token()
+            .next_required_token("parse_assignment")
             .map_err(|e| ParsingError::ParseError(format!("Expected token for assignment: {e}")))?;
 
         if let TokenKind::Identifier(id) = next.kind {
@@ -570,7 +600,7 @@ impl<'lex> Parser<'lex> {
         mutable: bool,
         id: &'lex str,
     ) -> Result<Statement<'lex>, ParsingError> {
-        let token = self.peek_required_token()?;
+        let token = self.peek_required_token("parse_assignment_definition")?;
         let rigz_type = match token.kind {
             TokenKind::Colon => {
                 self.consume_token(TokenKind::Colon)?;
@@ -640,8 +670,19 @@ impl<'lex> Parser<'lex> {
     }
 
     fn parse_paren_expression(&mut self) -> Result<Expression<'lex>, ParsingError> {
-        let expr = self.parse_expression()?;
-        self.consume_token(TokenKind::Rparen)?;
+        let mut expr = self.parse_expression()?;
+        let t = self.next_required_token("parse_paren_expression")?;
+        match t.kind {
+            TokenKind::Rparen => {}
+            TokenKind::Comma => {
+                expr = Expression::Tuple(self.parse_tuple(expr)?);
+            }
+            _ => {
+                return Err(ParsingError::ParseError(format!(
+                    "Invalid paren expression {t:?}"
+                )))
+            }
+        }
         match self.peek_token() {
             None => Ok(expr),
             Some(t) => match t.kind {
@@ -652,6 +693,27 @@ impl<'lex> Parser<'lex> {
                 _ => Ok(expr),
             },
         }
+    }
+
+    fn parse_tuple(
+        &mut self,
+        first: Expression<'lex>,
+    ) -> Result<Vec<Expression<'lex>>, ParsingError> {
+        let mut tuple = vec![first];
+        loop {
+            let next = self.peek_required_token("parse_tuple")?;
+            match next.kind {
+                TokenKind::Rparen => {
+                    self.consume_token(TokenKind::Rparen)?;
+                    break;
+                }
+                TokenKind::Comma => {
+                    self.consume_token(TokenKind::Comma)?;
+                }
+                _ => tuple.push(self.parse_expression()?),
+            }
+        }
+        Ok(tuple)
     }
 
     fn parse_inline_expression<LHS>(&mut self, lhs: LHS) -> Result<Expression<'lex>, ParsingError>
@@ -690,13 +752,15 @@ impl<'lex> Parser<'lex> {
                     | TokenKind::Rparen
                     | TokenKind::Rcurly
                     | TokenKind::Rbracket
-                    | TokenKind::If
                     | TokenKind::Assign // for maps
-                    | TokenKind::Unless
                     | TokenKind::Colon // named args
                     | TokenKind::End => {
                         self.tokens.push_front(next);
                         break;
+                    }
+                    TokenKind::If | TokenKind::Unless => {
+                        self.tokens.push_front(next);
+                        res = self.parse_expression_suffix(res)?;
                     }
                     _ => return Err(ParsingError::ParseError(format!("Unexpected {:?} for inline expression", next)))
                 },
@@ -710,7 +774,7 @@ impl<'lex> Parser<'lex> {
         lhs: Expression<'lex>,
         op: BinaryOperation,
     ) -> Result<Expression<'lex>, ParsingError> {
-        let next = self.next_required_token()?;
+        let next = self.next_required_token("parse_binary_expression")?;
         let rhs = match next.kind {
             // todo values & identifiers need some work, this doesn't handle function calls or instance calls
             // todo we want value expressions evaluated from left to right, can't call parse_value_expression here
@@ -732,7 +796,7 @@ impl<'lex> Parser<'lex> {
             TokenKind::Minus => self.parse_unary_expression(UnaryOperation::Neg)?,
             TokenKind::Lparen => self.parse_paren_expression()?,
             TokenKind::Lcurly => self.parse_map()?,
-            TokenKind::Lbracket => self.parse_list()?.into(),
+            TokenKind::Lbracket => self.parse_list()?,
             TokenKind::Do => Expression::Scope(self.parse_scope()?),
             TokenKind::This => self.parse_this_expression_skip_inline()?,
             _ => {
@@ -749,7 +813,7 @@ impl<'lex> Parser<'lex> {
         &mut self,
         lhs: Expression<'lex>,
     ) -> Result<Expression<'lex>, ParsingError> {
-        let next = self.next_required_token()?;
+        let next = self.next_required_token("parse_instance_call")?;
         let mut calls = match next.kind {
             TokenKind::Identifier(id) => {
                 vec![id]
@@ -846,6 +910,8 @@ impl<'lex> Parser<'lex> {
                 Some(t) if t.terminal() => break,
                 Some(t) => match t.kind {
                     TokenKind::Rparen
+                    | TokenKind::Rbracket
+                    | TokenKind::Rcurly
                     | TokenKind::End
                     // binary operations are handled within parse_expression
                     | TokenKind::BinOp(_)
@@ -886,6 +952,20 @@ impl<'lex> Parser<'lex> {
                         needs_comma = false;
                         continue;
                     }
+                    TokenKind::If | TokenKind::Unless if !needs_comma => {
+                        // todo this needs to be way more efficient
+                        let t = self.tokens.clone();
+                        match self.parse_expression() {
+                            Ok(e) => {
+                                args.push(e);
+                                needs_comma = true
+                            }
+                            Err(_) => {
+                                self.tokens = t;
+                                break
+                            }
+                        }
+                    }
                     _ if named.is_none() && !needs_comma => {
                         args.push(self.parse_expression()?);
                         needs_comma = true
@@ -899,13 +979,43 @@ impl<'lex> Parser<'lex> {
         }
 
         match named {
-            None => Ok(args.into()),
+            None => {
+                if args.len() == 1 {
+                    let args = match args.remove(0) {
+                        Expression::Tuple(a) => a.into(),
+                        a => vec![a].into(),
+                    };
+                    Ok(args)
+                } else {
+                    Ok(args.into())
+                }
+            }
             Some(n) if args.is_empty() => Ok(RigzArguments::Named(n)),
             Some(n) => Ok(RigzArguments::Mixed(args, n)),
         }
     }
 
-    fn parse_list(&mut self) -> Result<Vec<Expression<'lex>>, ParsingError> {
+    fn parse_for_list(&mut self) -> Result<Expression<'lex>, ParsingError> {
+        let var = self.required_identifier()?;
+        self.consume_token(TokenKind::In)?;
+        let expression = self.parse_expression()?;
+        self.consume_token_eat_newlines(TokenKind::Colon)?;
+        let body = self.parse_expression()?;
+        self.consume_token_eat_newlines(TokenKind::Rbracket)?;
+        Ok(Expression::ForList {
+            var,
+            expression: Box::new(expression),
+            body: Box::new(body),
+        })
+    }
+
+    fn parse_list(&mut self) -> Result<Expression<'lex>, ParsingError> {
+        let next = self.peek_required_token_eat_newlines("parse_list")?;
+        if next.kind == TokenKind::For {
+            self.consume_token(TokenKind::For)?;
+            return self.parse_for_list();
+        }
+
         let mut args = Vec::new();
         loop {
             match self.peek_token() {
@@ -922,10 +1032,58 @@ impl<'lex> Parser<'lex> {
                 }
             }
         }
-        Ok(args)
+        Ok(args.into())
+    }
+
+    fn required_identifier(&mut self) -> Result<&'lex str, ParsingError> {
+        let t = self.next_required_token("required_identifier")?;
+        match t.kind {
+            TokenKind::Identifier(id) => Ok(id),
+            _ => Err(ParsingError::ParseError(format!(
+                "Expected identifier got {t:?}"
+            ))),
+        }
+    }
+
+    fn parse_for_map(&mut self) -> Result<Expression<'lex>, ParsingError> {
+        let k_var = self.required_identifier()?;
+        self.consume_token(TokenKind::Comma)?;
+        let v_var = self.required_identifier()?;
+        self.consume_token(TokenKind::In)?;
+        let expression = self.parse_expression()?;
+        self.consume_token(TokenKind::Colon)?;
+        let key = self.parse_expression()?;
+        let next = self.next_required_token("parse_for_map")?;
+        let value = match next.kind {
+            TokenKind::Comma => {
+                let e = self.parse_expression()?;
+                self.consume_token(TokenKind::Rcurly)?;
+                Some(Box::new(e))
+            }
+            TokenKind::Rcurly => None,
+            _ => {
+                return Err(ParsingError::ParseError(format!(
+                    "Expected , or }}, received {next:?}"
+                )))
+            }
+        };
+
+        Ok(Expression::ForMap {
+            k_var,
+            v_var,
+            expression: Box::new(expression),
+            key: Box::new(key),
+            value,
+        })
     }
 
     fn parse_map(&mut self) -> Result<Expression<'lex>, ParsingError> {
+        let next = self.peek_required_token("parse_map")?;
+        if next.kind == TokenKind::For {
+            self.consume_token(TokenKind::For)?;
+            return self.parse_for_map();
+        }
+
         let mut args = Vec::new();
 
         loop {
@@ -940,7 +1098,7 @@ impl<'lex> Parser<'lex> {
                 }
                 Some(_) => {
                     let key = self.parse_expression()?;
-                    let t = self.next_required_token()?;
+                    let t = self.next_required_token("parse_map: '=', ',', or '}' expected")?;
                     match t.kind {
                         TokenKind::Assign => {
                             let value = self.parse_expression()?;
@@ -988,7 +1146,7 @@ impl<'lex> Parser<'lex> {
         &mut self,
     ) -> Result<(Vec<FunctionArgument<'lex>>, Option<usize>, ArgType), ParsingError> {
         let mut args = Vec::new();
-        let next = self.peek_required_token()?;
+        let next = self.peek_required_token_eat_newlines("parse_function_arguments")?;
         if !(next.kind == TokenKind::Lparen
             || next.kind == TokenKind::Lcurly
             || next.kind == TokenKind::Lbracket)
@@ -1005,6 +1163,16 @@ impl<'lex> Parser<'lex> {
         self.consume_token(next.kind)?;
 
         let mut var_arg_start = None;
+        self.parse_function_arguments_inner(&mut args, terminal, &mut var_arg_start)?;
+        Ok((args, var_arg_start, arg_type))
+    }
+
+    fn parse_function_arguments_inner(
+        &mut self,
+        args: &mut Vec<FunctionArgument<'lex>>,
+        terminal: TokenKind<'lex>,
+        var_arg_start: &mut Option<usize>,
+    ) -> Result<(), ParsingError> {
         loop {
             match self.peek_token() {
                 None => break,
@@ -1019,17 +1187,27 @@ impl<'lex> Parser<'lex> {
                 Some(_) => {
                     let arg = self.parse_function_argument(var_arg_start.is_some())?;
                     if arg.var_arg {
-                        var_arg_start = Some(args.len());
+                        *var_arg_start = Some(args.len());
                     }
                     args.push(arg);
                 }
             }
         }
-        Ok((args, var_arg_start, arg_type))
+        Ok(())
+    }
+
+    fn parse_lambda_arguments(
+        &mut self,
+    ) -> Result<(Vec<FunctionArgument<'lex>>, Option<usize>), ParsingError> {
+        let mut args = Vec::new();
+
+        let mut var_arg_start = None;
+        self.parse_function_arguments_inner(&mut args, TokenKind::Pipe, &mut var_arg_start)?;
+        Ok((args, var_arg_start))
     }
 
     fn check_var_arg(&mut self, existing_var_arg: bool) -> Result<bool, ParsingError> {
-        let next = self.peek_required_token()?;
+        let next = self.peek_required_token("check_var_arg")?;
         if next.kind == TokenKind::VariableArgs {
             if existing_var_arg {
                 return Err(ParsingError::ParseError(format!("Multiple var args are not allowed {next:?}, everything after after first declaration is considered a var arg")));
@@ -1042,7 +1220,7 @@ impl<'lex> Parser<'lex> {
     }
 
     fn parse_value(&mut self) -> Result<Value, ParsingError> {
-        let token = self.next_required_token()?;
+        let token = self.next_required_token("parse_value")?;
         if let TokenKind::Value(v) = token.kind {
             return Ok(v.into());
         }
@@ -1056,11 +1234,12 @@ impl<'lex> Parser<'lex> {
     ) -> Result<FunctionArgument<'lex>, ParsingError> {
         // todo support mut, vm changes required
         let var_arg = self.check_var_arg(existing_var_arg)?;
-        let next = self.next_required_token()?;
+        let next = self.next_required_token("parse_function_argument")?;
         match next.kind {
             TokenKind::Identifier(name) => self.parse_identifier_argument(var_arg, name, false),
+            TokenKind::Type => self.parse_identifier_argument(var_arg, "rigz_type", false),
             TokenKind::Range => {
-                let next = self.next_required_token()?;
+                let next = self.next_required_token("parse_function_argument - Range")?;
                 if let TokenKind::Identifier(arg) = next.kind {
                     self.parse_identifier_argument(var_arg, arg, true)
                 } else {
@@ -1085,7 +1264,7 @@ impl<'lex> Parser<'lex> {
         rest: bool,
     ) -> Result<FunctionArgument<'lex>, ParsingError> {
         let mut default_type = true;
-        let next = self.peek_required_token()?;
+        let next = self.peek_required_token("parse_identifier_argument")?;
         let mut rigz_type = match next.kind {
             TokenKind::Colon => {
                 self.consume_token(TokenKind::Colon)?;
@@ -1101,7 +1280,10 @@ impl<'lex> Parser<'lex> {
             )));
         }
 
-        let default = match self.peek_required_token()?.kind {
+        let default = match self
+            .peek_required_token("parse_identifier_argument - default_value")?
+            .kind
+        {
             TokenKind::Assign => {
                 self.consume_token(TokenKind::Assign)?;
                 let v = self.parse_value()?;
@@ -1130,11 +1312,11 @@ impl<'lex> Parser<'lex> {
         };
         let mut mutable = mut_self;
         match self.peek_token() {
-            None => return Err(Self::eoi_error("parse_return_type")),
+            None => return Err(Self::eoi_error_string("parse_return_type".to_string())),
             Some(t) => {
                 if t.kind == TokenKind::Arrow {
                     self.consume_token(TokenKind::Arrow)?;
-                    if self.peek_required_token()?.kind == TokenKind::Mut {
+                    if self.peek_required_token("parse_return_type")?.kind == TokenKind::Mut {
                         self.consume_token(TokenKind::Mut)?;
                         mutable = true;
                     }
@@ -1150,20 +1332,23 @@ impl<'lex> Parser<'lex> {
         name: Option<&'lex str>,
         paren: bool,
     ) -> Result<RigzType, ParsingError> {
-        let next = self.next_required_token()?;
+        let next = self.next_required_token("parse_rigz_type")?;
         let rigz_type: RigzType = match next.kind {
-            // TokenKind::TypeValue("Fn") => {}
-            // TokenKind::TypeValue("FnMut") => {}
             TokenKind::TypeValue(id) => match id.parse() {
                 Ok(t) => t,
-                Err(e) => return Err(ParsingError::ParseError(format!("Invalid type {:?}", e))),
+                Err(e) => {
+                    return Err(ParsingError::ParseError(format!(
+                        "Invalid type value {:?}",
+                        e
+                    )))
+                }
             },
             TokenKind::Lbracket => {
-                let t = self.peek_required_token()?;
+                let t = self.peek_required_token("parse_rigz_type - [")?;
                 match t.kind {
                     TokenKind::Rbracket => {
                         self.consume_token(TokenKind::Rbracket)?;
-                        RigzType::List(Box::new(RigzType::default()))
+                        RigzType::List(Box::default())
                     }
                     TokenKind::TypeValue(_) => {
                         let l = RigzType::List(Box::new(self.parse_rigz_type(None, paren)?));
@@ -1183,7 +1368,7 @@ impl<'lex> Parser<'lex> {
                 let mut value_type = None;
                 let mut custom_type = None;
                 loop {
-                    let t = self.peek_required_token()?;
+                    let t = self.peek_required_token("parse_rigz_type - {")?;
                     if t.terminal() {
                         self.consume_token(t.kind)?;
                         continue;
@@ -1215,10 +1400,7 @@ impl<'lex> Parser<'lex> {
 
                 match custom_type {
                     None => match (key_type, value_type) {
-                        (None, None) => RigzType::Map(
-                            Box::new(RigzType::default()),
-                            Box::new(RigzType::default()),
-                        ),
+                        (None, None) => RigzType::Map(Box::default(), Box::default()),
                         (Some(t), None) => RigzType::Map(Box::new(t.clone()), Box::new(t)),
                         (Some(k), Some(v)) => RigzType::Map(Box::new(k), Box::new(v)),
                         _ => unreachable!(),
@@ -1227,9 +1409,46 @@ impl<'lex> Parser<'lex> {
                 }
             }
             TokenKind::Lparen => {
-                let t = self.parse_rigz_type(None, true)?;
-                self.consume_token(TokenKind::Rparen)?;
+                let mut t = self.parse_rigz_type(None, true)?;
+                loop {
+                    let next = self.peek_required_token("parse_rigz_type - (")?;
+                    match next.kind {
+                        TokenKind::Comma => {
+                            self.consume_token(TokenKind::Comma)?;
+                        }
+                        TokenKind::Rparen => {
+                            self.consume_token(TokenKind::Rparen)?;
+                            break;
+                        }
+                        _ => match &mut t {
+                            RigzType::Tuple(v) => v.push(self.parse_rigz_type(None, true)?),
+                            next => t = RigzType::Tuple(vec![next.clone()]),
+                        },
+                    }
+                }
                 t
+            }
+            TokenKind::Pipe => {
+                let mut args = vec![];
+                loop {
+                    let next = self.peek_required_token("parse_rigz_type - |")?;
+                    match next.kind {
+                        TokenKind::Pipe => {
+                            self.consume_token(TokenKind::Pipe)?;
+                            break;
+                        }
+                        TokenKind::Comma => {
+                            self.consume_token(TokenKind::Comma)?;
+                        }
+                        _ => args.push(self.parse_rigz_type(None, false)?),
+                    }
+                }
+                let FunctionType { rigz_type, .. } = self.parse_return_type(false)?;
+                RigzType::Function(args, Box::new(rigz_type))
+            }
+            TokenKind::BinOp(BinaryOperation::Or) => {
+                let FunctionType { rigz_type, .. } = self.parse_return_type(false)?;
+                RigzType::Function(vec![], Box::new(rigz_type))
             }
             _ => return Err(ParsingError::ParseError(format!("Invalid type {:?}", next))),
         };
@@ -1237,7 +1456,7 @@ impl<'lex> Parser<'lex> {
         let rt = match self.peek_token() {
             None => rigz_type,
             Some(t) => match t.kind {
-                TokenKind::Pipe => {
+                TokenKind::BinOp(BinaryOperation::Or) => {
                     RigzType::Union(self.parse_complex_type(rigz_type, true, paren)?)
                 }
                 TokenKind::And => {
@@ -1253,7 +1472,7 @@ impl<'lex> Parser<'lex> {
         let mut fields = vec![];
         let mut needs_separator = false;
         loop {
-            let t = self.peek_required_token()?;
+            let t = self.peek_required_token("parse_custom_type")?;
             match t.kind {
                 TokenKind::Identifier(id) => {
                     self.consume_token(TokenKind::Identifier(id))?;
@@ -1290,7 +1509,7 @@ impl<'lex> Parser<'lex> {
         paren: bool,
     ) -> Result<Vec<RigzType>, ParsingError> {
         if union {
-            self.consume_token(TokenKind::Pipe)?;
+            self.consume_token(TokenKind::BinOp(BinaryOperation::Or))?;
         } else {
             self.consume_token(TokenKind::And)?;
         }
@@ -1312,7 +1531,7 @@ impl<'lex> Parser<'lex> {
                         TokenKind::Assign => break,
                         _ => {
                             let separator = if union {
-                                TokenKind::Pipe
+                                TokenKind::BinOp(BinaryOperation::Or)
                             } else {
                                 TokenKind::And
                             };
@@ -1362,7 +1581,7 @@ impl<'lex> Parser<'lex> {
     fn parse_scope(&mut self) -> Result<Scope<'lex>, ParsingError> {
         let mut elements = vec![];
         loop {
-            let next = self.peek_required_token_eat_newlines()?;
+            let next = self.peek_required_token_eat_newlines("parse_scope")?;
             match next.kind {
                 TokenKind::End => {
                     self.consume_token(TokenKind::End)?;
@@ -1383,9 +1602,14 @@ impl<'lex> Parser<'lex> {
         let mut elements = vec![];
         let mut else_encountered = false;
         loop {
-            let next = self.peek_required_token()?;
+            let next = self.peek_required_token("parse_if_scope")?;
             match next.kind {
                 TokenKind::End => {
+                    if elements.is_empty() {
+                        return Err(ParsingError::ParseError(format!(
+                            "Missing end for if scope: {next:?}"
+                        )));
+                    }
                     self.consume_token(TokenKind::End)?;
                     break;
                 }
@@ -1415,7 +1639,7 @@ impl<'lex> Parser<'lex> {
     }
 
     fn parse_trait_definition(&mut self) -> Result<TraitDefinition<'lex>, ParsingError> {
-        let next = self.next_required_token()?;
+        let next = self.next_required_token("parse_trait_definition")?;
         let name = if let TokenKind::TypeValue(name) = next.kind {
             name
         } else {
@@ -1433,12 +1657,12 @@ impl<'lex> Parser<'lex> {
     fn parse_trait_declarations(&mut self) -> Result<Vec<FunctionDeclaration<'lex>>, ParsingError> {
         let mut all = Vec::new();
         loop {
-            let next = self.peek_required_token_eat_newlines()?;
+            let next = self.peek_required_token_eat_newlines("parse_trait_declarations")?;
             match next.kind {
                 TokenKind::End => break,
                 TokenKind::FunctionDef => {
                     self.consume_token(TokenKind::FunctionDef)?;
-                    let def = self.peek_required_token()?;
+                    let def = self.peek_required_token("parse_trait_declarations - fn")?;
                     match def.kind {
                         TokenKind::Mut | TokenKind::TypeValue(_) | TokenKind::Identifier(_) => {
                             all.push(self.parse_function_declaration()?)
@@ -1461,11 +1685,11 @@ impl<'lex> Parser<'lex> {
     }
 
     fn parse_function_declaration(&mut self) -> Result<FunctionDeclaration<'lex>, ParsingError> {
-        let next = self.peek_required_token()?;
+        let next = self.peek_required_token("parse_function_declaration")?;
         match next.kind {
             TokenKind::Mut => {
                 self.consume_token(TokenKind::Mut)?;
-                let next = self.next_required_token()?;
+                let next = self.next_required_token("parse_function_declaration - mut")?;
 
                 if let TokenKind::TypeValue(tv) = next.kind {
                     self.parse_typed_function_declaration(Some(tv), true)
@@ -1511,14 +1735,14 @@ impl<'lex> Parser<'lex> {
                 }
                 Err(e) => {
                     return Err(ParsingError::ParseError(format!(
-                        "Invalid type: {} {:?}",
+                        "Invalid fn type: {} {:?}",
                         rt, e
                     )))
                 }
             },
             None => None,
         };
-        let next = self.next_required_token()?;
+        let next = self.next_required_token("parse_typed_function_declaration")?;
 
         let name = match next.kind {
             TokenKind::Type => {
@@ -1545,7 +1769,7 @@ impl<'lex> Parser<'lex> {
         };
         let mut type_definition = self.parse_function_type_definition(!is_vm && mutable)?;
         type_definition.self_type = self_type;
-        let next = self.peek_required_token_eat_newlines()?;
+        let next = self.peek_required_token_eat_newlines("parse_typed_function_declaration")?;
         let dec = match next.kind {
             TokenKind::FunctionDef | TokenKind::End => FunctionDeclaration::Declaration {
                 name,

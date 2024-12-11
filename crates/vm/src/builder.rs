@@ -83,6 +83,36 @@ pub trait RigzBuilder<'vm>: Debug + Default {
         add_reverse_instruction => Reverse
     }
 
+    fn add_for_list_instruction(
+        &mut self,
+        this: Register,
+        scope: usize,
+        output: Register,
+    ) -> &mut Self {
+        self.add_instruction(Instruction::ForList {
+            this,
+            scope,
+            output,
+        })
+    }
+
+    fn add_for_map_instruction(
+        &mut self,
+        this: Register,
+        scope: usize,
+        key: Register,
+        value: Register,
+        output: Register,
+    ) -> &mut Self {
+        self.add_instruction(Instruction::ForMap {
+            this,
+            scope,
+            key,
+            value,
+            output,
+        })
+    }
+
     #[inline]
     fn add_unary_instruction(
         &mut self,

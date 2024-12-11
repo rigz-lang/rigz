@@ -22,7 +22,7 @@ rigz_vm = {version = "0.35", path = "crates/vm"}
 rigz_ast = {version = "0.4", path = "crates/ast" }
 rigz_ast_derive = {version = "0.4", path = "crates/ast_derive"}
 rigz_runtime = {version = "0.4", path = "crates/runtime" }
-tree-sitter-rigz = { version = "0.3.0", path = "crates/tree-sitter" }
+tree-sitter-rigz = { version = "0.4.0", path = "crates/tree-sitter" }
 
 [features]
 default = []
@@ -35,6 +35,6 @@ rigz_runtime.workspace = true
 tree-sitter-highlight = "0.24.3"
 tree-sitter-rigz.workspace = true
 rustyline = "14.0.0"
-chrono = "0.4.38"
+chrono = "0.4"
 crossterm = "0.28.1"
 ratatui = "0.29.0"

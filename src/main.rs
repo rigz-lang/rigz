@@ -1,8 +1,10 @@
+mod ast;
 mod debug;
 mod repl;
 mod run;
 mod test;
 
+use crate::ast::{ast, AstArgs};
 use crate::repl::ReplArgs;
 use crate::run::RunArgs;
 use crate::test::TestArgs;
@@ -30,6 +32,7 @@ pub struct CLI {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    Ast(AstArgs),
     Run(RunArgs),
     Repl(ReplArgs),
     // Debug(DebugArgs),
@@ -61,6 +64,7 @@ fn main() {
         }
         Some(c) => {
             match c {
+                Commands::Ast(args) => ast(args),
                 Commands::Run(args) => run(args),
                 Commands::Repl(args) => repl(args),
                 Commands::Test(args) => test(args),

@@ -1,5 +1,5 @@
 use crate::lifecycle::Lifecycle;
-use crate::{Instruction, Register};
+use crate::Instruction;
 
 /**
 todo need to know whether scope is function, root, or expression for returns

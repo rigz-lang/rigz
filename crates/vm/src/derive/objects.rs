@@ -16,23 +16,28 @@ impl ToTokens for RigzType {
             RigzType::Error => quote! { RigzType::Error },
             RigzType::This => quote! { RigzType::This },
             RigzType::Range => quote! { RigzType::Range },
+            RigzType::Type => quote! { RigzType::Type },
             RigzType::List(t) => {
                 let t = boxed(t);
                 quote! { RigzType::List(#t) }
+            }
+            RigzType::Tuple(t) => {
+                let t = csv_vec(t);
+                quote! { RigzType::Tuple(#t) }
             }
             RigzType::Map(k, v) => {
                 let k = boxed(k);
                 let v = boxed(v);
                 quote! { RigzType::Map(#k, #v) }
             }
-            RigzType::Type {
+            RigzType::Wrapper {
                 base_type,
                 optional,
                 can_return_error,
             } => {
                 let b = boxed(base_type);
                 quote! {
-                    RigzType::Type {
+                    RigzType::Wrapper {
                         base_type: #b,
                         optional: #optional,
                         can_return_error: #can_return_error,
@@ -72,7 +77,7 @@ impl ToTokens for CustomType {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let CustomType { name, fields } = self;
         let fields: Vec<_> = fields
-            .into_iter()
+            .iter()
             .map(|(name, ty)| {
                 quote! {
                     (#name.into(), #ty),
@@ -94,8 +99,10 @@ pub fn rigz_type_to_rust_str(rigz_type: &RigzType) -> Option<String> {
         RigzType::Bool => "bool".to_string(),
         RigzType::Int => "i64".to_string(),
         RigzType::Float => "f64".to_string(),
+        RigzType::Number => "Number".to_string(),
         RigzType::Any => "Value".to_string(),
-        RigzType::Type {
+        RigzType::Type => "RigzType".to_string(),
+        RigzType::Wrapper {
             base_type,
             optional,
             can_return_error,

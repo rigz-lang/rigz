@@ -1,35 +1,44 @@
-use crate::prepare::{FunctionCallSignatures, ProgramParser};
+use crate::prepare::{CallSignature, FunctionCallSignatures, ProgramParser};
 use crate::{RigzBuilder, RigzType, UnaryOperation};
-use rigz_ast::{Element, Expression, ValidationError};
+use rigz_ast::{Element, Expression, Scope, ValidationError};
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
 impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
+    fn scope_type(&mut self, scope: &Scope<'vm>) -> Result<RigzType, ValidationError> {
+        let e = scope.elements.last().expect("Invalid scope");
+        match e {
+            Element::Statement(_) => Ok(RigzType::None),
+            Element::Expression(e) => self.rigz_type(e),
+        }
+    }
+
     pub(crate) fn rigz_type(
-        &self,
+        &mut self,
         expression: &Expression<'vm>,
     ) -> Result<RigzType, ValidationError> {
         let t = match expression {
             Expression::This => RigzType::This,
             Expression::Value(v) => v.rigz_type(),
-            Expression::List(_) => RigzType::List(Box::new(RigzType::Any)),
-            Expression::Map(_) => RigzType::Map(Box::new(RigzType::Any), Box::new(RigzType::Any)),
             Expression::Identifier(a) => match self.identifiers.get(a) {
-                None => match self.function_scopes.get(a) {
-                    None => {
-                        return Err(ValidationError::MissingExpression(format!(
-                            "variable {a} does not exist"
-                        )))
-                    }
-                    Some(f) => match Self::function_call_return_type(a, f) {
-                        Ok(v) => v,
-                        Err(_) => {
+                None => {
+                    self.check_module_exists(a)?;
+                    match self.function_scopes.get(a) {
+                        None => {
                             return Err(ValidationError::MissingExpression(format!(
-                                "variable {a} does not exist"
+                                "identifier {a} does not exist"
                             )))
                         }
-                    },
-                },
+                        Some(f) => match Self::function_call_return_type(a, f) {
+                            Ok(v) => v,
+                            Err(_) => {
+                                return Err(ValidationError::MissingExpression(format!(
+                                    "{a} does not match existing functions"
+                                )))
+                            }
+                        },
+                    }
+                }
                 Some(v) => v.clone(),
             },
             Expression::BinExp(lhs, _, rhs) => {
@@ -57,22 +66,20 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 | UnaryOperation::EPrintLn => RigzType::None,
             },
             Expression::Cast(_, r) => r.clone(),
-            Expression::Scope(s) => {
-                let e = s.elements.last().expect("Invalid scope");
-                match e {
-                    Element::Statement(_) => RigzType::None,
-                    Element::Expression(e) => self.rigz_type(e)?,
+            Expression::Scope(s) => self.scope_type(s)?,
+            Expression::FunctionCall(name, _) => {
+                self.check_module_exists(name)?;
+                match self.function_scopes.get(name) {
+                    None => {
+                        return Err(ValidationError::InvalidFunction(format!(
+                            "function {name} does not exist"
+                        )))
+                    }
+                    Some(f) => Self::function_call_return_type(name, f)?,
                 }
             }
-            Expression::FunctionCall(name, _) => match self.function_scopes.get(name) {
-                None => {
-                    return Err(ValidationError::InvalidFunction(format!(
-                        "function {name} does not exist"
-                    )))
-                }
-                Some(f) => Self::function_call_return_type(name, f)?,
-            },
             Expression::TypeFunctionCall(r, name, _) => {
+                self.check_module_exists(name)?;
                 match self.function_scopes.get(name) {
                     None => {
                         return Err(ValidationError::InvalidFunction(format!(
@@ -85,15 +92,18 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                             // todo support union types
                             let matched: HashSet<_> = f
                                 .iter()
-                                .filter_map(|(f, _)| match &f.self_type {
-                                    None => None,
-                                    Some((ft, _)) => {
-                                        if &ft.rigz_type == r {
-                                            Some(f.return_type.0.rigz_type.clone())
-                                        } else {
-                                            None
+                                .filter_map(|cs| match cs {
+                                    CallSignature::Function(f, _) => match &f.self_type {
+                                        None => None,
+                                        Some((ft, _)) => {
+                                            if &ft.rigz_type == r {
+                                                Some(f.return_type.0.rigz_type.clone())
+                                            } else {
+                                                None
+                                            }
                                         }
-                                    }
+                                    },
+                                    CallSignature::Lambda(_, ret) => Some(ret.clone()),
                                 })
                                 .collect();
                             match matched.len() {
@@ -106,7 +116,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                 _ => RigzType::Any,
                             }
                         } else {
-                            f[0].0.return_type.0.rigz_type.clone()
+                            f[0].rigz_type()
                         }
                     }
                 }
@@ -114,6 +124,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             Expression::InstanceFunctionCall(_, calls, _) => {
                 let name = calls.last().expect("Invalid instance function call");
                 // todo need to handle call chaining
+                self.check_module_exists(name)?;
                 match self.function_scopes.get(name) {
                     None => {
                         return Err(ValidationError::InvalidFunction(format!(
@@ -126,9 +137,12 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                             // todo support union types
                             let matched: HashSet<_> = f
                                 .iter()
-                                .filter_map(|(f, _)| match &f.self_type {
-                                    None => None,
-                                    Some(_) => Some(f.return_type.0.rigz_type.clone()),
+                                .filter_map(|cs| match cs {
+                                    CallSignature::Function(f, _) => f
+                                        .self_type
+                                        .as_ref()
+                                        .map(|_| f.return_type.0.rigz_type.clone()),
+                                    CallSignature::Lambda(_, ret) => Some(ret.clone()),
                                 })
                                 .collect();
                             match matched.len() {
@@ -141,12 +155,58 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                 _ => RigzType::Any,
                             }
                         } else {
-                            f[0].0.return_type.0.rigz_type.clone()
+                            f[0].rigz_type()
                         }
                     }
                 }
             }
-            _ => RigzType::Any,
+            Expression::Symbol(_) => RigzType::String,
+            Expression::If { then, branch, .. } => match branch {
+                None => self.scope_type(then)?,
+                Some(branch) => {
+                    let then = self.scope_type(then)?;
+                    let branch = self.scope_type(branch)?;
+                    if then == branch {
+                        then
+                    } else {
+                        RigzType::Composite(vec![then, branch])
+                    }
+                }
+            },
+            Expression::Unless { then, .. } => self.scope_type(then)?,
+            Expression::Return(e) => match e {
+                None => RigzType::None,
+                Some(e) => self.rigz_type(e)?,
+            },
+            Expression::Lambda { body, .. } => self.rigz_type(body)?,
+            Expression::ForList { body, .. } => RigzType::List(self.rigz_type(body)?.into()),
+            Expression::ForMap { key, value, .. } => match value {
+                None => {
+                    let key = self.rigz_type(key)?;
+                    let value = match &key {
+                        RigzType::Tuple(t) => t[1].clone(),
+                        _ => {
+                            return Err(ValidationError::MissingExpression(format!(
+                                "Invalid key in for-map expression {key}"
+                            )))
+                        }
+                    };
+                    RigzType::Map(Box::new(key), value.into())
+                }
+                Some(value) => {
+                    RigzType::Map(self.rigz_type(key)?.into(), self.rigz_type(value)?.into())
+                }
+            },
+            Expression::Tuple(e) => {
+                let mut result = Vec::with_capacity(e.len());
+                for ex in e {
+                    result.push(self.rigz_type(ex)?);
+                }
+                RigzType::Tuple(result)
+            }
+            // todo more accurate typing
+            Expression::List(_) => RigzType::List(Box::new(RigzType::Any)),
+            Expression::Map(_) => RigzType::Map(Box::new(RigzType::Any), Box::new(RigzType::Any)),
         };
         Ok(t)
     }
@@ -157,9 +217,12 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
     ) -> Result<RigzType, ValidationError> {
         let matched: HashSet<_> = f
             .iter()
-            .filter_map(|(f, _)| match &f.self_type {
-                None => Some(f.return_type.0.rigz_type.clone()),
-                Some(_) => None,
+            .filter_map(|cs| match cs {
+                CallSignature::Function(f, _) => match &f.self_type {
+                    None => Some(f.return_type.0.rigz_type.clone()),
+                    Some(_) => None,
+                },
+                CallSignature::Lambda(_, ret) => Some(ret.clone()),
             })
             .collect();
 

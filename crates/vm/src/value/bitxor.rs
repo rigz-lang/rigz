@@ -26,6 +26,11 @@ impl BitXor for Value {
                     Ok(r) => Value::Number(a ^ r),
                 }
             }
+            (Value::Tuple(a), Value::Tuple(b)) => {
+                Value::Tuple(a.into_iter().zip(b).map(|(a, b)| a ^ b).collect())
+            }
+            (Value::Tuple(a), b) => Value::Tuple(a.into_iter().map(|a| a ^ b.clone()).collect()),
+            (b, Value::Tuple(a)) => Value::Tuple(a.into_iter().map(|a| b.clone() ^ a).collect()),
             // (Value::String(a), Value::String(b)) => {
             //     let mut result = a.clone();
             //     result.push_str(b.as_str());

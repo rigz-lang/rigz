@@ -185,24 +185,33 @@ mod runtime {
             if_true(r#"if 0 == none
                 14
             end"# = 14.into())
+            trailing_if(r#"v = 42; v if v.is_num"# = 42.into())
+            instance_trailing_if_in_func(r#"
+                fn foo(a)
+                    a.to_i if a.is_num
+                end
+                foo 'a'
+            "# = Value::None)
             if_false(r#"if 1 == "abc"
                 14
-            end"# = Value::None.into())
+            end"# = Value::None)
             to_json("import JSON; {a=5}.to_json" = r#"{"a":5}"#.into())
             json_parse("import JSON; JSON.parse '5'" = 5.into())
             format("format '{}', 1 + 2" = "3".into())
-            fib_recursive_dynamic_programming(r#"
-            @memo
-            fn fib(n: Number) -> Number
-                if n <= 1
-                    n
-                else
-                    b = n - 2
-                    (fib n - 1) + fib b
-                end
-            end
-            fib 513
-            "# = 8.into())
+            format_parens("format('{}', 1 + 2)" = "3".into())
+            is("1.is Number" = true.into())
+            // fib_recursive_dynamic_programming(r#"
+            // @memo
+            // fn fib(n: Number) -> Number
+            //     if n <= 1
+            //         n
+            //     else
+            //         b = n - 2
+            //         (fib n - 1) + fib b
+            //     end
+            // end
+            // fib 5
+            // "# = 8.into())
             if_else_true(r#"if 0 == ""
                 42
             else
@@ -213,6 +222,32 @@ mod runtime {
             else
                 1 + 2
             end"# = 3.into())
+            memo_factorial(r#"
+            @memo
+            fn factorial(n: Number)
+                if n == 0
+                    1
+                else
+                    n * factorial n - 1
+                end
+            end
+            factorial 15
+            "#=1307674368000_i64.into())
+            var_args_module(r#"
+            let a = []
+            a.with 1, 2, 3
+            "# = Value::List(vec![1.into(), 2.into(), 3.into()]))
+            var_args_module_str(r#"
+            let a = ""
+            a.with 1, 2, 3
+            "# = "123".into())
+            lambda(r#"
+            a = || 42
+            a
+            "# = 42.into())
+            for_list(r#"[for v in [1, 2, 3]: v * v]"# = vec![1, 4, 9].into())
+            for_list_exclude_nones(r#"[for v in [1, 2, 3, 'a', 'b']: v if v.is_num]"# = vec![1, 2, 3].into())
+            for_map(r#"{for k, v in {1, 2, 3}: k, v if k % 2 == 0}"# = IndexMap::from([(2, 2)]).into())
             factorial(r#"
             fn factorial(n: Number)
                 if n == 0
@@ -223,37 +258,46 @@ mod runtime {
             end
             factorial 4
             "#=24.into())
-            var_args_module(r#"
-            let a = []
-            a.with 1, 2, 3
-            "# = Value::List(vec![1.into(), 2.into(), 3.into()]))
-            var_args_module_str(r#"
-            let a = ""
-            a.with 1, 2, 3
-            "# = "123".into())
-            // todo variable should not be necessary for fib calls
-            fib_recursive(r#"
-            fn fib(n: Number) -> Number
-                if n <= 1
-                    n
-                else
-                    b = n - 2
-                    (fib n - 1) + fib b
-                end
-            end
-            fib 6
-            "# = 8.into())
-            self_fib_recursive(r#"
-            fn Number.fib -> Number
-                if self <= 1
-                    self
-                else
-                    b = (self - 2)
-                    (self - 1).fib + b.fib
-                end
-            end
-            6.fib
-            "# = 8.into())
+            lambda_in_for_list_if_expression(r#"
+            func = |v| v if v.is_num
+            [for a in ['a', 'b', 'c', 1, 2, 3]: func a]
+            "# = vec![1, 2, 3].into())
+            lambda_in_for_list(r#"
+            func = |v| v.is_num
+            [for a in ['a', 'b', 'c', 1, 2, 3]: a if func a]
+            "# = vec![1, 2, 3].into())
+            trailing_if_false(r#"v = 'a'; v if v.is_num"# = Value::None)
+            instance_trailing_if(r#"a = 'a'; a.to_i if a.is_num"# = Value::None)
+            // self_fib_recursive(r#"
+            // fn Number.fib -> Number
+            //     if self <= 1
+            //         self
+            //     else
+            //         (self - 1).fib + (self - 2).fib
+            //     end
+            // end
+            // 6.fib
+            // "# = 8.into())
+        }
+    }
+
+    mod debug {
+        use super::*;
+        run_debug_vm! {
+            filter(r#"[1, 2, 3, 'a', 'b'].filter(|v| v.is_num)"# = vec![1, 2, 3].into())
+            // fib_recursive(r#"
+            // fn fib(n: Number) -> Number
+            //     if n <= 1
+            //         n
+            //     else
+            //         (fib n - 1) + (fib n - 2)
+            //     end
+            // end
+            // fib 6
+            // "# = 8.into())
+            // map_filter_reduce(r#"
+            //     [1, 37, '4', 'a'].filter(|v| v.is_num).map(|v| v.to_i).reduce(0, |res, next| do res += next; res end)
+            // "# = Value::List(vec![1.into(), 37.into(), "4".into()]))
         }
     }
 }

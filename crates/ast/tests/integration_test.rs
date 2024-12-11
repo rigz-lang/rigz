@@ -70,7 +70,6 @@ mod invalid {
         if_reserved "if = 1",
         else_reserved "else = 1",
         fn_reserved "fn = 1",
-        fn_call_with_parens "foo(1, 2, 3)",
     );
 }
 
@@ -84,6 +83,7 @@ mod valid {
         valid_function_default_type "fn hello -> Any!? = none",
         valid_function_dollar_sign "fn $ = none",
         outer_paren_func "(foo 1, 2, 3)",
+        fn_call_with_parens "foo(1, 2, 3)",
         named_args_in_func "foo a: 1, b: 2, c: 3",
         let_works "let a = 1",
         mut_works "mut a = 1",
@@ -121,6 +121,10 @@ mod valid {
             end
             c * 37
         "#,
+        types_as_values r#"fn Any.is(type: Type) -> Bool = false"#,
+        lambda_static r#"forty_two: || = || 42"#,
+        lambda_def r#"square: |Number| -> Number = |n| n * n"#,
+        // lambda_args r#"fn Any.map(func: |Any| -> Any) -> Any = func(self)"#,
     );
 }
 
@@ -186,6 +190,62 @@ test_parse_equivalent! {
                 Element::Expression(Expression::Identifier("hello"))
             ]
         };
+    define_function_args r#"
+            fn add(a, b, c)
+              a + b + c
+            end
+            add 1, 2, 3"#
+    define_function_args_parens r#"
+            fn add(a, b, c)
+              a + b + c
+            end
+            add(1, 2, 3)"#= Program {
+        elements: vec![
+            Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
+                name: "add",
+                type_definition: FunctionSignature {
+                    arg_type: ArgType::Positional,
+                    arguments: vec![
+                        FunctionArgument {
+                            name: "a",
+                            default: None,
+                            function_type: RigzType::Any.into(),
+                            var_arg: false,
+                            rest: false
+                        },
+                        FunctionArgument {
+                            name: "b",
+                            default: None,
+                            function_type: RigzType::Any.into(),
+                            var_arg: false,
+                            rest: false
+                        },
+                        FunctionArgument {
+                            name: "c",
+                            default: None,
+                            function_type: RigzType::Any.into(),
+                            var_arg: false,
+                            rest: false
+                        },
+                    ],
+                    return_type: FunctionType::new(RigzType::default()),
+                    self_type: None,
+                    var_args_start: None
+                },
+                body: Scope {
+                    elements: vec![
+                        Expression::binary(
+                            Expression::binary("a".into(), BinaryOperation::Add, "b".into()),
+                            BinaryOperation::Add,
+                            "c".into()
+                        ).into(),
+                    ],
+                },
+                lifecycle: None
+            })),
+            Element::Expression(Expression::FunctionCall("add", vec![Expression::Value(Value::Number(1.into())), Expression::Value(Value::Number(2.into())), Expression::Value(Value::Number(3.into()))].into()))
+        ]
+    };
 }
 
 test_parse! {
@@ -319,57 +379,6 @@ test_parse! {
             })
         ]
     },
-    define_function_args r#"
-            fn add(a, b, c)
-              a + b + c
-            end
-            add 1, 2, 3"# = Program {
-        elements: vec![
-            Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
-                name: "add",
-                type_definition: FunctionSignature {
-                    arg_type: ArgType::Positional,
-                    arguments: vec![
-                        FunctionArgument {
-                            name: "a",
-                            default: None,
-                            function_type: RigzType::Any.into(),
-                            var_arg: false,
-                            rest: false
-                        },
-                        FunctionArgument {
-                            name: "b",
-                            default: None,
-                            function_type: RigzType::Any.into(),
-                            var_arg: false,
-                            rest: false
-                        },
-                        FunctionArgument {
-                            name: "c",
-                            default: None,
-                            function_type: RigzType::Any.into(),
-                            var_arg: false,
-                            rest: false
-                        },
-                    ],
-                    return_type: FunctionType::new(RigzType::default()),
-                    self_type: None,
-                    var_args_start: None
-                },
-                body: Scope {
-                    elements: vec![
-                        Expression::binary(
-                            Expression::binary("a".into(), BinaryOperation::Add, "b".into()),
-                            BinaryOperation::Add,
-                            "c".into()
-                        ).into(),
-                    ],
-                },
-                lifecycle: None
-            })),
-            Element::Expression(Expression::FunctionCall("add", vec![Expression::Value(Value::Number(1.into())), Expression::Value(Value::Number(2.into())), Expression::Value(Value::Number(3.into()))].into()))
-        ]
-    },
     multi_complex_parens "1 + (2 * (2 - 4)) / 4" = Program {
         elements: vec![
             Element::Expression(
@@ -396,7 +405,7 @@ test_parse! {
             )
         ]
     },
-    union_type "a: String | Number | Bool = false" = Program {
+    union_type "a: String || Number || Bool = false" = Program {
         elements: vec![
             Statement::Assignment {
                 lhs: Assign::TypedIdentifier("a", false, RigzType::Union(vec![RigzType::String, RigzType::Number, RigzType::Bool])),
@@ -444,7 +453,7 @@ test_parse! {
     union_composite_type_parens r#"
         type Message = { message: String }
         type Id = { id: Number }
-        type Result = String | (Message & Id)
+        type Result = String || (Message & Id)
         mut s: Result = ""
     "# = Program {
         elements: vec![

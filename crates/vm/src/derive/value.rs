@@ -37,9 +37,15 @@ impl ToTokens for Value {
                 }
             }
             Value::List(v) => {
-                let values = csv_vec(&v);
+                let values = csv_vec(v);
                 quote! {
                     Value::List(#values)
+                }
+            }
+            Value::Tuple(v) => {
+                let values = csv_vec(v);
+                quote! {
+                    Value::Tuple(#values)
                 }
             }
             Value::Map(map) => {

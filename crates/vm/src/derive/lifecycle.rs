@@ -46,7 +46,7 @@ impl ToTokens for MemoizedLifecycle {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let MemoizedLifecycle { results } = self;
         let results: Vec<_> = results
-            .into_iter()
+            .iter()
             .map(|(k, v)| {
                 let k = csv_vec(k);
                 quote! {

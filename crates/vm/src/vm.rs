@@ -70,7 +70,7 @@ impl VMOptions {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RegisterValue {
-    ScopeId(usize, Vec<Register>, Register),
+    ScopeId(usize, Register),
     Register(Register),
     Value(Value),
     Constant(usize),
@@ -79,8 +79,8 @@ pub enum RegisterValue {
 impl RegisterValue {
     pub fn resolve(self, vm: &mut VM, register: Register) -> Value {
         match self {
-            RegisterValue::ScopeId(scope, args, output) => {
-                vm.handle_scope(scope, register, args, output)
+            RegisterValue::ScopeId(scope, output) => {
+                vm.handle_scope(scope, register, vec![], output)
             }
             RegisterValue::Register(r) => vm.resolve_register(r),
             RegisterValue::Value(v) => v,
@@ -154,26 +154,10 @@ impl<'vm> VM<'vm> {
         register: Register,
         value: RegisterValue,
     ) -> Option<RefCell<RegisterValue>> {
-        self.current
-            .borrow_mut()
-            .registers
-            .insert(register, RefCell::new(value))
-    }
-
-    #[inline]
-    #[logfn_inputs(
-        Trace,
-        fmt = "insert_parent_register(vm={:#p} register={}, value={:?})"
-    )]
-    pub fn insert_parent_register(
-        &self,
-        register: Register,
-        value: RegisterValue,
-    ) -> Option<RefCell<RegisterValue>> {
-        let current = self.current.borrow();
-        match current.parent {
-            None => panic!("insert_parent_register called with no parent, this is a bug"),
-            Some(i) => self.frames[i]
+        match value {
+            RegisterValue::Register(dest) if dest == register => None,
+            _ => self
+                .current
                 .borrow_mut()
                 .registers
                 .insert(register, RefCell::new(value)),
@@ -234,7 +218,7 @@ impl<'vm> VM<'vm> {
                             "Constants cannot be mutated {c}"
                         )))
                     }
-                    RegisterValue::ScopeId(s, _, o) => {
+                    RegisterValue::ScopeId(s, o) => {
                         return Err(VMError::UnsupportedOperation(format!(
                             "Scopes are not implemented yet - Scope {s} R{o}"
                         )))
@@ -250,7 +234,6 @@ impl<'vm> VM<'vm> {
     // todo create update_registers to support multiple mutable values at the same time
 
     #[inline]
-    // todo I don't think this is working as expected but it's not used as-is
     pub fn handle_scope(
         &mut self,
         scope: usize,
@@ -258,17 +241,23 @@ impl<'vm> VM<'vm> {
         args: Vec<Register>,
         output: Register,
     ) -> Value {
+        let current = self.sp;
         match self.call_frame(scope, args, output) {
             Ok(_) => {}
             Err(e) => return e.into(),
         };
-        match self.run_scope() {
+        let mut v = match self.run_scope() {
             VMState::Running => unreachable!(),
-            VMState::Done(v) | VMState::Ran(v) => {
-                self.insert_register(original, v.clone().into());
-                v
-            }
+            VMState::Done(v) | VMState::Ran(v) => v,
+        };
+        while current != self.sp {
+            v = match self.run_scope() {
+                VMState::Running => unreachable!(),
+                VMState::Done(v) | VMState::Ran(v) => v,
+            };
         }
+        self.insert_register(output, v.clone().into());
+        v
     }
 
     /// Value is replaced with None, shifting the registers can break the program. Scopes are not evaluated, use `remove_register_eval_scope` instead.
@@ -296,7 +285,7 @@ impl<'vm> VM<'vm> {
         process: Option<fn(value: Value) -> VMState>,
     ) -> VMState {
         let current = self.current.borrow().output;
-        let source = self.remove_register_eval_scope(current);
+        let source = self.resolve_register(current);
         match self.frames.pop() {
             None => return VMState::Done(source),
             Some(c) => {
@@ -457,7 +446,7 @@ impl<'vm> VM<'vm> {
         }
     }
 
-    fn run_scope(&mut self) -> VMState {
+    pub fn run_scope(&mut self) -> VMState {
         loop {
             let instruction = match self.next_instruction() {
                 // TODO this should probably be an error requiring explicit halt, result would be none
@@ -560,73 +549,55 @@ impl<'vm> VM<'vm> {
                     "Invalid Scope {scope_index}"
                 )))
             }
-            Some(s) => {
-                match &mut s.lifecycle {
-                    None => {
-                        return Err(VMError::ScopeDoesNotExist(format!(
-                            "Invalid Scope {scope_index}, does not contain @memo lifecycle"
-                        )))
-                    }
-                    Some(l) => {
-                        let mut memo = match l {
-                            Lifecycle::Memo(m) => m,
-                            Lifecycle::Composite(c) => {
-                                let index = c.iter().find_position(|l| {
-                                    if let Lifecycle::Memo(_) = l {
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                });
-                                match index {
-                                    None => {
-                                        return Err(VMError::ScopeDoesNotExist(format!("Invalid Scope {scope_index}, does not contain @memo lifecycle")))
-                                    }
-                                    Some((index, _)) => {
-                                        let Lifecycle::Memo(m) = c.get_mut(index).unwrap() else { unreachable!() };
-                                        m
-                                    }
-                                }
-                            }
-                            _ => {
-                                return Err(VMError::ScopeDoesNotExist(format!(
+            Some(s) => match &mut s.lifecycle {
+                None => {
+                    return Err(VMError::ScopeDoesNotExist(format!(
+                        "Invalid Scope {scope_index}, does not contain @memo lifecycle"
+                    )))
+                }
+                Some(l) => {
+                    let memo = match l {
+                        Lifecycle::Memo(m) => m,
+                        Lifecycle::Composite(c) => {
+                            let index = c.iter().find_position(|l| matches!(l, Lifecycle::Memo(_)));
+                            match index {
+                                None => {
+                                    return Err(VMError::ScopeDoesNotExist(format!(
                                     "Invalid Scope {scope_index}, does not contain @memo lifecycle"
                                 )))
+                                }
+                                Some((index, _)) => {
+                                    let Lifecycle::Memo(m) = c.get_mut(index).unwrap() else {
+                                        unreachable!()
+                                    };
+                                    m
+                                }
                             }
-                        };
-
-                        match memo.results.get(&call_args) {
-                            None => None,
-                            Some(value) => Some(value.clone()),
                         }
-                    }
+                        _ => {
+                            return Err(VMError::ScopeDoesNotExist(format!(
+                                "Invalid Scope {scope_index}, does not contain @memo lifecycle"
+                            )))
+                        }
+                    };
+
+                    memo.results.get(&call_args).cloned()
                 }
-            }
+            },
         };
         let value = match value {
             None => {
-                self.call_frame(scope_index, args, output)?;
-                let value = match self.run_scope() {
-                    VMState::Running => unreachable!(),
-                    VMState::Done(v) => v,
-                    VMState::Ran(v) => v,
-                };
-                let mut s = self.scopes.get_mut(scope_index).unwrap();
+                let value = self.handle_scope(scope_index, output, args, output);
+                let s = self.scopes.get_mut(scope_index).unwrap();
                 match &mut s.lifecycle {
                     None => unreachable!(),
                     Some(l) => {
-                        let mut memo = match l {
+                        let memo = match l {
                             Lifecycle::Memo(m) => m,
                             Lifecycle::Composite(c) => {
                                 let (index, _) = c
                                     .iter()
-                                    .find_position(|l| {
-                                        if let Lifecycle::Memo(_) = l {
-                                            true
-                                        } else {
-                                            false
-                                        }
-                                    })
+                                    .find_position(|l| matches!(l, Lifecycle::Memo(_)))
                                     .unwrap();
                                 let Lifecycle::Memo(m) = c.get_mut(index).unwrap() else {
                                     unreachable!()

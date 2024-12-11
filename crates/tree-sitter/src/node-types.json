@@ -14,6 +14,10 @@
         {
           "type": "identifier",
           "named": true
+        },
+        {
+          "type": "lambda",
+          "named": true
         }
       ]
     }
@@ -107,6 +111,10 @@
         {
           "type": "expression",
           "named": true
+        },
+        {
+          "type": "lambda",
+          "named": true
         }
       ]
     }
@@ -136,6 +144,14 @@
           "named": true
         },
         {
+          "type": "for_list",
+          "named": true
+        },
+        {
+          "type": "for_map",
+          "named": true
+        },
+        {
           "type": "function_call",
           "named": true
         },
@@ -152,6 +168,10 @@
           "named": true
         },
         {
+          "type": "tuple",
+          "named": true
+        },
+        {
           "type": "unary",
           "named": true
         },
@@ -165,6 +185,44 @@
         },
         {
           "type": "value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "for_list",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "for_map",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        },
+        {
+          "type": "identifier",
           "named": true
         }
       ]
@@ -207,6 +265,10 @@
         },
         {
           "type": "function_identifier",
+          "named": true
+        },
+        {
+          "type": "lambda",
           "named": true
         }
       ]
@@ -306,6 +368,25 @@
       "types": [
         {
           "type": "type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "lambda",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        },
+        {
+          "type": "function_arg",
           "named": true
         }
       ]
@@ -450,6 +531,21 @@
     "type": "symbol",
     "named": true,
     "fields": {}
+  },
+  {
+    "type": "tuple",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "type",
@@ -759,6 +855,10 @@
     "named": false
   },
   {
+    "type": "for",
+    "named": false
+  },
+  {
     "type": "identifier",
     "named": true
   },
@@ -768,6 +868,10 @@
   },
   {
     "type": "import",
+    "named": false
+  },
+  {
+    "type": "in",
     "named": false
   },
   {

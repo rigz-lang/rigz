@@ -60,6 +60,11 @@ impl Add for Value {
                 result.push_str(b.as_str());
                 Value::String(result)
             }
+            (Value::Tuple(a), Value::Tuple(b)) => {
+                Value::Tuple(a.into_iter().zip(b).map(|(a, b)| a + b).collect())
+            }
+            (Value::Tuple(a), b) => Value::Tuple(a.into_iter().map(|a| a + b.clone()).collect()),
+            (b, Value::Tuple(a)) => Value::Tuple(a.into_iter().map(|a| b.clone() + a).collect()),
             (Value::List(a), Value::List(b)) => {
                 let mut result = a.clone();
                 result.extend(b);

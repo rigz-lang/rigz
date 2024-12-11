@@ -7,6 +7,10 @@ derive_module!(
         fn Any.is_err -> Bool
         fn Any.is_none -> Bool
         fn Any.is_some -> Bool
+        fn Any.is(type: Type) -> Bool
+        fn Any.is_int -> Bool
+        fn Any.is_float -> Bool
+        fn Any.is_num -> Bool
         fn Any.to_b -> Bool
         fn Any.to_i -> Int!
         fn Any.to_f -> Float!
@@ -16,6 +20,27 @@ derive_module!(
         fn Any.to_map -> Map
         fn Any.type -> String
         fn Any.get(index) -> Any!?
+
+        fn List.filter(func: |Any| -> Bool) -> List
+            [for v in self: v if func v]
+        end
+
+       /*
+        fn Map.filter(func: |Any, Any| -> Bool) -> Map
+            {for k, v in self: k, v if func k, v}
+        end
+
+       fn List.map(func: |Any| -> Any) -> List
+            [for v in self: func v]
+        end
+
+        fn Map.map(func: |Any, Any| -> (Any, Any)) -> Map
+            {for k, v in self: func k, v}
+        end
+
+        fn List.reduce(init: Any, func: |Any| -> Any) -> Any
+        fn Map.reduce(init: Any, func: |Any, Any| -> Any) -> Any
+        */
 
         fn mut List.extend(value: List)
         fn List.first -> Any?
@@ -42,6 +67,22 @@ derive_module!(
     end"#
 );
 
+fn is_float(s: &str) -> bool {
+    let mut float = false;
+    for c in s.chars() {
+        if c == '.' {
+            if float {
+                float = false;
+                break;
+            }
+            float = true;
+        } else if !c.is_ascii_digit() {
+            break;
+        }
+    }
+    float
+}
+
 impl RigzStd for StdModule {
     fn any_clone(&self, this: Value) -> Value {
         this.clone()
@@ -58,6 +99,37 @@ impl RigzStd for StdModule {
 
     fn any_is_some(&self, this: Value) -> bool {
         !matches!(this, Value::None | Value::Error(_))
+    }
+
+    fn any_is(&self, this: Value, rigz_type: RigzType) -> bool {
+        this.rigz_type() == rigz_type
+    }
+
+    fn any_is_int(&self, this: Value) -> bool {
+        match this {
+            Value::Number(Number::Int(_)) => true,
+            Value::String(s) => s.trim().chars().all(|c| c.is_ascii_digit()),
+            _ => false,
+        }
+    }
+
+    fn any_is_float(&self, this: Value) -> bool {
+        match this {
+            Value::Number(Number::Float(_)) => true,
+            Value::String(s) => is_float(s.trim()),
+            _ => false,
+        }
+    }
+
+    fn any_is_num(&self, this: Value) -> bool {
+        match this {
+            Value::Number(_) => true,
+            Value::String(s) => {
+                let s = s.trim();
+                s.chars().all(|c| c.is_ascii_digit()) || is_float(s)
+            }
+            _ => false,
+        }
     }
 
     fn any_to_b(&self, this: Value) -> bool {
@@ -101,11 +173,11 @@ impl RigzStd for StdModule {
     }
 
     fn list_first(&self, this: Vec<Value>) -> Option<Value> {
-        this.first().map(|v| v.clone())
+        this.first().cloned()
     }
 
     fn list_last(&self, this: Vec<Value>) -> Option<Value> {
-        this.last().map(|v| v.clone())
+        this.last().cloned()
     }
 
     fn mut_list_push(&self, this: &mut Vec<Value>, value: Vec<Value>) {
@@ -172,11 +244,11 @@ impl RigzStd for StdModule {
     }
 
     fn map_keys(&self, this: IndexMap<Value, Value>) -> Vec<Value> {
-        this.keys().map(|v| v.clone()).collect()
+        this.keys().cloned().collect()
     }
 
     fn map_values(&self, this: IndexMap<Value, Value>) -> Vec<Value> {
-        this.values().map(|v| v.clone()).collect()
+        this.values().cloned().collect()
     }
 
     // todo support formatting message

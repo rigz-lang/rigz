@@ -72,9 +72,9 @@ impl Display for TokenValue<'_> {
     }
 }
 
-impl Into<Value> for TokenValue<'_> {
-    fn into(self) -> Value {
-        match self {
+impl From<TokenValue<'_>> for Value {
+    fn from(val: TokenValue<'_>) -> Self {
+        match val {
             TokenValue::None => Value::None,
             TokenValue::Bool(b) => Value::Bool(b),
             TokenValue::Number(n) => Value::Number(n),
@@ -223,14 +223,16 @@ pub(crate) enum TokenKind<'lex> {
     Optional,
     #[token("!!")]
     DoubleBang,
+    #[token("for")]
+    For,
+    #[token("in")]
+    In,
     // todo support zig style try / catch
     #[token("try")]
     Try,
     #[token("catch")]
     Catch,
     // todo should puts & log be dedicated tokens to since they're VM instructions?
-    // #[regex("[A-Z][a-z_]+\\??!?", |lex| lex.slice())]
-    // TypeValue(&'lex str),
 }
 
 impl Display for TokenKind<'_> {
@@ -278,6 +280,8 @@ impl Display for TokenKind<'_> {
             TokenKind::VariableArgs => write!(f, "var"),
             TokenKind::Module => write!(f, "mod"),
             TokenKind::Error => write!(f, "raise"),
+            TokenKind::For => write!(f, "for"),
+            TokenKind::In => write!(f, "in"),
             TokenKind::Try => write!(f, "try"),
             TokenKind::Catch => write!(f, "catch"),
             TokenKind::Range => write!(f, ".."),

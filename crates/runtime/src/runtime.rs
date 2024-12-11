@@ -129,6 +129,7 @@ pub fn test(input: &str) -> Result<TestResults, RuntimeError> {
 
 pub fn eval_print_vm(input: &str) -> Result<Value, RuntimeError> {
     let mut runtime = Runtime::create(input)?;
+    let v = runtime.run();
     println!("VM - {:#?}", runtime.vm());
-    runtime.run()
+    v
 }

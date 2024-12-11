@@ -4,8 +4,9 @@ mod unary;
 use crate::objects::RigzType;
 use crate::vm::{RegisterValue, VMState};
 use crate::{
-    outln, Binary, BinaryAssign, Number, Register, Unary, UnaryAssign, VMError, Value, VM,
+    outln, Binary, BinaryAssign, Number, Register, Scope, Unary, UnaryAssign, VMError, Value, VM,
 };
+use indexmap::IndexMap;
 use log::{log, Level};
 
 // todo simplify clear usage
@@ -125,6 +126,18 @@ pub enum Instruction<'vm> {
         func: &'vm str,
         args: Vec<usize>,
         output: usize,
+    },
+    ForList {
+        this: Register,
+        scope: usize,
+        output: Register,
+    },
+    ForMap {
+        this: Register,
+        scope: usize,
+        key: Register,
+        value: Register,
+        output: Register,
     },
     /// Danger Zone, use these instructions at your own risk (sorted by risk)
     /// in the right situations these will be fantastic, otherwise avoid them
@@ -385,50 +398,39 @@ impl<'vm> VM<'vm> {
                 else_scope,
                 output,
             } => {
-                let r = if self.resolve_register(truthy).to_bool() {
+                let (scope, r) = if self.resolve_register(truthy).to_bool() {
                     let (if_scope, output) = if_scope;
-                    match self.call_frame(if_scope, vec![], output) {
-                        Ok(_) => {}
-                        Err(e) => return e.into(),
-                    };
-                    output
+                    (if_scope, output)
                 } else {
-                    let (else_scope, output) = else_scope;
-                    match self.call_frame(else_scope, vec![], output) {
-                        Ok(_) => {}
-                        Err(e) => return e.into(),
-                    };
-                    output
+                    let (else_scope, r) = else_scope;
+                    (else_scope, r)
                 };
-                self.insert_parent_register(output, r.into());
+                let r = self.handle_scope(scope, r, vec![], r);
+                self.insert_register(output, r.into());
             }
             Instruction::If {
                 truthy,
                 if_scope,
                 output,
             } => {
-                if self.resolve_register(truthy).to_bool() {
-                    match self.call_frame(if_scope, vec![], output) {
-                        Ok(_) => {}
-                        Err(e) => return e.into(),
-                    };
+                let v = if self.resolve_register(truthy).to_bool() {
+                    self.handle_scope(if_scope, output, vec![], output)
                 } else {
-                    self.insert_register(output, Value::None.into());
-                }
+                    Value::None
+                };
+                self.insert_register(output, v.into());
             }
             Instruction::Unless {
                 truthy,
                 unless_scope,
                 output,
             } => {
-                if !self.resolve_register(truthy).to_bool() {
-                    match self.call_frame(unless_scope, vec![], output) {
-                        Ok(_) => {}
-                        Err(e) => return e.into(),
-                    };
+                let v = if self.resolve_register(truthy).to_bool() {
+                    self.handle_scope(unless_scope, output, vec![], output)
                 } else {
-                    self.insert_register(output, Value::None.into());
-                }
+                    Value::None
+                };
+                self.insert_register(output, v.into());
             }
             Instruction::GetVariable(name, reg) => {
                 let r = self.current.borrow().get_variable(name, self);
@@ -579,6 +581,7 @@ impl<'vm> VM<'vm> {
             } => {
                 self.instance_set(source, index, value, output);
             }
+            // why do I have both of these?
             Instruction::InstanceSetMut {
                 source,
                 index,
@@ -615,6 +618,58 @@ impl<'vm> VM<'vm> {
                 Ok(_) => {}
                 Err(e) => return VMState::error(e),
             },
+            Instruction::ForList {
+                this,
+                scope,
+                output,
+            } => {
+                let mut result = vec![];
+                let this = self.resolve_register(this).to_list();
+                for value in this {
+                    self.insert_register(output, value.into());
+                    // todo ideally this doesn't need a call frame per intermediate, it should be possible to reuse the current scope/fram
+                    // the process_ret instruction for the scope is the reason this is needed
+                    let value = self.handle_scope(scope, output, vec![output], output);
+                    if value != Value::None {
+                        result.push(value)
+                    }
+                }
+                self.insert_register(output, result.into());
+            }
+            Instruction::ForMap {
+                this,
+                scope,
+                key,
+                value,
+                output,
+            } => {
+                let mut result = IndexMap::new();
+                let this = self.resolve_register(this).to_map();
+                for (k, v) in this {
+                    self.insert_register(key, k.into());
+                    self.insert_register(value, v.into());
+                    let value = self.handle_scope(scope, output, vec![key, value], output);
+                    match value {
+                        Value::None => {}
+                        Value::Tuple(mut t) if t.len() == 2 => {
+                            let v = t.remove(1);
+                            let k = t.remove(0);
+                            if k != Value::None && v != Value::None {
+                                result.insert(k, v);
+                            }
+                        }
+                        // todo should a single value be both the key & value?
+                        _ => {
+                            let e = VMError::UnsupportedOperation(format!(
+                                "Invalid args in for-map {value}"
+                            ))
+                            .to_value();
+                            result.insert(e.clone(), e);
+                        }
+                    }
+                }
+                self.insert_register(output, result.into());
+            }
         };
         VMState::Running
     }
@@ -651,6 +706,14 @@ impl<'vm> VM<'vm> {
                 }
             },
             (Value::List(s), Value::Number(n)) => match n.to_usize() {
+                Ok(index) => {
+                    s.insert(index, value);
+                }
+                Err(e) => {
+                    source = e.into();
+                }
+            },
+            (Value::Tuple(s), Value::Number(n)) => match n.to_usize() {
                 Ok(index) => {
                     s.insert(index, value);
                 }

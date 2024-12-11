@@ -1,6 +1,6 @@
 {
   "name": "tree-sitter-rigz",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Rigz grammar for tree-sitter",
   "repository": "https://gitlab.com/inapinch/rigz/crates/tree-sitter",
   "license": "MIT",

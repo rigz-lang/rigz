@@ -26,6 +26,11 @@ impl Rem for Value {
                     Ok(r) => Value::Number(a % r),
                 }
             }
+            (Value::Tuple(a), Value::Tuple(b)) => {
+                Value::Tuple(a.into_iter().zip(b).map(|(a, b)| a % b).collect())
+            }
+            (Value::Tuple(a), b) => Value::Tuple(a.into_iter().map(|a| a % b.clone()).collect()),
+            (b, Value::Tuple(a)) => Value::Tuple(a.into_iter().map(|a| b.clone() % a).collect()),
             (a, b) => {
                 warn!("{a} % {b} not implemented, defaulting to a - b");
                 a - b

@@ -18,7 +18,7 @@ pub use error::VMError;
 
 use crate::{impl_from, Number, Object, RigzType, ValueRange};
 use indexmap::IndexMap;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -35,6 +35,7 @@ pub enum Value {
     Map(IndexMap<Value, Value>),
     Range(ValueRange),
     Error(VMError),
+    Tuple(Vec<Value>),
     // todo create dedicated object value to avoid map usage everywhere, might need to be a trait. Create to_o method for value
     Type(RigzType),
 }
@@ -108,6 +109,9 @@ impl PartialOrd for Value {
             (Value::String(a), Value::String(b)) => a.partial_cmp(b),
             (Value::String(_), _) => Some(Ordering::Less),
             (_, Value::String(_)) => Some(Ordering::Greater),
+            (Value::Tuple(a), Value::Tuple(b)) => a.partial_cmp(b),
+            (Value::Tuple(_), _) => Some(Ordering::Less),
+            (_, Value::Tuple(_)) => Some(Ordering::Greater),
             (Value::List(a), Value::List(b)) => a.partial_cmp(b),
             (Value::List(_), _) => Some(Ordering::Less),
             (_, Value::List(_)) => Some(Ordering::Greater),
@@ -243,6 +247,7 @@ impl Value {
 
                 s.parse().unwrap_or(true)
             }
+            Value::Tuple(l) => !l.is_empty(),
             Value::List(l) => !l.is_empty(),
             Value::Map(m) => !m.is_empty(),
             Value::Range(r) => !r.is_empty(),
@@ -263,7 +268,7 @@ impl Value {
                 vec![(*n).into()]
             }
             Value::String(s) => s.chars().map(|c| Value::String(c.to_string())).collect(),
-            Value::List(l) => l.clone(),
+            Value::List(l) | Value::Tuple(l) => l.clone(),
             Value::Map(m) => {
                 let mut result = Vec::with_capacity(m.len());
                 for (k, v) in m {
@@ -300,7 +305,7 @@ impl Value {
                 let s = s.clone();
                 IndexMap::from([(s.clone().into(), s.into())])
             }
-            Value::List(l) => l.iter().map(|v| (v.clone(), v.clone())).collect(),
+            Value::List(l) | Value::Tuple(l) => l.iter().map(|v| (v.clone(), v.clone())).collect(),
             Value::Map(m) => m.clone(),
             Value::Error(e) => {
                 let e = e.clone();
@@ -326,11 +331,8 @@ impl Value {
             Value::Map(_) => RigzType::Map(Box::new(RigzType::Any), Box::new(RigzType::Any)),
             Value::Range(_) => RigzType::Range,
             Value::Error(_) => RigzType::Error,
-            Value::Type(r) => RigzType::Type {
-                base_type: Box::new(r.clone()),
-                optional: false,
-                can_return_error: false,
-            },
+            Value::Tuple(v) => RigzType::Tuple(v.iter().map(|v| v.rigz_type()).collect()),
+            Value::Type(r) => r.clone(),
         }
     }
 
@@ -437,6 +439,17 @@ impl Display for Value {
                 }
                 write!(f, "[{}]", values)
             }
+            Value::Tuple(l) => {
+                let mut values = String::new();
+                let len = l.len();
+                for (index, v) in l.iter().enumerate() {
+                    values.push_str(v.to_string().as_str());
+                    if index != len - 1 {
+                        values.push(',')
+                    }
+                }
+                write!(f, "({})", values)
+            }
             Value::Map(m) => {
                 let mut values = String::new();
                 let len = m.len();
@@ -464,7 +477,7 @@ impl Hash for Value {
             Value::Number(n) => n.hash(state),
             Value::String(s) => s.hash(state),
             Value::Range(s) => s.hash(state),
-            Value::List(l) => {
+            Value::List(l) | Value::Tuple(l) => {
                 for v in l {
                     v.hash(state);
                 }
@@ -485,11 +498,6 @@ impl PartialEq for Value {
             (Value::None, Value::None) => true,
             (Value::Error(a), Value::Error(b)) => *a == *b,
             (Value::Type(a), Value::Type(b)) => *a == *b,
-            (Value::Error(_), _) => false,
-            (_, Value::Error(_)) => false,
-            // todo Should I check against string values?
-            (Value::Type(_), _) => false,
-            (_, Value::Type(_)) => false,
             (Value::None, Value::Bool(false)) => true,
             (Value::None, Value::Number(n)) => n.is_zero(),
             (Value::Bool(false), Value::Number(n)) => n.is_zero(),
@@ -503,7 +511,6 @@ impl PartialEq for Value {
             (Value::Bool(true), Value::Number(n)) => n.is_one(),
             (Value::Bool(false), Value::None) => true,
             (&Value::Bool(a), &Value::Bool(b)) => a == b,
-            (Value::Bool(_), _) => false,
             (Value::Number(n), Value::None) => n.is_zero(),
             (Value::Number(n), Value::Bool(false)) => n.is_zero(),
             (Value::String(s), Value::None) => s.is_empty() || s.eq("none"),
@@ -514,12 +521,11 @@ impl PartialEq for Value {
             (Value::Map(m), Value::Bool(false)) => m.is_empty(),
             (Value::String(s), Value::Bool(true)) => s.eq("true"),
             (Value::Number(n), Value::Bool(true)) => n.is_one(),
-            (_, Value::Bool(_)) => false,
             (&Value::Number(a), &Value::Number(b)) => a == b,
             (Value::Range(a), Value::Range(b)) => a == b,
-            (Value::Range(_), _) | (_, Value::Range(_)) => false,
             (Value::String(a), Value::String(b)) => *a == *b,
-            (Value::List(a), Value::List(b)) => *a == *b,
+            (Value::Tuple(a), Value::List(b)) | (Value::List(a), Value::Tuple(b)) => *a == *b,
+            (Value::List(a), Value::List(b)) | (Value::Tuple(a), Value::Tuple(b)) => *a == *b,
             (Value::Map(a), Value::Map(b)) => *a == *b,
             (Value::Number(n), Value::String(s)) => {
                 (s.is_empty() && n.is_zero()) || n.to_string().eq(s)
@@ -527,12 +533,11 @@ impl PartialEq for Value {
             (Value::String(s), Value::Number(n)) => {
                 (s.is_empty() && n.is_zero()) || n.to_string().eq(s)
             }
-            (Value::Number(_), _) => false,
-            (_, Value::Number(_)) => false,
             (Value::String(s), v) => s.eq(v.to_string().as_str()),
             (v, Value::String(s)) => s.eq(v.to_string().as_str()),
             (Value::List(a), Value::Map(b)) => a.is_empty() && b.is_empty(),
             (Value::Map(a), Value::List(b)) => a.is_empty() && b.is_empty(),
+            (_, _) => false,
         }
     }
 }

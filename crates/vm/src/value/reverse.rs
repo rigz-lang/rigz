@@ -13,6 +13,7 @@ impl Reverse for Value {
                 Value::String(s)
             }
             Value::List(l) => Value::List(l.iter().rev().cloned().collect()),
+            Value::Tuple(l) => Value::Tuple(l.iter().rev().cloned().collect()),
             Value::Map(m) => {
                 let mut r = m.clone();
                 r.reverse();

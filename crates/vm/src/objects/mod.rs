@@ -2,8 +2,7 @@ use crate::{Number, VMError, Value};
 use dyn_clone::DynClone;
 use indexmap::IndexMap;
 use itertools::Itertools;
-use serde::de::Error;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 use std::str::FromStr;
@@ -22,12 +21,14 @@ pub enum RigzType {
     Error,
     This,
     Range,
-    Type {
+    Type,
+    Wrapper {
         base_type: Box<RigzType>,
         optional: bool,
         can_return_error: bool,
     },
     Function(Vec<RigzType>, Box<RigzType>),
+    Tuple(Vec<RigzType>),
     Union(Vec<RigzType>),
     Composite(Vec<RigzType>),
     Custom(CustomType),
@@ -35,7 +36,7 @@ pub enum RigzType {
 
 impl Default for RigzType {
     fn default() -> Self {
-        RigzType::Type {
+        RigzType::Wrapper {
             base_type: Box::new(RigzType::Any),
             optional: true,
             can_return_error: true,
@@ -96,7 +97,7 @@ impl Object for NumberObject {
                 "Cannot convert map {:?} to Number Object",
                 index_map
             ))),
-            Some(v) => v.to_number().map(|n| NumberObject(n)),
+            Some(v) => v.to_number().map(NumberObject),
         }
     }
 
@@ -149,21 +150,22 @@ impl FromStr for RigzType {
             "Map" => RigzType::Map(Box::new(RigzType::Any), Box::new(RigzType::Any)),
             "Range" => RigzType::Range,
             "String" => RigzType::String,
+            "Type" => RigzType::Type,
             s => {
                 if let Some(s) = s.strip_suffix("!?") {
-                    RigzType::Type {
+                    RigzType::Wrapper {
                         base_type: Box::new(s.parse()?),
                         optional: true,
                         can_return_error: true,
                     }
                 } else if let Some(s) = s.strip_suffix("!") {
-                    RigzType::Type {
+                    RigzType::Wrapper {
                         base_type: Box::new(s.parse()?),
                         optional: false,
                         can_return_error: true,
                     }
                 } else if let Some(s) = s.strip_suffix("?") {
-                    RigzType::Type {
+                    RigzType::Wrapper {
                         base_type: Box::new(s.parse()?),
                         optional: true,
                         can_return_error: false,
@@ -195,7 +197,8 @@ impl Display for RigzType {
             RigzType::Error => write!(f, "Error"),
             RigzType::This => write!(f, "Self"),
             RigzType::Range => write!(f, "Range"),
-            RigzType::Type {
+            RigzType::Type => write!(f, "Type"),
+            RigzType::Wrapper {
                 base_type,
                 optional,
                 can_return_error,
@@ -208,6 +211,9 @@ impl Display for RigzType {
                 )
             }
             RigzType::Function(args, result) => write!(f, "Function<{args:?},{result}>"),
+            RigzType::Tuple(args) => {
+                write!(f, "({})", args.iter().map(|m| m.to_string()).join(" , "))
+            }
             RigzType::Union(args) => {
                 write!(f, "{}", args.iter().map(|m| m.to_string()).join(" | "))
             }

@@ -548,7 +548,7 @@ fn base_call(
                 }
             }
             t => {
-                if let RigzType::Type {
+                if let RigzType::Wrapper {
                     base_type,
                     optional,
                     can_return_error,
@@ -704,7 +704,8 @@ fn convert_type_for_arg(name: Ident, rigz_type: &RigzType, mutable: bool) -> Opt
             RigzType::Bool => quote! { #name.as_bool() },
             RigzType::List(_) => quote! { #name.as_list() },
             RigzType::Map(_, _) => quote! { #name.as_map() },
-            RigzType::Type { .. } => return None, // todo this will need to be improved
+            // todo this isn't quite right
+            RigzType::Type => quote! { #name.rigz_type() },
             r => todo!("call arg {r:?} is not supported"),
         }
     } else {
@@ -717,7 +718,7 @@ fn convert_type_for_arg(name: Ident, rigz_type: &RigzType, mutable: bool) -> Opt
             RigzType::Bool => quote! { #name.to_bool() },
             RigzType::List(_) => quote! { #name.to_list() },
             RigzType::Map(_, _) => quote! { #name.to_map() },
-            RigzType::Type { .. } => return None, // todo this will need to be improved
+            RigzType::Type => quote! { #name.rigz_type() },
             r => todo!("call arg {r:?} is not supported"),
         }
     };
