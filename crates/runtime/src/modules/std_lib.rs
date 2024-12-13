@@ -202,32 +202,54 @@ impl RigzStd for StdModule {
     fn list_split_first(&self, this: Vec<Value>) -> (Option<Value>, Vec<Value>) {
         match this.split_first() {
             None => (None, vec![]),
-            Some((s, rest)) => (Some(s.clone()), rest.to_vec())
+            Some((s, rest)) => (Some(s.clone()), rest.to_vec()),
         }
     }
 
-    fn list_split_last(&self, this: Vec<Value>)-> (Option<Value>, Vec<Value>) {
+    fn list_split_last(&self, this: Vec<Value>) -> (Option<Value>, Vec<Value>) {
         match this.split_last() {
             None => (None, vec![]),
-            Some((s, rest)) => (Some(s.clone()), rest.to_vec())
+            Some((s, rest)) => (Some(s.clone()), rest.to_vec()),
         }
     }
 
-    fn map_split_first(&self, this: IndexMap<Value, Value>) -> (Option<Value>, Option<Value>, IndexMap<Value, Value>) {
+    fn map_split_first(
+        &self,
+        this: IndexMap<Value, Value>,
+    ) -> (Option<Value>, Option<Value>, IndexMap<Value, Value>) {
         if this.is_empty() {
             (None, None, IndexMap::new())
         } else {
             let (k, v) = this.first().unwrap();
-            (Some(k.clone()), Some(v.clone()), this.iter().skip(1).map(|(k, v)| (k.clone(), v.clone())).collect())
+            (
+                Some(k.clone()),
+                Some(v.clone()),
+                this.iter()
+                    .skip(1)
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect(),
+            )
         }
     }
 
-    fn map_split_last(&self, this: IndexMap<Value, Value>) -> (Option<Value>, Option<Value>, IndexMap<Value, Value>) {
+    fn map_split_last(
+        &self,
+        this: IndexMap<Value, Value>,
+    ) -> (Option<Value>, Option<Value>, IndexMap<Value, Value>) {
         if this.is_empty() {
             (None, None, IndexMap::new())
         } else {
             let (k, v) = this.first().unwrap();
-            (Some(k.clone()), Some(v.clone()), this.iter().rev().skip(1).map(|(k, v)| (k.clone(), v.clone())).rev().collect())
+            (
+                Some(k.clone()),
+                Some(v.clone()),
+                this.iter()
+                    .rev()
+                    .skip(1)
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .rev()
+                    .collect(),
+            )
         }
     }
 
