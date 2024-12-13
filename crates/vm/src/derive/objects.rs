@@ -1,5 +1,6 @@
 use crate::derive::{boxed, csv_vec};
 use crate::{CustomType, RigzType};
+use itertools::Itertools;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
@@ -131,6 +132,10 @@ pub fn rigz_type_to_rust_str(rigz_type: &RigzType) -> Option<String> {
             let v =
                 rigz_type_to_rust_str(v.as_ref()).expect("None is not valid for map value types");
             format!("IndexMap<{k}, {v}>")
+        }
+        RigzType::Tuple(v) => {
+            let rep = v.iter().filter_map(rigz_type_to_rust_str).join(",");
+            format!("({rep})")
         }
         t => t.to_string(),
     };

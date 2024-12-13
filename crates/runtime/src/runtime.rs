@@ -53,6 +53,15 @@ impl Into<RuntimeError> for ValidationError {
     }
 }
 
+impl Default for Runtime<'_> {
+    /// Does not include default modules, use Runtime::new() instead
+    fn default() -> Self {
+        Runtime {
+            parser: ProgramParser::default(),
+        }
+    }
+}
+
 impl<'vm> Runtime<'vm> {
     pub fn vm(&self) -> &VM<'vm> {
         &self.parser.builder

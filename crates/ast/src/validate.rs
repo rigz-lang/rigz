@@ -28,7 +28,7 @@ impl Display for ValidationError {
     }
 }
 
-impl<'vm> Program<'vm> {
+impl Program<'_> {
     pub fn validate(&self) -> Result<(), ValidationError> {
         match self.elements.last() {
             None => Err(ValidationError::MissingExpression(

@@ -306,7 +306,7 @@ pub(crate) struct Token<'lex> {
 
 // todo custom debug impl
 
-impl<'lex> Token<'lex> {
+impl Token<'_> {
     pub(crate) fn terminal(&self) -> bool {
         self.kind == TokenKind::Newline || self.kind == TokenKind::Semi
     }

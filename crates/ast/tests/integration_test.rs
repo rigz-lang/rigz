@@ -602,6 +602,60 @@ test_parse! {
             Element::Expression(Expression::FunctionCall("add", vec![Expression::Identifier("v")].into()))
         ]
     },
+    lambda_instance_call r#"[1, 2, 3, 'a', 'b'].filter { |v| v.is_num }.map(|v| v * v)"# = Program {
+        elements: vec![
+            Element::Expression(
+                Expression::InstanceFunctionCall(
+                    Expression::InstanceFunctionCall(
+                        Expression::List(vec![
+                            Expression::Value(1.into()),
+                            Expression::Value(2.into()),
+                            Expression::Value(3.into()),
+                            Expression::Value("a".into()),
+                            Expression::Value("b".into())
+                        ]).into(),
+                        vec!["filter"],
+                        RigzArguments::Positional(vec![
+                            Expression::Lambda { arguments: vec![
+                                FunctionArgument {
+                                    name: "v",
+                                    default: None,
+                                    function_type: FunctionType {
+                                        rigz_type: RigzType::Any,
+                                        mutable: false
+                                    },
+                                    var_arg: false,
+                                    rest: false
+                                }
+                            ],
+                            var_args_start: None,
+                            body: Expression::InstanceFunctionCall(
+                                    Expression::Identifier("v").into(),
+                                    vec!["is_num"],
+                                    RigzArguments::Positional(vec![])
+                                ).into()
+                            }])
+                ).into(),
+                vec!["map"],
+                RigzArguments::Positional(vec![Expression::Lambda {
+                    arguments: vec![FunctionArgument {
+                        name: "v",
+                        default: None,
+                        function_type: FunctionType {
+                            rigz_type: RigzType::Any,
+                            mutable: false
+                        },
+                        var_arg: false,
+                        rest: false
+                    }],
+                    var_args_start: None,
+                    body: Expression::BinExp(Expression::Identifier("v").into(), BinaryOperation::Mul, Expression::Identifier("v").into()).into()
+                }]
+                    )
+                )
+            )
+        ]
+    },
 }
 
 // mod debug {

@@ -123,7 +123,7 @@ impl<'vm> CallFrame<'vm> {
     }
 }
 
-impl<'vm> CallFrame<'vm> {
+impl CallFrame<'_> {
     #[inline]
     pub fn main() -> Self {
         Self {

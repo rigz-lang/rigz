@@ -26,7 +26,7 @@ fn eval_binary_operation(binary_operation: BinaryOperation, lhs: Value, rhs: Val
     }
 }
 
-impl<'vm> VM<'vm> {
+impl VM<'_> {
     #[inline]
     pub fn apply_binary(
         &mut self,

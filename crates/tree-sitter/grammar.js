@@ -89,8 +89,11 @@ module.exports = grammar({
             $.expression
         )),
         _expression_or_lambda: $ => choice($.expression, $.lambda),
-        lambda: $ => seq("|", optional(seq($.function_arg,
-            repeat(seq(',', $.function_arg)))), "|", $.expression),
+        lambda: $ => choice(
+            seq("|", optional(seq($.function_arg, repeat(seq(',', $.function_arg)))), "|", $.expression),
+            seq("{", "|", optional(seq($.function_arg, repeat(seq(',', $.function_arg)))), "|", $.expression, "}"),
+            seq("do", "|", optional(seq($.function_arg, repeat(seq(',', $.function_arg)))), "|", $.scope),
+        ),
         tuple: $ => seq("(", $.expression, repeat1(seq(",", $.expression)), ")"),
         for_list: $ =>
             seq("[", "for", $.identifier, "in", $.expression, ":", $.expression, "]"),
@@ -119,7 +122,7 @@ module.exports = grammar({
             seq(/[0-9]+/, "..", /[0-9]+/),
             seq($.char, "..", $.char)
         ),
-        char: $ => seq("'", /\w/, "'"),
+        char: $ => seq("'", /./, "'"),
         string: $ => choice(
             $._single_quoted_string,
             $._double_quoted_string,
@@ -143,6 +146,7 @@ module.exports = grammar({
             "List",
             "Map",
             "VM",
+            seq("(", $.type, repeat(seq(",", $.type)), ")"),
             // todo requires VM updates
             // seq("[", $.type, "]"),
             // seq("{", $.type, "}"),

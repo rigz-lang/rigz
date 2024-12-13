@@ -17,6 +17,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         &mut self,
         expression: &Expression<'vm>,
     ) -> Result<RigzType, ValidationError> {
+        // todo arguments should be checked for function calls here for best match
         let t = match expression {
             Expression::This => RigzType::This,
             Expression::Value(v) => v.rigz_type(),
@@ -121,7 +122,8 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     }
                 }
             }
-            Expression::InstanceFunctionCall(_, calls, _) => {
+            Expression::InstanceFunctionCall(ex, calls, _) => {
+                let this = self.rigz_type(ex)?;
                 let name = calls.last().expect("Invalid instance function call");
                 // todo need to handle call chaining
                 self.check_module_exists(name)?;
@@ -141,7 +143,8 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                     CallSignature::Function(f, _) => f
                                         .self_type
                                         .as_ref()
-                                        .map(|_| f.return_type.0.rigz_type.clone()),
+                                        .filter(|t| t.0.rigz_type == this)
+                                        .map(|t| t.0.rigz_type.clone()),
                                     CallSignature::Lambda(_, _, ret) => Some(ret.0.clone()),
                                 })
                                 .collect();

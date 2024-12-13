@@ -12,6 +12,8 @@ use std::collections::HashMap;
 pub(crate) enum CallSite<'vm> {
     Scope(usize, Register, bool),
     Module(&'vm str),
+    // todo only store used functions in VM
+    // Parsed,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -119,7 +121,7 @@ pub(crate) enum CallSignature<'vm> {
     ),
 }
 
-impl<'vm> CallSignature<'vm> {
+impl CallSignature<'_> {
     fn rigz_type(&self) -> RigzType {
         match self {
             CallSignature::Function(fc, _) => fc.return_type.0.rigz_type.clone(),
@@ -1117,6 +1119,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         let mut base = IndexMap::new();
         let mut values_only = true;
         let m = self.next_register();
+
         for (k, v) in map {
             if values_only {
                 match (k, v) {
@@ -1406,6 +1409,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 }
             }
         }
+        // todo support runtime function matching?
         match fcs {
             None => match rigz_type {
                 None => Err(ValidationError::InvalidFunction(format!(
@@ -1510,6 +1514,10 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         name: &'vm str,
         arguments: RigzArguments<'vm>,
     ) -> Result<(), ValidationError> {
+        if let Expression::Lambda { .. } = this_exp {
+            return Err(ValidationError::InvalidFunction("Cannot call function on lambda, use {{ || <expression> }} or do || end syntax instead when chaining".to_string()));
+        }
+
         let rigz_type = self.rigz_type(&this_exp)?;
         let BestMatch {
             fcs,
@@ -1766,7 +1774,6 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         // todo ensure fn_args match signature
         self.builder
             .add_load_instruction(expected_reg, RegisterValue::ScopeId(anon, output, args));
-        self.last = output;
         Ok(())
     }
 }

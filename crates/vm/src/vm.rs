@@ -123,7 +123,7 @@ impl<'vm> RigzBuilder<'vm> for VM<'vm> {
     }
 }
 
-impl<'vm> Default for VM<'vm> {
+impl Default for VM<'_> {
     #[inline]
     fn default() -> Self {
         Self {
@@ -256,7 +256,7 @@ impl<'vm> VM<'vm> {
                 VMState::Done(v) | VMState::Ran(v) => v,
             };
         }
-        self.insert_register(output, v.clone().into());
+        self.insert_register(original, v.clone().into());
         v
     }
 
@@ -266,7 +266,6 @@ impl<'vm> VM<'vm> {
     }
 
     /// Value is replaced with None, shifting the registers breaks the program.
-
     pub fn remove_register_eval_scope(&mut self, register: Register) -> Value {
         let rv = self.remove_register(register);
         rv.resolve(self, register)
@@ -628,12 +627,11 @@ impl<'vm> VM<'vm> {
         mutable: bool,
     ) -> Result<(), VMError> {
         self.call_frame(scope_index, args, output)?;
-        let var = if mutable {
-            Variable::Mut(this)
+        if mutable {
+            self.load_mut("self", this)?;
         } else {
-            Variable::Let(this)
+            self.load_let("self", this)?;
         };
-        self.current.borrow_mut().variables.insert("self", var);
         Ok(())
     }
 
@@ -646,7 +644,13 @@ impl<'vm> VM<'vm> {
         args: Vec<Register>,
         mutable: bool,
     ) -> Result<(), VMError> {
-        todo!()
+        self.call_frame_memo(scope_index, args, output)?;
+        if mutable {
+            self.load_mut("self", this)?;
+        } else {
+            self.load_let("self", this)?;
+        };
+        Ok(())
     }
 
     /// Snapshots can't include modules or messages from in progress lifecycles

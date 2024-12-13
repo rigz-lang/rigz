@@ -17,9 +17,7 @@ pub enum ValueRange {
 fn range_compare<Idx: PartialOrd>(a: &Range<Idx>, b: &Range<Idx>) -> Ordering {
     if a.start <= b.start && a.end <= b.end {
         Ordering::Less
-    } else if a.start >= b.start && a.end >= b.end {
-        Ordering::Greater
-    } else if a.start <= b.start && a.end >= b.end {
+    } else if a.end >= b.end {
         Ordering::Greater
     } else {
         Ordering::Less

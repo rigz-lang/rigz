@@ -27,7 +27,7 @@ fn eval_unary(unary_operation: UnaryOperation, val: Value) -> Value {
     }
 }
 
-impl<'vm> VM<'vm> {
+impl VM<'_> {
     pub fn apply_unary(&mut self, unary_operation: UnaryOperation, val: Value, output: Register) {
         let val = eval_unary(unary_operation, val);
         self.insert_register(output, val.into());

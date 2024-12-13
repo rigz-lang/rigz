@@ -42,7 +42,7 @@ derive_module!(
             if self
                 init
             else
-                (first, ..rest) = self.split_front
+                (first, rest) = self.split_front
                 rest.reduce(init + first, func)
             end
         end
@@ -54,6 +54,13 @@ derive_module!(
 
         fn mut List.extend(value: List)
         fn mut List.clear -> None
+
+        fn List.split_first -> (Any?, List)
+        fn List.split_last -> (Any?, List)
+
+        fn Map.split_first -> ((Any?, Any?), Map)
+        fn Map.split_last -> ((Any?, Any?), Map)
+
         fn List.empty = self.to_bool
         fn List.first -> Any?
         fn List.last -> Any?
@@ -66,6 +73,7 @@ derive_module!(
         fn Map.empty = self.to_bool
         fn Map.first -> Any?
         fn Map.last -> Any?
+        fn Map.get_index(number: Number) -> (Any, Any)?!
         fn mut Map.insert(key, value)
         fn Map.with(var key, value) -> Map
         fn Map.concat(value: Map) -> Map
@@ -112,7 +120,8 @@ impl RigzStd for StdModule {
     }
 
     fn any_is_some(&self, this: Value) -> bool {
-        !matches!(this, Value::None | Value::Error(_))
+        // todo should error count as some?
+        !matches!(this, Value::None)
     }
 
     fn any_is(&self, this: Value, rigz_type: RigzType) -> bool {
@@ -190,6 +199,38 @@ impl RigzStd for StdModule {
         this.clear()
     }
 
+    fn list_split_first(&self, this: Vec<Value>) -> (Option<Value>, Vec<Value>) {
+        match this.split_first() {
+            None => (None, vec![]),
+            Some((s, rest)) => (Some(s.clone()), rest.to_vec())
+        }
+    }
+
+    fn list_split_last(&self, this: Vec<Value>)-> (Option<Value>, Vec<Value>) {
+        match this.split_last() {
+            None => (None, vec![]),
+            Some((s, rest)) => (Some(s.clone()), rest.to_vec())
+        }
+    }
+
+    fn map_split_first(&self, this: IndexMap<Value, Value>) -> (Option<Value>, Option<Value>, IndexMap<Value, Value>) {
+        if this.is_empty() {
+            (None, None, IndexMap::new())
+        } else {
+            let (k, v) = this.first().unwrap();
+            (Some(k.clone()), Some(v.clone()), this.iter().skip(1).map(|(k, v)| (k.clone(), v.clone())).collect())
+        }
+    }
+
+    fn map_split_last(&self, this: IndexMap<Value, Value>) -> (Option<Value>, Option<Value>, IndexMap<Value, Value>) {
+        if this.is_empty() {
+            (None, None, IndexMap::new())
+        } else {
+            let (k, v) = this.first().unwrap();
+            (Some(k.clone()), Some(v.clone()), this.iter().rev().skip(1).map(|(k, v)| (k.clone(), v.clone())).rev().collect())
+        }
+    }
+
     fn list_first(&self, this: Vec<Value>) -> Option<Value> {
         this.first().cloned()
     }
@@ -228,6 +269,15 @@ impl RigzStd for StdModule {
 
     fn map_last(&self, this: IndexMap<Value, Value>) -> Option<Value> {
         this.last().map(|(_, v)| v.clone())
+    }
+
+    fn map_get_index(
+        &self,
+        this: IndexMap<Value, Value>,
+        number: Number,
+    ) -> Result<Option<(Value, Value)>, VMError> {
+        let index = number.to_usize()?;
+        Ok(this.get_index(index).map(|(k, v)| (k.clone(), v.clone())))
     }
 
     fn mut_map_insert(&self, this: &mut IndexMap<Value, Value>, key: Value, value: Value) {

@@ -439,7 +439,25 @@ impl<'lex> Parser<'lex> {
             TokenKind::Lparen => self.parse_paren_expression()?,
             TokenKind::Lbracket => self.parse_list()?,
             TokenKind::Lcurly => self.parse_map()?,
-            TokenKind::Do => Expression::Scope(self.parse_scope()?),
+            TokenKind::Do => {
+                let next = self.peek_required_token("parse_expression - do")?;
+                match next.kind {
+                    TokenKind::Pipe => {
+                        let (arguments, var_args_start) = self.parse_lambda_arguments()?;
+                        Expression::Lambda {
+                            arguments,
+                            var_args_start,
+                            body: Box::new(Expression::Scope(self.parse_scope()?)),
+                        }
+                    }
+                    TokenKind::BinOp(BinaryOperation::Or) => Expression::Lambda {
+                        arguments: vec![],
+                        var_args_start: None,
+                        body: Box::new(Expression::Scope(self.parse_scope()?)),
+                    },
+                    _ => Expression::Scope(self.parse_scope()?),
+                }
+            }
             TokenKind::Unless => Expression::Unless {
                 condition: Box::new(self.parse_expression()?),
                 then: self.parse_scope()?,
@@ -508,23 +526,8 @@ impl<'lex> Parser<'lex> {
                     }
                 }
             },
-            TokenKind::Pipe => {
-                let (arguments, var_args_start) = self.parse_lambda_arguments()?;
-                let body = self.parse_expression()?;
-                Expression::Lambda {
-                    arguments,
-                    var_args_start,
-                    body: Box::new(body),
-                }
-            }
-            TokenKind::BinOp(BinaryOperation::Or) => {
-                let body = self.parse_expression()?;
-                Expression::Lambda {
-                    arguments: vec![],
-                    var_args_start: None,
-                    body: Box::new(body),
-                }
-            }
+            TokenKind::Pipe => self.parse_lambda(false)?,
+            TokenKind::BinOp(BinaryOperation::Or) => self.parse_lambda(true)?,
             _ => {
                 return Err(ParsingError::ParseError(format!(
                     "Invalid Token for Expression {:?}",
@@ -533,6 +536,20 @@ impl<'lex> Parser<'lex> {
             }
         };
         self.parse_expression_suffix(exp)
+    }
+
+    fn parse_lambda(&mut self, empty: bool) -> Result<Expression<'lex>, ParsingError> {
+        let (arguments, var_args_start) = if empty {
+            (vec![], None)
+        } else {
+            self.parse_lambda_arguments()?
+        };
+        let body = self.parse_expression()?;
+        Ok(Expression::Lambda {
+            arguments,
+            var_args_start,
+            body: Box::new(body),
+        })
     }
 
     fn parse_expression_suffix(
@@ -721,6 +738,10 @@ impl<'lex> Parser<'lex> {
         LHS: Into<Expression<'lex>>,
     {
         let mut res = lhs.into();
+        if matches!(res, Expression::Lambda { .. }) {
+            return Ok(res);
+        }
+
         loop {
             match self.next_token() {
                 None => break,
@@ -1079,9 +1100,24 @@ impl<'lex> Parser<'lex> {
 
     fn parse_map(&mut self) -> Result<Expression<'lex>, ParsingError> {
         let next = self.peek_required_token("parse_map")?;
-        if next.kind == TokenKind::For {
-            self.consume_token(TokenKind::For)?;
-            return self.parse_for_map();
+        match next.kind {
+            TokenKind::For => {
+                self.consume_token(TokenKind::For)?;
+                return self.parse_for_map();
+            }
+            TokenKind::Pipe => {
+                self.consume_token(next.kind)?;
+                let lambda = self.parse_lambda(false)?;
+                self.consume_token(TokenKind::Rcurly)?;
+                return Ok(lambda);
+            }
+            TokenKind::BinOp(BinaryOperation::Or) => {
+                self.consume_token(next.kind)?;
+                let lambda = self.parse_lambda(true)?;
+                self.consume_token(TokenKind::Rcurly)?;
+                return Ok(lambda);
+            }
+            _ => {}
         }
 
         let mut args = Vec::new();
@@ -1111,7 +1147,10 @@ impl<'lex> Parser<'lex> {
                                 args.push((key.clone(), key));
                             }
                         }
-                        TokenKind::Rcurly => break,
+                        TokenKind::Rcurly => {
+                            args.push((key.clone(), key));
+                            break;
+                        }
                         _ => {
                             return Err(ParsingError::ParseError(format!(
                                 "Invalid Map Token {t:?}"
@@ -1453,6 +1492,14 @@ impl<'lex> Parser<'lex> {
             _ => return Err(ParsingError::ParseError(format!("Invalid type {:?}", next))),
         };
 
+        self.parse_type_suffix(rigz_type, paren)
+    }
+
+    fn parse_type_suffix(
+        &mut self,
+        rigz_type: RigzType,
+        paren: bool,
+    ) -> Result<RigzType, ParsingError> {
         let rt = match self.peek_token() {
             None => rigz_type,
             Some(t) => match t.kind {
@@ -1461,6 +1508,30 @@ impl<'lex> Parser<'lex> {
                 }
                 TokenKind::And => {
                     RigzType::Composite(self.parse_complex_type(rigz_type, false, paren)?)
+                }
+                TokenKind::Optional => {
+                    self.consume_token(TokenKind::Optional)?;
+                    let can_return_error = match self.peek_token() {
+                        None => false,
+                        Some(t) if t.kind == TokenKind::Not => {
+                            self.consume_token(TokenKind::Not)?;
+                            true
+                        }
+                        Some(_) => false,
+                    };
+                    RigzType::Wrapper {
+                        base_type: Box::new(rigz_type),
+                        optional: true,
+                        can_return_error,
+                    }
+                }
+                TokenKind::Not => {
+                    self.consume_token(TokenKind::Not)?;
+                    RigzType::Wrapper {
+                        base_type: Box::new(rigz_type),
+                        optional: false,
+                        can_return_error: true,
+                    }
                 }
                 _ => rigz_type,
             },

@@ -3,8 +3,8 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
 use rigz_ast::{
-    rigz_type_to_rust_str, FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser,
-    RigzType, Tokens,
+    csv_vec, rigz_type_to_rust_str, FunctionDeclaration, FunctionSignature, ModuleTraitDefinition,
+    Parser, RigzType, Tokens,
 };
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -531,20 +531,15 @@ fn base_call(
         }
     } else {
         match &function_signature.return_type.rigz_type {
-            RigzType::None => {
-                quote! {
-                    #base_call;
-                    Ok(Value::None)
-                }
-            }
-            RigzType::Any => {
-                quote! {
-                    Ok(#base_call)
-                }
-            }
             RigzType::Error => {
                 quote! {
                     Err(#base_call)
+                }
+            }
+            RigzType::Tuple(v) => {
+                let v = tuple_call(base_call, v);
+                quote! {
+                    #v
                 }
             }
             t => {
@@ -554,44 +549,78 @@ fn base_call(
                     can_return_error,
                 } = t
                 {
-                    // todo optional logic is wrong
-                    if *optional {
-                        if *can_return_error {
-                            quote! {
-                                match #base_call {
-                                    Ok(Some(v)) => Ok(v),
-                                    Ok(None) => Ok(Value::None),
-                                    Err(e) => Err(e)
+                    if let RigzType::Tuple(values) = base_type.as_ref() {
+                        let args = tuple_args(values);
+                        let call_args = tuple_call_args(values);
+                        if *optional {
+                            if *can_return_error {
+                                quote! {
+                                    match #base_call? {
+                                        Some(v) => {
+                                            let (#args) = v;
+                                            Ok(Value::Tuple(vec![#call_args]))
+                                        },
+                                        None => Ok(Value::None),
+                                    }
+                                }
+                            } else {
+                                quote! {
+                                    match #base_call {
+                                        Some(v) => {
+                                            let (#args) = v;
+                                            Ok(Value::Tuple(vec![#call_args]))
+                                        },
+                                        None => Ok(Value::None),
+                                    }
                                 }
                             }
-                        } else {
+                        } else if *can_return_error {
                             quote! {
-                                match #base_call {
-                                    None => Ok(Value::None),
-                                    Some(s) => Ok(s.into())
-                                }
-                            }
-                        }
-                    } else if *can_return_error && base_type.as_ref() == &RigzType::None {
-                        quote! {
-                            #base_call?;
-                            Ok(Value::None)
-                        }
-                    } else if *can_return_error {
-                        if base_type.as_ref() != &RigzType::Any {
-                            quote! {
-                                let result = #base_call?;
-                                Ok(result.into())
+                                let (#args) = #base_call?;
+                                Ok(Value::Tuple(vec![#call_args]))
                             }
                         } else {
+                            let v = tuple_call(base_call, values);
                             quote! {
-                                #base_call
+                                #v
                             }
                         }
                     } else {
-                        quote! {
-                            let result = #base_call;
-                            Ok(result.into())
+                        if *optional {
+                            if *can_return_error {
+                                quote! {
+                                    match #base_call {
+                                        Ok(Some(v)) => Ok(v),
+                                        Ok(None) => Ok(Value::None),
+                                        Err(e) => Err(e)
+                                    }
+                                }
+                            } else {
+                                quote! {
+                                    Ok(#base_call.into())
+                                }
+                            }
+                        } else if *can_return_error && base_type.as_ref() == &RigzType::None {
+                            quote! {
+                                #base_call?;
+                                Ok(Value::None)
+                            }
+                        } else if *can_return_error {
+                            if base_type.as_ref() != &RigzType::Any {
+                                quote! {
+                                    let result = #base_call?;
+                                    Ok(result.into())
+                                }
+                            } else {
+                                quote! {
+                                    #base_call
+                                }
+                            }
+                        } else {
+                            quote! {
+                                let result = #base_call;
+                                Ok(result.into())
+                            }
                         }
                     }
                 } else {
@@ -627,6 +656,64 @@ fn base_call(
     quote! {
         #args
         #method_call
+    }
+}
+
+fn tuple_args(values: &Vec<RigzType>) -> Tokens {
+    let values = values.iter().enumerate().map(|(index, v)| {
+        let id = match v {
+            RigzType::None => "none",
+            RigzType::Any => "any",
+            RigzType::Bool => "bool",
+            RigzType::Int => "int",
+            RigzType::Float => "float",
+            RigzType::Number => "number",
+            RigzType::String => "string",
+            RigzType::List(_) => "list",
+            RigzType::Map(_, _) => "map",
+            RigzType::Error => "error",
+            RigzType::Range => "range",
+            RigzType::Tuple(_) => todo!("Support nested tuples"),
+            _ => "any",
+        };
+        Ident::new(format!("{id}{index}").as_str(), Span::call_site())
+    });
+
+    quote! { #(#values, )* }
+}
+
+fn tuple_call_args(values: &Vec<RigzType>) -> Tokens {
+    let values = values.iter().enumerate().map(|(index, v)| {
+        let id = match v {
+            RigzType::None => "none",
+            RigzType::Any => "any",
+            RigzType::Bool => "bool",
+            RigzType::Int => "int",
+            RigzType::Float => "float",
+            RigzType::Number => "number",
+            RigzType::String => "string",
+            RigzType::List(_) => "list",
+            RigzType::Map(_, _) => "map",
+            RigzType::Error => "error",
+            RigzType::Range => "range",
+            RigzType::Tuple(_) => todo!("Support nested tuples"),
+            _ => "any",
+        };
+        let id = Ident::new(format!("{id}{index}").as_str(), Span::call_site());
+        quote! {
+            #id.into()
+        }
+    });
+
+    quote! { #(#values, )* }
+}
+
+fn tuple_call(base_call: Tokens, values: &Vec<RigzType>) -> Tokens {
+    let args = tuple_args(values);
+    let call_args = tuple_call_args(values);
+    quote! {
+        let (#args) = #base_call;
+        Ok(Value::Tuple(vec![#call_args]))
     }
 }
 

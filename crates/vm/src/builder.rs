@@ -19,7 +19,7 @@ pub struct VMBuilder<'vm> {
     pub constants: Vec<Value>,
 }
 
-impl<'vm> Default for VMBuilder<'vm> {
+impl Default for VMBuilder<'_> {
     #[inline]
     fn default() -> Self {
         Self::new()
@@ -542,7 +542,7 @@ impl<'vm> RigzBuilder<'vm> for VMBuilder<'vm> {
     }
 }
 
-impl<'vm> VMBuilder<'vm> {
+impl VMBuilder<'_> {
     #[inline]
     pub fn new() -> Self {
         Self {

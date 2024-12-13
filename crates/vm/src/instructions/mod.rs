@@ -4,7 +4,7 @@ mod unary;
 use crate::objects::RigzType;
 use crate::vm::{RegisterValue, VMState};
 use crate::{
-    outln, Binary, BinaryAssign, Number, Register, Scope, Unary, UnaryAssign, VMError, Value, VM,
+    outln, Binary, BinaryAssign, Number, Register, Unary, UnaryAssign, VMError, Value, VM,
 };
 use indexmap::IndexMap;
 use log::{log, Level};
@@ -142,7 +142,6 @@ pub enum Instruction<'vm> {
     },
     /// Danger Zone, use these instructions at your own risk (sorted by risk)
     /// in the right situations these will be fantastic, otherwise avoid them
-
     /// Removes the input value from its current register and replaces the value with None
     UnaryClear(Unary, Clear),
     /// Removes the input value(s) from its/their current register(s) and replaces the value(s) with None

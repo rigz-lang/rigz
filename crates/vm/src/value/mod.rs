@@ -16,7 +16,7 @@ mod sub;
 
 pub use error::VMError;
 
-use crate::{impl_from, Number, Object, RigzType, ValueRange};
+use crate::{impl_from, Number, RigzType, ValueRange};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -77,6 +77,30 @@ impl<K: Into<Value>, V: Into<Value>> From<IndexMap<K, V>> for Value {
                 .map(|(k, v)| (k.into(), v.into()))
                 .collect(),
         )
+    }
+}
+
+impl From<()> for Value {
+    fn from(value: ()) -> Self {
+        Value::None
+    }
+}
+
+impl<V: Into<Value>> From<Option<V>> for Value {
+    fn from(value: Option<V>) -> Self {
+        match value {
+            None => Value::None,
+            Some(v) => v.into(),
+        }
+    }
+}
+
+impl<V: Into<Value>> From<Result<V, VMError>> for Value {
+    fn from(value: Result<V, VMError>) -> Self {
+        match value {
+            Ok(v) => v.into(),
+            Err(e) => e.into(),
+        }
     }
 }
 
@@ -392,15 +416,26 @@ impl Value {
                 },
                 Err(e) => e.into(),
             },
-            (Value::List(source), Value::Number(n)) => match n.to_usize() {
-                Ok(index) => match source.get(index) {
-                    None => return Ok(None),
-                    Some(c) => c.clone(),
-                },
-                Err(e) => e.into(),
-            },
+            (Value::List(source), Value::Number(n)) | (Value::Tuple(source), Value::Number(n)) => {
+                match n.to_usize() {
+                    Ok(index) => match source.get(index) {
+                        None => return Ok(None),
+                        Some(c) => c.clone(),
+                    },
+                    Err(e) => e.into(),
+                }
+            }
             (Value::Map(source), index) => match source.get(&index) {
-                None => return Ok(None),
+                None => {
+                    if let Value::Number(index) = index {
+                        if let Ok(index) = index.to_usize() {
+                            return Ok(source
+                                .get_index(index)
+                                .map(|(k, v)| Value::Tuple(vec![k.clone(), v.clone()])));
+                        }
+                    }
+                    return Ok(None);
+                }
                 Some(c) => c.clone(),
             },
             (Value::Number(source), Value::Number(n)) => {
