@@ -117,7 +117,7 @@ pub(crate) enum CallSignature<'vm> {
     Lambda(
         (FunctionCallSignature<'vm>, Register),
         Vec<(RigzType, Register)>,
-        (RigzType, Register),
+        RigzType,
     ),
 }
 
@@ -125,7 +125,7 @@ impl CallSignature<'_> {
     fn rigz_type(&self) -> RigzType {
         match self {
             CallSignature::Function(fc, _) => fc.return_type.0.rigz_type.clone(),
-            CallSignature::Lambda(_, _, rt) => rt.0.clone(),
+            CallSignature::Lambda(_, _, rt) => rt.clone(),
         }
     }
 }
@@ -519,11 +519,10 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                         .iter()
                         .map(|t| (t.clone(), self.next_register()))
                         .collect();
-                    let output = self.next_register();
                     let cs = CallSignature::Lambda(
                         (type_definition.clone(), lambda),
                         args.clone(),
-                        (*ret.clone(), output),
+                        *ret.clone(),
                     );
                     match self.function_scopes.entry(arg.name) {
                         Entry::Occupied(mut entry) => {
@@ -1296,7 +1295,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     }
                 }
             }
-            CallSignature::Lambda((_, lambda), args, ret) => {
+            CallSignature::Lambda((_, lambda), args, _) => {
                 let arguments = if let RigzArguments::Positional(a) = arguments {
                     a
                 } else {
@@ -1721,7 +1720,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             )));
         }
 
-        let (expected_reg, args, output) = match self.function_scopes.get(name) {
+        let (expected_reg, args) = match self.function_scopes.get(name) {
             None => {
                 return Err(ValidationError::InvalidFunction(format!(
                     "Lambda arguments do not exist for {name}"
@@ -1733,18 +1732,12 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     CallSignature::Lambda((acs, _), _, _) => acs == fcs,
                 });
 
-                let Some(CallSignature::Lambda((_, expected_reg), args, (_rigz_type, output))) =
-                    fcs
-                else {
+                let Some(CallSignature::Lambda((_, expected_reg), args, _rigz_type)) = fcs else {
                     return Err(ValidationError::InvalidFunction(format!(
                         "Lambda argument not found for {name}"
                     )));
                 };
-                (
-                    *expected_reg,
-                    args.iter().map(|(_, r)| *r).collect(),
-                    *output,
-                )
+                (*expected_reg, args.iter().map(|(_, r)| *r).collect())
             }
         };
         let current = self.builder.current_scope();

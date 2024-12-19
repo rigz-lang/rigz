@@ -659,7 +659,7 @@ fn base_call(
     }
 }
 
-fn tuple_args(values: &Vec<RigzType>) -> Tokens {
+fn tuple_args(values: &[RigzType]) -> Tokens {
     let values = values.iter().enumerate().map(|(index, v)| {
         let id = match v {
             RigzType::None => "none",
@@ -682,7 +682,7 @@ fn tuple_args(values: &Vec<RigzType>) -> Tokens {
     quote! { #(#values, )* }
 }
 
-fn tuple_call_args(values: &Vec<RigzType>) -> Tokens {
+fn tuple_call_args(values: &[RigzType]) -> Tokens {
     let values = values.iter().enumerate().map(|(index, v)| {
         let id = match v {
             RigzType::None => "none",
