@@ -1498,7 +1498,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     var_args_start,
                     body,
                 } => {
-                    self.parse_anon_lambda(&fcs, arg.name, arguments, var_args_start, body)?;
+                    self.parse_anon_lambda(&fcs, arg.name, arguments, var_args_start, *body)?;
                 }
                 _ => {
                     self.parse_expression(expression)?;
@@ -1712,7 +1712,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         name: &'vm str,
         fn_args: Vec<FunctionArgument<'vm>>,
         var_args_start: Option<usize>,
-        exp: Box<Expression<'vm>>,
+        exp: Expression<'vm>,
     ) -> Result<(), ValidationError> {
         if var_args_start.is_some() {
             return Err(ValidationError::NotImplemented(format!(
@@ -1754,7 +1754,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 )
             })
             .collect();
-        self.parse_expression(*exp)?;
+        self.parse_expression(exp)?;
         old.into_iter().for_each(|(name, rt)| match rt {
             None => {
                 self.identifiers.remove(name);

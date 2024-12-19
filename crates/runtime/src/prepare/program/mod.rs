@@ -9,10 +9,10 @@ pub struct Program<'lex> {
     pub elements: Vec<Element<'lex>>,
 }
 
-impl<'lex> Into<Program<'lex>> for rigz_ast::Program<'lex> {
-    fn into(self) -> Program<'lex> {
+impl<'l> From<rigz_ast::Program<'l>> for Program<'l> {
+    fn from(value: rigz_ast::Program<'l>) -> Self {
         Program {
-            elements: self.elements,
+            elements: value.elements,
         }
     }
 }

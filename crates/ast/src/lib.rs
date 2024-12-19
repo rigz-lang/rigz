@@ -28,9 +28,10 @@ use token::{Symbol, Token, TokenKind, TokenValue};
 pub use validate::*;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Parser<'lex> {
     tokens: VecDeque<Token<'lex>>,
-    line: usize,
+    line: usize, // todo repl should set this
 }
 
 // TODO better error messages

@@ -585,42 +585,40 @@ fn base_call(
                                 #v
                             }
                         }
-                    } else {
-                        if *optional {
-                            if *can_return_error {
-                                quote! {
-                                    match #base_call {
-                                        Ok(Some(v)) => Ok(v),
-                                        Ok(None) => Ok(Value::None),
-                                        Err(e) => Err(e)
-                                    }
-                                }
-                            } else {
-                                quote! {
-                                    Ok(#base_call.into())
-                                }
-                            }
-                        } else if *can_return_error && base_type.as_ref() == &RigzType::None {
+                    } else if *optional {
+                        if *can_return_error {
                             quote! {
-                                #base_call?;
-                                Ok(Value::None)
-                            }
-                        } else if *can_return_error {
-                            if base_type.as_ref() != &RigzType::Any {
-                                quote! {
-                                    let result = #base_call?;
-                                    Ok(result.into())
-                                }
-                            } else {
-                                quote! {
-                                    #base_call
+                                match #base_call {
+                                    Ok(Some(v)) => Ok(v),
+                                    Ok(None) => Ok(Value::None),
+                                    Err(e) => Err(e)
                                 }
                             }
                         } else {
                             quote! {
-                                let result = #base_call;
+                                Ok(#base_call.into())
+                            }
+                        }
+                    } else if *can_return_error && base_type.as_ref() == &RigzType::None {
+                        quote! {
+                            #base_call?;
+                            Ok(Value::None)
+                        }
+                    } else if *can_return_error {
+                        if base_type.as_ref() != &RigzType::Any {
+                            quote! {
+                                let result = #base_call?;
                                 Ok(result.into())
                             }
+                        } else {
+                            quote! {
+                                #base_call
+                            }
+                        }
+                    } else {
+                        quote! {
+                            let result = #base_call;
+                            Ok(result.into())
                         }
                     }
                 } else {
@@ -708,7 +706,7 @@ fn tuple_call_args(values: &[RigzType]) -> Tokens {
     quote! { #(#values, )* }
 }
 
-fn tuple_call(base_call: Tokens, values: &Vec<RigzType>) -> Tokens {
+fn tuple_call(base_call: Tokens, values: &[RigzType]) -> Tokens {
     let args = tuple_args(values);
     let call_args = tuple_call_args(values);
     quote! {

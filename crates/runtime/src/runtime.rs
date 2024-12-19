@@ -32,6 +32,7 @@ impl Display for RuntimeError {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<RuntimeError> for ParsingError {
     #[inline]
     fn into(self) -> RuntimeError {
@@ -39,6 +40,7 @@ impl Into<RuntimeError> for ParsingError {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<RuntimeError> for VMError {
     #[inline]
     fn into(self) -> RuntimeError {
@@ -46,6 +48,7 @@ impl Into<RuntimeError> for VMError {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<RuntimeError> for ValidationError {
     #[inline]
     fn into(self) -> RuntimeError {
