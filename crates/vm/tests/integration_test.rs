@@ -140,7 +140,6 @@ mod vm_test {
 
     #[test]
     fn assignment_scopes_work() {
-        pretty_env_logger::init();
         let mut builder = VMBuilder::new();
         // a = 1 + 2; a + 2
         let scope = builder.enter_scope("test", vec![]);

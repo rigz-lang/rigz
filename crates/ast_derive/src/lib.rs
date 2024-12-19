@@ -3,8 +3,8 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
 use rigz_ast::{
-    csv_vec, rigz_type_to_rust_str, FunctionDeclaration, FunctionSignature, ModuleTraitDefinition,
-    Parser, RigzType, Tokens,
+    rigz_type_to_rust_str, FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser,
+    RigzType, Tokens,
 };
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;

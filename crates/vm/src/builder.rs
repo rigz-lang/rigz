@@ -270,15 +270,6 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     }
 
     #[inline]
-    fn add_call_register_instruction(
-        &mut self,
-        scope_register: Register,
-        output: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::CallRegister(scope_register, output))
-    }
-
-    #[inline]
     fn add_call_instruction(
         &mut self,
         scope: usize,

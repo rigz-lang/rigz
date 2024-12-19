@@ -137,14 +137,14 @@ impl CallFrame<'_> {
     }
 
     #[inline]
-    pub fn child(scope_id: usize, parent: usize, output: Register) -> Self {
+    pub fn child(scope_id: usize, call_frame_id: usize, output: Register) -> Self {
         Self {
             scope_id,
             output,
             pc: 0,
             registers: Default::default(),
             variables: Default::default(),
-            parent: Some(parent),
+            parent: Some(call_frame_id),
         }
     }
 }

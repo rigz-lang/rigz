@@ -656,6 +656,7 @@ impl<'lex> Parser<'lex> {
                 | TokenKind::Symbol(_)
                 | TokenKind::Lparen
                 | TokenKind::Lcurly
+                | TokenKind::This
                 | TokenKind::Lbracket => self.parse_args()?,
                 _ => return self.parse_inline_expression(id),
             },

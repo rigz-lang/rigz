@@ -147,6 +147,7 @@ pub(crate) struct ProgramParser<'vm, T: RigzBuilder<'vm>> {
     pub(crate) constants: IndexMap<Value, usize>,
     pub(crate) identifiers: HashMap<&'vm str, RigzType>,
     pub(crate) types: HashMap<&'vm str, RigzType>,
+    pub(crate) lambda_return: Option<Register>,
 }
 
 impl<'vm, T: RigzBuilder<'vm>> Default for ProgramParser<'vm, T> {
@@ -162,6 +163,7 @@ impl<'vm, T: RigzBuilder<'vm>> Default for ProgramParser<'vm, T> {
             constants: IndexMap::from([(Value::None, none)]),
             identifiers: Default::default(),
             types: Default::default(),
+            lambda_return: None,
         }
     }
 }
@@ -177,6 +179,7 @@ impl<'vm> ProgramParser<'vm, VMBuilder<'vm>> {
             constants,
             identifiers,
             types,
+            lambda_return,
         } = self;
         ProgramParser {
             builder: builder.build(),
@@ -187,6 +190,7 @@ impl<'vm> ProgramParser<'vm, VMBuilder<'vm>> {
             constants,
             identifiers,
             types,
+            lambda_return,
         }
     }
 }
@@ -1293,9 +1297,6 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 }
             }
             CallSignature::Lambda((_, lambda), args, ret) => {
-                let next = self.next_register();
-                self.builder
-                    .add_load_instruction(next, RegisterValue::Register(lambda));
                 let arguments = if let RigzArguments::Positional(a) = arguments {
                     a
                 } else {
@@ -1309,8 +1310,9 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     self.builder
                         .add_load_instruction(arg.1, RegisterValue::Register(actual));
                 }
-                self.builder.add_call_register_instruction(next, ret.1);
-                self.last = next;
+                let next = self.next_register();
+                self.builder
+                    .add_load_instruction(next, RegisterValue::Register(lambda));
             }
         };
         Ok(())
@@ -1769,11 +1771,11 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             }
         });
         let last = self.last;
-        self.builder.add_copy_instruction(last, output);
-        self.builder.exit_scope(current, output);
+        self.builder.exit_scope(current, last);
         // todo ensure fn_args match signature
         self.builder
-            .add_load_instruction(expected_reg, RegisterValue::ScopeId(anon, output, args));
+            .add_load_instruction(expected_reg, RegisterValue::ScopeId(anon, last, args));
+        self.last = expected_reg;
         Ok(())
     }
 }

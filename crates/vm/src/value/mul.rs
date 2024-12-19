@@ -78,7 +78,7 @@ impl Mul for Value {
             //     result.insert(b.clone(), b);
             //     Value::Map(result)
             // }
-            _ => todo!(),
+            (lhs, rhs) => todo!("{lhs} * {rhs}"),
         }
     }
 }

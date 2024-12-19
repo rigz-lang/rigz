@@ -14,7 +14,7 @@ derive = ["dep:proc-macro2", "dep:quote", "rigz_vm/derive"]
 log_std_out = ["rigz_vm/log_std_out"]
 
 [dependencies]
-logos = "0.14"
+logos = "0.15"
 quote = { version = "1", optional = true }
 proc-macro2 = { version = "1.0", optional = true }
 rigz_vm.workspace = true

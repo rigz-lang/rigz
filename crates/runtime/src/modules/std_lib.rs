@@ -38,8 +38,16 @@ derive_module!(
         end
 
         /*
-        fn List.reduce(init: Any, func: |Any| -> Any) -> Any
-            if self
+        fn List.sum() -> Number
+            self.reduce(0, |res, next| res + next)
+        end
+
+        fn Map.sum() -> Number
+            self.reduce(0, |res, (_, next)| res + next)
+        end
+
+        fn List.reduce(init: Any, func: |Any, Any| -> Any) -> Any
+            if !self
                 init
             else
                 (first, rest) = self.split_front
@@ -47,8 +55,13 @@ derive_module!(
             end
         end
 
-        fn Map.reduce(init: Any, func: |Any, Any| -> Any) -> Any
-
+        fn Map.reduce(init: Any, func: |Any, (Any, Any)| -> Any) -> Any
+            if !self
+                init
+            else
+                (first, rest) = self.split_front
+                rest.reduce(init + first, func)
+            end
         end
         */
 
@@ -57,6 +70,7 @@ derive_module!(
 
         fn List.split_first -> (Any?, List)
         fn List.split_last -> (Any?, List)
+        fn List.zip(other: List) -> Map
 
         fn Map.split_first -> ((Any?, Any?), Map)
         fn Map.split_last -> ((Any?, Any?), Map)
@@ -213,6 +227,10 @@ impl RigzStd for StdModule {
         }
     }
 
+    fn list_zip(&self, this: Vec<Value>, other: Vec<Value>) -> IndexMap<Value, Value> {
+        this.into_iter().zip(other).collect()
+    }
+
     fn map_split_first(
         &self,
         this: IndexMap<Value, Value>,
@@ -330,11 +348,9 @@ impl RigzStd for StdModule {
     }
 
     fn map_entries(&self, this: IndexMap<Value, Value>) -> Vec<Value> {
-        let mut entries = Vec::new();
-        for (k, v) in this {
-            entries.push(vec![k, v].into())
-        }
-        entries
+        this.into_iter()
+            .map(|(k, v)| Value::Tuple(vec![k, v]))
+            .collect()
     }
 
     fn map_keys(&self, this: IndexMap<Value, Value>) -> Vec<Value> {

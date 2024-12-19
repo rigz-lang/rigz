@@ -22,6 +22,7 @@ mod runtime {
             $(
                  #[test]
                 fn $name() {
+                    pretty_env_logger::try_init();
                     let input = $input;
                     let v = eval_print_vm(input);
                     assert_eq!(v, Ok($expected), "VM eval failed {input}");
@@ -274,6 +275,7 @@ mod runtime {
             // todo parens shouldn't be required to pass in lambdas
             filter(r#"[1, 2, 3, 'a', 'b'].filter(|v| v.is_num)"# = vec![1, 2, 3].into())
             map_filter(r#"{1, 2, 3, 'a', 'b'}.filter(|k, v| v.is_num)"# = IndexMap::from([(1, 1), (2, 2), (3, 3)]).into())
+            map_filter_map(r#"{1, 2, 3, 'a', 'b'}.filter { |k, v| v.is_num }.map(|k, v| (k, v * v))"# = IndexMap::from([(1, 1), (2, 4), (3, 9)]).into())
             // todo explicit tuple shouldn't be required for map function
             map_map_if(r#"{1, 2, 3, 'a', 'b'}.map(|k, v| (k, k * v) if k.is_num && v.is_num)"# = IndexMap::from([(1, 1), (2, 4), (3, 9)]).into())
             map_map(r#"{1, 2, 3}.map(|k, v| (k, k * v))"# = IndexMap::from([(1, 1), (2, 4), (3, 9)]).into())
@@ -294,7 +296,12 @@ mod runtime {
         use super::*;
         run_debug_vm! {
             // list_map_filter(r#"[1, 2, 3, 'a', 'b'].filter { |v| v.is_num }.map(|v| v * v)"# = vec![1, 4, 9].into())
-            list_map(r#"[1, 2, 3].map(|v| v * v)"# = vec![1, 4, 9].into())
+            fn_calls_fn(r#"
+            fn Any.apply(func: |Any| -> Any) -> List
+                = func self
+
+            3.apply { |v| v * v }"# = 9.into())
+            list_map(r#"[1, 2, 3].map(|a| a * a)"# = vec![1, 4, 9].into())
             // fib_recursive(r#"
             // fn fib(n: Number) -> Number
             //     if n <= 1

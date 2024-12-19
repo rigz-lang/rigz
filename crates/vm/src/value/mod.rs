@@ -81,7 +81,7 @@ impl<K: Into<Value>, V: Into<Value>> From<IndexMap<K, V>> for Value {
 }
 
 impl From<()> for Value {
-    fn from(value: ()) -> Self {
+    fn from(_value: ()) -> Self {
         Value::None
     }
 }

@@ -16,7 +16,6 @@ log_std_out = ["rigz_ast/log_std_out"]
 
 [dependencies]
 chrono = "0.4.38"
-logos = "0.14"
 rigz_ast = { workspace = true }
 rigz_ast_derive = { workspace = true }
 log = "0.4"

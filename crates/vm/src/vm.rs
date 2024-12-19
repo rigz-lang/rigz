@@ -149,6 +149,7 @@ impl<'vm> VM<'vm> {
 
     #[inline]
     #[logfn_inputs(Trace, fmt = "insert_register(vm={:#p} register={}, value={:?})")]
+    #[log_derive::logfn(Debug)]
     pub fn insert_register(
         &self,
         register: Register,
@@ -460,6 +461,7 @@ impl<'vm> VM<'vm> {
         }
     }
 
+    #[logfn_inputs(Trace, fmt = "load_mut(vm={:#p} name={}, register={})")]
     pub fn load_mut(&mut self, name: &'vm str, reg: Register) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
             Entry::Occupied(mut var) => match var.get() {
@@ -480,6 +482,7 @@ impl<'vm> VM<'vm> {
         Ok(())
     }
 
+    #[logfn_inputs(Trace, fmt = "load_let(vm={:#p} name={}, register={})")]
     pub fn load_let(&mut self, name: &'vm str, reg: Register) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
             Entry::Occupied(v) => {
@@ -524,8 +527,9 @@ impl<'vm> VM<'vm> {
 
         self.frames.push(current);
         self.sp = scope_index;
-        let args = self.scopes[scope_index].args.clone().into_iter().zip(args);
-        for ((arg, mutable), reg) in args {
+
+        let scope_args = self.scopes[scope_index].args.clone().into_iter().zip(args);
+        for ((arg, mutable), reg) in scope_args {
             if mutable {
                 self.load_mut(arg, reg)?;
             } else {
@@ -627,12 +631,17 @@ impl<'vm> VM<'vm> {
         mutable: bool,
     ) -> Result<(), VMError> {
         self.call_frame(scope_index, args, output)?;
-        if mutable {
-            self.load_mut("self", this)?;
-        } else {
-            self.load_let("self", this)?;
-        };
+        self.set_this(mutable, this)?;
         Ok(())
+    }
+
+    // using this to distinguish VM runtime self vs rust self
+    fn set_this(&mut self, mutable: bool, this: Register) -> Result<(), VMError> {
+        if mutable {
+            self.load_mut("self", this)
+        } else {
+            self.load_let("self", this)
+        }
     }
 
     #[inline]
@@ -645,11 +654,7 @@ impl<'vm> VM<'vm> {
         mutable: bool,
     ) -> Result<(), VMError> {
         self.call_frame_memo(scope_index, args, output)?;
-        if mutable {
-            self.load_mut("self", this)?;
-        } else {
-            self.load_let("self", this)?;
-        };
+        self.set_this(mutable, this)?;
         Ok(())
     }
 
