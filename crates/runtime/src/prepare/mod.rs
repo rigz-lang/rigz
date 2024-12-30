@@ -391,6 +391,25 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     }
                 }
             }
+            Assign::Tuple(t) => {
+                let expt = match self.rigz_type(&expression)? {
+                    RigzType::Tuple(t) => t,
+                    _ => vec![RigzType::Any; t.len()],
+                };
+                self.parse_expression(expression)?;
+                let last = self.last;
+                for (index, (name, mutable)) in t.into_iter().enumerate() {
+                    // todo check expression types
+                    self.identifiers.insert(name, expt[index].clone());
+                    let next = self.next_register();
+                    self.builder.add_instance_get_instruction(last, index, next);
+                    if mutable {
+                        self.builder.add_load_mut_instruction(name, next);
+                    } else {
+                        self.builder.add_load_let_instruction(name, next);
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -447,17 +466,18 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             Statement::Trait(t) => {
                 self.parse_trait_definition(t)?;
             }
-            // Statement::Return(e) => match e {
-            //     None => {
-            //         self.builder.add_ret_instruction(0);
-            //     }
-            //     Some(_) => {}
-            // },
             Statement::FunctionDefinition(fd) => {
                 self.parse_function_definition(fd)?;
             }
             Statement::TypeDefinition(name, def) => {
                 self.types.insert(name, def);
+            }
+            Statement::BinaryAssignment {
+                lhs: Assign::Tuple(_),
+                op: _,
+                expression: _,
+            } => {
+                todo!("Binary assignment not supported for tuple expressions");
             }
         }
         Ok(())
@@ -556,6 +576,9 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 )]);
             }
         }
+        if let Some(t) = &self_type {
+            self.identifiers.insert("self", t.0.rigz_type.clone());
+        };
         for e in body.elements {
             match e {
                 Element::Expression(Expression::This) => match &self_type {
@@ -1360,7 +1383,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                         let fc_arg_len = fc.arguments.len();
                         match (&fc.self_type, &rigz_type) {
                             (None, None) => {
-                                if arg_len <= fc_arg_len {
+                                if arg_len == fc_arg_len {
                                     fcs = Some(CallSignature::Function(fc, call_site));
                                     break;
                                 } else {

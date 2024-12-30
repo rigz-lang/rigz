@@ -144,6 +144,7 @@ impl ToTokens for Expression<'_> {
             } => {
                 let arguments = csv_vec(arguments);
                 let body = boxed(body);
+                let var_args_start = option(var_args_start);
                 quote! {
                     Expression::Lambda {
                         arguments: #arguments,
@@ -232,6 +233,13 @@ impl ToTokens for Assign<'_> {
             Assign::Identifier(name, mutable) => quote! { Assign::Identifier(#name, #mutable) },
             Assign::TypedIdentifier(n, mutable, rt) => {
                 quote! { Assign::TypedIdentifier(#n, #mutable, #rt) }
+            }
+            Assign::Tuple(t) => {
+                let values: Vec<_> = t
+                    .iter()
+                    .map(|(id, mutable)| quote! { (#id, #mutable), })
+                    .collect();
+                quote! { Assign::Tuple(vec![#(#values)*]) }
             }
         };
         tokens.extend(t)

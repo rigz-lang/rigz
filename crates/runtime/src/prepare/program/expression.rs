@@ -19,7 +19,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
     ) -> Result<RigzType, ValidationError> {
         // todo arguments should be checked for function calls here for best match
         let t = match expression {
-            Expression::This => RigzType::This,
+            Expression::This => self.identifiers["self"].clone(),
             Expression::Value(v) => v.rigz_type(),
             Expression::Identifier(a) => match self.identifiers.get(a) {
                 None => {
@@ -124,13 +124,20 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             }
             Expression::InstanceFunctionCall(ex, calls, _) => {
                 let this = self.rigz_type(ex)?;
+                let this = match this {
+                    RigzType::This => match self.identifiers.get("self") {
+                        None => RigzType::This,
+                        Some(v) => v.clone(),
+                    },
+                    _ => this,
+                };
                 let name = calls.last().expect("Invalid instance function call");
                 // todo need to handle call chaining
                 self.check_module_exists(name)?;
                 match self.function_scopes.get(name) {
                     None => {
                         return Err(ValidationError::InvalidFunction(format!(
-                            "extension function {name} does not exist"
+                            "extension function {this}.{name} does not exist",
                         )))
                     }
                     Some(f) => {

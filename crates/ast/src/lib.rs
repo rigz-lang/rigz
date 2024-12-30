@@ -243,6 +243,10 @@ impl<'lex> Parser<'lex> {
                 self.consume_token(TokenKind::Mut)?;
                 self.parse_assignment(true)?.into()
             }
+            TokenKind::Lparen => {
+                self.consume_token(TokenKind::Lparen)?;
+                self.parse_paren_expression()?
+            }
             TokenKind::Identifier(id) => {
                 self.consume_token(TokenKind::Identifier(id))?;
                 match self.peek_token() {
@@ -363,9 +367,10 @@ impl<'lex> Parser<'lex> {
             "test" => Ok(Lifecycle::Test(TestLifecycle)),
             "memo" => Ok(Lifecycle::Memo(MemoizedLifecycle::default())),
             "on" => {
+                self.consume_token(TokenKind::Lparen)?;
                 let e = self.parse_paren_expression()?;
                 match e {
-                    Expression::Value(Value::String(s)) => {
+                    Element::Expression(Expression::Value(Value::String(s))) => {
                         Ok(Lifecycle::On(EventLifecycle { event: s }))
                     }
                     _ => Err(ParsingError::ParseError(format!(
@@ -437,7 +442,15 @@ impl<'lex> Parser<'lex> {
             TokenKind::Value(v) => self.parse_value_expression(v)?,
             TokenKind::This => self.parse_this_expression()?,
             TokenKind::Symbol(s) => self.parse_symbol_expression(s)?,
-            TokenKind::Lparen => self.parse_paren_expression()?,
+            TokenKind::Lparen => {
+                let paren = self.parse_paren_expression()?;
+                let Element::Expression(e) = paren else {
+                    return Err(ParsingError::ParseError(format!(
+                        "Element found instead of expression {paren:?}"
+                    )));
+                };
+                e
+            }
             TokenKind::Lbracket => self.parse_list()?,
             TokenKind::Lcurly => self.parse_map()?,
             TokenKind::Do => {
@@ -603,14 +616,60 @@ impl<'lex> Parser<'lex> {
             .next_required_token("parse_assignment")
             .map_err(|e| ParsingError::ParseError(format!("Expected token for assignment: {e}")))?;
 
-        if let TokenKind::Identifier(id) = next.kind {
-            self.parse_assignment_definition(mutable, id)
-        } else {
-            Err(ParsingError::ParseError(format!(
+        match next.kind {
+            TokenKind::Identifier(id) => self.parse_assignment_definition(mutable, id),
+            TokenKind::Lparen => self.parse_tuple_assign(mutable),
+            _ => Err(ParsingError::ParseError(format!(
                 "Unexpected token for assignment {:?}",
                 next
-            )))
+            ))),
         }
+    }
+
+    fn parse_tuple_assign(&mut self, mutable: bool) -> Result<Statement<'lex>, ParsingError> {
+        let mut tuple = vec![];
+        let mut is_mut = mutable;
+        let mut needs_id = false;
+        loop {
+            let next = self.next_required_token("parse_tuple_assign")?;
+            match next.kind {
+                TokenKind::Rparen => {
+                    break;
+                }
+                TokenKind::Comma => {
+                    if needs_id {
+                        return Err(ParsingError::ParseError(format!(
+                            "missing identifier after {}",
+                            if is_mut { "mut" } else { "let" }
+                        )));
+                    }
+                    continue;
+                }
+                TokenKind::Let => {
+                    is_mut = false;
+                    needs_id = true;
+                }
+                TokenKind::Mut => {
+                    is_mut = true;
+                    needs_id = true;
+                }
+                TokenKind::Identifier(id) => {
+                    tuple.push((id, is_mut));
+                    is_mut = mutable;
+                    needs_id = false
+                }
+                _ => {
+                    return Err(ParsingError::ParseError(format!(
+                        "Unexpected token in tuple assign {next:?}"
+                    )))
+                }
+            }
+        }
+        self.consume_token(TokenKind::Assign)?;
+        Ok(Statement::Assignment {
+            lhs: Assign::Tuple(tuple),
+            expression: self.parse_expression()?,
+        })
     }
 
     fn parse_assignment_definition(
@@ -688,13 +747,17 @@ impl<'lex> Parser<'lex> {
         Ok(Expression::FunctionCall(id, args))
     }
 
-    fn parse_paren_expression(&mut self) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_paren_expression(&mut self) -> Result<Element<'lex>, ParsingError> {
         let mut expr = self.parse_expression()?;
         let t = self.next_required_token("parse_paren_expression")?;
         match t.kind {
             TokenKind::Rparen => {}
             TokenKind::Comma => {
-                expr = Expression::Tuple(self.parse_tuple(expr)?);
+                let t = self.parse_tuple(expr)?;
+                let Element::Expression(Expression::Tuple(t)) = t else {
+                    return Ok(t);
+                };
+                expr = Expression::Tuple(t);
             }
             _ => {
                 return Err(ParsingError::ParseError(format!(
@@ -703,22 +766,23 @@ impl<'lex> Parser<'lex> {
             }
         }
         match self.peek_token() {
-            None => Ok(expr),
+            None => Ok(expr.into()),
             Some(t) => match t.kind {
                 TokenKind::Period => {
                     self.consume_token(TokenKind::Period)?;
-                    self.parse_instance_call(expr)
+                    Ok(self.parse_instance_call(expr)?.into())
                 }
-                _ => Ok(expr),
+                _ => Ok(expr.into()),
             },
         }
     }
 
-    fn parse_tuple(
-        &mut self,
-        first: Expression<'lex>,
-    ) -> Result<Vec<Expression<'lex>>, ParsingError> {
+    fn parse_tuple(&mut self, first: Expression<'lex>) -> Result<Element<'lex>, ParsingError> {
         let mut tuple = vec![first];
+        let mut assign = vec![];
+        let mut is_assign = false;
+        let mut is_mut = false;
+        let mut needs_id = false;
         loop {
             let next = self.peek_required_token("parse_tuple")?;
             match next.kind {
@@ -727,12 +791,57 @@ impl<'lex> Parser<'lex> {
                     break;
                 }
                 TokenKind::Comma => {
+                    if needs_id {
+                        return Err(ParsingError::ParseError(format!(
+                            "missing identifier after {}",
+                            if is_mut { "mut" } else { "let" }
+                        )));
+                    }
                     self.consume_token(TokenKind::Comma)?;
                 }
-                _ => tuple.push(self.parse_expression()?),
+                TokenKind::Mut => {
+                    is_assign = true;
+                    is_mut = true;
+                    needs_id = true;
+                }
+                TokenKind::Let => {
+                    is_assign = true;
+                    is_mut = false;
+                    needs_id = true;
+                }
+                _ if !is_assign => tuple.push(self.parse_expression()?),
+                TokenKind::Identifier(id) => {
+                    assign = convert_to_assign(&mut tuple)?;
+                    needs_id = false;
+                    assign.push((id, is_mut));
+                    is_mut = false;
+                }
+                _ => {
+                    return Err(ParsingError::ParseError(format!(
+                        "Invalid tuple assign {next:?}"
+                    )))
+                }
             }
         }
-        Ok(tuple)
+        match self.peek_token() {
+            None if !is_assign => Ok(Expression::Tuple(tuple).into()),
+            Some(t) if t.kind == TokenKind::Assign => {
+                self.consume_token(TokenKind::Assign)?;
+                let assign = if tuple.is_empty() {
+                    assign
+                } else {
+                    convert_to_assign(&mut tuple)?
+                };
+                Ok(Element::Statement(Statement::Assignment {
+                    lhs: Assign::Tuple(assign),
+                    expression: self.parse_expression()?,
+                }))
+            }
+            Some(_) if !is_assign => Ok(Expression::Tuple(tuple).into()),
+            _ => Err(ParsingError::ParseError(
+                "Missing required = for tuple assign".to_string(),
+            )),
+        }
     }
 
     fn parse_inline_expression<LHS>(&mut self, lhs: LHS) -> Result<Expression<'lex>, ParsingError>
@@ -817,7 +926,15 @@ impl<'lex> Parser<'lex> {
             TokenKind::Identifier(id) => self.parse_identifier_expression_skip_inline(id)?,
             TokenKind::Not => self.parse_unary_expression(UnaryOperation::Not)?,
             TokenKind::Minus => self.parse_unary_expression(UnaryOperation::Neg)?,
-            TokenKind::Lparen => self.parse_paren_expression()?,
+            TokenKind::Lparen => {
+                let e = self.parse_paren_expression()?;
+                let Element::Expression(e) = e else {
+                    return Err(ParsingError::ParseError(format!(
+                        "Elements not supported in binary expression {e:?}"
+                    )));
+                };
+                e
+            }
             TokenKind::Lcurly => self.parse_map()?,
             TokenKind::Lbracket => self.parse_list()?,
             TokenKind::Do => Expression::Scope(self.parse_scope()?),
@@ -1857,4 +1974,20 @@ impl<'lex> Parser<'lex> {
         };
         Ok(dec)
     }
+}
+
+fn convert_to_assign<'e>(
+    tuple: &mut Vec<Expression<'e>>,
+) -> Result<Vec<(&'e str, bool)>, ParsingError> {
+    let mut results = Vec::with_capacity(tuple.len());
+    for e in tuple.iter() {
+        let Expression::Identifier(id) = e else {
+            return Err(ParsingError::ParseError(format!(
+                "Expression found in tuple assign {e:?}"
+            )));
+        };
+        results.push((*id, false));
+    }
+    tuple.clear();
+    Ok(results)
 }

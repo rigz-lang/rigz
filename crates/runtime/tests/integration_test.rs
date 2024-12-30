@@ -22,7 +22,7 @@ mod runtime {
             $(
                  #[test]
                 fn $name() {
-                    pretty_env_logger::try_init();
+                    let _ = pretty_env_logger::try_init();
                     let input = $input;
                     let v = eval_print_vm(input);
                     assert_eq!(v, Ok($expected), "VM eval failed {input}");
@@ -92,6 +92,7 @@ mod runtime {
         run_expected! {
             raw_value("'Hello World'" = Value::String("Hello World".to_string()))
             addition("2 + 2" = Value::Number(4.into()))
+            split_first("[1, 2, 3].split_first" = Value::Tuple(vec![1.into(), vec![2, 3].into()]))
             complex_expression_ignore_precedence("1 + 2 * 3 - 4 / 5" = Value::Number(1.into()))
             ignore_precedence("2 + 1 * 3" = Value::Number(9.into()))
             paren_precedence("2 + (1 * 3)" = Value::Number(5.into()))
@@ -279,6 +280,13 @@ mod runtime {
             // todo explicit tuple shouldn't be required for map function
             map_map_if(r#"{1, 2, 3, 'a', 'b'}.map(|k, v| (k, k * v) if k.is_num && v.is_num)"# = IndexMap::from([(1, 1), (2, 4), (3, 9)]).into())
             map_map(r#"{1, 2, 3}.map(|k, v| (k, k * v))"# = IndexMap::from([(1, 1), (2, 4), (3, 9)]).into())
+            list_map_filter(r#"[1, 2, 3, 'a', 'b'].filter { |v| v.is_num }.map(|v| v * v)"# = vec![1, 4, 9].into())
+            fn_calls_fn(r#"
+            fn Any.apply(func: |Any| -> Any) -> List
+                = func self
+
+            3.apply { |v| v * v }"# = 9.into())
+            list_map(r#"[1, 2, 3].map(|a| a * a)"# = vec![1, 4, 9].into())
             // self_fib_recursive(r#"
             // fn Number.fib -> Number
             //     if self <= 1
@@ -295,13 +303,7 @@ mod runtime {
     mod debug {
         use super::*;
         run_debug_vm! {
-            // list_map_filter(r#"[1, 2, 3, 'a', 'b'].filter { |v| v.is_num }.map(|v| v * v)"# = vec![1, 4, 9].into())
-            fn_calls_fn(r#"
-            fn Any.apply(func: |Any| -> Any) -> List
-                = func self
-
-            3.apply { |v| v * v }"# = 9.into())
-            list_map(r#"[1, 2, 3].map(|a| a * a)"# = vec![1, 4, 9].into())
+            list_sum(r#"[1, 20, 21].sum"# = 42.into())
             // fib_recursive(r#"
             // fn fib(n: Number) -> Number
             //     if n <= 1

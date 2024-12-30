@@ -37,34 +37,6 @@ derive_module!(
             {for k, v in self: func k, v}
         end
 
-        /*
-        fn List.sum() -> Number
-            self.reduce(0, |res, next| res + next)
-        end
-
-        fn Map.sum() -> Number
-            self.reduce(0, |res, (_, next)| res + next)
-        end
-
-        fn List.reduce(init: Any, func: |Any, Any| -> Any) -> Any
-            if !self
-                init
-            else
-                (first, rest) = self.split_front
-                rest.reduce(init + first, func)
-            end
-        end
-
-        fn Map.reduce(init: Any, func: |Any, (Any, Any)| -> Any) -> Any
-            if !self
-                init
-            else
-                (first, rest) = self.split_front
-                rest.reduce(init + first, func)
-            end
-        end
-        */
-
         fn mut List.extend(value: List)
         fn mut List.clear -> None
 
@@ -74,6 +46,35 @@ derive_module!(
 
         fn Map.split_first -> ((Any?, Any?), Map)
         fn Map.split_last -> ((Any?, Any?), Map)
+
+        fn List.reduce(init: Any, func: |Any, Any| -> Any) -> Any
+            if !self
+                init
+            else
+                (first, rest) = self.split_first
+                next = func init, first
+                rest.reduce next, func
+            end
+        end
+
+        fn List.sum -> Number
+            self.reduce(0, |res, next| res + next)
+        end
+
+        /*
+        fn Map.reduce(init: Any, func: |Any, (Any, Any)| -> Any) -> Any
+            if !self
+                init
+            else
+                (first, rest) = self.split_first
+                rest.reduce(init + first, func)
+            end
+        end
+
+        fn Map.sum -> Number
+            self.reduce(0, |res, (_, next)| res + next)
+        end
+        */
 
         fn List.empty = self.to_bool
         fn List.first -> Any?

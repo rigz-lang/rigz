@@ -123,6 +123,7 @@ pub enum Assign<'lex> {
     This,
     Identifier(&'lex str, bool),
     TypedIdentifier(&'lex str, bool, RigzType),
+    Tuple(Vec<(&'lex str, bool)>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
