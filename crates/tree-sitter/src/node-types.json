@@ -18,6 +18,10 @@
         {
           "type": "lambda",
           "named": true
+        },
+        {
+          "type": "tuple_assign",
+          "named": true
         }
       ]
     }
@@ -388,6 +392,10 @@
         {
           "type": "function_arg",
           "named": true
+        },
+        {
+          "type": "scope",
+          "named": true
         }
       ]
     }
@@ -548,13 +556,36 @@
     }
   },
   {
+    "type": "tuple_assign",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "type",
     "named": true,
     "fields": {},
     "children": {
-      "multiple": false,
+      "multiple": true,
       "required": false,
       "types": [
+        {
+          "type": "type",
+          "named": true
+        },
         {
           "type": "type_identifier",
           "named": true

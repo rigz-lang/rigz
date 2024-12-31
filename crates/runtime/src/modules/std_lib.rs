@@ -53,6 +53,7 @@ derive_module!(
             else
                 (first, rest) = self.split_first
                 next = func init, first
+                puts first, init, next, self
                 rest.reduce next, func
             end
         end
@@ -67,7 +68,8 @@ derive_module!(
                 init
             else
                 (first, rest) = self.split_first
-                rest.reduce(init + first, func)
+                next = func init, first
+                rest.reduce next, func
             end
         end
 

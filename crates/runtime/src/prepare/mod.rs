@@ -399,10 +399,12 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 self.parse_expression(expression)?;
                 let last = self.last;
                 for (index, (name, mutable)) in t.into_iter().enumerate() {
-                    // todo check expression types
                     self.identifiers.insert(name, expt[index].clone());
+                    let i = self.next_register();
+                    self.builder
+                        .add_load_instruction(i, RegisterValue::Value((index as i64).into()));
                     let next = self.next_register();
-                    self.builder.add_instance_get_instruction(last, index, next);
+                    self.builder.add_instance_get_instruction(last, i, next);
                     if mutable {
                         self.builder.add_load_mut_instruction(name, next);
                     } else {

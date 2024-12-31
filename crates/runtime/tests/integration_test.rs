@@ -205,18 +205,18 @@ mod runtime {
             format("format '{}', 1 + 2" = "3".into())
             format_parens("format('{}', 1 + 2)" = "3".into())
             is("1.is Number" = true.into())
-            // fib_recursive_dynamic_programming(r#"
-            // @memo
-            // fn fib(n: Number) -> Number
-            //     if n <= 1
-            //         n
-            //     else
-            //         b = n - 2
-            //         (fib n - 1) + fib b
-            //     end
-            // end
-            // fib 5
-            // "# = 8.into())
+            fib_recursive_dynamic_programming(r#"
+            @memo
+            fn fib(n: Number) -> Number
+                if n <= 1
+                    n
+                else
+                    b = n - 2
+                    (fib n - 1) + fib b
+                end
+            end
+            fib 10
+            "# = 55.into())
             if_else_true(r#"if 0 == ""
                 42
             else
@@ -297,26 +297,37 @@ mod runtime {
             // end
             // 6.fib
             // "# = 8.into())
+            list_sum(r#"[1, 20, 21].sum"# = 42.into())
+            map_filter_reduce(r#"
+                [1, 37, '4', 'a'].filter { |v| v.is_num }.map { |v| v.to_i }.reduce(0, |res, next| res + next)
+            "# = 42.into())
         }
     }
 
     mod debug {
         use super::*;
         run_debug_vm! {
-            list_sum(r#"[1, 20, 21].sum"# = 42.into())
-            // fib_recursive(r#"
-            // fn fib(n: Number) -> Number
-            //     if n <= 1
-            //         n
-            //     else
-            //         (fib n - 1) + (fib n - 2)
+            fib_recursive(r#"
+            fn fib(n: Number) -> Number
+                if n <= 1
+                    n
+                else
+                    (fib n - 1) + (fib n - 2)
+                end
+            end
+            fib 6
+            "# = 8.into())
+            // lambda_args(r#"
+            //     fn testing(v, a: |Any, Any| -> Any)
+            //         if v > 5
+            //             a v, 30
+            //         else
+            //             b = a v, 30
+            //             testing b, a
+            //         end
             //     end
-            // end
-            // fib 6
-            // "# = 8.into())
-            // map_filter_reduce(r#"
-            //     [1, 37, '4', 'a'].filter { |v| v.is_num }.map { |v| v.to_i }.reduce 0, { |res, next| res += next; res }
-            // "# = Value::List(vec![1.into(), 37.into(), "4".into()]))
+            //     testing 0, { |n, arg| n + arg }
+            // "# = 37.into())
         }
     }
 }

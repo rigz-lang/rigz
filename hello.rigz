@@ -1,6 +1,9 @@
-fn foo = 42
-
-@test
-fn test_foo
-    assert_eq 42, foo
+fn testing(v, a: |Any, Any| -> Any)
+    if v > 5
+        a v, 30
+    else
+        a
+    end
 end
+
+testing 0, { |n, arg| n + arg }

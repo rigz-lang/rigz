@@ -245,7 +245,12 @@ impl<'lex> Parser<'lex> {
             }
             TokenKind::Lparen => {
                 self.consume_token(TokenKind::Lparen)?;
-                self.parse_paren_expression()?
+                let e = self.parse_paren_expression()?;
+                if let Element::Expression(e) = e {
+                    self.parse_expression_suffix(e)?.into()
+                } else {
+                    e
+                }
             }
             TokenKind::Identifier(id) => {
                 self.consume_token(TokenKind::Identifier(id))?;
@@ -754,10 +759,10 @@ impl<'lex> Parser<'lex> {
             TokenKind::Rparen => {}
             TokenKind::Comma => {
                 let t = self.parse_tuple(expr)?;
-                let Element::Expression(Expression::Tuple(t)) = t else {
+                let Element::Expression(e) = t else {
                     return Ok(t);
                 };
-                expr = Expression::Tuple(t);
+                expr = e;
             }
             _ => {
                 return Err(ParsingError::ParseError(format!(
@@ -1054,6 +1059,7 @@ impl<'lex> Parser<'lex> {
                     | TokenKind::Rcurly
                     | TokenKind::End
                     // binary operations are handled within parse_expression
+                    // todo this causes lambdas to require parens or {}
                     | TokenKind::BinOp(_)
                     | TokenKind::Pipe
                     | TokenKind::And

@@ -257,7 +257,7 @@ impl<'vm> VM<'vm> {
                 VMState::Done(v) | VMState::Ran(v) => v,
             };
         }
-        self.insert_register(original, v.clone().into());
+        self.insert_register(output, v.clone().into());
         v
     }
 
@@ -372,13 +372,12 @@ impl<'vm> VM<'vm> {
 
     pub fn run_within(&mut self, duration: Duration) -> Value {
         let now = Instant::now();
-        let end = now + duration;
         loop {
-            let current = Instant::now();
-            if current > end {
+            let elapsed = now.elapsed();
+            if elapsed > duration {
                 return Value::Error(VMError::TimeoutError(format!(
                     "Exceeded runtime {duration:?} - {:?}",
-                    end - current
+                    elapsed
                 )));
             }
 

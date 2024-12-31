@@ -38,11 +38,17 @@ module.exports = grammar({
         self: _ => "self",
         import: $ => seq("import", $.type),
         scope: $ => prec.right(choice(seq("=", $.expression), seq($.program, $._end))),
-        assignment: $ => prec.right(seq(
+        assignment: $ => choice(prec.right(seq(
             choice(seq(optional($._let), $.identifier), seq($._mut, $.identifier)),
             "=",
             $._expression_or_lambda
-        )),
+        )), $.tuple_assign),
+        tuple_assign: $ => seq(
+            optional(choice($._let, $._mut)),
+            seq("(", seq(optional(choice($._let, $._mut)), $.identifier), repeat1(seq(",", seq(optional(choice($._let, $._mut)), $.identifier))), ")"),
+            "=",
+            $.expression
+        ),
         binary_assignment: $ => seq(
             $.identifier,
             seq(choice("+", "-", "*", "/", "%", "^", "|", "||", "&", "&&", ">>", "<<"), "="),
