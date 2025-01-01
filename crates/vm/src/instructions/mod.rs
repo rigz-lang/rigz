@@ -156,39 +156,39 @@ pub enum Instruction<'vm> {
 }
 
 impl<'vm> VM<'vm> {
-    pub fn handle_clear(&mut self, clear: Clear) {
+    pub fn handle_clear(&mut self, clear: &Clear) {
         match clear {
-            Clear::One(r) => {
+            &Clear::One(r) => {
                 self.remove_register(r);
             }
-            Clear::Two(r1, r2) => {
+            &Clear::Two(r1, r2) => {
                 self.remove_register(r1);
                 self.remove_register(r2);
             }
-            Clear::Three(r1, r2, r3) => {
+            &Clear::Three(r1, r2, r3) => {
                 self.remove_register(r1);
                 self.remove_register(r2);
                 self.remove_register(r3);
             }
             Clear::Many(reg) => {
                 for r in reg {
-                    self.remove_register(r);
+                    self.remove_register(*r);
                 }
             }
         }
     }
 
     #[inline]
-    pub fn process_core_instruction(&mut self, instruction: Instruction<'vm>) -> VMState {
+    pub fn process_core_instruction(&mut self, instruction: &Instruction<'vm>) -> VMState {
         match instruction {
-            Instruction::Halt(r) => return VMState::Done(self.resolve_register(r)),
-            Instruction::HaltIfError(r) => {
+            &Instruction::Halt(r) => return VMState::Done(self.resolve_register(r)),
+            &Instruction::HaltIfError(r) => {
                 let value = self.resolve_register(r);
                 if let Value::Error(e) = value {
-                    return VMState::Done(e.into());
+                    return e.into();
                 }
             }
-            Instruction::SetSelf(register, mutable) => {
+            &Instruction::SetSelf(register, mutable) => {
                 let success = if mutable {
                     self.load_mut("self", register)
                 } else {
@@ -197,37 +197,26 @@ impl<'vm> VM<'vm> {
                 match success {
                     Ok(_) => {}
                     Err(e) => {
-                        return VMState::Done(
-                            VMError::RuntimeError(format!("Failed to set self: {e:?}")).into(),
-                        )
+                        return VMError::RuntimeError(format!("Failed to set self: {e:?}")).into()
                     }
                 }
             }
-            Instruction::GetSelf(output, mutable) => {
+            &Instruction::GetSelf(output, mutable) => {
                 if mutable {
                     let og = match self.current.borrow().get_mutable_variable("self", self) {
                         Ok(v) => match v {
-                            None => {
-                                return VMState::Done(
-                                    VMError::RuntimeError("Self not set".into()).into(),
-                                )
-                            }
+                            None => return VMError::RuntimeError("Self not set".into()).into(),
                             Some(og) => og,
                         },
                         Err(e) => {
-                            return VMState::Done(
-                                VMError::RuntimeError(format!("Failed to get self: {e:?}")).into(),
-                            )
+                            return VMError::RuntimeError(format!("Failed to get self: {e:?}"))
+                                .into()
                         }
                     };
                     self.swap_register(og, output);
                 } else {
                     let s = match self.current.borrow().get_variable("self", self) {
-                        None => {
-                            return VMState::Done(
-                                VMError::RuntimeError("Self not set".into()).into(),
-                            )
-                        }
+                        None => return VMError::RuntimeError("Self not set".into()).into(),
                         Some(s) => s,
                     };
                     let v = self.resolve_register(s);
@@ -235,20 +224,20 @@ impl<'vm> VM<'vm> {
                 };
             }
             Instruction::Clear(clear) => self.handle_clear(clear),
-            Instruction::Unary(u) => self.handle_unary(u),
-            Instruction::Binary(b) => self.handle_binary(b),
-            Instruction::UnaryAssign(u) => self.handle_unary_assign(u),
-            Instruction::BinaryAssign(b) => self.handle_binary_assign(b),
-            Instruction::UnaryClear(u, clear) => self.handle_unary_clear(u, clear),
-            Instruction::BinaryClear(b, clear) => self.handle_binary_clear(b, clear),
+            &Instruction::Unary(u) => self.handle_unary(u),
+            &Instruction::Binary(b) => self.handle_binary(b),
+            &Instruction::UnaryAssign(u) => self.handle_unary_assign(u),
+            &Instruction::BinaryAssign(b) => self.handle_binary_assign(b),
+            Instruction::UnaryClear(u, clear) => self.handle_unary_clear(*u, clear),
+            Instruction::BinaryClear(b, clear) => self.handle_binary_clear(*b, clear),
             Instruction::Load(r, v) => {
-                self.insert_register(r, v);
+                self.insert_register(*r, v.clone());
             }
-            Instruction::LoadLetRegister(name, register) => match self.load_let(name, register) {
+            &Instruction::LoadLetRegister(name, register) => match self.load_let(name, register) {
                 Ok(_) => {}
                 Err(e) => return VMState::Done(e.into()),
             },
-            Instruction::LoadMutRegister(name, register) => match self.load_mut(name, register) {
+            &Instruction::LoadMutRegister(name, register) => match self.load_mut(name, register) {
                 Ok(_) => {}
                 Err(e) => return VMState::Done(e.into()),
             },
@@ -256,7 +245,7 @@ impl<'vm> VM<'vm> {
                 scope,
                 output,
                 args,
-            } => match self.call_frame(scope, args, output) {
+            } => match self.call_frame(*scope, args, *output) {
                 Ok(_) => {}
                 Err(e) => return e.into(),
             },
@@ -266,7 +255,7 @@ impl<'vm> VM<'vm> {
                 this,
                 mutable,
                 args,
-            } => match self.call_frame_self(scope, this, output, args, mutable) {
+            } => match self.call_frame_self(*scope, *this, *output, args, *mutable) {
                 Ok(_) => {}
                 Err(e) => return e.into(),
             },
@@ -280,10 +269,10 @@ impl<'vm> VM<'vm> {
                     Ok(module) => {
                         let args = self.resolve_registers(args);
                         let v = module.call(func, args.into()).unwrap_or_else(|e| e.into());
-                        self.insert_register(output, v.into());
+                        self.insert_register(*output, v.into());
                     }
                     Err(e) => {
-                        self.insert_register(output, e.into());
+                        self.insert_register(*output, e.into());
                     }
                 };
             }
@@ -296,15 +285,15 @@ impl<'vm> VM<'vm> {
             } => {
                 match self.get_module_clone(module) {
                     Ok(module) => {
-                        let this = self.resolve_register(this);
+                        let this = self.resolve_register(*this);
                         let args = self.resolve_registers(args);
                         let v = module
                             .call_extension(this, func, args.into())
                             .unwrap_or_else(|e| e.into());
-                        self.insert_register(output, v.into());
+                        self.insert_register(*output, v.into());
                     }
                     Err(e) => {
-                        self.insert_register(output, e.into());
+                        self.insert_register(*output, e.into());
                     }
                 };
             }
@@ -318,21 +307,21 @@ impl<'vm> VM<'vm> {
                 match self.get_module_clone(module) {
                     Ok(module) => {
                         let args = self.resolve_registers(args);
-                        match self.update_register(this, |v| {
+                        match self.update_register(*this, |v| {
                             // todo remove args.clone
                             module.call_mutable_extension(v, func, args.clone().into())
                         }) {
                             Ok(Some(v)) => {
-                                self.insert_register(output, v.into());
+                                self.insert_register(*output, v.into());
                             }
                             Ok(None) => {}
                             Err(e) => {
-                                self.insert_register(output, e.into());
+                                self.insert_register(*output, e.into());
                             }
                         }
                     }
                     Err(e) => {
-                        self.insert_register(this, e.into());
+                        self.insert_register(*this, e.into());
                     }
                 };
             }
@@ -348,18 +337,18 @@ impl<'vm> VM<'vm> {
                         let value = module
                             .vm_extension(self, func, args.into())
                             .unwrap_or_else(|e| e.into());
-                        self.insert_register(output, value.into());
+                        self.insert_register(*output, value.into());
                     }
                     Err(e) => {
-                        self.insert_register(output, e.into());
+                        self.insert_register(*output, e.into());
                     }
                 };
             }
-            Instruction::Copy(from, to) => {
+            &Instruction::Copy(from, to) => {
                 let copy = self.resolve_register(from);
                 self.insert_register(to, copy.into());
             }
-            Instruction::Move(from, to) => {
+            &Instruction::Move(from, to) => {
                 let copy = self.remove_register(from);
                 self.insert_register(to, copy);
             }
@@ -368,30 +357,30 @@ impl<'vm> VM<'vm> {
                 rigz_type,
                 to,
             } => {
-                let value = self.resolve_register(from);
-                self.insert_register(to, value.cast(rigz_type).into());
+                let value = self.resolve_register(*from);
+                self.insert_register(*to, value.cast(rigz_type).into());
             }
-            Instruction::CallEq(a, b, scope_index, output) => {
+            &Instruction::CallEq(a, b, scope_index, output) => {
                 let a = self.resolve_register(a);
                 let b = self.resolve_register(b);
                 if a == b {
-                    match self.call_frame(scope_index, vec![], output) {
+                    match self.call_frame(scope_index, &[], output) {
                         Ok(_) => {}
                         Err(e) => return e.into(),
                     };
                 }
             }
-            Instruction::CallNeq(a, b, scope_index, output) => {
+            &Instruction::CallNeq(a, b, scope_index, output) => {
                 let a = self.resolve_register(a);
                 let b = self.resolve_register(b);
                 if a != b {
-                    match self.call_frame(scope_index, vec![], output) {
+                    match self.call_frame(scope_index, &[], output) {
                         Ok(_) => {}
                         Err(e) => return e.into(),
                     };
                 }
             }
-            Instruction::IfElse {
+            &Instruction::IfElse {
                 truthy,
                 if_scope,
                 else_scope,
@@ -404,44 +393,42 @@ impl<'vm> VM<'vm> {
                     let (else_scope, r) = else_scope;
                     (else_scope, r)
                 };
-                let r = self.handle_scope(scope, r, vec![], r);
+                let r = self.handle_scope(scope, &[], r);
                 self.insert_register(output, r.into());
             }
-            Instruction::If {
+            &Instruction::If {
                 truthy,
                 if_scope,
                 output,
             } => {
                 let v = if self.resolve_register(truthy).to_bool() {
-                    self.handle_scope(if_scope, output, vec![], output)
+                    self.handle_scope(if_scope, &[], output)
                 } else {
                     Value::None
                 };
                 self.insert_register(output, v.into());
             }
-            Instruction::Unless {
+            &Instruction::Unless {
                 truthy,
                 unless_scope,
                 output,
             } => {
                 let v = if self.resolve_register(truthy).to_bool() {
-                    self.handle_scope(unless_scope, output, vec![], output)
+                    self.handle_scope(unless_scope, &[], output)
                 } else {
                     Value::None
                 };
                 self.insert_register(output, v.into());
             }
-            Instruction::GetVariable(name, reg) => {
+            &Instruction::GetVariable(name, reg) => {
                 let r = self.current.borrow().get_variable(name, self);
                 match r {
                     None => {
-                        return VMState::Done(
-                            VMError::VariableDoesNotExist(format!(
-                                "Variable {} does not exist",
-                                name
-                            ))
-                            .into(),
-                        );
+                        return VMError::VariableDoesNotExist(format!(
+                            "Variable {} does not exist",
+                            name
+                        ))
+                        .into()
                     }
                     Some(s) => {
                         let v = self.resolve_register(s);
@@ -449,7 +436,7 @@ impl<'vm> VM<'vm> {
                     }
                 }
             }
-            Instruction::GetMutableVariable(name, reg) => {
+            &Instruction::GetMutableVariable(name, reg) => {
                 let og = match self.current.borrow().get_mutable_variable(name, self) {
                     Ok(None) => None,
                     Err(e) => {
@@ -460,13 +447,11 @@ impl<'vm> VM<'vm> {
                 };
                 match og {
                     None => {
-                        return VMState::Done(
-                            VMError::VariableDoesNotExist(format!(
-                                "Variable {} does not exist",
-                                name
-                            ))
-                            .into(),
-                        );
+                        return VMError::VariableDoesNotExist(format!(
+                            "Variable {} does not exist",
+                            name
+                        ))
+                        .into();
                     }
                     Some(og) => self.swap_register(og, reg),
                 }
@@ -478,10 +463,10 @@ impl<'vm> VM<'vm> {
 
                 let mut res = (*tmpl).to_string();
                 for arg in args {
-                    let l = self.resolve_register(arg).to_string();
+                    let l = self.resolve_register(*arg).to_string();
                     res = res.replacen("{}", l.as_str(), 1);
                 }
-                log!(level, "{}", res)
+                log!(*level, "{}", res)
             }
             Instruction::Puts(args) => {
                 if args.is_empty() {
@@ -489,8 +474,8 @@ impl<'vm> VM<'vm> {
                 } else {
                     let mut puts = String::new();
                     let len = args.len() - 1;
-                    for (index, r) in args.into_iter().enumerate() {
-                        let arg = self.resolve_register(r);
+                    for (index, r) in args.iter().enumerate() {
+                        let arg = self.resolve_register(*r);
                         puts.push_str(arg.to_string().as_str());
                         if index < len {
                             puts.push_str(", ");
@@ -500,79 +485,80 @@ impl<'vm> VM<'vm> {
                 }
             }
             Instruction::Ret(r) => {
-                return VMState::error(VMError::UnsupportedOperation(format!(
+                return VMError::UnsupportedOperation(format!(
                     "Ret not handled by parent function: R{}",
                     r
-                )))
+                ))
+                .into()
             }
-            Instruction::Goto(scope_id, index) => {
+            &Instruction::Goto(scope_id, index) => {
                 self.sp = scope_id;
                 self.current.borrow_mut().pc = index;
             }
-            Instruction::AddInstruction(scope, instruction) => match self.scopes.get_mut(scope) {
+            Instruction::AddInstruction(scope, instruction) => match self.scopes.get_mut(*scope) {
                 None => {
-                    return VMState::error(VMError::ScopeDoesNotExist(format!(
-                        "Scope does not exist: {}",
-                        scope
-                    )))
+                    return VMError::ScopeDoesNotExist(format!("Scope does not exist: {}", scope))
+                        .into()
                 }
                 Some(s) => {
-                    s.instructions.push(*instruction);
+                    s.instructions.push(*instruction.clone());
                 }
             },
             Instruction::InsertAtInstruction(scope, index, new_instruction) => {
-                match self.scopes.get_mut(scope) {
+                match self.scopes.get_mut(*scope) {
                     None => {
-                        return VMState::error(VMError::ScopeDoesNotExist(format!(
+                        return VMError::ScopeDoesNotExist(format!(
                             "Scope does not exist: {}",
                             scope
-                        )))
+                        ))
+                        .into()
                     }
-                    Some(s) => s.instructions.insert(index, *new_instruction),
+                    Some(s) => s.instructions.insert(*index, *new_instruction.clone()),
                 }
             }
             Instruction::UpdateInstruction(scope, index, new_instruction) => {
-                match self.scopes.get_mut(scope) {
+                match self.scopes.get_mut(*scope) {
                     None => {
-                        return VMState::error(VMError::ScopeDoesNotExist(format!(
+                        return VMError::ScopeDoesNotExist(format!(
                             "Scope does not exist: {}",
                             scope
-                        )))
+                        ))
+                        .into()
                     }
-                    Some(s) => match s.instructions.get_mut(index) {
+                    Some(s) => match s.instructions.get_mut(*index) {
                         None => {
-                            return VMState::error(VMError::ScopeDoesNotExist(format!(
+                            return VMError::ScopeDoesNotExist(format!(
                                 "Scope does not exist: {}",
                                 scope
-                            )))
+                            ))
+                            .into()
                         }
                         Some(i) => {
-                            *i = *new_instruction;
+                            *i = *new_instruction.clone();
                         }
                     },
                 }
             }
-            Instruction::RemoveInstruction(scope, index) => match self.scopes.get_mut(scope) {
+            &Instruction::RemoveInstruction(scope, index) => match self.scopes.get_mut(scope) {
                 None => {
-                    return VMState::error(VMError::ScopeDoesNotExist(format!(
-                        "Scope does not exist: {}",
-                        scope
-                    )))
+                    return VMError::ScopeDoesNotExist(format!("Scope does not exist: {}", scope))
+                        .into()
                 }
                 Some(s) => {
                     if index >= s.instructions.len() {
-                        return VMState::error(VMError::UnsupportedOperation(format!(
+                        return VMError::UnsupportedOperation(format!(
                             "Instruction does not exist: {}#{}",
                             scope, index
-                        )));
+                        ))
+                        .into();
                     }
                     s.instructions.remove(index);
                 }
             },
-            Instruction::InstanceGet(source, attr, output) => {
+            &Instruction::InstanceGet(source, attr, output) => {
                 self.instance_get(source, attr, output);
             }
-            Instruction::InstanceSet {
+            &Instruction::InstanceSet {
                 source,
                 index,
                 value,
@@ -581,18 +567,18 @@ impl<'vm> VM<'vm> {
                 self.instance_set(source, index, value, output);
             }
             // why do I have both of these?
-            Instruction::InstanceSetMut {
+            &Instruction::InstanceSetMut {
                 source,
                 index,
                 value,
             } => {
                 self.instance_set(source, index, value, source);
             }
-            Instruction::Push(input) => {
+            &Instruction::Push(input) => {
                 let v = self.resolve_register(input);
                 self.stack.push(v);
             }
-            Instruction::Pop(output) => {
+            &Instruction::Pop(output) => {
                 let v = match self.stack.pop() {
                     None => VMError::RuntimeError("Pop called on empty stack".into()).into(),
                     Some(v) => v.into(),
@@ -603,9 +589,9 @@ impl<'vm> VM<'vm> {
                 scope,
                 output,
                 args,
-            } => match self.call_frame_memo(scope, args, output) {
+            } => match self.call_frame_memo(*scope, args, *output) {
                 Ok(_) => {}
-                Err(e) => return VMState::error(e),
+                Err(e) => return e.into(),
             },
             Instruction::CallSelfMemo {
                 scope,
@@ -613,11 +599,11 @@ impl<'vm> VM<'vm> {
                 output,
                 mutable,
                 args,
-            } => match self.call_frame_self_memo(scope, this, output, args, mutable) {
+            } => match self.call_frame_self_memo(*scope, *this, *output, args, *mutable) {
                 Ok(_) => {}
-                Err(e) => return VMState::error(e),
+                Err(e) => return e.into(),
             },
-            Instruction::ForList {
+            &Instruction::ForList {
                 this,
                 scope,
                 output,
@@ -628,14 +614,14 @@ impl<'vm> VM<'vm> {
                     self.insert_register(output, value.into());
                     // todo ideally this doesn't need a call frame per intermediate, it should be possible to reuse the current scope/fram
                     // the process_ret instruction for the scope is the reason this is needed
-                    let value = self.handle_scope(scope, output, vec![output], output);
+                    let value = self.handle_scope(scope, &[output], output);
                     if value != Value::None {
                         result.push(value)
                     }
                 }
                 self.insert_register(output, result.into());
             }
-            Instruction::ForMap {
+            &Instruction::ForMap {
                 this,
                 scope,
                 key,
@@ -647,7 +633,7 @@ impl<'vm> VM<'vm> {
                 for (k, v) in this {
                     self.insert_register(key, k.into());
                     self.insert_register(value, v.into());
-                    let value = self.handle_scope(scope, output, vec![key, value], output);
+                    let value = self.handle_scope(scope, &[key, value], output);
                     match value {
                         Value::None => {}
                         Value::Tuple(mut t) if t.len() == 2 => {

@@ -1,14 +1,14 @@
 use crate::Register;
 use std::fmt::{Display, Formatter};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Unary {
     pub op: UnaryOperation,
     pub from: Register,
     pub output: Register,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct UnaryAssign {
     pub op: UnaryOperation,
     pub from: Register,

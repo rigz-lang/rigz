@@ -329,7 +329,16 @@ impl Value {
                 let s = s.clone();
                 IndexMap::from([(s.clone().into(), s.into())])
             }
-            Value::List(l) | Value::Tuple(l) => l.iter().map(|v| (v.clone(), v.clone())).collect(),
+            Value::List(l) => l.iter().map(|v| (v.clone(), v.clone())).collect(),
+            Value::Tuple(l) => l
+                .chunks(2)
+                .map(|v| {
+                    let [k, v] = v else {
+                        return (v[0].clone(), Value::None);
+                    };
+                    (k.clone(), v.clone())
+                })
+                .collect(),
             Value::Map(m) => m.clone(),
             Value::Error(e) => {
                 let e = e.clone();
@@ -361,7 +370,7 @@ impl Value {
     }
 
     #[inline]
-    pub fn cast(self, rigz_type: RigzType) -> Value {
+    pub fn cast(self, rigz_type: &RigzType) -> Value {
         match (self, rigz_type) {
             (_, RigzType::None) => Value::None,
             (v, RigzType::Bool) => Value::Bool(v.to_bool()),
@@ -387,7 +396,7 @@ impl Value {
             (v, RigzType::Map(_, _)) => Value::Map(v.to_map()),
             (v, RigzType::Custom(def)) => {
                 let mut res = v.to_map();
-                for (field, rigz_type) in def.fields {
+                for (field, rigz_type) in &def.fields {
                     match res.get_mut(&Value::String(field.clone())) {
                         None => {
                             return VMError::ConversionError(format!(

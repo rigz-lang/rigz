@@ -148,11 +148,16 @@ impl Number {
     }
 
     #[inline]
-    pub fn to_bits(self) -> u64 {
+    pub fn to_bytes(self) -> [u8; 8] {
         match self {
-            Number::Int(i) => u64::from_le_bytes(i.to_le_bytes()),
-            Number::Float(f) => f.to_bits(), // this could panic, may need to switch to le_bytes
+            Number::Int(i) => i.to_be_bytes(),
+            Number::Float(f) => f.to_be_bytes(),
         }
+    }
+
+    #[inline]
+    pub fn to_bits(self) -> u64 {
+        u64::from_be_bytes(self.to_bytes())
     }
 
     #[inline]

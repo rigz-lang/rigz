@@ -1,9 +1,0 @@
-fn testing(v, a: |Any, Any| -> Any)
-    if v > 5
-        a v, 30
-    else
-        a
-    end
-end
-
-testing 0, { |n, arg| n + arg }

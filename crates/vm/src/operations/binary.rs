@@ -1,7 +1,7 @@
 use crate::Register;
 use std::fmt::{Display, Formatter};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Binary {
     pub op: BinaryOperation,
     pub lhs: Register,
@@ -9,7 +9,7 @@ pub struct Binary {
     pub output: Register,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct BinaryAssign {
     pub op: BinaryOperation,
     pub lhs: Register,

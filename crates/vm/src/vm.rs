@@ -8,6 +8,7 @@ use log_derive::logfn_inputs;
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::ops::DerefMut;
+use std::ptr;
 use std::time::{Duration, Instant};
 
 pub enum VMState {
@@ -77,11 +78,9 @@ pub enum RegisterValue {
 }
 
 impl RegisterValue {
-    pub fn resolve(self, vm: &mut VM, register: Register) -> Value {
+    pub fn resolve(self, vm: &mut VM) -> Value {
         match self {
-            RegisterValue::ScopeId(scope, output, args) => {
-                vm.handle_scope(scope, register, args, output)
-            }
+            RegisterValue::ScopeId(scope, output, args) => vm.handle_scope(scope, &args, output),
             RegisterValue::Register(r) => vm.resolve_register(r),
             RegisterValue::Value(v) => v,
             RegisterValue::Constant(c) => vm.get_constant(c),
@@ -178,19 +177,14 @@ impl<'vm> VM<'vm> {
         self.current.borrow().get_register(register, self)
     }
 
-    pub fn resolve_registers(&mut self, registers: Vec<Register>) -> Vec<Value> {
-        let len = registers.len();
-        let mut result = Vec::with_capacity(len);
-        for register in registers {
-            result.push(self.resolve_register(register));
-        }
-        result
+    pub fn resolve_registers(&mut self, registers: &[Register]) -> Vec<Value> {
+        registers.iter().map(|r| self.resolve_register(*r)).collect()
     }
 
     #[inline]
     pub fn resolve_register(&mut self, register: Register) -> Value {
         let v = self.get_register(register);
-        v.resolve(self, register)
+        v.resolve(self)
     }
 
     pub fn get_module_clone(&self, module: &'vm str) -> Result<Box<dyn Module<'vm>>, VMError> {
@@ -235,13 +229,7 @@ impl<'vm> VM<'vm> {
     // todo create update_registers to support multiple mutable values at the same time
 
     #[inline]
-    pub fn handle_scope(
-        &mut self,
-        scope: usize,
-        original: Register,
-        args: Vec<Register>,
-        output: Register,
-    ) -> Value {
+    pub fn handle_scope(&mut self, scope: usize, args: &[Register], output: Register) -> Value {
         let current = self.sp;
         match self.call_frame(scope, args, output) {
             Ok(_) => {}
@@ -257,11 +245,12 @@ impl<'vm> VM<'vm> {
                 VMState::Done(v) | VMState::Ran(v) => v,
             };
         }
-        self.insert_register(output, v.clone().into());
         v
     }
 
     /// Value is replaced with None, shifting the registers can break the program. Scopes are not evaluated, use `remove_register_eval_scope` instead.
+    #[log_derive::logfn(Trace)]
+    #[logfn_inputs(Trace, fmt = "remove_register(vm={:#p}, register={})")]
     pub fn remove_register(&self, register: Register) -> RegisterValue {
         self.current.borrow_mut().remove_register(register, self)
     }
@@ -269,7 +258,7 @@ impl<'vm> VM<'vm> {
     /// Value is replaced with None, shifting the registers breaks the program.
     pub fn remove_register_eval_scope(&mut self, register: Register) -> Value {
         let rv = self.remove_register(register);
-        rv.resolve(self, register)
+        rv.resolve(self)
     }
 
     pub fn get_constant(&self, index: usize) -> Value {
@@ -287,45 +276,47 @@ impl<'vm> VM<'vm> {
         let current = self.current.borrow().output;
         let source = self.resolve_register(current);
         match self.frames.pop() {
-            None => return VMState::Done(source),
+            None => VMState::Done(source),
             Some(c) => {
                 self.sp = c.borrow().scope_id;
                 self.current = c;
                 self.insert_register(output, source.clone().into());
                 match process {
-                    None => {}
-                    Some(process) => return process(source),
+                    None => VMState::Running,
+                    Some(process) => process(source),
                 }
             }
         }
-        VMState::Running
     }
 
     #[inline]
-    pub fn process_instruction(&mut self, instruction: Instruction<'vm>) -> VMState {
-        self.current.borrow_mut().pc += 1;
-        match instruction {
-            Instruction::Ret(output) => self.process_ret(output, None),
-            instruction => self.process_core_instruction(instruction),
+    fn process_instruction(&mut self, instruction: *const Instruction<'vm>) -> VMState {
+        unsafe {
+            match instruction.as_ref().unwrap() {
+                Instruction::Ret(output) => self.process_ret(*output, None),
+                instruction => self.process_core_instruction(instruction),
+            }
         }
     }
 
-    pub fn process_instruction_scope(&mut self, instruction: Instruction<'vm>) -> VMState {
-        self.current.borrow_mut().pc += 1;
-        match instruction {
-            Instruction::Ret(output) => self.process_ret(output, Some(VMState::Ran)),
-            ins => self.process_core_instruction(ins),
+    fn process_instruction_scope(&mut self, instruction: *const Instruction<'vm>) -> VMState {
+        unsafe {
+            match instruction.as_ref().unwrap() {
+                Instruction::Ret(output) => self.process_ret(*output, Some(VMState::Ran)),
+                ins => self.process_core_instruction(ins),
+            }
         }
     }
 
     #[inline]
     #[log_derive::logfn(Debug)]
-    fn next_instruction(&self) -> Option<Instruction<'vm>> {
+    fn next_instruction(&self) -> Option<*const Instruction<'vm>> {
         let scope_id = self.sp;
-        // TODO move &Scope to callframe
         // scope_id must be valid when this is called, otherwise function will panic
         let scope = &self.scopes[scope_id];
-        scope.instructions.get(self.current.borrow().pc).cloned()
+        let pc = self.current.borrow().pc;
+        self.current.borrow_mut().pc += 1;
+        scope.instructions.get(pc).map(ptr::from_ref)
     }
 
     /// Generally this should be used instead of run. It will evaluate the VM & start lifecycles
@@ -423,14 +414,14 @@ impl<'vm> VM<'vm> {
                 parent: None,
                 output: r,
             });
-            let v = self.run();
+            let v = self.eval();
             match v {
-                Value::Error(e) => {
+                Err(e) => {
                     outln!("\x1b[31mFAILED\x1b[0m");
                     failed += 1;
                     failure_messages.push((named.to_string(), e));
                 }
-                _ => {
+                Ok(_) => {
                     outln!("\x1b[32mok\x1b[0m");
                     passed += 1;
                 }
@@ -441,7 +432,7 @@ impl<'vm> VM<'vm> {
             passed,
             failed,
             failure_messages,
-            duration: Instant::now() - start,
+            duration: start.elapsed(),
         }
     }
 
@@ -501,7 +492,7 @@ impl<'vm> VM<'vm> {
     pub fn call_frame(
         &mut self,
         scope_index: usize,
-        args: Vec<Register>,
+        args: &[Register],
         output: Register,
     ) -> Result<(), VMError> {
         if self.scopes.len() <= scope_index {
@@ -519,20 +510,16 @@ impl<'vm> VM<'vm> {
             return Err(err);
         }
 
-        let current = std::mem::replace(
-            &mut self.current,
-            RefCell::new(CallFrame::child(scope_index, self.frames.len(), output)),
-        );
-
-        self.frames.push(current);
+        let current = self.current.replace(CallFrame::child(scope_index, self.frames.len(), output));
+        self.frames.push(current.into());
         self.sp = scope_index;
 
         let scope_args = self.scopes[scope_index].args.clone().into_iter().zip(args);
         for ((arg, mutable), reg) in scope_args {
             if mutable {
-                self.load_mut(arg, reg)?;
+                self.load_mut(arg, *reg)?;
             } else {
-                self.load_let(arg, reg)?;
+                self.load_let(arg, *reg)?;
             }
         }
         Ok(())
@@ -541,10 +528,10 @@ impl<'vm> VM<'vm> {
     pub fn call_frame_memo(
         &mut self,
         scope_index: usize,
-        args: Vec<Register>,
+        args: &[Register],
         output: Register,
     ) -> Result<(), VMError> {
-        let call_args = self.resolve_registers(args.clone());
+        let call_args = self.resolve_registers(args);
         let value = match self.scopes.get_mut(scope_index) {
             None => {
                 return Err(VMError::ScopeDoesNotExist(format!(
@@ -589,7 +576,7 @@ impl<'vm> VM<'vm> {
         };
         let value = match value {
             None => {
-                let value = self.handle_scope(scope_index, output, args, output);
+                let value = self.handle_scope(scope_index, args, output);
                 let s = self.scopes.get_mut(scope_index).unwrap();
                 match &mut s.lifecycle {
                     None => unreachable!(),
@@ -626,7 +613,7 @@ impl<'vm> VM<'vm> {
         scope_index: usize,
         this: Register,
         output: Register,
-        args: Vec<Register>,
+        args: &[Register],
         mutable: bool,
     ) -> Result<(), VMError> {
         self.call_frame(scope_index, args, output)?;
@@ -649,7 +636,7 @@ impl<'vm> VM<'vm> {
         scope_index: usize,
         this: Register,
         output: Register,
-        args: Vec<Register>,
+        args: &[Register],
         mutable: bool,
     ) -> Result<(), VMError> {
         self.call_frame_memo(scope_index, args, output)?;
