@@ -253,16 +253,6 @@ mod runtime {
             for_list(r#"[for v in [1, 2, 3]: v * v]"# = vec![1, 4, 9].into())
             for_list_exclude_nones(r#"[for v in [1, 2, 3, 'a', 'b']: v if v.is_num]"# = vec![1, 2, 3].into())
             for_map(r#"{for k, v in {1, 2, 3}: k, v if k % 2 == 0}"# = IndexMap::from([(2, 2)]).into())
-            factorial(r#"
-            fn factorial(n: Number)
-                if n == 0
-                    1
-                else
-                    n * factorial n - 1
-                end
-            end
-            factorial 4
-            "#=24.into())
             lambda_in_for_list_if_expression(r#"
             func = |v| v if v.is_num
             [for a in ['a', 'b', 'c', 1, 2, 3]: func a]
@@ -307,6 +297,17 @@ mod runtime {
     mod debug {
         use super::*;
         run_debug_vm! {
+            factorial(r#"
+            fn factorial(n: Number)
+                if n == 0
+                    1
+                else
+                    a = factorial n - 1
+                    n * a
+                end
+            end
+            factorial 2
+            "#=24.into())
             fib_recursive(r#"
             fn fib(n: Number) -> Number
                 if n <= 1

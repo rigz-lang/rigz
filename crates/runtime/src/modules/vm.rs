@@ -25,20 +25,20 @@ impl<'vm> RigzVM<'vm> for VMModule {
     }
 
     fn mut_vm_first(&self, vm: &mut VM<'vm>) -> Result<Value, VMError> {
-        let (og, first) = match vm.current.borrow().registers.first() {
+        let first = match vm.current.borrow().registers.first() {
             None => return Err(VMError::EmptyRegister("Registers are empty".to_string())),
-            Some((o, v)) => (*o, v.borrow().clone()),
+            Some((_, v)) => v.borrow().clone(),
         };
-        let v = first.resolve(vm, og);
+        let v = first.resolve(vm);
         Ok(v)
     }
 
     fn mut_vm_last(&self, vm: &mut VM<'vm>) -> Result<Value, VMError> {
-        let (og, last) = match vm.current.borrow().registers.last() {
+        let last = match vm.current.borrow().registers.last() {
             None => return Err(VMError::EmptyRegister("Registers are empty".to_string())),
-            Some((o, v)) => (*o, v.borrow().clone()),
+            Some((_, v)) => v.borrow().clone(),
         };
-        let v = last.resolve(vm, og);
+        let v = last.resolve(vm);
         Ok(v)
     }
 

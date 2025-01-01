@@ -47,6 +47,7 @@ derive_module!(
         fn Map.split_first -> ((Any?, Any?), Map)
         fn Map.split_last -> ((Any?, Any?), Map)
 
+        fn List.to_tuple -> Any
         fn List.reduce(init: Any, func: |Any, Any| -> Any) -> Any
             if !self
                 init
@@ -272,6 +273,10 @@ impl RigzStd for StdModule {
                     .collect(),
             )
         }
+    }
+
+    fn list_to_tuple(&self, this: Vec<Value>) -> Value {
+        Value::Tuple(this)
     }
 
     fn list_first(&self, this: Vec<Value>) -> Option<Value> {
