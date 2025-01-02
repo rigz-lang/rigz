@@ -12,7 +12,7 @@ mod vm_test {
         builder.add_load_instruction(4, Value::Number(Number::Int(42)).into());
         let mut vm = builder.build();
         vm.eval().unwrap();
-        assert_eq!(vm.get_register(4), Value::Number(Number::Int(42)).into());
+        assert_eq!(vm.get_register(&4), Value::Number(Number::Int(42)).into());
     }
 
     #[test]
@@ -23,7 +23,7 @@ mod vm_test {
             .add_cast_instruction(4, RigzType::String, 7);
         let mut vm = builder.build();
         vm.eval().unwrap();
-        assert_eq!(vm.get_register(7), Value::String(42.to_string()).into());
+        assert_eq!(vm.get_register(&7), Value::String(42.to_string()).into());
     }
 
     #[test]
@@ -35,7 +35,7 @@ mod vm_test {
             .add_add_instruction(4, 37, 82);
         let mut vm = builder.build();
         vm.eval().unwrap();
-        assert_eq!(vm.get_register(82), Value::Number(Number::Int(84)).into());
+        assert_eq!(vm.get_register(&82), Value::Number(Number::Int(84)).into());
     }
 
     #[test]
@@ -46,7 +46,7 @@ mod vm_test {
             .add_copy_instruction(4, 37);
         let mut vm = builder.build();
         vm.eval().unwrap();
-        assert_eq!(vm.get_register(37), Value::Number(Number::Int(42)).into());
+        assert_eq!(vm.get_register(&37), Value::Number(Number::Int(42)).into());
     }
 
     #[test]
@@ -59,7 +59,7 @@ mod vm_test {
         let mut vm = builder.build();
         vm.eval().unwrap();
         assert_eq!(
-            vm.get_register(4),
+            vm.get_register(&4),
             Value::String(String::from_str("ab").unwrap()).into()
         );
     }
@@ -74,7 +74,7 @@ mod vm_test {
         let mut vm = builder.build();
         vm.eval().unwrap();
         assert_eq!(
-            vm.get_register(4),
+            vm.get_register(&4),
             Value::String(String::from_str("bc").unwrap()).into()
         );
     }
@@ -92,7 +92,7 @@ mod vm_test {
         let mut vm = builder.build();
         vm.eval().unwrap();
         assert_eq!(
-            vm.get_register(3),
+            vm.get_register(&3),
             Value::String(String::from_str("abc").unwrap()).into()
         );
     }
@@ -135,7 +135,7 @@ mod vm_test {
             .add_call_module_instruction("test", "hello", vec![2], 3);
         let mut vm = builder.build();
         vm.eval().unwrap();
-        assert_eq!(vm.get_register(3), Value::None.into());
+        assert_eq!(vm.get_register(&3), Value::None.into());
     }
 
     #[test]

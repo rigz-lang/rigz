@@ -81,7 +81,7 @@ impl RegisterValue {
     pub fn resolve(self, vm: &mut VM) -> Value {
         match self {
             RegisterValue::ScopeId(scope, output, args) => vm.handle_scope(scope, &args, output),
-            RegisterValue::Register(r) => vm.resolve_register(r),
+            RegisterValue::Register(r) => vm.resolve_register(&r),
             RegisterValue::Value(v) => v,
             RegisterValue::Constant(c) => vm.get_constant(c),
         }
@@ -173,16 +173,16 @@ impl<'vm> VM<'vm> {
     }
 
     #[inline]
-    pub fn get_register(&self, register: Register) -> RegisterValue {
+    pub fn get_register(&self, register: &Register) -> RegisterValue {
         self.current.borrow().get_register(register, self)
     }
 
     pub fn resolve_registers(&mut self, registers: &[Register]) -> Vec<Value> {
-        registers.iter().map(|r| self.resolve_register(*r)).collect()
+        registers.iter().map(|r| self.resolve_register(r)).collect()
     }
 
     #[inline]
-    pub fn resolve_register(&mut self, register: Register) -> Value {
+    pub fn resolve_register(&mut self, register: &Register) -> Value {
         let v = self.get_register(register);
         v.resolve(self)
     }
@@ -251,12 +251,12 @@ impl<'vm> VM<'vm> {
     /// Value is replaced with None, shifting the registers can break the program. Scopes are not evaluated, use `remove_register_eval_scope` instead.
     #[log_derive::logfn(Trace)]
     #[logfn_inputs(Trace, fmt = "remove_register(vm={:#p}, register={})")]
-    pub fn remove_register(&self, register: Register) -> RegisterValue {
+    pub fn remove_register(&self, register: &Register) -> RegisterValue {
         self.current.borrow_mut().remove_register(register, self)
     }
 
     /// Value is replaced with None, shifting the registers breaks the program.
-    pub fn remove_register_eval_scope(&mut self, register: Register) -> Value {
+    pub fn remove_register_eval_scope(&mut self, register: &Register) -> Value {
         let rv = self.remove_register(register);
         rv.resolve(self)
     }
@@ -274,7 +274,7 @@ impl<'vm> VM<'vm> {
         process: Option<fn(value: Value) -> VMState>,
     ) -> VMState {
         let current = self.current.borrow().output;
-        let source = self.resolve_register(current);
+        let source = self.resolve_register(&current);
         match self.frames.pop() {
             None => VMState::Done(source),
             Some(c) => {

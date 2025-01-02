@@ -21,7 +21,7 @@ impl<'vm> RigzVM<'vm> for VMModule {
             }
             Ok(n) => n,
         };
-        Ok(vm.resolve_register(u))
+        Ok(vm.resolve_register(&u))
     }
 
     fn mut_vm_first(&self, vm: &mut VM<'vm>) -> Result<Value, VMError> {
@@ -52,6 +52,6 @@ impl<'vm> RigzVM<'vm> for VMModule {
             }
             Ok(n) => n,
         };
-        Ok(vm.remove_register_eval_scope(u))
+        Ok(vm.remove_register_eval_scope(&u))
     }
 }

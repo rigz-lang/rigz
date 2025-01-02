@@ -35,7 +35,7 @@ impl VM<'_> {
 
     pub fn handle_unary(&mut self, unary: Unary) {
         let Unary { op, from, output } = unary;
-        let val = self.resolve_register(from);
+        let val = self.resolve_register(&from);
         self.apply_unary(op, val, output);
     }
 
@@ -52,18 +52,18 @@ impl VM<'_> {
         }
     }
 
-    pub fn handle_unary_clear(&mut self, unary: Unary, clear: &Clear) {
+    pub fn handle_unary_clear(&mut self, unary: &Unary, clear: &Clear) {
         let Unary { op, from, output } = unary;
         let val = match clear {
-            &Clear::One(c) if c != from => VMError::RuntimeError(format!(
+            Clear::One(c) if c != from => VMError::RuntimeError(format!(
                 "Invalid Register Passed to unary_clear: {} != {}",
                 c, from
             ))
             .into(),
-            &Clear::One(c) => self.remove_register_eval_scope(c),
+            Clear::One(c) => self.remove_register_eval_scope(c),
             c => VMError::RuntimeError(format!("Invalid Option Passed to unary_clear: {:?}", c))
                 .into(),
         };
-        self.apply_unary(op, val, output);
+        self.apply_unary(*op, val, *output);
     }
 }

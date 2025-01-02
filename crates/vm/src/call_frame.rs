@@ -24,20 +24,20 @@ pub struct CallFrame<'vm> {
 
 impl<'vm> CallFrame<'vm> {
     #[inline]
-    pub(crate) fn remove_register(&mut self, register: Register, vm: &VM) -> RegisterValue {
-        match self.registers.get_mut(&register) {
+    pub(crate) fn remove_register(&mut self, register: &Register, vm: &VM) -> RegisterValue {
+        match self.registers.get_mut(register) {
             None => match self.parent {
                 None => RegisterValue::Value(
                     VMError::EmptyRegister(format!("R{} is empty (remove)", register)).to_value(),
                 ),
                 Some(i) => vm.frames[i].borrow_mut().remove_register(register, vm),
             },
-            Some(v) => RefCell::replace(v, RegisterValue::Value(Value::None)),
+            Some(v) => v.replace(RegisterValue::Value(Value::None)),
         }
     }
 
-    pub(crate) fn get_register(&self, register: Register, vm: &VM) -> RegisterValue {
-        match self.registers.get(&register) {
+    pub(crate) fn get_register(&self, register: &Register, vm: &VM) -> RegisterValue {
+        match self.registers.get(register) {
             None => match self.parent {
                 None => VMError::EmptyRegister(format!("R{} is empty", register)).into(),
                 Some(s) => vm.frames[s].borrow().get_register(register, vm),
@@ -69,7 +69,7 @@ impl<'vm> CallFrame<'vm> {
                     );
                 }
                 Some(i) => {
-                    let v = vm.frames[i].borrow_mut().remove_register(original, vm);
+                    let v = vm.frames[i].borrow_mut().remove_register(&original, vm);
                     self.registers.insert(dest, v.into());
                 }
             },

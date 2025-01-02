@@ -48,14 +48,14 @@ impl VM<'_> {
             rhs,
             output,
         } = binary;
-        let lhs = self.resolve_register(lhs);
-        let rhs = self.resolve_register(rhs);
+        let lhs = self.resolve_register(&lhs);
+        let rhs = self.resolve_register(&rhs);
         self.apply_binary(op, lhs, rhs, output);
     }
 
     pub fn handle_binary_assign(&mut self, binary: BinaryAssign) {
         let BinaryAssign { op, lhs, rhs } = binary;
-        let rhs = self.resolve_register(rhs);
+        let rhs = self.resolve_register(&rhs);
         match self.update_register(lhs, |v| {
             // todo remove v.clone() & rhs.clone()
             *v = eval_binary_operation(op, v.clone(), rhs.clone());
@@ -68,7 +68,7 @@ impl VM<'_> {
         };
     }
 
-    pub fn handle_binary_clear(&mut self, binary: Binary, clear: &Clear) {
+    pub fn handle_binary_clear(&mut self, binary: &Binary, clear: &Clear) {
         let Binary {
             op,
             lhs,
@@ -76,23 +76,23 @@ impl VM<'_> {
             output,
         } = binary;
         let (lhs, rhs) = match clear {
-            &Clear::One(c) if c == rhs => (
+            Clear::One(c) if c == rhs => (
                 self.resolve_register(lhs),
                 self.remove_register_eval_scope(c),
             ),
-            &Clear::One(c) if c == lhs => (
+            Clear::One(c) if c == lhs => (
                 self.remove_register_eval_scope(c),
                 self.resolve_register(rhs),
             ),
-            &Clear::Two(c1, c2) if c1 == lhs && c2 == rhs => (
+            Clear::Two(c1, c2) if c1 == lhs && c2 == rhs => (
                 self.remove_register_eval_scope(c1),
                 self.remove_register_eval_scope(c2),
             ),
-            &Clear::Two(c1, c2) if c2 == lhs && c1 == rhs => (
+            Clear::Two(c1, c2) if c2 == lhs && c1 == rhs => (
                 self.remove_register_eval_scope(c2),
                 self.remove_register_eval_scope(c1),
             ),
-            &Clear::One(c) => (
+            Clear::One(c) => (
                 self.remove_register_eval_scope(c),
                 VMError::RuntimeError(format!(
                     "Invalid Register Passed to binary_clear: {} must be {} or {}",
@@ -100,7 +100,7 @@ impl VM<'_> {
                 ))
                 .into(),
             ),
-            &Clear::Two(c1, c2) => {
+            Clear::Two(c1, c2) => {
                 let v = VMError::RuntimeError(format!(
                     "Invalid Registers Passed to binary_clear: {} and {} must be either {} or {}",
                     c1, c2, lhs, rhs
@@ -117,6 +117,6 @@ impl VM<'_> {
                 (v.clone(), v)
             }
         };
-        self.apply_binary(op, lhs, rhs, output);
+        self.apply_binary(*op, lhs, rhs, *output);
     }
 }

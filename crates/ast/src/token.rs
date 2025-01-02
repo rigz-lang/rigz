@@ -213,7 +213,7 @@ pub(crate) enum TokenKind<'lex> {
     Module,
     #[token("raise")]
     Error,
-    #[token("=>")]
+    #[token("|>")]
     Into,
     #[token("..")]
     Range,
@@ -244,7 +244,7 @@ impl Display for TokenKind<'_> {
             TokenKind::Semi => write!(f, ";"),
             TokenKind::Colon => write!(f, ":"),
             TokenKind::Arrow => write!(f, "->"),
-            TokenKind::Into => write!(f, "=>"),
+            TokenKind::Into => write!(f, "|>"),
             TokenKind::Let => write!(f, "let"),
             TokenKind::Mut => write!(f, "mut"),
             TokenKind::As => write!(f, "as"),

@@ -158,21 +158,21 @@ pub enum Instruction<'vm> {
 impl<'vm> VM<'vm> {
     pub fn handle_clear(&mut self, clear: &Clear) {
         match clear {
-            &Clear::One(r) => {
+            Clear::One(r) => {
                 self.remove_register(r);
             }
-            &Clear::Two(r1, r2) => {
+            Clear::Two(r1, r2) => {
                 self.remove_register(r1);
                 self.remove_register(r2);
             }
-            &Clear::Three(r1, r2, r3) => {
+            Clear::Three(r1, r2, r3) => {
                 self.remove_register(r1);
                 self.remove_register(r2);
                 self.remove_register(r3);
             }
             Clear::Many(reg) => {
                 for r in reg {
-                    self.remove_register(*r);
+                    self.remove_register(r);
                 }
             }
         }
@@ -181,8 +181,8 @@ impl<'vm> VM<'vm> {
     #[inline]
     pub fn process_core_instruction(&mut self, instruction: &Instruction<'vm>) -> VMState {
         match instruction {
-            &Instruction::Halt(r) => return VMState::Done(self.resolve_register(r)),
-            &Instruction::HaltIfError(r) => {
+            Instruction::Halt(r) => return VMState::Done(self.resolve_register(r)),
+            Instruction::HaltIfError(r) => {
                 let value = self.resolve_register(r);
                 if let Value::Error(e) = value {
                     return e.into();
@@ -219,7 +219,7 @@ impl<'vm> VM<'vm> {
                         None => return VMError::RuntimeError("Self not set".into()).into(),
                         Some(s) => s,
                     };
-                    let v = self.resolve_register(s);
+                    let v = self.resolve_register(&s);
                     self.insert_register(output, v.into());
                 };
             }
@@ -228,8 +228,8 @@ impl<'vm> VM<'vm> {
             &Instruction::Binary(b) => self.handle_binary(b),
             &Instruction::UnaryAssign(u) => self.handle_unary_assign(u),
             &Instruction::BinaryAssign(b) => self.handle_binary_assign(b),
-            Instruction::UnaryClear(u, clear) => self.handle_unary_clear(*u, clear),
-            Instruction::BinaryClear(b, clear) => self.handle_binary_clear(*b, clear),
+            Instruction::UnaryClear(u, clear) => self.handle_unary_clear(u, clear),
+            Instruction::BinaryClear(b, clear) => self.handle_binary_clear(b, clear),
             Instruction::Load(r, v) => {
                 self.insert_register(*r, v.clone());
             }
@@ -285,7 +285,7 @@ impl<'vm> VM<'vm> {
             } => {
                 match self.get_module_clone(module) {
                     Ok(module) => {
-                        let this = self.resolve_register(*this);
+                        let this = self.resolve_register(this);
                         let args = self.resolve_registers(args);
                         let v = module
                             .call_extension(this, func, args.into())
@@ -344,43 +344,43 @@ impl<'vm> VM<'vm> {
                     }
                 };
             }
-            &Instruction::Copy(from, to) => {
+            Instruction::Copy(from, to) => {
                 let copy = self.resolve_register(from);
-                self.insert_register(to, copy.into());
+                self.insert_register(*to, copy.into());
             }
-            &Instruction::Move(from, to) => {
+            Instruction::Move(from, to) => {
                 let copy = self.remove_register(from);
-                self.insert_register(to, copy);
+                self.insert_register(*to, copy);
             }
             Instruction::Cast {
                 from,
                 rigz_type,
                 to,
             } => {
-                let value = self.resolve_register(*from);
+                let value = self.resolve_register(from);
                 self.insert_register(*to, value.cast(rigz_type).into());
             }
-            &Instruction::CallEq(a, b, scope_index, output) => {
+            Instruction::CallEq(a, b, scope_index, output) => {
                 let a = self.resolve_register(a);
                 let b = self.resolve_register(b);
                 if a == b {
-                    match self.call_frame(scope_index, &[], output) {
+                    match self.call_frame(*scope_index, &[], *output) {
                         Ok(_) => {}
                         Err(e) => return e.into(),
                     };
                 }
             }
-            &Instruction::CallNeq(a, b, scope_index, output) => {
+            Instruction::CallNeq(a, b, scope_index, output) => {
                 let a = self.resolve_register(a);
                 let b = self.resolve_register(b);
                 if a != b {
-                    match self.call_frame(scope_index, &[], output) {
+                    match self.call_frame(*scope_index, &[], *output) {
                         Ok(_) => {}
                         Err(e) => return e.into(),
                     };
                 }
             }
-            &Instruction::IfElse {
+            Instruction::IfElse {
                 truthy,
                 if_scope,
                 else_scope,
@@ -393,34 +393,34 @@ impl<'vm> VM<'vm> {
                     let (else_scope, r) = else_scope;
                     (else_scope, r)
                 };
-                let r = self.handle_scope(scope, &[], r);
-                self.insert_register(output, r.into());
+                let r = self.handle_scope(*scope, &[], *r);
+                self.insert_register(*output, r.into());
             }
-            &Instruction::If {
+            Instruction::If {
                 truthy,
                 if_scope,
                 output,
             } => {
                 let v = if self.resolve_register(truthy).to_bool() {
-                    self.handle_scope(if_scope, &[], output)
+                    self.handle_scope(*if_scope, &[], *output)
                 } else {
                     Value::None
                 };
-                self.insert_register(output, v.into());
+                self.insert_register(*output, v.into());
             }
-            &Instruction::Unless {
+            Instruction::Unless {
                 truthy,
                 unless_scope,
                 output,
             } => {
                 let v = if self.resolve_register(truthy).to_bool() {
-                    self.handle_scope(unless_scope, &[], output)
+                    self.handle_scope(*unless_scope, &[], *output)
                 } else {
                     Value::None
                 };
-                self.insert_register(output, v.into());
+                self.insert_register(*output, v.into());
             }
-            &Instruction::GetVariable(name, reg) => {
+            Instruction::GetVariable(name, reg) => {
                 let r = self.current.borrow().get_variable(name, self);
                 match r {
                     None => {
@@ -431,8 +431,8 @@ impl<'vm> VM<'vm> {
                         .into()
                     }
                     Some(s) => {
-                        let v = self.resolve_register(s);
-                        self.insert_register(reg, v.into());
+                        let v = self.resolve_register(&s);
+                        self.insert_register(*reg, v.into());
                     }
                 }
             }
@@ -463,7 +463,7 @@ impl<'vm> VM<'vm> {
 
                 let mut res = (*tmpl).to_string();
                 for arg in args {
-                    let l = self.resolve_register(*arg).to_string();
+                    let l = self.resolve_register(arg).to_string();
                     res = res.replacen("{}", l.as_str(), 1);
                 }
                 log!(*level, "{}", res)
@@ -475,7 +475,7 @@ impl<'vm> VM<'vm> {
                     let mut puts = String::new();
                     let len = args.len() - 1;
                     for (index, r) in args.iter().enumerate() {
-                        let arg = self.resolve_register(*r);
+                        let arg = self.resolve_register(r);
                         puts.push_str(arg.to_string().as_str());
                         if index < len {
                             puts.push_str(", ");
@@ -555,26 +555,25 @@ impl<'vm> VM<'vm> {
                     s.instructions.remove(index);
                 }
             },
-            &Instruction::InstanceGet(source, attr, output) => {
-                self.instance_get(source, attr, output);
+            Instruction::InstanceGet(source, attr, output) => {
+                self.instance_get(source, attr, *output);
             }
-            &Instruction::InstanceSet {
+            Instruction::InstanceSet {
                 source,
                 index,
                 value,
                 output,
             } => {
-                self.instance_set(source, index, value, output);
+                self.instance_set(source, index, value, *output);
             }
-            // why do I have both of these?
-            &Instruction::InstanceSetMut {
+            Instruction::InstanceSetMut {
                 source,
                 index,
                 value,
             } => {
-                self.instance_set(source, index, value, source);
+                self.instance_set(source, index, value, *source);
             }
-            &Instruction::Push(input) => {
+            Instruction::Push(input) => {
                 let v = self.resolve_register(input);
                 self.stack.push(v);
             }
@@ -609,7 +608,7 @@ impl<'vm> VM<'vm> {
                 output,
             } => {
                 let mut result = vec![];
-                let this = self.resolve_register(this).to_list();
+                let this = self.resolve_register(&this).to_list();
                 for value in this {
                     self.insert_register(output, value.into());
                     // todo ideally this doesn't need a call frame per intermediate, it should be possible to reuse the current scope/fram
@@ -629,7 +628,7 @@ impl<'vm> VM<'vm> {
                 output,
             } => {
                 let mut result = IndexMap::new();
-                let this = self.resolve_register(this).to_map();
+                let this = self.resolve_register(&this).to_map();
                 for (k, v) in this {
                     self.insert_register(key, k.into());
                     self.insert_register(value, v.into());
@@ -659,7 +658,7 @@ impl<'vm> VM<'vm> {
         VMState::Running
     }
 
-    fn instance_get(&mut self, source: Register, attr: Register, output: Register) {
+    fn instance_get(&mut self, source: &Register, attr: &Register, output: Register) {
         let attr = self.resolve_register(attr);
         let source = self.resolve_register(source);
         let v = match source.get(attr) {
@@ -672,9 +671,9 @@ impl<'vm> VM<'vm> {
 
     fn instance_set(
         &mut self,
-        source: Register,
-        index: Register,
-        value: Register,
+        source: &Register,
+        index: &Register,
+        value: &Register,
         output: Register,
     ) {
         let attr = self.resolve_register(index);
