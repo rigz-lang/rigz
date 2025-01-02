@@ -510,7 +510,9 @@ impl<'vm> VM<'vm> {
             return Err(err);
         }
 
-        let current = self.current.replace(CallFrame::child(scope_index, self.frames.len(), output));
+        let current =
+            self.current
+                .replace(CallFrame::child(scope_index, self.frames.len(), output));
         self.frames.push(current.into());
         self.sp = scope_index;
 
