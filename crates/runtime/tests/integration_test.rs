@@ -368,6 +368,15 @@ mod runtime {
 
             a + a
             "# = 14)
+            fn_acts_as_closure(r#"
+            mut b = 0
+            fn a
+                b += 1
+                7 * b
+            end
+
+            a + a
+            "# = 21)
         }
     }
 
