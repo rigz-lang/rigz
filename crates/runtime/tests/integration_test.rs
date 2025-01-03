@@ -383,7 +383,7 @@ mod runtime {
             "# = true)
             default_args_can_be_overwritten(r#"
             import Random
-            next_bool 0
+            next_bool 1
             "# = true)
         }
     }
