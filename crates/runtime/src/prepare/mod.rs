@@ -202,7 +202,7 @@ impl<'vm> ProgramParser<'vm, VM<'vm>> {
         if last > 0 {
             match first.instructions.remove(last - 1) {
                 Instruction::Halt(r) => {
-                    self.builder.current.borrow_mut().pc -= 1;
+                    self.builder.frames.current.borrow_mut().pc -= 1;
                     self.last = r;
                 }
                 i => {

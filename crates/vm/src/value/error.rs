@@ -1,6 +1,9 @@
+use std::cell::RefCell;
 use crate::Value;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use std::rc::Rc;
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 // Tagged to avoid confusion with string deserialization
 pub enum VMError {
@@ -14,6 +17,20 @@ pub enum VMError {
     InvalidModule(String),
     InvalidModuleFunction(String),
     LifecycleError(String),
+}
+
+impl From<VMError> for Rc<RefCell<Value>> {
+    #[inline]
+    fn from(value: VMError) -> Self {
+        Rc::new(RefCell::new(value.into()))
+    }
+}
+
+impl From<&VMError> for Value {
+    #[inline]
+    fn from(value: &VMError) -> Self {
+        value.clone().into()
+    }
 }
 
 impl Display for VMError {

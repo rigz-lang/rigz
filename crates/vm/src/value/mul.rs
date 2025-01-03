@@ -3,13 +3,13 @@ use crate::value::Value;
 use crate::VMError;
 use std::ops::Mul;
 
-impl Mul for Value {
+impl Mul for &Value {
     type Output = Value;
 
     #[inline]
     fn mul(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (Value::Error(v), _) | (_, Value::Error(v)) => Value::Error(v),
+            (Value::Error(v), _) | (_, Value::Error(v)) => Value::Error(v.clone()),
             (Value::Type(t), a) | (a, Value::Type(t)) => Value::Error(
                 VMError::UnsupportedOperation(format!("Invalid Operation (*): {t} and {a}")),
             ),
@@ -23,7 +23,7 @@ impl Mul for Value {
                 let s = Value::String(b.clone());
                 match s.to_number() {
                     Err(_) => VMError::UnsupportedOperation(format!("{} * {}", a, b)).into(),
-                    Ok(r) => Value::Number(a * r),
+                    Ok(r) => Value::Number(a * &r),
                 }
             }
             (Value::String(a), Value::Number(n)) => {
@@ -46,13 +46,13 @@ impl Mul for Value {
                 Value::String(s)
             }
             (Value::String(a), Value::String(b)) => {
-                Value::List(vec![Value::String(a)]) * Value::String(b)
+                &Value::List(vec![Value::String(a.clone())]) * &Value::String(b.clone())
             }
             (Value::Tuple(a), Value::Tuple(b)) => {
                 Value::Tuple(a.into_iter().zip(b).map(|(a, b)| a * b).collect())
             }
-            (Value::Tuple(a), b) => Value::Tuple(a.into_iter().map(|a| a * b.clone()).collect()),
-            (b, Value::Tuple(a)) => Value::Tuple(a.into_iter().map(|a| b.clone() * a).collect()),
+            (Value::Tuple(a), b) => Value::Tuple(a.into_iter().map(|a| a * b).collect()),
+            (b, Value::Tuple(a)) => Value::Tuple(a.into_iter().map(|a| b * a).collect()),
             // (Value::String(a), b) => {
             //     let mut result = a.clone();
             //     result.push_str(b.to_string().as_str());

@@ -1,9 +1,12 @@
+use std::cell::RefCell;
+use std::ops::Deref;
+use std::rc::Rc;
 use crate::{
     err, errln, out, outln, Clear, Register, Reverse, Unary, UnaryAssign, UnaryOperation, VMError,
     Value, VM,
 };
 
-fn eval_unary(unary_operation: UnaryOperation, val: Value) -> Value {
+fn eval_unary(unary_operation: UnaryOperation, val: &Value) -> Value {
     match unary_operation {
         UnaryOperation::Neg => -val,
         UnaryOperation::Not => !val,
@@ -28,8 +31,8 @@ fn eval_unary(unary_operation: UnaryOperation, val: Value) -> Value {
 }
 
 impl VM<'_> {
-    pub fn apply_unary(&mut self, unary_operation: UnaryOperation, val: Value, output: Register) {
-        let val = eval_unary(unary_operation, val);
+    pub fn apply_unary(&mut self, unary_operation: UnaryOperation, val: Rc<RefCell<Value>>, output: Register) {
+        let val = eval_unary(unary_operation, val.borrow().deref());
         self.insert_register(output, val.into());
     }
 
@@ -42,7 +45,7 @@ impl VM<'_> {
     pub fn handle_unary_assign(&mut self, unary: UnaryAssign) {
         let UnaryAssign { op, from } = unary;
         match self.update_register(from, |v| {
-            *v = eval_unary(op, v.clone());
+            *v = eval_unary(op, v);
             Ok(None)
         }) {
             Ok(_) => {}

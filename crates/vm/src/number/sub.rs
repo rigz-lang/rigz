@@ -1,7 +1,7 @@
 use crate::number::Number;
 use std::ops::Sub;
 
-impl Sub for Number {
+impl Sub for &Number {
     type Output = Number;
 
     #[inline]

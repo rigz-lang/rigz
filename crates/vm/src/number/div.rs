@@ -1,7 +1,7 @@
 use crate::number::Number;
 use std::ops::Div;
 
-impl Div for Number {
+impl Div for &Number {
     type Output = Number;
 
     #[inline]

@@ -1,14 +1,14 @@
 use crate::number::Number;
 use std::ops::Shl;
 
-impl Shl for Number {
+impl Shl for &Number {
     type Output = Number;
 
     #[inline]
     fn shl(self, rhs: Self) -> Self::Output {
         let shift = match rhs {
             Number::Int(i) => i,
-            Number::Float(f) => f as i64,
+            Number::Float(f) => &(*f as i64),
         };
 
         match self {

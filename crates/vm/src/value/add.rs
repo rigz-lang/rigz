@@ -2,7 +2,7 @@ use crate::value::Value;
 use crate::VMError;
 use std::ops::Add;
 
-impl Add for Value {
+impl Add for &Value {
     type Output = Value;
 
     #[inline]
@@ -12,7 +12,7 @@ impl Add for Value {
             (Value::Type(t), a) | (a, Value::Type(t)) => Value::Error(
                 VMError::UnsupportedOperation(format!("Invalid Operation (+): {t} and {a}")),
             ),
-            (Value::None, v) | (v, Value::None) => v,
+            (Value::None, v) | (v, Value::None) => v.clone(),
             (Value::Bool(a), Value::Bool(b)) => Value::Bool(a | b),
             (Value::Number(a), Value::Number(b)) => Value::Number(a + b),
             (Value::Number(a), Value::String(b)) => {
@@ -23,7 +23,7 @@ impl Add for Value {
                         res.push_str(b.as_str());
                         Value::String(res)
                     }
-                    Ok(r) => Value::Number(a + r),
+                    Ok(r) => Value::Number(a + &r),
                 }
             }
             (Value::String(a), Value::Number(b)) => {
@@ -34,7 +34,7 @@ impl Add for Value {
                         res.push_str(b.to_string().as_str());
                         Value::String(res)
                     }
-                    Ok(r) => Value::Number(b + r),
+                    Ok(r) => Value::Number(b + &r),
                 }
             }
             (Value::Number(a), Value::Range(r)) | (Value::Range(r), Value::Number(a)) => {
@@ -63,26 +63,26 @@ impl Add for Value {
             (Value::Tuple(a), Value::Tuple(b)) => {
                 Value::Tuple(a.into_iter().zip(b).map(|(a, b)| a + b).collect())
             }
-            (Value::Tuple(a), b) => Value::Tuple(a.into_iter().map(|a| a + b.clone()).collect()),
-            (b, Value::Tuple(a)) => Value::Tuple(a.into_iter().map(|a| b.clone() + a).collect()),
+            (Value::Tuple(a), b) => Value::Tuple(a.into_iter().map(|a| a + b).collect()),
+            (b, Value::Tuple(a)) => Value::Tuple(a.into_iter().map(|a| b + a).collect()),
             (Value::List(a), Value::List(b)) => {
                 let mut result = a.clone();
-                result.extend(b);
+                result.extend(b.clone());
                 Value::List(result)
             }
             (Value::List(a), b) | (b, Value::List(a)) => {
                 let mut result = a.clone();
-                result.push(b);
+                result.push(b.clone());
                 Value::List(result)
             }
             (Value::Map(a), Value::Map(b)) => {
                 let mut result = a.clone();
-                result.extend(b);
+                result.extend(b.clone());
                 Value::Map(result)
             }
             (Value::Map(a), b) | (b, Value::Map(a)) => {
                 let mut result = a.clone();
-                result.insert(b.clone(), b);
+                result.insert(b.clone(), b.clone());
                 Value::Map(result)
             }
             (Value::Bool(a), b) | (b, Value::Bool(a)) => Value::Bool(a | b.to_bool()),

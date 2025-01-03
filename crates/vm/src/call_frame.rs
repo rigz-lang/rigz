@@ -1,101 +1,116 @@
-use crate::{Register, RegisterValue, VMError, Value, VM};
+use crate::{Register, VMError, Value, VM};
+use indexmap::map::Entry;
 use indexmap::IndexMap;
-use log::warn;
 use log_derive::{logfn, logfn_inputs};
-use nohash_hasher::BuildNoHashHasher;
 use std::cell::RefCell;
-use std::ops::Deref;
+use std::ops::{Index};
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub enum Variable {
-    Let(Register),
-    Mut(Register),
+    Let(Rc<RefCell<Value>>),
+    Mut(Rc<RefCell<Value>>),
+}
+
+#[derive(Clone, Debug)]
+pub struct Frames<'vm> {
+    pub current: RefCell<CallFrame<'vm>>,
+    pub frames: Vec<RefCell<CallFrame<'vm>>>,
+}
+
+impl<'vm> Index<usize> for Frames<'vm> {
+    type Output = RefCell<CallFrame<'vm>>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.frames[index]
+    }
+}
+
+impl<'vm> Frames<'vm> {
+    #[inline]
+    pub fn pop(&mut self) -> Option<RefCell<CallFrame<'vm>>> {
+        self.frames.pop()
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.frames.len()
+    }
+
+    #[inline]
+    pub fn push(&mut self, call_frame: CallFrame<'vm>) {
+        self.frames.push(call_frame.into())
+    }
+
+    #[logfn_inputs(Trace, fmt = "load_let(frames={:#?} name={}, value={:?})")]
+    pub fn load_let(&self, name: &'vm str, value: Rc<RefCell<Value>>) -> Result<(), VMError> {
+        match self.current.borrow_mut().variables.entry(name) {
+            Entry::Occupied(v) => {
+                return Err(VMError::UnsupportedOperation(format!(
+                    "Cannot overwrite let variable: {}",
+                    *v.key()
+                )))
+            }
+            Entry::Vacant(e) => {
+                e.insert(Variable::Let(value));
+            }
+        }
+        Ok(())
+    }
+
+    #[logfn_inputs(Trace, fmt = "load_mut(frames={:#?} name={}, value={:?})")]
+    pub fn load_mut(&self, name: &'vm str, value: Rc<RefCell<Value>>) -> Result<(), VMError> {
+        match self.current.borrow_mut().variables.entry(name) {
+            Entry::Occupied(mut var) => match var.get() {
+                Variable::Let(_) => {
+                    return Err(VMError::UnsupportedOperation(format!(
+                        "Cannot overwrite let variable: {}",
+                        *var.key()
+                    )))
+                }
+                Variable::Mut(_) => {
+                    var.insert(Variable::Mut(value));
+                }
+            },
+            Entry::Vacant(e) => {
+                e.insert(Variable::Mut(value));
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Default for Frames<'_> {
+    fn default() -> Self {
+        Frames {
+            current: RefCell::new(CallFrame::main()),
+            frames: vec![],
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct CallFrame<'vm> {
     pub scope_id: usize,
     pub pc: usize,
-    pub registers: IndexMap<Register, RefCell<RegisterValue>, BuildNoHashHasher<Register>>,
     pub variables: IndexMap<&'vm str, Variable>,
     pub parent: Option<usize>,
     pub output: Register,
 }
 
 impl<'vm> CallFrame<'vm> {
-    #[inline]
-    pub(crate) fn remove_register(&mut self, register: &Register, vm: &VM) -> RegisterValue {
-        match self.registers.get_mut(register) {
-            None => match self.parent {
-                None => RegisterValue::Value(
-                    VMError::EmptyRegister(format!("R{} is empty (remove)", register)).to_value(),
-                ),
-                Some(i) => vm.frames[i].borrow_mut().remove_register(register, vm),
-            },
-            Some(v) => v.replace(RegisterValue::Value(Value::None)),
-        }
-    }
-
-    pub(crate) fn get_register(&self, register: &Register, vm: &VM) -> RegisterValue {
-        match self.registers.get(register) {
-            None => match self.parent {
-                None => VMError::EmptyRegister(format!("R{} is empty", register)).into(),
-                Some(s) => vm.frames[s].borrow().get_register(register, vm),
-            },
-            Some(v) => v.borrow().clone(),
-        }
-    }
-
-    pub(crate) fn swap_register(&mut self, original: Register, dest: Register, vm: &VM) {
-        if original == dest {
-            warn!("Called swap_register with same register {dest}");
-            return;
-        }
-
-        let res = self
-            .registers
-            .insert(original, RegisterValue::Register(dest).into());
-        match res {
-            None => match self.parent {
-                None => {
-                    self.registers.insert(
-                        dest,
-                        RefCell::new(
-                            VMError::EmptyRegister(format!(
-                                "Invalid call to swap_register {original} was not set"
-                            ))
-                            .into(),
-                        ),
-                    );
-                }
-                Some(i) => {
-                    let v = vm.frames[i].borrow_mut().remove_register(&original, vm);
-                    self.registers.insert(dest, v.into());
-                }
-            },
-            Some(res) => {
-                {
-                    let b = res.borrow();
-                    if let RegisterValue::Register(r) = b.deref() {
-                        return self.swap_register(*r, dest, vm);
-                    }
-                }
-                self.registers.insert(dest, res);
-            }
-        }
-    }
 
     #[logfn(Trace)]
     #[logfn_inputs(Trace, fmt = "get_variable(frame={:#p} name={}, vm={:#p})")]
-    pub(crate) fn get_variable(&self, name: &'vm str, vm: &VM<'vm>) -> Option<Register> {
+    pub(crate) fn get_variable(&self, name: &'vm str, vm: &VM<'vm>) -> Option<Rc<RefCell<Value>>> {
         match self.variables.get(name) {
             None => match self.parent {
                 None => None,
                 Some(parent) => vm.frames[parent].borrow().get_variable(name, vm),
             },
             Some(v) => match v {
-                Variable::Let(v) => Some(*v),
-                Variable::Mut(v) => Some(*v),
+                Variable::Let(v) => Some(v.clone()),
+                Variable::Mut(v) => Some(v.clone()),
             },
         }
     }
@@ -106,7 +121,7 @@ impl<'vm> CallFrame<'vm> {
         &self,
         name: &'vm str,
         vm: &VM<'vm>,
-    ) -> Result<Option<Register>, VMError> {
+    ) -> Result<Option<Rc<RefCell<Value>>>, VMError> {
         match self.variables.get(name) {
             None => match self.parent {
                 None => Ok(None),
@@ -117,7 +132,7 @@ impl<'vm> CallFrame<'vm> {
                     "Variable {} is immutable",
                     name
                 ))),
-                Variable::Mut(v) => Ok(Some(*v)),
+                Variable::Mut(v) => Ok(Some(v.clone())),
             },
         }
     }
@@ -130,7 +145,6 @@ impl CallFrame<'_> {
             output: 0,
             scope_id: 0,
             pc: 0,
-            registers: Default::default(),
             variables: Default::default(),
             parent: None,
         }
@@ -142,7 +156,6 @@ impl CallFrame<'_> {
             scope_id,
             output,
             pc: 0,
-            registers: Default::default(),
             variables: Default::default(),
             parent: Some(call_frame_id),
         }

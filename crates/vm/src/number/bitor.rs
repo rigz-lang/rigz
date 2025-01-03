@@ -1,7 +1,7 @@
 use crate::number::Number;
 use std::ops::BitOr;
 
-impl BitOr for Number {
+impl BitOr for &Number {
     type Output = Number;
 
     #[inline]

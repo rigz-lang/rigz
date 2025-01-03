@@ -1,7 +1,7 @@
 use crate::number::Number;
 use std::ops::BitXor;
 
-impl BitXor for Number {
+impl BitXor for &Number {
     type Output = Number;
 
     #[inline]

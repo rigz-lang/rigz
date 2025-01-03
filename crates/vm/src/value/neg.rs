@@ -1,7 +1,7 @@
 use crate::value::Value;
 use std::ops::Neg;
 
-impl Neg for Value {
+impl Neg for &Value {
     type Output = Value;
 
     #[inline]
@@ -11,7 +11,7 @@ impl Neg for Value {
             Value::Bool(b) => Value::Bool(!b),
             Value::Number(n) => Value::Number(-n),
             Value::Range(n) => Value::Range(-n),
-            v => v,
+            v => v.clone(),
         }
     }
 }

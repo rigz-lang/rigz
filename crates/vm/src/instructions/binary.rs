@@ -1,7 +1,10 @@
+use std::cell::RefCell;
+use std::ops::Deref;
+use std::rc::Rc;
 use crate::{Binary, BinaryAssign, BinaryOperation, Clear, Logical, Register, VMError, Value, VM};
 
 #[inline]
-fn eval_binary_operation(binary_operation: BinaryOperation, lhs: Value, rhs: Value) -> Value {
+fn eval_binary_operation(binary_operation: BinaryOperation, lhs: &Value, rhs: &Value) -> Value {
     match binary_operation {
         BinaryOperation::Add => lhs + rhs,
         BinaryOperation::Sub => lhs - rhs,
@@ -31,11 +34,11 @@ impl VM<'_> {
     pub fn apply_binary(
         &mut self,
         binary_operation: BinaryOperation,
-        lhs: Value,
-        rhs: Value,
+        lhs: Rc<RefCell<Value>>,
+        rhs: Rc<RefCell<Value>>,
         output: Register,
     ) {
-        let v = eval_binary_operation(binary_operation, lhs, rhs);
+        let v = eval_binary_operation(binary_operation, lhs.borrow().deref(), rhs.borrow().deref());
 
         self.insert_register(output, v.into());
     }
@@ -58,7 +61,7 @@ impl VM<'_> {
         let rhs = self.resolve_register(&rhs);
         match self.update_register(lhs, |v| {
             // todo remove v.clone() & rhs.clone()
-            *v = eval_binary_operation(op, v.clone(), rhs.clone());
+            *v = eval_binary_operation(op, v, rhs.borrow().deref());
             Ok(None)
         }) {
             Ok(_) => {}
@@ -101,19 +104,19 @@ impl VM<'_> {
                 .into(),
             ),
             Clear::Two(c1, c2) => {
-                let v = VMError::RuntimeError(format!(
+                let v: Rc<RefCell<Value>> = VMError::RuntimeError(format!(
                     "Invalid Registers Passed to binary_clear: {} and {} must be either {} or {}",
                     c1, c2, lhs, rhs
                 ))
-                .to_value();
+                .to_value().into();
                 (v.clone(), v)
             }
             c => {
-                let v = VMError::RuntimeError(format!(
+                let v: Rc<RefCell<Value>> = VMError::RuntimeError(format!(
                     "Invalid Option Passed to binary_clear: {:?}",
                     c
                 ))
-                .to_value();
+                .to_value().into();
                 (v.clone(), v)
             }
         };

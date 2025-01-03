@@ -1,7 +1,7 @@
 use crate::number::Number;
 use crate::Reverse;
 
-impl Reverse for Number {
+impl Reverse for &Number {
     type Output = Number;
 
     #[inline]

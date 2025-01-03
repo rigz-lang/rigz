@@ -93,11 +93,11 @@ pub(crate) fn repl(args: ReplArgs) {
             for _ in last_success..len {
                 vm.scopes[vm.sp].instructions.remove(last_success);
             }
-            vm.current.borrow_mut().pc = last_success;
+            vm.frames.current.borrow_mut().pc = last_success;
             needs_reset = false;
         } else {
             let vm = runtime.vm();
-            last_success = vm.current.borrow().pc;
+            last_success = vm.frames.current.borrow().pc;
         };
 
         // todo add line numbers, runtime will need to keep track of them too for error messages

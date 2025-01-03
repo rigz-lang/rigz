@@ -1,7 +1,7 @@
 use crate::number::Number;
 use std::ops::Neg;
 
-impl Neg for Number {
+impl Neg for &Number {
     type Output = Number;
 
     #[inline]

@@ -39,7 +39,7 @@ impl PartialOrd for ValueRange {
     }
 }
 
-impl Neg for ValueRange {
+impl Neg for &ValueRange {
     type Output = ValueRange;
 
     fn neg(self) -> Self::Output {
@@ -48,7 +48,7 @@ impl Neg for ValueRange {
                 start: -i.start,
                 end: i.end,
             }),
-            ValueRange::Char(a) => ValueRange::Char(a),
+            ValueRange::Char(a) => ValueRange::Char(a.clone()),
         }
     }
 }

@@ -2,8 +2,8 @@ use crate::vm::RegisterValue;
 use crate::vm::VMOptions;
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, Binary, BinaryAssign,
-    BinaryOperation, CallFrame, Clear, Instruction, Lifecycle, Module, Register, RigzType, Scope,
-    Unary, UnaryAssign, UnaryOperation, Value, VM,
+    BinaryOperation, Clear, Instruction, Lifecycle, Module, Register, RigzType, Scope, Unary,
+    UnaryAssign, UnaryOperation, Value, VM,
 };
 use indexmap::IndexMap;
 use log::Level;
@@ -521,8 +521,8 @@ impl<'vm> RigzBuilder<'vm> for VMBuilder<'vm> {
     fn build(self) -> VM<'vm> {
         VM {
             scopes: self.scopes,
-            current: CallFrame::main().into(),
-            frames: vec![],
+            frames: Default::default(),
+            registers: Default::default(),
             modules: self.modules,
             sp: 0,
             options: self.options,

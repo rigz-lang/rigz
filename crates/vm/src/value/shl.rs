@@ -3,28 +3,28 @@ use crate::value::Value;
 use crate::VMError;
 use std::ops::Shl;
 
-impl Shl for Value {
+impl Shl for &Value {
     type Output = Value;
 
     #[inline]
     fn shl(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (Value::Error(v), _) | (_, Value::Error(v)) => Value::Error(v),
+            (Value::Error(v), _) | (_, Value::Error(v)) => Value::Error(v.clone()),
             (Value::Type(t), a) | (a, Value::Type(t)) => Value::Error(
                 VMError::UnsupportedOperation(format!("Invalid Operation (<<): {t} and {a}")),
             ),
             (Value::None, _) => Value::None,
-            (lhs, Value::None) => lhs,
-            (rhs, Value::Bool(b)) => {
+            (lhs, Value::None) => lhs.clone(),
+            (rhs, &Value::Bool(b)) => {
                 if b {
-                    rhs << Value::Number(Number::Int(1))
+                    rhs << &Value::Number(Number::Int(1))
                 } else {
-                    rhs
+                    rhs.clone()
                 }
             }
-            (Value::Bool(lhs), Value::Number(rhs)) => {
+            (&Value::Bool(lhs), Value::Number(rhs)) => {
                 if lhs {
-                    Value::Number(Number::Int(1) >> rhs)
+                    Value::Number(&Number::Int(1) >> rhs)
                 } else {
                     Value::Number(Number::Int(0))
                 }
@@ -34,7 +34,7 @@ impl Shl for Value {
                 let s = Value::String(b.clone());
                 match s.to_number() {
                     Err(_) => VMError::UnsupportedOperation(format!("{} << {}", a, b)).to_value(),
-                    Ok(r) => Value::Number(a << r),
+                    Ok(r) => Value::Number(a << &r),
                 }
             }
             (Value::String(lhs), Value::Number(rhs)) => {
@@ -54,8 +54,8 @@ impl Shl for Value {
             (Value::Tuple(a), Value::Tuple(b)) => {
                 Value::Tuple(a.into_iter().zip(b).map(|(a, b)| a << b).collect())
             }
-            (Value::Tuple(a), b) => Value::Tuple(a.into_iter().map(|a| a << b.clone()).collect()),
-            (b, Value::Tuple(a)) => Value::Tuple(a.into_iter().map(|a| b.clone() << a).collect()),
+            (Value::Tuple(a), b) => Value::Tuple(a.into_iter().map(|a| a << b).collect()),
+            (b, Value::Tuple(a)) => Value::Tuple(a.into_iter().map(|a| b << a).collect()),
             _ => todo!(),
         }
     }

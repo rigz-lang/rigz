@@ -1,7 +1,7 @@
 use crate::number::Number;
 use std::ops::Rem;
 
-impl Rem for Number {
+impl Rem for &Number {
     type Output = Number;
 
     #[inline]

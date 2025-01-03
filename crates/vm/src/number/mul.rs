@@ -1,7 +1,7 @@
 use crate::number::Number;
 use std::ops::Mul;
 
-impl Mul for Number {
+impl Mul for &Number {
     type Output = Number;
 
     #[inline]

@@ -25,7 +25,7 @@ impl<'vm> RigzVM<'vm> for VMModule {
     }
 
     fn mut_vm_first(&self, vm: &mut VM<'vm>) -> Result<Value, VMError> {
-        let first = match vm.current.borrow().registers.first() {
+        let first = match vm.registers.first() {
             None => return Err(VMError::EmptyRegister("Registers are empty".to_string())),
             Some((_, v)) => v.borrow().clone(),
         };
@@ -34,7 +34,7 @@ impl<'vm> RigzVM<'vm> for VMModule {
     }
 
     fn mut_vm_last(&self, vm: &mut VM<'vm>) -> Result<Value, VMError> {
-        let last = match vm.current.borrow().registers.last() {
+        let last = match vm.registers.last() {
             None => return Err(VMError::EmptyRegister("Registers are empty".to_string())),
             Some((_, v)) => v.borrow().clone(),
         };

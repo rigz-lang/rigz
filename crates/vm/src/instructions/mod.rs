@@ -1,6 +1,8 @@
 mod binary;
 mod unary;
 
+use std::cell::RefCell;
+use std::ops::{Deref, DerefMut};
 use crate::objects::RigzType;
 use crate::vm::{RegisterValue, VMState};
 use crate::{
@@ -179,17 +181,18 @@ impl<'vm> VM<'vm> {
     }
 
     #[inline]
+    #[log_derive::logfn_inputs(Debug, fmt = "process_instruction(vm={:#p}, instruction={:?})")]
     pub fn process_core_instruction(&mut self, instruction: &Instruction<'vm>) -> VMState {
         match instruction {
-            Instruction::Halt(r) => return VMState::Done(self.resolve_register(r)),
+            Instruction::Halt(r) => return VMState::Done(self.resolve_register(r).borrow().clone()),
             Instruction::HaltIfError(r) => {
                 let value = self.resolve_register(r);
-                if let Value::Error(e) = value {
-                    return e.into();
-                }
+                if let Value::Error(e) = value.borrow().deref() {
+                    return e.clone().into();
+                };
             }
-            &Instruction::SetSelf(register, mutable) => {
-                let success = if mutable {
+            Instruction::SetSelf(register, mutable) => {
+                let success = if *mutable {
                     self.load_mut("self", register)
                 } else {
                     self.load_let("self", register)
@@ -203,7 +206,12 @@ impl<'vm> VM<'vm> {
             }
             &Instruction::GetSelf(output, mutable) => {
                 if mutable {
-                    let og = match self.current.borrow().get_mutable_variable("self", self) {
+                    let og = match self
+                        .frames
+                        .current
+                        .borrow()
+                        .get_mutable_variable("self", self)
+                    {
                         Ok(v) => match v {
                             None => return VMError::RuntimeError("Self not set".into()).into(),
                             Some(og) => og,
@@ -213,14 +221,13 @@ impl<'vm> VM<'vm> {
                                 .into()
                         }
                     };
-                    self.swap_register(og, output);
+                    self.insert_register(output, RegisterValue::Value(og));
                 } else {
-                    let s = match self.current.borrow().get_variable("self", self) {
+                    let v = match self.frames.current.borrow().get_variable("self", self) {
                         None => return VMError::RuntimeError("Self not set".into()).into(),
                         Some(s) => s,
                     };
-                    let v = self.resolve_register(&s);
-                    self.insert_register(output, v.into());
+                    self.insert_register(output, RegisterValue::Value(v));
                 };
             }
             Instruction::Clear(clear) => self.handle_clear(clear),
@@ -233,11 +240,11 @@ impl<'vm> VM<'vm> {
             Instruction::Load(r, v) => {
                 self.insert_register(*r, v.clone());
             }
-            &Instruction::LoadLetRegister(name, register) => match self.load_let(name, register) {
+            Instruction::LoadLetRegister(name, register) => match self.load_let(name, register) {
                 Ok(_) => {}
                 Err(e) => return VMState::Done(e.into()),
             },
-            &Instruction::LoadMutRegister(name, register) => match self.load_mut(name, register) {
+            Instruction::LoadMutRegister(name, register) => match self.load_mut(name, register) {
                 Ok(_) => {}
                 Err(e) => return VMState::Done(e.into()),
             },
@@ -255,7 +262,7 @@ impl<'vm> VM<'vm> {
                 this,
                 mutable,
                 args,
-            } => match self.call_frame_self(*scope, *this, *output, args, *mutable) {
+            } => match self.call_frame_self(*scope, this, *output, args, *mutable) {
                 Ok(_) => {}
                 Err(e) => return e.into(),
             },
@@ -358,7 +365,7 @@ impl<'vm> VM<'vm> {
                 to,
             } => {
                 let value = self.resolve_register(from);
-                self.insert_register(*to, value.cast(rigz_type).into());
+                self.insert_register(*to, value.borrow().cast(rigz_type).into());
             }
             Instruction::CallEq(a, b, scope_index, output) => {
                 let a = self.resolve_register(a);
@@ -386,22 +393,22 @@ impl<'vm> VM<'vm> {
                 else_scope,
                 output,
             } => {
-                let (scope, r) = if self.resolve_register(truthy).to_bool() {
-                    let (if_scope, output) = if_scope;
-                    (if_scope, output)
+                let (scope, reg) = if self.resolve_register(truthy).borrow().to_bool() {
+                    let (if_scope, o) = if_scope;
+                    (if_scope, o)
                 } else {
                     let (else_scope, r) = else_scope;
                     (else_scope, r)
                 };
-                let r = self.handle_scope(*scope, &[], *r);
-                self.insert_register(*output, r.into());
+                let v = self.handle_scope(*scope, &[], *reg);
+                self.insert_register(*output, v.into());
             }
             Instruction::If {
                 truthy,
                 if_scope,
                 output,
             } => {
-                let v = if self.resolve_register(truthy).to_bool() {
+                let v = if self.resolve_register(truthy).borrow().to_bool() {
                     self.handle_scope(*if_scope, &[], *output)
                 } else {
                     Value::None
@@ -413,7 +420,7 @@ impl<'vm> VM<'vm> {
                 unless_scope,
                 output,
             } => {
-                let v = if self.resolve_register(truthy).to_bool() {
+                let v = if !self.resolve_register(truthy).borrow().to_bool() {
                     self.handle_scope(*unless_scope, &[], *output)
                 } else {
                     Value::None
@@ -421,7 +428,7 @@ impl<'vm> VM<'vm> {
                 self.insert_register(*output, v.into());
             }
             Instruction::GetVariable(name, reg) => {
-                let r = self.current.borrow().get_variable(name, self);
+                let r = self.frames.current.borrow().get_variable(name, self);
                 match r {
                     None => {
                         return VMError::VariableDoesNotExist(format!(
@@ -430,21 +437,27 @@ impl<'vm> VM<'vm> {
                         ))
                         .into()
                     }
-                    Some(s) => {
-                        let v = self.resolve_register(&s);
+                    Some(v) => {
                         self.insert_register(*reg, v.into());
                     }
                 }
             }
             &Instruction::GetMutableVariable(name, reg) => {
-                let og = match self.current.borrow().get_mutable_variable(name, self) {
-                    Ok(None) => None,
-                    Err(e) => {
-                        self.insert_register(reg, e.into());
-                        None
-                    }
-                    Ok(Some(original)) => Some(original),
+                let (og, err) = match self
+                    .frames
+                    .current
+                    .borrow()
+                    .get_mutable_variable(name, self)
+                {
+                    Ok(None) => (None, None),
+                    Err(e) => (None, Some(e)),
+                    Ok(Some(original)) => (Some(original), None),
                 };
+
+                if let Some(e) = err {
+                    self.insert_register(reg, e.into());
+                }
+
                 match og {
                     None => {
                         return VMError::VariableDoesNotExist(format!(
@@ -453,7 +466,9 @@ impl<'vm> VM<'vm> {
                         ))
                         .into();
                     }
-                    Some(og) => self.swap_register(og, reg),
+                    Some(og) => {
+                        self.registers.insert(reg, RefCell::new(RegisterValue::Value(og)));
+                    },
                 }
             }
             Instruction::Log(level, tmpl, args) => {
@@ -463,7 +478,7 @@ impl<'vm> VM<'vm> {
 
                 let mut res = (*tmpl).to_string();
                 for arg in args {
-                    let l = self.resolve_register(arg).to_string();
+                    let l = self.resolve_register(arg).borrow().to_string();
                     res = res.replacen("{}", l.as_str(), 1);
                 }
                 log!(*level, "{}", res)
@@ -476,7 +491,7 @@ impl<'vm> VM<'vm> {
                     let len = args.len() - 1;
                     for (index, r) in args.iter().enumerate() {
                         let arg = self.resolve_register(r);
-                        puts.push_str(arg.to_string().as_str());
+                        puts.push_str(arg.borrow().to_string().as_str());
                         if index < len {
                             puts.push_str(", ");
                         }
@@ -493,7 +508,7 @@ impl<'vm> VM<'vm> {
             }
             &Instruction::Goto(scope_id, index) => {
                 self.sp = scope_id;
-                self.current.borrow_mut().pc = index;
+                self.frames.current.borrow_mut().pc = index;
             }
             Instruction::AddInstruction(scope, instruction) => match self.scopes.get_mut(*scope) {
                 None => {
@@ -578,11 +593,8 @@ impl<'vm> VM<'vm> {
                 self.stack.push(v);
             }
             &Instruction::Pop(output) => {
-                let v = match self.stack.pop() {
-                    None => VMError::RuntimeError("Pop called on empty stack".into()).into(),
-                    Some(v) => v.into(),
-                };
-                self.insert_register(output, v);
+                let v = self.stack.pop().unwrap_or_else(|| VMError::RuntimeError("Pop called on empty stack".into()).into());
+                self.insert_register(output, RegisterValue::Value(v));
             }
             Instruction::CallMemo {
                 scope,
@@ -598,7 +610,7 @@ impl<'vm> VM<'vm> {
                 output,
                 mutable,
                 args,
-            } => match self.call_frame_self_memo(*scope, *this, *output, args, *mutable) {
+            } => match self.call_frame_self_memo(*scope, this, *output, args, *mutable) {
                 Ok(_) => {}
                 Err(e) => return e.into(),
             },
@@ -608,7 +620,7 @@ impl<'vm> VM<'vm> {
                 output,
             } => {
                 let mut result = vec![];
-                let this = self.resolve_register(&this).to_list();
+                let this = self.resolve_register(&this).borrow().to_list();
                 for value in this {
                     self.insert_register(output, value.into());
                     // todo ideally this doesn't need a call frame per intermediate, it should be possible to reuse the current scope/fram
@@ -628,7 +640,7 @@ impl<'vm> VM<'vm> {
                 output,
             } => {
                 let mut result = IndexMap::new();
-                let this = self.resolve_register(&this).to_map();
+                let this = self.resolve_register(&this).borrow().to_map();
                 for (k, v) in this {
                     self.insert_register(key, k.into());
                     self.insert_register(value, v.into());
@@ -661,7 +673,7 @@ impl<'vm> VM<'vm> {
     fn instance_get(&mut self, source: &Register, attr: &Register, output: Register) {
         let attr = self.resolve_register(attr);
         let source = self.resolve_register(source);
-        let v = match source.get(attr) {
+        let v = match source.borrow().get(attr.borrow().deref()) {
             Ok(Some(v)) => v,
             Ok(None) => Value::None,
             Err(e) => e.into(),
@@ -678,35 +690,28 @@ impl<'vm> VM<'vm> {
     ) {
         let attr = self.resolve_register(index);
         let value = self.resolve_register(value);
-        let mut source = self.resolve_register(source);
-        match (&mut source, attr) {
+        let value = value.borrow();
+        let source = self.resolve_register(source);
+        match (source.borrow_mut().deref_mut(), attr.borrow().deref()) {
             // todo support ranges as attr
             (Value::String(s), Value::Number(n)) => match n.to_usize() {
                 Ok(index) => {
                     s.insert_str(index, value.to_string().as_str());
                 }
                 Err(e) => {
-                    source = e.into();
+                    source.replace(e.into());
                 }
             },
-            (Value::List(s), Value::Number(n)) => match n.to_usize() {
+            (Value::List(s), Value::Number(n)) | (Value::Tuple(s), Value::Number(n)) => match n.to_usize() {
                 Ok(index) => {
-                    s.insert(index, value);
+                    s.insert(index, value.clone());
                 }
                 Err(e) => {
-                    source = e.into();
-                }
-            },
-            (Value::Tuple(s), Value::Number(n)) => match n.to_usize() {
-                Ok(index) => {
-                    s.insert(index, value);
-                }
-                Err(e) => {
-                    source = e.into();
+                    source.replace(e.into());
                 }
             },
             (Value::Map(source), index) => {
-                source.insert(index, value);
+                source.insert(index.clone(), value.clone());
             }
             (Value::Number(source), Value::Number(n)) => {
                 let value = if value.to_bool() { 1 } else { 0 };
@@ -721,11 +726,10 @@ impl<'vm> VM<'vm> {
                 }
             }
             (source, attr) => {
-                *source =
-                    VMError::UnsupportedOperation(format!("Cannot read {} for {}", attr, source))
+                *source = VMError::UnsupportedOperation(format!("Cannot read {} for {}", attr, source))
                         .into();
             }
         };
-        self.insert_register(output, source.into());
+        self.insert_register(output, source.borrow().clone().into());
     }
 }

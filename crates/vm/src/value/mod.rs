@@ -14,6 +14,7 @@ mod shl;
 mod shr;
 mod sub;
 
+use std::cell::RefCell;
 pub use error::VMError;
 
 use crate::{impl_from, Number, RigzType, ValueRange};
@@ -22,6 +23,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::rc::Rc;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -38,6 +40,13 @@ pub enum Value {
     Tuple(Vec<Value>),
     // todo create dedicated object value to avoid map usage everywhere, might need to be a trait. Create to_o method for value
     Type(RigzType),
+}
+
+impl From<Value> for Rc<RefCell<Value>> {
+    #[inline]
+    fn from(value: Value) -> Self {
+        Rc::new(RefCell::new(value))
+    }
 }
 
 impl_from! {
@@ -370,7 +379,7 @@ impl Value {
     }
 
     #[inline]
-    pub fn cast(self, rigz_type: &RigzType) -> Value {
+    pub fn cast(&self, rigz_type: &RigzType) -> Value {
         match (self, rigz_type) {
             (_, RigzType::None) => Value::None,
             (v, RigzType::Bool) => Value::Bool(v.to_bool()),
@@ -379,7 +388,7 @@ impl Value {
                 Err(e) => e.into(),
                 Ok(n) => n.into(),
             },
-            (s, RigzType::Any) => s,
+            (s, RigzType::Any) => s.clone(),
             (v, RigzType::Int) => match v.to_int() {
                 Err(_) => {
                     VMError::ConversionError(format!("Cannot convert {} to Int", v)).to_value()
@@ -415,7 +424,7 @@ impl Value {
         }
     }
 
-    pub fn get(self, attr: Value) -> Result<Option<Value>, VMError> {
+    pub fn get(&self, attr: &Value) -> Result<Option<Value>, VMError> {
         let v = match (self, attr) {
             // todo support ranges as attr
             (Value::String(source), Value::Number(n)) => match n.to_usize() {
@@ -434,7 +443,7 @@ impl Value {
                     Err(e) => e.into(),
                 }
             }
-            (Value::Map(source), index) => match source.get(&index) {
+            (Value::Map(source), index) => match source.get(index) {
                 None => {
                     if let Value::Number(index) = index {
                         if let Ok(index) = index.to_usize() {

@@ -2,13 +2,13 @@ use crate::value::Value;
 use crate::VMError;
 use std::ops::Div;
 
-impl Div for Value {
+impl Div for &Value {
     type Output = Value;
 
     #[inline]
     fn div(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (Value::Error(v), _) | (_, Value::Error(v)) => Value::Error(v),
+            (Value::Error(v), _) | (_, Value::Error(v)) => Value::Error(v.clone()),
             (Value::Type(t), a) | (a, Value::Type(t)) => Value::Error(
                 VMError::UnsupportedOperation(format!("Invalid Operation (/): {t} and {a}")),
             ),
@@ -34,7 +34,7 @@ impl Div for Value {
                 let s = Value::String(b.clone());
                 match s.to_number() {
                     Err(_) => VMError::UnsupportedOperation(format!("{} / {}", a, b)).to_value(),
-                    Ok(r) => Value::Number(a / r),
+                    Ok(r) => Value::Number(a / &r),
                 }
             }
             (Value::String(a), Value::String(b)) => {
@@ -49,8 +49,8 @@ impl Div for Value {
             (Value::Tuple(a), Value::Tuple(b)) => {
                 Value::Tuple(a.into_iter().zip(b).map(|(a, b)| a / b).collect())
             }
-            (Value::Tuple(a), b) => Value::Tuple(a.into_iter().map(|a| a / b.clone()).collect()),
-            (b, Value::Tuple(a)) => Value::Tuple(a.into_iter().map(|a| b.clone() / a).collect()),
+            (Value::Tuple(a), b) => Value::Tuple(a.into_iter().map(|a| a / b).collect()),
+            (b, Value::Tuple(a)) => Value::Tuple(a.into_iter().map(|a| b / a).collect()),
             // (Value::List(a), Value::List(b)) => {
             //     let mut result = a.clone();
             //     result.extend(b);

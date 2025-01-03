@@ -297,12 +297,16 @@ mod runtime {
     mod debug {
         use super::*;
         run_debug_vm! {
+            // the issue is that in later call frames n = R15, binary op stores output in R15, thus n is overwritten in current frame when next n is used
             factorial(r#"
             fn factorial(n: Number)
+                puts :call, n
                 if n == 0
                     1
                 else
+                    puts n, n - 1
                     a = factorial n - 1
+                    puts 'a = ' + a + ', n = ' + n
                     n * a
                 end
             end

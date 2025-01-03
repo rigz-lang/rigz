@@ -2,7 +2,7 @@ use crate::value_range::ValueRange;
 use crate::Number;
 use std::ops::{Add, Range};
 
-impl Add for ValueRange {
+impl Add for &ValueRange {
     type Output = Option<ValueRange>;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -38,10 +38,10 @@ impl Add for ValueRange {
     }
 }
 
-impl Add<Number> for ValueRange {
+impl Add<&Number> for &ValueRange {
     type Output = Option<ValueRange>;
 
-    fn add(self, rhs: Number) -> Self::Output {
+    fn add(self, rhs: &Number) -> Self::Output {
         let rhs = rhs.to_int();
         match self {
             ValueRange::Int(r) => Some(ValueRange::Int(Range {

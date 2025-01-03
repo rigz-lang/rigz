@@ -70,7 +70,7 @@ macro_rules! define_value_tests {
         $(
             #[test]
             fn $test_name() {
-                assert_eq!($expected, $val1 $op $val2);
+                assert_eq!($expected, &$val1 $op &$val2);
             }
         )*
     };

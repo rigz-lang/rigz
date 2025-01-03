@@ -2,18 +2,18 @@ use crate::value::Value;
 use crate::VMError;
 use std::ops::Sub;
 
-impl Sub for Value {
+impl Sub for &Value {
     type Output = Value;
 
     #[inline]
     fn sub(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (Value::Error(v), _) | (_, Value::Error(v)) => Value::Error(v),
+            (Value::Error(v), _) | (_, Value::Error(v)) => Value::Error(v.clone()),
             (Value::Type(t), a) | (a, Value::Type(t)) => Value::Error(
                 VMError::UnsupportedOperation(format!("Invalid Operation (-): {t} and {a}")),
             ),
             (Value::None, rhs) => -rhs,
-            (lhs, Value::None) => lhs,
+            (lhs, Value::None) => lhs.clone(),
             (Value::Bool(a), Value::Bool(b)) => Value::Bool(a | b),
             (Value::Bool(a), b) => Value::Bool(a | b.to_bool()),
             (b, Value::Bool(a)) => Value::Bool(a | b.to_bool()),
@@ -22,7 +22,7 @@ impl Sub for Value {
                 let s = Value::String(b.clone());
                 match s.to_number() {
                     Err(_) => VMError::UnsupportedOperation(format!("{} - {}", a, b)).to_value(),
-                    Ok(r) => Value::Number(a / r),
+                    Ok(r) => Value::Number(a / &r),
                 }
             }
             (Value::String(a), Value::String(b)) => {
@@ -36,7 +36,7 @@ impl Sub for Value {
             }
             (Value::List(a), b) => {
                 let mut result = a.clone();
-                result.retain(|v| *v != b);
+                result.retain(|v| v != b);
                 Value::List(result)
             }
             (Value::Map(a), Value::Map(b)) => {
@@ -46,14 +46,14 @@ impl Sub for Value {
             }
             (Value::Map(a), b) => {
                 let mut result = a.clone();
-                result.retain(|_, v| b != *v);
+                result.retain(|_, v| b != v);
                 Value::Map(result)
             }
             (Value::Tuple(a), Value::Tuple(b)) => {
                 Value::Tuple(a.into_iter().zip(b).map(|(a, b)| a - b).collect())
             }
-            (Value::Tuple(a), b) => Value::Tuple(a.into_iter().map(|a| a - b.clone()).collect()),
-            (b, Value::Tuple(a)) => Value::Tuple(a.into_iter().map(|a| b.clone() - a).collect()),
+            (Value::Tuple(a), b) => Value::Tuple(a.into_iter().map(|a| a - b).collect()),
+            (b, Value::Tuple(a)) => Value::Tuple(a.into_iter().map(|a| b - a).collect()),
             _ => todo!(),
         }
     }

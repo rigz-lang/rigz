@@ -1,7 +1,7 @@
 use crate::value::Value;
 use std::ops::Not;
 
-impl Not for Value {
+impl Not for &Value {
     type Output = Value;
 
     #[inline]
@@ -9,7 +9,7 @@ impl Not for Value {
         match self {
             Value::None => Value::Bool(true),
             Value::Bool(b) => Value::Bool(!b),
-            Value::Error(e) => Value::Error(e),
+            Value::Error(e) => Value::Error(e.clone()),
             v => Value::Bool(!v.to_bool()),
         }
     }
