@@ -293,7 +293,7 @@ mod runtime {
             a.extend a
             "# = vec![1, 2, 3, 1, 2, 3])
             map_filter_reduce(r#"
-                [1, 37, '4', 'a'].filter { |v| v.is_num }.map { |v| v.to_i }.reduce(0, |res, next| res + next)
+                [1, 37, '4', 'a'].filter { |v| v.is_num }.map { |v| v.to_i }.reduce 0, |res, next| res + next
             "# = 42)
             map_with_function_reference(r#"
                 fn foo(v)
@@ -322,12 +322,6 @@ mod runtime {
             end
             factorial 4
             "#=24)
-        }
-    }
-
-    mod debug {
-        use super::*;
-        run_debug_vm! {
             fib_recursive(r#"
             fn fib(n: Number) -> Number
                 if n <= 1
@@ -338,6 +332,38 @@ mod runtime {
             end
             fib 6
             "# = 8)
+            trait_impl(r#"
+            trait Hello
+                fn hello = 'Hello'
+            end
+
+            impl Hello for Any
+            end
+
+            1.hello
+            "# = "Hello")
+            early_return(r#"
+            if true
+                return 42
+            end
+
+            37
+            "# = 42)
+            unless_false(r#"
+            a = 37 unless false
+            a || 42
+            "# = 37)
+            unless_true(r#"
+            a = unless true
+                37
+            end
+            a || 42
+            "# = 42)
         }
+    }
+
+    mod debug {
+        use super::*;
+        run_debug_vm! {}
     }
 }

@@ -36,7 +36,8 @@ impl From<RigzArgs> for Vec<Value> {
     }
 }
 
-pub type VarArgs<const START: usize, const COUNT: usize> = ([Rc<RefCell<Value>>; START], [Vec<Value>; COUNT]);
+pub type VarArgs<const START: usize, const COUNT: usize> =
+    ([Rc<RefCell<Value>>; START], [Vec<Value>; COUNT]);
 
 impl RigzArgs {
     #[inline]

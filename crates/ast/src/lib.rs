@@ -243,6 +243,9 @@ impl<'lex> Parser<'lex> {
                 self.consume_token(TokenKind::Mut)?;
                 self.parse_assignment(true)?.into()
             }
+            TokenKind::Impl => {
+                todo!()
+            }
             TokenKind::Lparen => {
                 self.consume_token(TokenKind::Lparen)?;
                 let e = self.parse_paren_expression()?;

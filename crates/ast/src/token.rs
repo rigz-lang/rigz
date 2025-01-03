@@ -189,6 +189,8 @@ pub(crate) enum TokenKind<'lex> {
     Type,
     #[token("trait")]
     Trait,
+    #[token("impl")]
+    Impl,
     #[token("++")]
     Increment,
     #[token("--")]
@@ -275,6 +277,7 @@ impl Display for TokenKind<'_> {
             TokenKind::Else => write!(f, "else"),
             TokenKind::Type => write!(f, "type"),
             TokenKind::Trait => write!(f, "trait"),
+            TokenKind::Impl => write!(f, "impl"),
             TokenKind::Import => write!(f, "import"),
             TokenKind::Export => write!(f, "export"),
             TokenKind::VariableArgs => write!(f, "var"),
