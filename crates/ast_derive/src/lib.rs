@@ -2,10 +2,7 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use rigz_ast::{
-    rigz_type_to_rust_str, FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser,
-    RigzType, Tokens,
-};
+use rigz_ast::{rigz_type_to_rust_str, FunctionDeclaration, FunctionSignature, FunctionType, ModuleTraitDefinition, Parser, RigzType, Tokens};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use syn::{parse_macro_input, parse_str, LitStr, Type};
@@ -198,7 +195,7 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
         module_methods.push(quote! {
             fn call_extension(
                 &self,
-                this: Value,
+                this: Rc<RefCell<Value>>,
                 function: &'vm str,
                 args: RigzArgs,
             ) -> Result<Value, VMError> {
@@ -358,14 +355,24 @@ impl From<FirstArg> for Option<Ident> {
     }
 }
 
-fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: FirstArg) -> Tokens {
-    let first_arg = first_arg.into();
+impl From<FirstArg> for Option<Tokens> {
+    fn from(val: FirstArg) -> Self {
+        match val {
+            FirstArg::None => None,
+            FirstArg::VM => Some(quote! { vm }),
+            FirstArg::MutThis => Some(quote! { this }),
+            FirstArg::This => Some(quote! { this.borrow().clone() }),
+        }
+    }
+}
 
+fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: FirstArg) -> Tokens {
     if fs.len() == 1 {
         let fs = fs.first().unwrap();
         return create_method_call(name, fs, first_arg);
     }
 
+    let first_arg: Option<Tokens> = first_arg.into();
     let first_arg = first_arg.expect("Multi match not supported for non-extension functions");
 
     let mut has_any = false;
@@ -374,19 +381,20 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
         .map(|fs| match &fs.self_type {
             None => panic!("Matched call only supported for extension functions currently"),
             Some(ft) => {
-                let base_call = base_call(name, fs, Some(Ident::new("v", Span::call_site())), true);
+                let base_call = base_call(name, fs, Some(quote! { v }), true);
                 match &ft.rigz_type {
                     RigzType::Any => {
                         has_any = true;
                         quote! {
                             v => {
-                                #base_call
+                                #base_call.borrow().deref()
                             }
                         }
                     }
                     RigzType::Bool => {
                         quote! {
                             Value::Bool(v) => {
+                                let v = v.to_bool();
                                 #base_call
                             }
                         }
@@ -455,7 +463,7 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
     } else {
         quote! {
             #(#match_arms)*
-            v => return Err(VMError::RuntimeError(format!("Cannot call {function} on {v}"))),
+            v => return Err(VMError::RuntimeError(format!("Cannot call {function} on {v:?}"))),
         }
     };
 
@@ -469,7 +477,7 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
 fn base_call(
     name: &str,
     function_signature: &FunctionSignature,
-    first_arg: Option<Ident>,
+    first_arg: Option<Tokens>,
     matched: bool,
 ) -> Tokens {
     let method_name = method_name(name, function_signature);
@@ -718,8 +726,28 @@ fn tuple_call(base_call: Tokens, values: &[RigzType]) -> Tokens {
 fn create_method_call(
     name: &str,
     function_signature: &FunctionSignature,
-    first_arg: Option<Ident>,
+    first_arg: FirstArg,
 ) -> Tokens {
+    let fs: Option<Ident> = first_arg.clone().into();
+    let first_arg = match &function_signature.self_type {
+        None => None,
+        Some(v) => match first_arg {
+            FirstArg::None => unreachable!(),
+            FirstArg::VM | FirstArg::MutThis => {
+                let fs = fs.unwrap();
+                Some(quote! { #fs })
+            }
+            FirstArg::This => {
+                if v.rigz_type == RigzType::Any {
+                    first_arg.into()
+                } else {
+                    let fs = fs.unwrap();
+                    Some(quote! { #fs })
+                }
+            }
+        }
+    };
+
     let base_call = base_call(name, function_signature, first_arg, false);
 
     quote! {
@@ -759,12 +787,17 @@ fn setup_call_args(
         }
 
         let name = Ident::new(arg.name, Span::call_site());
+        let name = quote! { #name };
         match convert_type_for_arg(
             name.clone(),
             &arg.function_type.rigz_type,
             arg.function_type.mutable,
         ) {
-            None => {}
+            None => {
+                call_args.push(quote! {
+                    let #name = #name.borrow().clone();
+                })
+            }
             Some(value) => call_args.push(quote! {
                 let #name = #value;
             }),
@@ -774,7 +807,7 @@ fn setup_call_args(
     (args, call_args, var_args)
 }
 
-fn convert_type_for_arg(name: Ident, rigz_type: &RigzType, mutable: bool) -> Option<Tokens> {
+fn convert_type_for_arg(name: Tokens, rigz_type: &RigzType, mutable: bool) -> Option<Tokens> {
     if rigz_type.is_vm() {
         return None;
     }
@@ -796,14 +829,14 @@ fn convert_type_for_arg(name: Ident, rigz_type: &RigzType, mutable: bool) -> Opt
     } else {
         match &rigz_type {
             RigzType::Any => return None,
-            RigzType::String => quote! { #name.to_string() },
-            RigzType::Number => quote! { #name.to_number()? },
-            RigzType::Int => quote! { #name.to_int()? },
-            RigzType::Float => quote! { #name.to_float()? },
-            RigzType::Bool => quote! { #name.to_bool() },
-            RigzType::List(_) => quote! { #name.to_list() },
-            RigzType::Map(_, _) => quote! { #name.to_map() },
-            RigzType::Type => quote! { #name.rigz_type() },
+            RigzType::String => quote! { #name.borrow().to_string() },
+            RigzType::Number => quote! { #name.borrow().to_number()? },
+            RigzType::Int => quote! { #name.borrow().to_int()? },
+            RigzType::Float => quote! { #name.borrow().to_float()? },
+            RigzType::Bool => quote! { #name.borrow().to_bool() },
+            RigzType::List(_) => quote! { #name.borrow().to_list() },
+            RigzType::Map(_, _) => quote! { #name.borrow().to_map() },
+            RigzType::Type => quote! { #name.borrow().rigz_type() },
             r => todo!("call arg {r:?} is not supported"),
         }
     };

@@ -35,3 +35,10 @@ impl RigzJSON for JSONModule {
     }
 }
 ```
+
+## Todo
+- Rc<RefCell<Value>> are cloned into Values before calling generated module call, however these should be references leaving it up to the function whether to clone or not. The problem here revolves around mutable extension functions, if the mutable arg and another arg are the same refcell the second borrow will panic.
+  - There are three options here:
+    - Use try_borrow and return an error
+    - Clone all arguments passed into mutable extensions before the mutable borrow occurs
+    - Keep cloning and accept that module calls are less efficient than they could be

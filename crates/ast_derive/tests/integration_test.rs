@@ -1,6 +1,9 @@
 use rigz_ast::*;
+use std::rc::Rc;
+use std::cell::RefCell;
 use rigz_ast_derive::derive_module;
 
+// need to borrow this for ext
 derive_module!(
     r#"trait JSON
         fn Any.to_json -> String!
@@ -239,7 +242,7 @@ impl<'vm> RigzVM<'vm> for VMModule {
         todo!()
     }
 }
-
+//
 #[allow(unused_variables)]
 impl RigzFile for FileModule {
     fn read(&self, path: String, encoding: String) -> Result<String, VMError> {
@@ -273,7 +276,7 @@ fn blah() {
     let json = JSONModule;
     assert_eq!(
         "5",
-        json.call("parse", vec![5.into()].into())
+        json.call("parse", vec![Rc::new(RefCell::new(5.into()))].into())
             .expect("json parse failed")
             .to_string()
             .as_str()
