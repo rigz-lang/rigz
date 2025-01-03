@@ -3,7 +3,7 @@ use indexmap::map::Entry;
 use indexmap::IndexMap;
 use log_derive::{logfn, logfn_inputs};
 use std::cell::RefCell;
-use std::ops::{Index};
+use std::ops::Index;
 use std::rc::Rc;
 
 #[derive(Clone, Debug)]
@@ -99,7 +99,6 @@ pub struct CallFrame<'vm> {
 }
 
 impl<'vm> CallFrame<'vm> {
-
     #[logfn(Trace)]
     #[logfn_inputs(Trace, fmt = "get_variable(frame={:#p} name={}, vm={:#p})")]
     pub(crate) fn get_variable(&self, name: &'vm str, vm: &VM<'vm>) -> Option<Rc<RefCell<Value>>> {

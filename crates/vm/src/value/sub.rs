@@ -50,10 +50,10 @@ impl Sub for &Value {
                 Value::Map(result)
             }
             (Value::Tuple(a), Value::Tuple(b)) => {
-                Value::Tuple(a.into_iter().zip(b).map(|(a, b)| a - b).collect())
+                Value::Tuple(a.iter().zip(b).map(|(a, b)| a - b).collect())
             }
-            (Value::Tuple(a), b) => Value::Tuple(a.into_iter().map(|a| a - b).collect()),
-            (b, Value::Tuple(a)) => Value::Tuple(a.into_iter().map(|a| b - a).collect()),
+            (Value::Tuple(a), b) => Value::Tuple(a.iter().map(|a| a - b).collect()),
+            (b, Value::Tuple(a)) => Value::Tuple(a.iter().map(|a| b - a).collect()),
             _ => todo!(),
         }
     }

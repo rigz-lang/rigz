@@ -6,13 +6,13 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 use log::warn;
 use log_derive::{logfn, logfn_inputs};
+use nohash_hasher::BuildNoHashHasher;
 use std::cell::RefCell;
 use std::fmt::Debug;
-use std::ops::{DerefMut};
+use std::ops::DerefMut;
 use std::ptr;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
-use nohash_hasher::BuildNoHashHasher;
 
 pub enum VMState {
     Running,
@@ -170,8 +170,10 @@ impl<'vm> VM<'vm> {
     #[inline]
     pub fn get_register(&self, register: &Register) -> RegisterValue {
         match self.registers.get(register) {
-            None => RegisterValue::Value(Rc::new(RefCell::new(VMError::EmptyRegister(format!("R{register} is empty")).into()))),
-            Some(d) => d.borrow().clone()
+            None => RegisterValue::Value(Rc::new(RefCell::new(
+                VMError::EmptyRegister(format!("R{register} is empty")).into(),
+            ))),
+            Some(d) => d.borrow().clone(),
         }
     }
 
@@ -252,7 +254,7 @@ impl<'vm> VM<'vm> {
     pub fn remove_register(&mut self, register: &Register) -> RegisterValue {
         match self.registers.get_mut(register) {
             None => VMError::EmptyRegister(format!("R{register} is empty")).into(),
-            Some(v) => v.replace(RegisterValue::Value(Rc::new(RefCell::new(Value::None))))
+            Some(v) => v.replace(RegisterValue::Value(Rc::new(RefCell::new(Value::None)))),
         }
     }
 
@@ -502,7 +504,9 @@ impl<'vm> VM<'vm> {
         args: &[Register],
         output: Register,
     ) -> Result<(), VMError> {
-        let call_args = self.resolve_registers(args).into_iter()
+        let call_args = self
+            .resolve_registers(args)
+            .into_iter()
             .map(|v| v.borrow().clone())
             .collect();
         let value = match self.scopes.get_mut(scope_index) {

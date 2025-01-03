@@ -2,7 +2,10 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use rigz_ast::{rigz_type_to_rust_str, FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser, RigzType, Tokens};
+use rigz_ast::{
+    rigz_type_to_rust_str, FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser,
+    RigzType, Tokens,
+};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use syn::{parse_macro_input, parse_str, LitStr, Type};
@@ -463,7 +466,7 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
     } else {
         quote! {
             #(#match_arms)*
-            v => return Err(VMError::RuntimeError(format!("Cannot call {function} on {v:?}"))),
+            v => return Err(VMError::RuntimeError(format!("Cannot call {function} on {v}"))),
         }
     };
 
@@ -728,7 +731,7 @@ fn create_method_call(
     function_signature: &FunctionSignature,
     first_arg: FirstArg,
 ) -> Tokens {
-    let fs: Option<Ident> = first_arg.clone().into();
+    let fs: Option<Ident> = first_arg.into();
     let first_arg = match &function_signature.self_type {
         None => None,
         Some(v) => match first_arg {
@@ -745,7 +748,7 @@ fn create_method_call(
                     Some(quote! { #fs })
                 }
             }
-        }
+        },
     };
 
     let base_call = base_call(name, function_signature, first_arg, false);
@@ -793,11 +796,9 @@ fn setup_call_args(
             &arg.function_type.rigz_type,
             arg.function_type.mutable,
         ) {
-            None => {
-                call_args.push(quote! {
-                    let #name = #name.borrow().clone();
-                })
-            }
+            None => call_args.push(quote! {
+                let #name = #name.borrow().clone();
+            }),
             Some(value) => call_args.push(quote! {
                 let #name = #value;
             }),

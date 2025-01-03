@@ -1,7 +1,7 @@
-use std::cell::RefCell;
 use crate::{VMError, Value, VM};
 use derive_more::IntoIterator;
 use dyn_clone::DynClone;
+use std::cell::RefCell;
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
 use std::rc::Rc;
@@ -35,6 +35,8 @@ impl From<RigzArgs> for Vec<Value> {
         value.0.into_iter().map(|v| v.borrow().clone()).collect()
     }
 }
+
+pub type VarArgs<const START: usize, const COUNT: usize> = ([Rc<RefCell<Value>>; START], [Vec<Value>; COUNT]);
 
 impl RigzArgs {
     #[inline]
@@ -77,7 +79,7 @@ impl RigzArgs {
     #[inline]
     pub fn var_args<const START: usize, const COUNT: usize>(
         self,
-    ) -> Result<([Rc<RefCell<Value>>; START], [Vec<Value>; COUNT]), VMError> {
+    ) -> Result<VarArgs<START, COUNT>, VMError> {
         if self.len() < START {
             return Err(VMError::RuntimeError(format!(
                 "Invalid args, expected {START} argument{}",
@@ -114,13 +116,16 @@ impl RigzArgs {
 
 #[cfg(test)]
 mod rigz_args {
+    use crate::{RigzArgs, Value};
     use std::cell::RefCell;
     use std::rc::Rc;
-    use crate::{RigzArgs, Value};
 
     #[test]
     fn take() {
-        let args = RigzArgs(vec![Rc::new(RefCell::new(1.into())), Rc::new(RefCell::new(2.into()))]);
+        let args = RigzArgs(vec![
+            Rc::new(RefCell::new(1.into())),
+            Rc::new(RefCell::new(2.into())),
+        ]);
         let [first] = args.take().expect("Failed to take first");
         assert_eq!(first, Rc::new(RefCell::new(1.into())));
     }
@@ -138,7 +143,9 @@ mod rigz_args {
 
     #[test]
     fn var_args_skip_first() {
-        let args = RigzArgs(vec![Rc::new(RefCell::new(Value::List(vec![1.into(), 2.into(), 3.into()]).into()))]);
+        let args = RigzArgs(vec![Rc::new(RefCell::new(
+            Value::List(vec![1.into(), 2.into(), 3.into()]).into(),
+        ))]);
         let ([], [var]) = args.var_args().expect("Failed to get var_args");
         assert_eq!(var, vec![1.into(), 2.into(), 3.into()]);
     }
@@ -194,6 +201,7 @@ pub trait Module<'vm>: Debug + DynClone {
         )))
     }
 
+    // todo this no longer needs to be separate from call_extension
     fn call_mutable_extension(
         &self,
         this: &mut Value,

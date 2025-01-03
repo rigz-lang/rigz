@@ -14,8 +14,8 @@ mod shl;
 mod shr;
 mod sub;
 
-use std::cell::RefCell;
 pub use error::VMError;
+use std::cell::RefCell;
 
 use crate::{impl_from, Number, RigzType, ValueRange};
 use indexmap::IndexMap;

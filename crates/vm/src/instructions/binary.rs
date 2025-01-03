@@ -1,7 +1,7 @@
+use crate::{Binary, BinaryAssign, BinaryOperation, Clear, Logical, Register, VMError, Value, VM};
 use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
-use crate::{Binary, BinaryAssign, BinaryOperation, Clear, Logical, Register, VMError, Value, VM};
 
 #[inline]
 fn eval_binary_operation(binary_operation: BinaryOperation, lhs: &Value, rhs: &Value) -> Value {
@@ -108,7 +108,8 @@ impl VM<'_> {
                     "Invalid Registers Passed to binary_clear: {} and {} must be either {} or {}",
                     c1, c2, lhs, rhs
                 ))
-                .to_value().into();
+                .to_value()
+                .into();
                 (v.clone(), v)
             }
             c => {
@@ -116,7 +117,8 @@ impl VM<'_> {
                     "Invalid Option Passed to binary_clear: {:?}",
                     c
                 ))
-                .to_value().into();
+                .to_value()
+                .into();
                 (v.clone(), v)
             }
         };

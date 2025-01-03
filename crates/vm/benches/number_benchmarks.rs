@@ -7,7 +7,7 @@ fn number_benchmark(c: &mut Criterion) {
         b.iter(|| {
             let lhs: Number = black_box(2).into();
             let rhs: Number = black_box(2).into();
-            lhs + rhs
+            &lhs + &rhs
         })
     });
 
@@ -15,7 +15,7 @@ fn number_benchmark(c: &mut Criterion) {
         b.iter(|| {
             let lhs: Number = black_box(2).into();
             let rhs: Number = black_box(2).into();
-            lhs * rhs
+            &lhs * &rhs
         })
     });
 
@@ -23,7 +23,7 @@ fn number_benchmark(c: &mut Criterion) {
         b.iter(|| {
             let lhs: Number = black_box(2).into();
             let rhs: Number = black_box(2).into();
-            lhs / rhs
+            &lhs / &rhs
         })
     });
 }

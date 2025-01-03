@@ -9,7 +9,8 @@ impl Logical<&Value> for &Value {
         match (self.to_bool(), rhs.to_bool()) {
             (false, _) => self,
             (true, _) => rhs,
-        }.clone()
+        }
+        .clone()
     }
 
     #[inline]
@@ -17,7 +18,8 @@ impl Logical<&Value> for &Value {
         match (self.to_bool(), rhs.to_bool()) {
             (false, _) => rhs,
             (true, _) => self,
-        }.clone()
+        }
+        .clone()
     }
 
     #[inline]
@@ -34,6 +36,7 @@ impl Logical<&Value> for &Value {
         match (self, rhs) {
             (Value::None | Value::Error(_), rhs) => rhs,
             (lhs, _) => lhs,
-        }.clone()
+        }
+        .clone()
     }
 }

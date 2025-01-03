@@ -1,8 +1,6 @@
 mod binary;
 mod unary;
 
-use std::cell::RefCell;
-use std::ops::{Deref, DerefMut};
 use crate::objects::RigzType;
 use crate::vm::{RegisterValue, VMState};
 use crate::{
@@ -10,6 +8,8 @@ use crate::{
 };
 use indexmap::IndexMap;
 use log::{log, Level};
+use std::cell::RefCell;
+use std::ops::{Deref, DerefMut};
 
 // todo simplify clear usage
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -184,7 +184,9 @@ impl<'vm> VM<'vm> {
     #[log_derive::logfn_inputs(Debug, fmt = "process_instruction(vm={:#p}, instruction={:?})")]
     pub fn process_core_instruction(&mut self, instruction: &Instruction<'vm>) -> VMState {
         match instruction {
-            Instruction::Halt(r) => return VMState::Done(self.resolve_register(r).borrow().clone()),
+            Instruction::Halt(r) => {
+                return VMState::Done(self.resolve_register(r).borrow().clone())
+            }
             Instruction::HaltIfError(r) => {
                 let value = self.resolve_register(r);
                 if let Value::Error(e) = value.borrow().deref() {
@@ -467,8 +469,9 @@ impl<'vm> VM<'vm> {
                         .into();
                     }
                     Some(og) => {
-                        self.registers.insert(reg, RefCell::new(RegisterValue::Value(og)));
-                    },
+                        self.registers
+                            .insert(reg, RefCell::new(RegisterValue::Value(og)));
+                    }
                 }
             }
             Instruction::Log(level, tmpl, args) => {
@@ -593,7 +596,9 @@ impl<'vm> VM<'vm> {
                 self.stack.push(v);
             }
             &Instruction::Pop(output) => {
-                let v = self.stack.pop().unwrap_or_else(|| VMError::RuntimeError("Pop called on empty stack".into()).into());
+                let v = self.stack.pop().unwrap_or_else(|| {
+                    VMError::RuntimeError("Pop called on empty stack".into()).into()
+                });
                 self.insert_register(output, RegisterValue::Value(v));
             }
             Instruction::CallMemo {
@@ -704,14 +709,16 @@ impl<'vm> VM<'vm> {
                     source.replace(e.into());
                 }
             },
-            (Value::List(s), Value::Number(n)) | (Value::Tuple(s), Value::Number(n)) => match n.to_usize() {
-                Ok(index) => {
-                    s.insert(index, value.clone());
+            (Value::List(s), Value::Number(n)) | (Value::Tuple(s), Value::Number(n)) => {
+                match n.to_usize() {
+                    Ok(index) => {
+                        s.insert(index, value.clone());
+                    }
+                    Err(e) => {
+                        source.replace(e.into());
+                    }
                 }
-                Err(e) => {
-                    source.replace(e.into());
-                }
-            },
+            }
             (Value::Map(source), index) => {
                 source.insert(index.clone(), value.clone());
             }
@@ -728,7 +735,8 @@ impl<'vm> VM<'vm> {
                 }
             }
             (source, attr) => {
-                *source = VMError::UnsupportedOperation(format!("Cannot read {} for {}", attr, source))
+                *source =
+                    VMError::UnsupportedOperation(format!("Cannot read {} for {}", attr, source))
                         .into();
             }
         };

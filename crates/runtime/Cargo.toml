@@ -1,6 +1,6 @@
 [package]
 name = "rigz_runtime"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 description = "Handles parsing and converting rigz to its VM instructions (for syntax highlighting use tree-sitter-rigz instead)"
 readme = "README.md"
@@ -15,7 +15,7 @@ default = []
 log_std_out = ["rigz_ast/log_std_out"]
 
 [dependencies]
-chrono = "0.4.38"
+chrono = "0.4"
 rigz_ast = { workspace = true }
 rigz_ast_derive = { workspace = true }
 log = "0.4"

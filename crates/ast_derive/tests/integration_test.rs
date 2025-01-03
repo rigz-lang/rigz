@@ -1,7 +1,7 @@
 use rigz_ast::*;
-use std::rc::Rc;
-use std::cell::RefCell;
 use rigz_ast_derive::derive_module;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 // need to borrow this for ext
 derive_module!(
