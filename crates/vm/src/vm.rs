@@ -4,12 +4,9 @@ use crate::{generate_builder, CallFrame, Instruction, Scope};
 use crate::{out, outln, Module, Register, RigzBuilder, VMError, Value};
 use indexmap::IndexMap;
 use itertools::Itertools;
-use log::warn;
 use log_derive::{logfn, logfn_inputs};
-use nohash_hasher::BuildNoHashHasher;
 use std::cell::RefCell;
 use std::fmt::Debug;
-use std::ops::Deref;
 use std::ptr;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -109,7 +106,6 @@ impl<T: Into<Value>> From<T> for RegisterValue {
 pub struct VM<'vm> {
     pub scopes: Vec<Scope<'vm>>,
     pub frames: Frames<'vm>,
-    pub registers: IndexMap<Register, RefCell<RegisterValue>, BuildNoHashHasher<Register>>,
     pub modules: IndexMap<&'static str, Box<dyn Module<'vm>>>,
     pub stack: Vec<Rc<RefCell<Value>>>,
     pub sp: usize,
@@ -132,7 +128,6 @@ impl Default for VM<'_> {
         Self {
             scopes: vec![Scope::default()],
             frames: Default::default(),
-            registers: Default::default(),
             modules: Default::default(),
             sp: 0,
             options: Default::default(),
@@ -158,23 +153,16 @@ impl<'vm> VM<'vm> {
         register: Register,
         value: RegisterValue,
     ) -> Option<RefCell<RegisterValue>> {
-        match value {
-            RegisterValue::Register(dest) if dest == register => {
-                warn!("Attempted to insert RegisterValue::Register({dest}) into {register}");
-                None
-            }
-            _ => self.registers.insert(register, value.into()),
-        }
+        self.frames.insert_register(register, value)
     }
 
     #[inline]
     pub fn get_register(&self, register: &Register) -> RegisterValue {
-        match self.registers.get(register) {
-            None => RegisterValue::Value(Rc::new(RefCell::new(
+        self.frames.get_register(register).unwrap_or_else(|| {
+            RegisterValue::Value(Rc::new(RefCell::new(
                 VMError::EmptyRegister(format!("R{register} is empty")).into(),
-            ))),
-            Some(d) => d.borrow().clone(),
-        }
+            )))
+        })
     }
 
     pub fn resolve_registers(&mut self, registers: &[Register]) -> Vec<Rc<RefCell<Value>>> {
@@ -204,28 +192,24 @@ impl<'vm> VM<'vm> {
     where
         F: FnMut(Rc<RefCell<Value>>, Vec<Rc<RefCell<Value>>>) -> Result<Option<Value>, VMError>,
     {
-        let r = match self.registers.get(&register) {
+        let r = match self.frames.get_register(&register) {
             None => return Err(VMError::EmptyRegister(format!("R{} is empty", register))),
-            Some(v) => {
-                let r = v.borrow();
-                match r.deref() {
-                    RegisterValue::Constant(c) => {
-                        return Err(VMError::UnsupportedOperation(format!(
-                            "Constants cannot be mutated {c}"
-                        )))
-                    }
-                    RegisterValue::ScopeId(s, o, _args) => {
-                        return Err(VMError::UnsupportedOperation(format!(
-                            "Updating Scopes is not supported - Scope {s} R{o}"
-                        )))
-                    }
-                    _ => v.clone(),
+            Some(v) => match v {
+                RegisterValue::Constant(c) => {
+                    return Err(VMError::UnsupportedOperation(format!(
+                        "Constants cannot be mutated {c}"
+                    )))
                 }
-            }
+                RegisterValue::ScopeId(s, o, _args) => {
+                    return Err(VMError::UnsupportedOperation(format!(
+                        "Updating Scopes is not supported - Scope {s} R{o}"
+                    )))
+                }
+                _ => v,
+            },
         };
-        let r = r.borrow();
-        match r.deref() {
-            RegisterValue::Register(r) => self.update_register(*r, args, closure),
+        match r {
+            RegisterValue::Register(r) => self.update_register(r, args, closure),
             RegisterValue::Value(v) => {
                 let args = self.resolve_registers(args);
                 closure(v.clone(), args)
@@ -260,7 +244,7 @@ impl<'vm> VM<'vm> {
     #[logfn(Trace)]
     #[logfn_inputs(Trace, fmt = "remove_register(vm={:#p}, register={})")]
     pub fn remove_register(&mut self, register: &Register) -> RegisterValue {
-        match self.registers.get_mut(register) {
+        match self.frames.current.borrow_mut().registers.get_mut(register) {
             None => VMError::EmptyRegister(format!("R{register} is empty")).into(),
             Some(v) => v.replace(RegisterValue::Value(Rc::new(RefCell::new(Value::None)))),
         }
@@ -414,10 +398,8 @@ impl<'vm> VM<'vm> {
             self.sp = s;
             self.frames.current = RefCell::new(CallFrame {
                 scope_id: s,
-                pc: 0,
-                variables: Default::default(),
-                parent: None,
                 output: r,
+                ..Default::default()
             });
             let v = self.eval();
             match v {

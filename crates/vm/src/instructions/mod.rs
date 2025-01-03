@@ -6,7 +6,6 @@ use crate::vm::{RegisterValue, VMState};
 use crate::{outln, Binary, BinaryAssign, Number, Register, Unary, VMError, Value, VM};
 use indexmap::IndexMap;
 use log::{log, Level};
-use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
 
 // todo simplify clear usage
@@ -463,8 +462,7 @@ impl<'vm> VM<'vm> {
                         .into();
                     }
                     Some(og) => {
-                        self.registers
-                            .insert(reg, RefCell::new(RegisterValue::Value(og)));
+                        self.insert_register(reg, RegisterValue::Value(og));
                     }
                 }
             }

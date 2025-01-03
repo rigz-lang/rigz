@@ -517,7 +517,6 @@ impl<'vm> RigzBuilder<'vm> for VMBuilder<'vm> {
         VM {
             scopes: self.scopes,
             frames: Default::default(),
-            registers: Default::default(),
             modules: self.modules,
             sp: 0,
             options: self.options,
