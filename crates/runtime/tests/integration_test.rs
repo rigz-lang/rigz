@@ -359,6 +359,15 @@ mod runtime {
             end
             a || 42
             "# = 42)
+            scopes_run_once(r#"
+            mut b = 0
+            a = do
+                b += 1
+                7 * b
+            end
+
+            a + a
+            "# = 14)
         }
     }
 
