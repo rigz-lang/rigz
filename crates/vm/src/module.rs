@@ -202,10 +202,9 @@ pub trait Module<'vm>: Debug + DynClone {
         )))
     }
 
-    // todo this no longer needs to be separate from call_extension
     fn call_mutable_extension(
         &self,
-        this: &mut Value,
+        this: Rc<RefCell<Value>>,
         function: &'vm str,
         args: RigzArgs,
     ) -> Result<Option<Value>, VMError> {

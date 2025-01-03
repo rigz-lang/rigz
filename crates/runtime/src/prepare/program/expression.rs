@@ -19,7 +19,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
     ) -> Result<RigzType, ValidationError> {
         // todo arguments should be checked for function calls here for best match
         let t = match expression {
-            Expression::This => self.identifiers["self"].clone(),
+            Expression::This => self.identifiers["self"].clone().rigz_type,
             Expression::Value(v) => v.rigz_type(),
             Expression::Identifier(a) => match self.identifiers.get(a) {
                 None => {
@@ -40,7 +40,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                         },
                     }
                 }
-                Some(v) => v.clone(),
+                Some(v) => v.clone().rigz_type,
             },
             Expression::BinExp(lhs, _, rhs) => {
                 let lhs = self.rigz_type(lhs)?;
@@ -127,7 +127,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 let this = match this {
                     RigzType::This => match self.identifiers.get("self") {
                         None => RigzType::This,
-                        Some(v) => v.clone(),
+                        Some(v) => v.rigz_type.clone(),
                     },
                     _ => this,
                 };

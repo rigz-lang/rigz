@@ -3,7 +3,7 @@ use crate::vm::VMOptions;
 use crate::{
     generate_bin_op_methods, generate_builder, generate_unary_op_methods, Binary, BinaryAssign,
     BinaryOperation, Clear, Instruction, Lifecycle, Module, Register, RigzType, Scope, Unary,
-    UnaryAssign, UnaryOperation, Value, VM,
+    UnaryOperation, Value, VM,
 };
 use indexmap::IndexMap;
 use log::Level;
@@ -121,11 +121,6 @@ pub trait RigzBuilder<'vm>: Debug + Default {
         output: Register,
     ) -> &mut Self {
         self.add_instruction(Instruction::Unary(Unary { op, from, output }))
-    }
-
-    #[inline]
-    fn add_unary_assign_instruction(&mut self, op: UnaryOperation, from: Register) -> &mut Self {
-        self.add_instruction(Instruction::UnaryAssign(UnaryAssign { op, from }))
     }
 
     #[inline]

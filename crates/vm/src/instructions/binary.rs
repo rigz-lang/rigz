@@ -1,6 +1,6 @@
 use crate::{Binary, BinaryAssign, BinaryOperation, Clear, Logical, Register, VMError, Value, VM};
 use std::cell::RefCell;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 #[inline]
@@ -58,9 +58,10 @@ impl VM<'_> {
 
     pub fn handle_binary_assign(&mut self, binary: BinaryAssign) {
         let BinaryAssign { op, lhs, rhs } = binary;
-        let rhs = self.resolve_register(&rhs);
-        match self.update_register(lhs, |v| {
-            *v = eval_binary_operation(op, v, rhs.borrow().deref());
+        match self.update_register(lhs, &[rhs], |v, args| {
+            let rhs = args[0].clone();
+            let res = eval_binary_operation(op, v.borrow().deref(), rhs.borrow().deref());
+            *v.borrow_mut().deref_mut() = res;
             Ok(None)
         }) {
             Ok(_) => {}

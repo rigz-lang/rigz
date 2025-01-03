@@ -9,7 +9,7 @@ use log_derive::{logfn, logfn_inputs};
 use nohash_hasher::BuildNoHashHasher;
 use std::cell::RefCell;
 use std::fmt::Debug;
-use std::ops::DerefMut;
+use std::ops::Deref;
 use std::ptr;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -196,18 +196,19 @@ impl<'vm> VM<'vm> {
 
     #[inline]
     pub fn update_register<F>(
-        &self,
+        &mut self,
         register: Register,
+        args: &[Register],
         mut closure: F,
     ) -> Result<Option<Value>, VMError>
     where
-        F: FnMut(&mut Value) -> Result<Option<Value>, VMError>,
+        F: FnMut(Rc<RefCell<Value>>, Vec<Rc<RefCell<Value>>>) -> Result<Option<Value>, VMError>,
     {
         let r = match self.registers.get(&register) {
             None => return Err(VMError::EmptyRegister(format!("R{} is empty", register))),
             Some(v) => {
-                let mut v = v.borrow_mut();
-                match v.deref_mut() {
+                let r = v.borrow();
+                match r.deref() {
                     RegisterValue::Constant(c) => {
                         return Err(VMError::UnsupportedOperation(format!(
                             "Constants cannot be mutated {c}"
@@ -215,15 +216,22 @@ impl<'vm> VM<'vm> {
                     }
                     RegisterValue::ScopeId(s, o, _args) => {
                         return Err(VMError::UnsupportedOperation(format!(
-                            "Scopes are not implemented yet - Scope {s} R{o}"
+                            "Updating Scopes is not supported - Scope {s} R{o}"
                         )))
                     }
-                    RegisterValue::Register(r) => *r,
-                    RegisterValue::Value(v) => return closure(v.borrow_mut().deref_mut()),
+                    _ => v.clone(),
                 }
             }
         };
-        self.update_register(r, closure)
+        let r = r.borrow();
+        match r.deref() {
+            RegisterValue::Register(r) => self.update_register(*r, args, closure),
+            RegisterValue::Value(v) => {
+                let args = self.resolve_registers(args);
+                closure(v.clone(), args)
+            }
+            _ => unreachable!(),
+        }
     }
 
     // todo create update_registers to support multiple mutable values at the same time

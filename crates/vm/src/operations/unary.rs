@@ -9,12 +9,6 @@ pub struct Unary {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct UnaryAssign {
-    pub op: UnaryOperation,
-    pub from: Register,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum UnaryOperation {
     Neg,
     Not,

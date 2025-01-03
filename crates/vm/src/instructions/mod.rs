@@ -3,9 +3,7 @@ mod unary;
 
 use crate::objects::RigzType;
 use crate::vm::{RegisterValue, VMState};
-use crate::{
-    outln, Binary, BinaryAssign, Number, Register, Unary, UnaryAssign, VMError, Value, VM,
-};
+use crate::{outln, Binary, BinaryAssign, Number, Register, Unary, VMError, Value, VM};
 use indexmap::IndexMap;
 use log::{log, Level};
 use std::cell::RefCell;
@@ -26,7 +24,6 @@ pub enum Instruction<'vm> {
     HaltIfError(Register),
     Unary(Unary),
     Binary(Binary),
-    UnaryAssign(UnaryAssign),
     BinaryAssign(BinaryAssign),
     Load(Register, RegisterValue),
     InstanceGet(Register, Register, Register),
@@ -235,7 +232,6 @@ impl<'vm> VM<'vm> {
             Instruction::Clear(clear) => self.handle_clear(clear),
             &Instruction::Unary(u) => self.handle_unary(u),
             &Instruction::Binary(b) => self.handle_binary(b),
-            &Instruction::UnaryAssign(u) => self.handle_unary_assign(u),
             &Instruction::BinaryAssign(b) => self.handle_binary_assign(b),
             Instruction::UnaryClear(u, clear) => self.handle_unary_clear(u, clear),
             Instruction::BinaryClear(b, clear) => self.handle_binary_clear(b, clear),
@@ -315,10 +311,8 @@ impl<'vm> VM<'vm> {
             } => {
                 match self.get_module_clone(module) {
                     Ok(module) => {
-                        let args = self.resolve_registers(args);
-                        match self.update_register(*this, |v| {
-                            // todo remove args.clone
-                            module.call_mutable_extension(v, func, args.clone().into())
+                        match self.update_register(*this, args, |v, args| {
+                            module.call_mutable_extension(v, func, args.into())
                         }) {
                             Ok(Some(v)) => {
                                 self.insert_register(*output, v.into());

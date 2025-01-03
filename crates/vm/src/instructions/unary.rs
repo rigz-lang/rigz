@@ -1,6 +1,5 @@
 use crate::{
-    err, errln, out, outln, Clear, Register, Reverse, Unary, UnaryAssign, UnaryOperation, VMError,
-    Value, VM,
+    err, errln, out, outln, Clear, Register, Reverse, Unary, UnaryOperation, VMError, Value, VM,
 };
 use std::cell::RefCell;
 use std::ops::Deref;
@@ -45,19 +44,6 @@ impl VM<'_> {
         let Unary { op, from, output } = unary;
         let val = self.resolve_register(&from);
         self.apply_unary(op, val, output);
-    }
-
-    pub fn handle_unary_assign(&mut self, unary: UnaryAssign) {
-        let UnaryAssign { op, from } = unary;
-        match self.update_register(from, |v| {
-            *v = eval_unary(op, v);
-            Ok(None)
-        }) {
-            Ok(_) => {}
-            Err(e) => {
-                self.insert_register(from, e.into());
-            }
-        }
     }
 
     pub fn handle_unary_clear(&mut self, unary: &Unary, clear: &Clear) {

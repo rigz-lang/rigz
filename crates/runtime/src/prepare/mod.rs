@@ -145,7 +145,7 @@ pub(crate) struct ProgramParser<'vm, T: RigzBuilder<'vm>> {
     // todo nested functions are global, they should be removed if invalid
     pub(crate) function_scopes: IndexMap<&'vm str, FunctionCallSignatures<'vm>>,
     pub(crate) constants: IndexMap<Value, usize>,
-    pub(crate) identifiers: HashMap<&'vm str, RigzType>,
+    pub(crate) identifiers: HashMap<&'vm str, FunctionType>,
     pub(crate) types: HashMap<&'vm str, RigzType>,
     pub(crate) lambda_return: Option<Register>,
 }
@@ -285,8 +285,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             .map(|a| {
                 (
                     a.name,
-                    self.identifiers
-                        .insert(a.name, a.function_type.rigz_type.clone()),
+                    self.identifiers.insert(a.name, a.function_type.clone()),
                 )
             })
             .collect();
@@ -338,7 +337,27 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 } => self.parse_lambda(name, arguments, var_args_start, body)?,
                 exp => {
                     let ext = self.rigz_type(&exp)?;
-                    self.identifiers.insert(name, ext);
+                    let mutable = match self.identifiers.entry(name) {
+                        std::collections::hash_map::Entry::Occupied(mut t) => {
+                            let v = t.get();
+                            if v.rigz_type == ext {
+                                v.mutable
+                            } else {
+                                t.insert(FunctionType {
+                                    rigz_type: ext,
+                                    mutable,
+                                });
+                                mutable
+                            }
+                        }
+                        std::collections::hash_map::Entry::Vacant(v) => {
+                            v.insert(FunctionType {
+                                rigz_type: ext,
+                                mutable,
+                            });
+                            mutable
+                        }
+                    };
                     self.parse_expression(exp)?;
                     if mutable {
                         self.builder.add_load_mut_instruction(name, self.last);
@@ -364,7 +383,27 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                 "{ext} cannot be assigned to {rigz_type}"
                             )));
                         }
-                        self.identifiers.insert(name, ext);
+                        let mutable = match self.identifiers.entry(name) {
+                            std::collections::hash_map::Entry::Occupied(mut t) => {
+                                let v = t.get();
+                                if v.rigz_type == ext {
+                                    v.mutable
+                                } else {
+                                    t.insert(FunctionType {
+                                        rigz_type: ext,
+                                        mutable,
+                                    });
+                                    mutable
+                                }
+                            }
+                            std::collections::hash_map::Entry::Vacant(v) => {
+                                v.insert(FunctionType {
+                                    rigz_type: ext,
+                                    mutable,
+                                });
+                                mutable
+                            }
+                        };
                         self.parse_expression(exp)?;
                         if mutable {
                             self.builder.add_load_mut_instruction(name, self.last);
@@ -384,7 +423,13 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     } => self.parse_lambda("self", arguments, var_args_start, body)?,
                     exp => {
                         let ext = self.rigz_type(&exp)?;
-                        self.identifiers.insert("self", ext);
+                        self.identifiers.insert(
+                            "self",
+                            FunctionType {
+                                rigz_type: ext,
+                                mutable: true,
+                            },
+                        );
                         self.parse_expression(exp)?;
                         let rhs = self.last;
                         self.builder
@@ -400,7 +445,13 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 self.parse_expression(expression)?;
                 let last = self.last;
                 for (index, (name, mutable)) in t.into_iter().enumerate() {
-                    self.identifiers.insert(name, expt[index].clone());
+                    self.identifiers.insert(
+                        name,
+                        FunctionType {
+                            rigz_type: expt[index].clone(),
+                            mutable,
+                        },
+                    );
                     let i = self.next_register();
                     self.builder.add_load_instruction(i, (index as i64).into());
                     let next = self.next_register();
@@ -556,7 +607,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     }
                 }
                 _ => {
-                    self.identifiers.insert(arg.name, rt.clone());
+                    self.identifiers.insert(arg.name, arg.function_type.clone());
                 }
             }
         }
@@ -579,7 +630,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             }
         }
         if let Some(t) = &self_type {
-            self.identifiers.insert("self", t.0.rigz_type.clone());
+            self.identifiers.insert("self", t.0.clone());
         };
         for e in body.elements {
             match e {
@@ -841,7 +892,9 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             } => {
                 let current = self.builder.current_scope();
                 // todo extract type from expression
-                let old = self.identifiers.insert(var, RigzType::Any);
+                let old = self
+                    .identifiers
+                    .insert(var, FunctionType::new(RigzType::Any));
                 let inner_scope = self.builder.enter_scope("for-list", vec![(var, false)]);
                 self.parse_expression(*body)?;
                 let output = self.last;
@@ -874,8 +927,12 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 }
 
                 let current = self.builder.current_scope();
-                let k_old = self.identifiers.insert(k_var, RigzType::Any);
-                let v_old = self.identifiers.insert(v_var, RigzType::Any);
+                let k_old = self
+                    .identifiers
+                    .insert(k_var, FunctionType::new(RigzType::Any));
+                let v_old = self
+                    .identifiers
+                    .insert(v_var, FunctionType::new(RigzType::Any));
                 let inner_scope = self
                     .builder
                     .enter_scope("for-map", vec![(k_var, false), (v_var, false)]);
@@ -1774,8 +1831,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             .map(|a| {
                 (
                     a.name,
-                    self.identifiers
-                        .insert(a.name, a.function_type.rigz_type.clone()),
+                    self.identifiers.insert(a.name, a.function_type.clone()),
                 )
             })
             .collect();

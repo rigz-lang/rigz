@@ -234,7 +234,7 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
         module_methods.push(quote! {
             fn call_mutable_extension(
                 &self,
-                this: &mut Value,
+                this: Rc<RefCell<Value>>,
                 function: &'vm str,
                 args: RigzArgs,
             ) -> Result<Option<Value>, VMError> {
@@ -363,7 +363,7 @@ impl From<FirstArg> for Option<Tokens> {
         match val {
             FirstArg::None => None,
             FirstArg::VM => Some(quote! { vm }),
-            FirstArg::MutThis => Some(quote! { this }),
+            FirstArg::MutThis => Some(quote! { this.borrow().rigz_type() }),
             FirstArg::This => Some(quote! { this.borrow().clone() }),
         }
     }
@@ -375,6 +375,7 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
         return create_method_call(name, fs, first_arg);
     }
 
+    let is_mut = FirstArg::MutThis == first_arg;
     let first_arg: Option<Tokens> = first_arg.into();
     let first_arg = first_arg.expect("Multi match not supported for non-extension functions");
 
@@ -384,65 +385,129 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
         .map(|fs| match &fs.self_type {
             None => panic!("Matched call only supported for extension functions currently"),
             Some(ft) => {
-                let base_call = base_call(name, fs, Some(quote! { v }), true);
+                let v = if is_mut {
+                    match convert_type_for_arg(quote! { this }, &ft.rigz_type, true) {
+                        None => Some(quote! { this.borrow_mut().deref_mut() }),
+                        Some(s) => Some(s),
+                    }
+                } else {
+                    Some(quote! { v })
+                };
+                let base_call = base_call(name, fs, v, true);
                 match &ft.rigz_type {
                     RigzType::Any => {
                         has_any = true;
                         quote! {
                             v => {
-                                #base_call.borrow().deref()
+                                #base_call
                             }
                         }
                     }
                     RigzType::Bool => {
-                        quote! {
-                            Value::Bool(v) => {
-                                let v = v.to_bool();
-                                #base_call
+                        if is_mut {
+                            quote! {
+                                RigzType::Bool => {
+                                    #base_call
+                                }
+                            }
+                        } else {
+                            quote! {
+                                Value::Bool(v) => {
+                                    let v = v.to_bool();
+                                    #base_call
+                                }
                             }
                         }
                     }
                     RigzType::Int => {
-                        quote! {
-                            Value::Number(n) => {
-                                let v = n.to_int();
-                                #base_call
+                        if is_mut {
+                            quote! {
+                                RigzType::Int => {
+                                    #base_call
+                                }
+                            }
+                        } else {
+                            quote! {
+                                Value::Number(n) => {
+                                    let v = n.to_int();
+                                    #base_call
+                                }
                             }
                         }
                     }
                     RigzType::Float => {
-                        quote! {
-                            Value::Number(n) => {
-                                let v = n.to_float();
-                                #base_call
+                        if is_mut {
+                            quote! {
+                                RigzType::Float => {
+                                    #base_call
+                                }
+                            }
+                        } else {
+                            quote! {
+                                Value::Number(n) => {
+                                    let v = n.to_float();
+                                    #base_call
+                                }
                             }
                         }
                     }
                     RigzType::Number => {
-                        quote! {
-                            Value::Number(v) => {
-                                #base_call
+                        if is_mut {
+                            quote! {
+                                RigzType::Number => {
+                                    #base_call
+                                }
+                            }
+                        } else {
+                            quote! {
+                                Value::Number(v) => {
+                                    #base_call
+                                }
                             }
                         }
                     }
                     RigzType::String => {
-                        quote! {
-                            Value::String(v) => {
-                                #base_call
+                        if is_mut {
+                            quote! {
+                                RigzType::String => {
+                                    #base_call
+                                }
+                            }
+                        } else {
+                            quote! {
+                                Value::String(v) => {
+                                    #base_call
+                                }
                             }
                         }
                     }
                     RigzType::List(_) => {
-                        quote! {
-                            Value::List(v) => {
-                                #base_call
+                        if is_mut {
+                            quote! {
+                                RigzType::List(_) => {
+                                    #base_call
+                                }
+                            }
+                        } else {
+                            quote! {
+                                Value::List(v) => {
+                                    #base_call
+                                }
                             }
                         }
                     }
                     RigzType::Map(_, _) => {
-                        quote! {
-                            Value::Map(v) => {
-                                #base_call
+                        if is_mut {
+                            quote! {
+                                RigzType::Map(_, _) => {
+                                    #base_call
+                                }
+                            }
+                        } else {
+                            quote! {
+                                Value::Map(v) => {
+                                    #base_call
+                                }
                             }
                         }
                     }
@@ -470,9 +535,20 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
         }
     };
 
-    quote! {
-        #name => match #first_arg {
-            #match_arms
+    if is_mut {
+        quote! {
+            #name => {
+                let rt = #first_arg;
+                match rt {
+                    #match_arms
+                }
+            }
+        }
+    } else {
+        quote! {
+            #name => match #first_arg {
+                #match_arms
+            }
         }
     }
 }
@@ -816,15 +892,15 @@ fn convert_type_for_arg(name: Tokens, rigz_type: &RigzType, mutable: bool) -> Op
     let t = if mutable {
         match &rigz_type {
             RigzType::Any => return None,
-            RigzType::String => quote! { #name.as_string() },
-            RigzType::Number => quote! { #name.as_number()? },
-            RigzType::Int => quote! { #name.as_int()? },
-            RigzType::Float => quote! { #name.as_float()? },
-            RigzType::Bool => quote! { #name.as_bool() },
-            RigzType::List(_) => quote! { #name.as_list() },
-            RigzType::Map(_, _) => quote! { #name.as_map() },
+            RigzType::String => quote! { #name.borrow_mut().as_string() },
+            RigzType::Number => quote! { #name.borrow_mut().as_number()? },
+            RigzType::Int => quote! { #name.borrow_mut().as_int()? },
+            RigzType::Float => quote! { #name.borrow_mut().as_float()? },
+            RigzType::Bool => quote! { #name.borrow_mut().as_bool() },
+            RigzType::List(_) => quote! { #name.borrow_mut().as_list() },
+            RigzType::Map(_, _) => quote! { #name.borrow_mut().as_map() },
             // todo this isn't quite right
-            RigzType::Type => quote! { #name.rigz_type() },
+            RigzType::Type => quote! { #name.borrow_mut().rigz_type() },
             r => todo!("call arg {r:?} is not supported"),
         }
     } else {

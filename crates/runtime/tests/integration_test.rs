@@ -291,10 +291,12 @@ mod runtime {
             list_dup(r#"
             mut a = [1, 2, 3]
             a.extend a
+            a
             "# = vec![1, 2, 3, 1, 2, 3])
             list_dup_clone(r#"
             mut a = [1, 2, 3]
             a.extend a.clone
+            a
             "# = vec![1, 2, 3, 1, 2, 3])
             list_multi_assign(r#"
             mut a = [1, 2, 3]
@@ -343,7 +345,7 @@ mod runtime {
             "# = 8)
             trait_impl(r#"
             trait Hello
-                fn hello = 'Hello'
+                fn Any.hello = 'Hello'
             end
 
             impl Hello for Any
@@ -394,7 +396,7 @@ mod runtime {
             import Random
             next_bool 1
             "# = true)
-            mut_self_clone_required(r#"
+            mut_self_clone(r#"
             mut a = 2
             a += a.clone
             a
@@ -404,6 +406,11 @@ mod runtime {
             a += a
             a
             "# = 4)
+            mut_self_unary(r#"
+            mut a = false
+            a = !a
+            a
+            "# = true)
         }
     }
 
