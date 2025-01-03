@@ -645,9 +645,11 @@ impl<'vm> VM<'vm> {
                     self.insert_register(key, k.into());
                     self.insert_register(value, v.into());
                     let value = self.handle_scope(scope, &[key, value], output);
+                    self.remove_register(&output);
                     match value {
                         Value::None => {}
-                        Value::Tuple(mut t) if t.len() == 2 => {
+                        Value::Tuple(mut t) if t.len() >= 2 => {
+                            // todo this should be == 2 but same tuple is reused appending to front
                             let v = t.remove(1);
                             let k = t.remove(0);
                             if k != Value::None && v != Value::None {

@@ -402,7 +402,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     self.identifiers.insert(name, expt[index].clone());
                     let i = self.next_register();
                     self.builder
-                        .add_load_instruction(i, RegisterValue::Value((index as i64).into()));
+                        .add_load_instruction(i, (index as i64).into());
                     let next = self.next_register();
                     self.builder.add_instance_get_instruction(last, i, next);
                     if mutable {

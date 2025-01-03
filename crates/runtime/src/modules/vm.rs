@@ -21,7 +21,7 @@ impl<'vm> RigzVM<'vm> for VMModule {
             }
             Ok(n) => n,
         };
-        Ok(vm.resolve_register(&u))
+        Ok(vm.resolve_register(&u).borrow().clone())
     }
 
     fn mut_vm_first(&self, vm: &mut VM<'vm>) -> Result<Value, VMError> {
@@ -30,6 +30,7 @@ impl<'vm> RigzVM<'vm> for VMModule {
             Some((_, v)) => v.borrow().clone(),
         };
         let v = first.resolve(vm);
+        let v = v.borrow().clone();
         Ok(v)
     }
 
@@ -39,6 +40,7 @@ impl<'vm> RigzVM<'vm> for VMModule {
             Some((_, v)) => v.borrow().clone(),
         };
         let v = last.resolve(vm);
+        let v = v.borrow().clone();
         Ok(v)
     }
 
@@ -52,6 +54,6 @@ impl<'vm> RigzVM<'vm> for VMModule {
             }
             Ok(n) => n,
         };
-        Ok(vm.remove_register_eval_scope(&u))
+        Ok(vm.remove_register_eval_scope(&u).borrow().clone())
     }
 }

@@ -1,3 +1,5 @@
+use std::rc::Rc;
+use std::cell::RefCell;
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
 
@@ -206,7 +208,7 @@ impl RigzStd for StdModule {
     }
 
     fn any_get(&self, this: Value, index: Value) -> Result<Option<Value>, VMError> {
-        this.get(index)
+        this.get(&index)
     }
 
     fn mut_list_extend(&self, this: &mut Vec<Value>, value: Vec<Value>) {

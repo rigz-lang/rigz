@@ -11,6 +11,9 @@ Functions with a default implementation will not appear in the trait as they are
 ```rust
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
+// These imports are only required if an extension function is used
+use std::rc::Rc;
+use std::cell::RefCell;
 
 derive_module!(
     r#"trait JSON

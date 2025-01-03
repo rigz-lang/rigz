@@ -2,7 +2,7 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use rigz_ast::{rigz_type_to_rust_str, FunctionDeclaration, FunctionSignature, FunctionType, ModuleTraitDefinition, Parser, RigzType, Tokens};
+use rigz_ast::{rigz_type_to_rust_str, FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser, RigzType, Tokens};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use syn::{parse_macro_input, parse_str, LitStr, Type};
