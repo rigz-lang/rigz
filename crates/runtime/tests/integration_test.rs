@@ -377,6 +377,14 @@ mod runtime {
 
             a + a
             "# = 21)
+            default_args_work_modules(r#"
+            import Random
+            next_bool || true
+            "# = true)
+            default_args_can_be_overwritten(r#"
+            import Random
+            next_bool 0
+            "# = true)
         }
     }
 

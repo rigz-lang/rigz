@@ -1,6 +1,6 @@
 mod program;
 
-use crate::modules::{DateModule, NumberModule, StringModule, UUIDModule};
+use crate::modules::{DateModule, NumberModule, RandomModule, StringModule, UUIDModule};
 use crate::RuntimeError;
 use crate::{FileModule, JSONModule, LogModule, RigzBuilder, StdModule, VMModule};
 use log::Level;
@@ -241,6 +241,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         self.register_module(FileModule);
         self.register_module(DateModule);
         self.register_module(UUIDModule);
+        self.register_module(RandomModule);
     }
 
     pub(crate) fn register_module(&mut self, module: impl ParsedModule<'vm> + 'static) {

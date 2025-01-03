@@ -66,6 +66,7 @@ derive_module!(
         end
 
         /*
+        requires AST updates to process
         fn Map.reduce(init: Any, func: |Any, (Any, Any)| -> Any) -> Any
             if !self
                 init
