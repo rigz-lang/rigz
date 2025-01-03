@@ -292,6 +292,15 @@ mod runtime {
             mut a = [1, 2, 3]
             a.extend a
             "# = vec![1, 2, 3, 1, 2, 3])
+            list_dup_clone(r#"
+            mut a = [1, 2, 3]
+            a.extend a.clone
+            "# = vec![1, 2, 3, 1, 2, 3])
+            list_multi_assign(r#"
+            mut a = [1, 2, 3]
+            a = a + a
+            a
+            "# = vec![1, 2, 3, 1, 2, 3])
             map_filter_reduce(r#"
                 [1, 37, '4', 'a'].filter { |v| v.is_num }.map { |v| v.to_i }.reduce 0, |res, next| res + next
             "# = 42)
@@ -385,6 +394,16 @@ mod runtime {
             import Random
             next_bool 1
             "# = true)
+            mut_self_clone_required(r#"
+            mut a = 2
+            a += a.clone
+            a
+            "# = 4)
+            mut_self(r#"
+            mut a = 2
+            a += a
+            a
+            "# = 4)
         }
     }
 

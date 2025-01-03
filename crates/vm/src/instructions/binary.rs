@@ -60,7 +60,6 @@ impl VM<'_> {
         let BinaryAssign { op, lhs, rhs } = binary;
         let rhs = self.resolve_register(&rhs);
         match self.update_register(lhs, |v| {
-            // todo remove v.clone() & rhs.clone()
             *v = eval_binary_operation(op, v, rhs.borrow().deref());
             Ok(None)
         }) {
