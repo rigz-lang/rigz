@@ -304,7 +304,7 @@ mod runtime {
             a
             "# = vec![1, 2, 3, 1, 2, 3])
             map_filter_reduce(r#"
-                [1, 37, '4', 'a'].filter { |v| v.is_num }.map { |v| v.to_i }.reduce 0, |res, next| res + next
+                [1, 37, '4', 'a'].filter { |v| v.is_num }.map { |v| v.to_i }.reduce(0, |res, next| res + next)
             "# = 42)
             map_with_function_reference(r#"
                 fn foo(v)
