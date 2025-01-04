@@ -110,17 +110,17 @@ pub enum Statement<'lex> {
     TraitImpl {
         base_trait: RigzType,
         concrete: RigzType,
-        definitions: Vec<FunctionDefinition<'lex>>
+        definitions: Vec<FunctionDefinition<'lex>>,
     }, // todo support later
-                                         // If {
-                                         //     condition: Expression<'lex>,
-                                         //     then: Scope<'lex>,
-                                         //     branch: Option<Scope<'lex>>,
-                                         // },
-                                         // Unless {
-                                         //     condition: Expression<'lex>,
-                                         //     then: Scope<'lex>,
-                                         // },
+       // If {
+       //     condition: Expression<'lex>,
+       //     then: Scope<'lex>,
+       //     branch: Option<Scope<'lex>>,
+       // },
+       // Unless {
+       //     condition: Expression<'lex>,
+       //     then: Scope<'lex>,
+       // },
 }
 
 #[derive(Clone, Debug, PartialEq)]

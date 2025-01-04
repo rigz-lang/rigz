@@ -532,7 +532,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             } => {
                 todo!("Binary assignment not supported for tuple expressions");
             }
-            Statement::TraitImpl { definitions, ..} => {
+            Statement::TraitImpl { definitions, .. } => {
                 // todo this probably needs some form of checking base_trait and concrete type
                 for fd in definitions {
                     self.parse_function_definition(fd)?;
@@ -732,9 +732,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
     ) -> Result<(), ValidationError> {
         for func in trait_definition.functions {
             match func {
-                FunctionDeclaration::Declaration {
-                    ..
-                } => {
+                FunctionDeclaration::Declaration { .. } => {
                     // todo currently handled in impl statement, I'm sure there are some cases that should work that don't
                 }
                 FunctionDeclaration::Definition(fd) => self.parse_function_definition(fd)?,

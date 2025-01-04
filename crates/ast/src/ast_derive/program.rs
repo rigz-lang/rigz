@@ -328,7 +328,11 @@ impl ToTokens for Statement<'_> {
                     Statement::TypeDefinition(#name, #typ)
                 }
             }
-            Statement::TraitImpl { base_trait, concrete, definitions } => {
+            Statement::TraitImpl {
+                base_trait,
+                concrete,
+                definitions,
+            } => {
                 let definitions = csv_vec(definitions);
                 quote! {
                     Statement::TraitImpl {

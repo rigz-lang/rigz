@@ -253,7 +253,7 @@ impl<'lex> Parser<'lex> {
                     let t = self.peek_required_token_eat_newlines("parse_element")?;
                     if t.kind == TokenKind::End {
                         self.consume_token(TokenKind::End)?;
-                        break
+                        break;
                     }
                     self.consume_token(TokenKind::FunctionDef)?;
                     definitions.push(self.parse_function_definition(None)?);
@@ -262,7 +262,8 @@ impl<'lex> Parser<'lex> {
                     base_trait,
                     concrete,
                     definitions,
-                }.into()
+                }
+                .into()
             }
             TokenKind::Lparen => {
                 self.consume_token(TokenKind::Lparen)?;
