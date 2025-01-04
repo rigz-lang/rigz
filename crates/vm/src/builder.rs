@@ -1,9 +1,8 @@
-use crate::vm::RegisterValue;
+use crate::vm::StackValue;
 use crate::vm::VMOptions;
 use crate::{
-    generate_bin_op_methods, generate_builder, generate_unary_op_methods, Binary, BinaryAssign,
-    BinaryOperation, Clear, Instruction, Lifecycle, Module, Register, RigzType, Scope, Unary,
-    UnaryOperation, Value, VM,
+    generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation,
+    Instruction, Lifecycle, Module, RigzType, Scope, UnaryOperation, Value, VM,
 };
 use indexmap::IndexMap;
 use log::Level;
@@ -44,7 +43,7 @@ pub trait RigzBuilder<'vm>: Debug + Default {
         args: Vec<(&'vm str, bool)>,
     ) -> usize;
 
-    fn exit_scope(&mut self, current: usize, output: Register) -> &mut Self;
+    fn exit_scope(&mut self, current: usize) -> &mut Self;
 
     fn module_exists(&mut self, module: &'vm str) -> bool;
 
@@ -83,103 +82,27 @@ pub trait RigzBuilder<'vm>: Debug + Default {
         add_reverse_instruction => Reverse
     }
 
-    fn add_for_list_instruction(
-        &mut self,
-        this: Register,
-        scope: usize,
-        output: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::ForList {
-            this,
-            scope,
-            output,
-        })
+    fn add_for_list_instruction(&mut self, scope: usize) -> &mut Self {
+        self.add_instruction(Instruction::ForList { scope })
     }
 
-    fn add_for_map_instruction(
-        &mut self,
-        this: Register,
-        scope: usize,
-        key: Register,
-        value: Register,
-        output: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::ForMap {
-            this,
-            scope,
-            key,
-            value,
-            output,
-        })
+    fn add_for_map_instruction(&mut self, scope: usize) -> &mut Self {
+        self.add_instruction(Instruction::ForMap { scope })
     }
 
     #[inline]
-    fn add_unary_instruction(
-        &mut self,
-        op: UnaryOperation,
-        from: Register,
-        output: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::Unary(Unary { op, from, output }))
+    fn add_unary_instruction(&mut self, op: UnaryOperation) -> &mut Self {
+        self.add_instruction(Instruction::Unary(op))
     }
 
     #[inline]
-    fn add_unary_clear_instruction(
-        &mut self,
-        op: UnaryOperation,
-        from: Register,
-        output: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::UnaryClear(
-            Unary { op, from, output },
-            Clear::One(from),
-        ))
+    fn add_binary_instruction(&mut self, op: BinaryOperation) -> &mut Self {
+        self.add_instruction(Instruction::Binary(op))
     }
 
     #[inline]
-    fn add_binary_instruction(
-        &mut self,
-        op: BinaryOperation,
-        lhs: Register,
-        rhs: Register,
-        output: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::Binary(Binary {
-            op,
-            lhs,
-            rhs,
-            output,
-        }))
-    }
-
-    #[inline]
-    fn add_binary_assign_instruction(
-        &mut self,
-        op: BinaryOperation,
-        lhs: Register,
-        rhs: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::BinaryAssign(BinaryAssign { op, lhs, rhs }))
-    }
-
-    #[inline]
-    fn add_binary_clear_instruction(
-        &mut self,
-        op: BinaryOperation,
-        lhs: Register,
-        rhs: Register,
-        clear: Clear,
-        output: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::BinaryClear(
-            Binary {
-                op,
-                lhs,
-                rhs,
-                output,
-            },
-            clear,
-        ))
+    fn add_binary_assign_instruction(&mut self, op: BinaryOperation) -> &mut Self {
+        self.add_instruction(Instruction::BinaryAssign(op))
     }
 
     #[inline]
@@ -187,15 +110,9 @@ pub trait RigzBuilder<'vm>: Debug + Default {
         &mut self,
         module: &'vm str,
         func: &'vm str,
-        args: Vec<Register>,
-        output: Register,
+        args: usize,
     ) -> &mut Self {
-        self.add_instruction(Instruction::CallModule {
-            module,
-            func,
-            args,
-            output,
-        });
+        self.add_instruction(Instruction::CallModule { module, func, args });
         self
     }
 
@@ -204,17 +121,9 @@ pub trait RigzBuilder<'vm>: Debug + Default {
         &mut self,
         module: &'vm str,
         func: &'vm str,
-        this: Register,
-        args: Vec<Register>,
-        output: Register,
+        args: usize,
     ) -> &mut Self {
-        self.add_instruction(Instruction::CallExtension {
-            module,
-            func,
-            this,
-            args,
-            output,
-        });
+        self.add_instruction(Instruction::CallExtension { module, func, args });
         self
     }
 
@@ -223,17 +132,9 @@ pub trait RigzBuilder<'vm>: Debug + Default {
         &mut self,
         module: &'vm str,
         func: &'vm str,
-        this: Register,
-        args: Vec<Register>,
-        output: Register,
+        args: usize,
     ) -> &mut Self {
-        self.add_instruction(Instruction::CallMutableExtension {
-            module,
-            func,
-            this,
-            args,
-            output,
-        });
+        self.add_instruction(Instruction::CallMutableExtension { module, func, args });
         self
     }
 
@@ -242,233 +143,111 @@ pub trait RigzBuilder<'vm>: Debug + Default {
         &mut self,
         name: &'vm str,
         func: &'vm str,
-        args: Vec<Register>,
-        output: Register,
+        args: usize,
     ) -> &mut Self {
         self.add_instruction(Instruction::CallVMExtension {
             module: name,
             func,
             args,
-            output,
         });
         self
     }
 
     #[inline]
-    fn add_halt_instruction(&mut self, register: Register) -> &mut Self {
-        self.add_instruction(Instruction::Halt(register))
+    fn add_halt_instruction(&mut self) -> &mut Self {
+        self.add_instruction(Instruction::Halt)
     }
 
     #[inline]
-    fn add_ret_instruction(&mut self, register: Register) -> &mut Self {
-        self.add_instruction(Instruction::Ret(register))
+    fn add_ret_instruction(&mut self) -> &mut Self {
+        self.add_instruction(Instruction::Ret)
     }
 
     #[inline]
-    fn add_call_instruction(
-        &mut self,
-        scope: usize,
-        args: Vec<Register>,
-        output: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::Call {
-            scope,
-            args,
-            output,
-        })
+    fn add_call_instruction(&mut self, scope: usize) -> &mut Self {
+        self.add_instruction(Instruction::Call(scope))
     }
 
     #[inline]
-    fn add_call_self_instruction(
-        &mut self,
-        scope: usize,
-        args: Vec<Register>,
-        output: Register,
-        this: Register,
-        mutable: bool,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::CallSelf {
-            scope,
-            this,
-            output,
-            args,
-            mutable,
-        })
+    fn add_call_self_instruction(&mut self, scope: usize, mutable: bool) -> &mut Self {
+        self.add_instruction(Instruction::CallSelf { scope, mutable })
     }
 
     #[inline]
-    fn add_call_memo_instruction(
-        &mut self,
-        scope: usize,
-        args: Vec<Register>,
-        output: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::CallMemo {
-            scope,
-            args,
-            output,
-        })
+    fn add_call_memo_instruction(&mut self, scope: usize) -> &mut Self {
+        self.add_instruction(Instruction::CallMemo(scope))
     }
 
     #[inline]
-    fn add_call_self_memo_instruction(
-        &mut self,
-        scope: usize,
-        args: Vec<Register>,
-        output: Register,
-        this: Register,
-        mutable: bool,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::CallSelfMemo {
-            scope,
-            this,
-            output,
-            args,
-            mutable,
-        })
+    fn add_call_self_memo_instruction(&mut self, scope: usize, mutable: bool) -> &mut Self {
+        self.add_instruction(Instruction::CallSelfMemo { scope, mutable })
     }
 
     #[inline]
-    fn add_call_eq_instruction(
-        &mut self,
-        lhs: Register,
-        rhs: Register,
-        scope_id: usize,
-        register: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::CallEq(lhs, rhs, scope_id, register))
+    fn add_call_eq_instruction(&mut self, scope_id: usize) -> &mut Self {
+        self.add_instruction(Instruction::CallEq(scope_id))
     }
 
     #[inline]
-    fn add_call_neq_instruction(
-        &mut self,
-        lhs: Register,
-        rhs: Register,
-        scope_id: usize,
-        register: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::CallNeq(lhs, rhs, scope_id, register))
+    fn add_call_neq_instruction(&mut self, scope_id: usize) -> &mut Self {
+        self.add_instruction(Instruction::CallNeq(scope_id))
     }
 
     #[inline]
-    fn add_if_else_instruction(
-        &mut self,
-        truthy: Register,
-        if_scope: (usize, Register),
-        else_scope: (usize, Register),
-        output: Register,
-    ) -> &mut Self {
+    fn add_if_else_instruction(&mut self, if_scope: usize, else_scope: usize) -> &mut Self {
         self.add_instruction(Instruction::IfElse {
-            truthy,
             if_scope,
             else_scope,
-            output,
         })
     }
 
     #[inline]
-    fn add_if_instruction(
-        &mut self,
-        truthy: Register,
-        if_scope: usize,
-        output: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::If {
-            truthy,
-            if_scope,
-            output,
-        })
+    fn add_if_instruction(&mut self, if_scope: usize) -> &mut Self {
+        self.add_instruction(Instruction::If(if_scope))
     }
 
     #[inline]
-    fn add_unless_instruction(
-        &mut self,
-        truthy: Register,
-        unless_scope: usize,
-        output: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::Unless {
-            truthy,
-            unless_scope,
-            output,
-        })
+    fn add_unless_instruction(&mut self, unless_scope: usize) -> &mut Self {
+        self.add_instruction(Instruction::Unless(unless_scope))
     }
 
     #[inline]
-    fn add_cast_instruction(
-        &mut self,
-        from: Register,
-        rigz_type: RigzType,
-        to: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::Cast {
-            from,
-            rigz_type,
-            to,
-        })
+    fn add_cast_instruction(&mut self, rigz_type: RigzType) -> &mut Self {
+        self.add_instruction(Instruction::Cast { rigz_type })
     }
 
     #[inline]
-    fn add_pop_instruction(&mut self, to: Register) -> &mut Self {
-        self.add_instruction(Instruction::Pop(to))
+    fn add_pop_instruction(&mut self, amount: usize) -> &mut Self {
+        self.add_instruction(Instruction::Pop(amount))
     }
 
     #[inline]
-    fn add_push_instruction(&mut self, from: Register) -> &mut Self {
-        self.add_instruction(Instruction::Push(from))
+    fn add_load_instruction(&mut self, value: StackValue) -> &mut Self {
+        self.add_instruction(Instruction::Load(value))
     }
 
     #[inline]
-    fn add_copy_instruction(&mut self, from: Register, to: Register) -> &mut Self {
-        self.add_instruction(Instruction::Copy(from, to))
+    fn add_get_variable_instruction(&mut self, name: &'vm str) -> &mut Self {
+        self.add_instruction(Instruction::GetVariable(name))
     }
 
     #[inline]
-    fn add_move_instruction(&mut self, from: Register, to: Register) -> &mut Self {
-        self.add_instruction(Instruction::Move(from, to))
+    fn add_get_mutable_variable_instruction(&mut self, name: &'vm str) -> &mut Self {
+        self.add_instruction(Instruction::GetMutableVariable(name))
     }
 
     #[inline]
-    fn add_load_instruction(&mut self, reg: Register, value: RegisterValue) -> &mut Self {
-        self.add_instruction(Instruction::Load(reg, value))
+    fn add_load_let_instruction(&mut self, name: &'vm str) -> &mut Self {
+        self.add_instruction(Instruction::LoadLet(name))
     }
 
     #[inline]
-    fn add_load_let_instruction(&mut self, name: &'vm str, register: Register) -> &mut Self {
-        self.add_instruction(Instruction::LoadLetRegister(name, register))
+    fn add_load_mut_instruction(&mut self, name: &'vm str) -> &mut Self {
+        self.add_instruction(Instruction::LoadMut(name))
     }
 
     #[inline]
-    fn add_set_self_instruction(&mut self, register: Register, mutable: bool) -> &mut Self {
-        self.add_instruction(Instruction::SetSelf(register, mutable))
-    }
-
-    #[inline]
-    fn add_get_self_instruction(&mut self, output: Register, mutable: bool) -> &mut Self {
-        self.add_instruction(Instruction::GetSelf(output, mutable))
-    }
-
-    #[inline]
-    fn add_load_mut_instruction(&mut self, name: &'vm str, register: Register) -> &mut Self {
-        self.add_instruction(Instruction::LoadMutRegister(name, register))
-    }
-
-    #[inline]
-    fn add_get_variable_instruction(&mut self, name: &'vm str, register: Register) -> &mut Self {
-        self.add_instruction(Instruction::GetVariable(name, register))
-    }
-
-    #[inline]
-    fn add_get_mutable_variable_instruction(
-        &mut self,
-        name: &'vm str,
-        register: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::GetMutableVariable(name, register))
-    }
-
-    #[inline]
-    fn add_puts_instruction(&mut self, values: Vec<Register>) -> &mut Self {
+    fn add_puts_instruction(&mut self, values: usize) -> &mut Self {
         self.add_instruction(Instruction::Puts(values))
     }
 
@@ -477,35 +256,19 @@ pub trait RigzBuilder<'vm>: Debug + Default {
         &mut self,
         level: Level,
         template: &'vm str,
-        values: Vec<Register>,
+        values: usize,
     ) -> &mut Self {
         self.add_instruction(Instruction::Log(level, template, values))
     }
 
     #[inline]
-    fn add_instance_get_instruction(
-        &mut self,
-        source: Register,
-        attr: Register,
-        output: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::InstanceGet(source, attr, output))
+    fn add_instance_get_instruction(&mut self) -> &mut Self {
+        self.add_instruction(Instruction::InstanceGet)
     }
 
     #[inline]
-    fn add_instance_set_instruction(
-        &mut self,
-        source: Register,
-        index: Register,
-        value: Register,
-        output: Register,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::InstanceSet {
-            source,
-            index,
-            value,
-            output,
-        })
+    fn add_instance_set_instruction(&mut self) -> &mut Self {
+        self.add_instruction(Instruction::InstanceSet)
     }
 }
 

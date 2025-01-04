@@ -103,7 +103,7 @@ impl ToTokens for VMError {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
             VMError::RuntimeError(s) => quote! { VMError::RuntimeError(#s.into()) },
-            VMError::EmptyRegister(s) => quote! { VMError::EmptyRegister(#s.into()) },
+            VMError::EmptyStack(s) => quote! { VMError::EmptyRegister(#s.into()) },
             VMError::ConversionError(s) => quote! { VMError::ConversionError(#s.into()) },
             VMError::ScopeDoesNotExist(s) => {
                 quote! { VMError::ScopeDoesNotExist(#s.into()) }

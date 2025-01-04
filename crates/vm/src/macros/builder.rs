@@ -6,12 +6,8 @@ macro_rules! generate_unary_op_methods {
     ($($name:ident => $variant:ident),*) => {
         $(
             #[inline]
-            fn $name(&mut self, from: Register, output: Register) -> &mut Self {
-                self.add_instruction(Instruction::Unary(Unary {
-                    op: UnaryOperation::$variant,
-                    from,
-                    output
-                }))
+            fn $name(&mut self) -> &mut Self {
+                self.add_instruction(Instruction::Unary(UnaryOperation::$variant))
             }
         )*
     };
@@ -22,13 +18,8 @@ macro_rules! generate_bin_op_methods {
     ($($name:ident => $variant:ident),*) => {
         $(
             #[inline]
-            fn $name(&mut self, lhs: Register, rhs: Register, output: Register) -> &mut Self {
-                self.add_instruction(Instruction::Binary(Binary {
-                    op: BinaryOperation::$variant,
-                    lhs,
-                    rhs,
-                    output
-                }))
+            fn $name(&mut self) -> &mut Self {
+                self.add_instruction(Instruction::Binary(BinaryOperation::$variant))
             }
         )*
     };
@@ -63,8 +54,8 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        fn exit_scope(&mut self, current: usize, output: Register) -> &mut Self {
-            let s = self.add_instruction(Instruction::Ret(output));
+        fn exit_scope(&mut self, current: usize) -> &mut Self {
+            let s = self.add_instruction(Instruction::Ret);
             s.sp = current;
             s
         }

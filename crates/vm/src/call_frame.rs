@@ -1,9 +1,7 @@
-use crate::{Register, RegisterValue, VMError, Value, VM};
+use crate::{VMError, Value, VM};
 use indexmap::map::Entry;
 use indexmap::IndexMap;
-use log::warn;
 use log_derive::{logfn, logfn_inputs};
-use nohash_hasher::BuildNoHashHasher;
 use std::cell::RefCell;
 use std::ops::Index;
 use std::rc::Rc;
@@ -80,31 +78,6 @@ impl<'vm> Frames<'vm> {
         }
         Ok(())
     }
-
-    #[inline]
-    pub fn insert_register(
-        &self,
-        register: Register,
-        value: RegisterValue,
-    ) -> Option<RefCell<RegisterValue>> {
-        match value {
-            RegisterValue::Register(dest) if dest == register => {
-                warn!("Attempted to insert RegisterValue::Register({dest}) into {register}");
-                None
-            }
-            _ => self
-                .current
-                .borrow_mut()
-                .registers
-                .insert(register, value.into()),
-        }
-    }
-
-    #[inline]
-    pub fn get_register(&self, register: &Register) -> Option<RegisterValue> {
-        let current = self.current.borrow();
-        current.get_register(register, self)
-    }
 }
 
 impl Default for Frames<'_> {
@@ -120,24 +93,11 @@ impl Default for Frames<'_> {
 pub struct CallFrame<'vm> {
     pub scope_id: usize,
     pub pc: usize,
-    pub registers: IndexMap<Register, RefCell<RegisterValue>, BuildNoHashHasher<Register>>,
     pub variables: IndexMap<&'vm str, Variable>,
     pub parent: Option<usize>,
-    pub output: Register,
 }
 
 impl<'vm> CallFrame<'vm> {
-    #[inline]
-    pub fn get_register(&self, register: &Register, frames: &Frames<'vm>) -> Option<RegisterValue> {
-        match self.registers.get(register) {
-            None => match self.parent {
-                None => None,
-                Some(p) => frames.frames[p].borrow().get_register(register, frames),
-            },
-            Some(r) => Some(r.borrow().clone()),
-        }
-    }
-
     #[logfn(Trace)]
     #[logfn_inputs(Trace, fmt = "get_variable(frame={:#p} name={}, vm={:#p})")]
     pub(crate) fn get_variable(&self, name: &'vm str, vm: &VM<'vm>) -> Option<Rc<RefCell<Value>>> {
@@ -183,10 +143,9 @@ impl CallFrame<'_> {
     }
 
     #[inline]
-    pub fn child(scope_id: usize, call_frame_id: usize, output: Register) -> Self {
+    pub fn child(scope_id: usize, call_frame_id: usize) -> Self {
         Self {
             scope_id,
-            output,
             parent: Some(call_frame_id),
             ..Default::default()
         }

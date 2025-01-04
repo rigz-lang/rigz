@@ -1,20 +1,4 @@
-use crate::Register;
 use std::fmt::{Display, Formatter};
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct Binary {
-    pub op: BinaryOperation,
-    pub lhs: Register,
-    pub rhs: Register,
-    pub output: Register,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct BinaryAssign {
-    pub op: BinaryOperation,
-    pub lhs: Register,
-    pub rhs: Register,
-}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum BinaryOperation {

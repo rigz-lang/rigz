@@ -1,12 +1,4 @@
-use crate::Register;
 use std::fmt::{Display, Formatter};
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct Unary {
-    pub op: UnaryOperation,
-    pub from: Register,
-    pub output: Register,
-}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum UnaryOperation {

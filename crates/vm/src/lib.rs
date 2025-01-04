@@ -16,11 +16,10 @@ mod vm;
 #[cfg(feature = "derive")]
 pub mod derive;
 
-pub type Register = usize;
+pub type IndexMapEntry<'a, K, V> = indexmap::map::Entry<'a, K, V>;
 
 pub use builder::{RigzBuilder, VMBuilder};
 pub use call_frame::{CallFrame, Variable};
-pub use indexmap::map::Entry;
 pub use indexmap::IndexMap;
 pub use instructions::*;
 pub use lifecycle::*;
