@@ -182,190 +182,139 @@ mod vm_test {
         assert_eq!(vm.eval().unwrap(), 10.into())
     }
 
-    //
-    // #[test]
-    // fn multi_mut_scope() {
-    //     let mut vm = VM {
-    //         scopes: vec![
-    //             Scope {
-    //                 instructions: vec![
-    //                     Instruction::Load(89, 2.into()),
-    //                     Instruction::LoadMutRegister("a", 89),
-    //                     Instruction::GetMutableVariable("a", 85),
-    //                     Instruction::CallSelf {
-    //                         scope: 1,
-    //                         args: vec![],
-    //                         this: 85,
-    //                         output: 85,
-    //                         mutable: true,
-    //                     },
-    //                     Instruction::CallSelf {
-    //                         scope: 1,
-    //                         args: vec![],
-    //                         this: 85,
-    //                         output: 85,
-    //                         mutable: true,
-    //                     },
-    //                     Instruction::CallSelf {
-    //                         scope: 1,
-    //                         args: vec![],
-    //                         this: 85,
-    //                         output: 85,
-    //                         mutable: true,
-    //                     },
-    //                     // GetVariable creates a copy
-    //                     Instruction::GetMutableVariable("a", 90),
-    //                     Instruction::Halt(90),
-    //                 ],
-    //                 ..Default::default()
-    //             },
-    //             Scope {
-    //                 instructions: vec![
-    //                     Instruction::GetSelf(86, true),
-    //                     Instruction::Load(87, 3.into()),
-    //                     Instruction::BinaryAssign(BinaryAssign {
-    //                         op: BinaryOperation::Mul,
-    //                         lhs: 86,
-    //                         rhs: 87,
-    //                     }),
-    //                     Instruction::GetSelf(88, true),
-    //                     Instruction::Load(85, StackValue::Register(88)),
-    //                     Instruction::Ret(85),
-    //                 ],
-    //                 ..Default::default()
-    //             },
-    //         ],
-    //         ..Default::default()
-    //     };
-    //     assert_eq!(vm.run(), 54.into(), "Run Failed {vm:#?}");
-    //     // since they're Rc<RefCell> this doesn't matter right now
-    //     // let results: Vec<_> = vm
-    //     //     .registers
-    //     //     .iter()
-    //     //     .filter(|(_, v)| {
-    //     //         let b = v.borrow();
-    //     //         b.clone() == 54.into()
-    //     //     })
-    //     //     .map(|(i, _)| i)
-    //     //     .collect();
-    //     // assert_eq!(1, results.len(), "Multiple matches - {results:?}");
-    // }
-    //
-    // #[test]
-    // fn multi_mut_scope_get_var_between() {
-    //     let mut vm = VM {
-    //         scopes: vec![
-    //             Scope {
-    //                 instructions: vec![
-    //                     Instruction::Load(89, 4.2.into()),
-    //                     Instruction::LoadMutRegister("f", 89),
-    //                     Instruction::GetMutableVariable("f", 85),
-    //                     Instruction::CallSelf {
-    //                         scope: 1,
-    //                         args: vec![],
-    //                         this: 85,
-    //                         output: 85,
-    //                         mutable: true,
-    //                     },
-    //                     Instruction::GetMutableVariable("f", 85),
-    //                     Instruction::CallSelf {
-    //                         scope: 1,
-    //                         args: vec![],
-    //                         this: 85,
-    //                         output: 85,
-    //                         mutable: true,
-    //                     },
-    //                     Instruction::GetMutableVariable("f", 85),
-    //                     Instruction::CallSelf {
-    //                         scope: 1,
-    //                         args: vec![],
-    //                         this: 85,
-    //                         output: 85,
-    //                         mutable: true,
-    //                     },
-    //                     Instruction::GetVariable("f", 90),
-    //                     Instruction::Halt(90),
-    //                 ],
-    //                 ..Default::default()
-    //             },
-    //             Scope {
-    //                 instructions: vec![
-    //                     Instruction::GetSelf(86, true),
-    //                     Instruction::Load(87, 3.into()),
-    //                     Instruction::BinaryAssign(BinaryAssign {
-    //                         op: BinaryOperation::Mul,
-    //                         lhs: 86,
-    //                         rhs: 87,
-    //                     }),
-    //                     Instruction::GetSelf(88, true),
-    //                     Instruction::Load(85, StackValue::Register(88)),
-    //                     Instruction::Ret(85),
-    //                 ],
-    //                 ..Default::default()
-    //             },
-    //         ],
-    //         ..Default::default()
-    //     };
-    //     assert_eq!(vm.run(), 113.4.into(), "Run Failed {vm:#?}")
-    // }
-    //
-    // #[test]
-    // fn test_works() {
-    //     let mut vm = VM {
-    //         scopes: vec![
-    //             Scope {
-    //                 instructions: vec![
-    //                     Instruction::Call {
-    //                         scope: 2,
-    //                         output: 2,
-    //                         args: vec![],
-    //                     },
-    //                     Instruction::Move(2, 100),
-    //                     Instruction::Halt(100),
-    //                 ],
-    //                 ..Default::default()
-    //             },
-    //             Scope {
-    //                 instructions: vec![
-    //                     Instruction::Load(1, 42.into()),
-    //                     Instruction::Load(0, StackValue::Register(1)),
-    //                     Instruction::Ret(0),
-    //                 ],
-    //                 ..Default::default()
-    //             },
-    //             Scope {
-    //                 instructions: vec![
-    //                     Instruction::Load(96, 41.into()),
-    //                     Instruction::Load(82, StackValue::Register(96)),
-    //                     Instruction::Call(1),
-    //                     Instruction::Load(StackValue::Register(97)),
-    //                     Instruction::Load("".into()),
-    //                     Instruction::Load(StackValue::Register(98)),
-    //                     Instruction::CallModule {
-    //                         module: "Std",
-    //                         func: "assert_eq",
-    //                         args: 3,
-    //                     },
-    //                     Instruction::Load(StackValue::Register(99)),
-    //                     Instruction::Ret,
-    //                 ],
-    //                 named: "test",
-    //                 lifecycle: Some(Lifecycle::Test(TestLifecycle)),
-    //                 args: Vec::new(),
-    //             },
-    //         ],
-    //         ..Default::default()
-    //     };
-    //     assert_eq!(
-    //         vm.test(),
-    //         TestResults {
-    //             passed: 0,
-    //             failed: 1,
-    //             failure_messages: vec![("test".into(), VMError::InvalidModule("Std".to_string()))],
-    //             duration: Default::default(),
-    //         }
-    //     )
-    // }
+    #[test]
+    fn multi_mut_scope() {
+        let mut vm = VM {
+            scopes: vec![
+                Scope {
+                    instructions: vec![
+                        Instruction::Load(2.into()),
+                        Instruction::LoadMut("a"),
+                        Instruction::GetMutableVariable("a"),
+                        Instruction::CallSelf {
+                            scope: 1,
+                            mutable: true,
+                        },
+                        Instruction::CallSelf {
+                            scope: 1,
+                            mutable: true,
+                        },
+                        Instruction::CallSelf {
+                            scope: 1,
+                            mutable: true,
+                        },
+                        Instruction::GetMutableVariable("a"),
+                        Instruction::Halt,
+                    ],
+                    ..Default::default()
+                },
+                Scope {
+                    instructions: vec![
+                        Instruction::GetMutableVariable("self"),
+                        Instruction::Load(3.into()),
+                        Instruction::BinaryAssign(BinaryOperation::Mul),
+                        Instruction::GetMutableVariable("self"),
+                        Instruction::Ret,
+                    ],
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        };
+        assert_eq!(vm.run(), 54.into(), "Run Failed {vm:#?}");
+    }
+
+    #[test]
+    fn multi_mut_scope_get_var_between() {
+        let mut vm = VM {
+            scopes: vec![
+                Scope {
+                    instructions: vec![
+                        Instruction::Load(4.2.into()),
+                        Instruction::LoadMut("f"),
+                        Instruction::GetMutableVariable("f"),
+                        Instruction::CallSelf {
+                            scope: 1,
+                            mutable: true,
+                        },
+                        Instruction::GetMutableVariable("f"),
+                        Instruction::CallSelf {
+                            scope: 1,
+                            mutable: true,
+                        },
+                        Instruction::GetMutableVariable("f"),
+                        Instruction::CallSelf {
+                            scope: 1,
+                            mutable: true,
+                        },
+                        Instruction::GetVariable("f"),
+                        Instruction::Halt,
+                    ],
+                    ..Default::default()
+                },
+                Scope {
+                    instructions: vec![
+                        Instruction::GetMutableVariable("self"),
+                        Instruction::Load(3.into()),
+                        Instruction::BinaryAssign(BinaryOperation::Mul),
+                        Instruction::GetMutableVariable("self"),
+                        Instruction::Ret,
+                    ],
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        };
+        assert_eq!(vm.run(), 113.4.into(), "Run Failed {vm:#?}")
+    }
+
+    #[test]
+    fn test_works() {
+        let mut vm = VM {
+            scopes: vec![
+                Scope {
+                    instructions: vec![
+                        Instruction::Call(2),
+                        Instruction::Halt,
+                    ],
+                    ..Default::default()
+                },
+                Scope {
+                    instructions: vec![
+                        Instruction::Load(42.into()),
+                        Instruction::Ret,
+                    ],
+                    ..Default::default()
+                },
+                Scope {
+                    instructions: vec![
+                        Instruction::Load(41.into()),
+                        Instruction::Call(1),
+                        Instruction::Load("".into()),
+                        Instruction::CallModule {
+                            module: "Std",
+                            func: "assert_eq",
+                            args: 3,
+                        },
+                        Instruction::Ret,
+                    ],
+                    named: "test",
+                    lifecycle: Some(Lifecycle::Test(TestLifecycle)),
+                    args: Vec::new(),
+                },
+            ],
+            ..Default::default()
+        };
+        assert_eq!(
+            vm.test(),
+            TestResults {
+                passed: 0,
+                failed: 1,
+                failure_messages: vec![("test".into(), VMError::InvalidModule("Std".to_string()))],
+                duration: Default::default(),
+            }
+        )
+    }
 
     #[test]
     fn for_list() {
@@ -375,6 +324,7 @@ mod vm_test {
             .add_load_instruction(vec![1, 2, 3].into())
             .enter_scope("for-list", vec![("v", false)]);
         builder
+            .add_get_variable_instruction("v")
             .add_get_variable_instruction("v")
             .add_mul_instruction()
             .exit_scope(0)

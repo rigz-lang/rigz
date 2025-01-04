@@ -237,6 +237,16 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     }
 
     #[inline]
+    fn add_get_self_instruction(&mut self) -> &mut Self {
+        self.add_instruction(Instruction::GetVariable("self"))
+    }
+
+    #[inline]
+    fn add_get_self_mut_instruction(&mut self) -> &mut Self {
+        self.add_instruction(Instruction::GetMutableVariable("self"))
+    }
+
+    #[inline]
     fn add_load_let_instruction(&mut self, name: &'vm str) -> &mut Self {
         self.add_instruction(Instruction::LoadLet(name))
     }
