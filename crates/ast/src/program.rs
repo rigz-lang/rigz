@@ -106,7 +106,12 @@ pub enum Statement<'lex> {
     Trait(TraitDefinition<'lex>),
     Import(ImportValue<'lex>),
     Export(Exposed<'lex>),
-    TypeDefinition(&'lex str, RigzType), // todo support later
+    TypeDefinition(&'lex str, RigzType),
+    TraitImpl {
+        base_trait: RigzType,
+        concrete: RigzType,
+        definitions: Vec<FunctionDefinition<'lex>>
+    }, // todo support later
                                          // If {
                                          //     condition: Expression<'lex>,
                                          //     then: Scope<'lex>,

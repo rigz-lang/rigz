@@ -244,7 +244,25 @@ impl<'lex> Parser<'lex> {
                 self.parse_assignment(true)?.into()
             }
             TokenKind::Impl => {
-                todo!()
+                self.consume_token(TokenKind::Impl)?;
+                let base_trait = self.parse_rigz_type(None, false)?;
+                self.consume_token(TokenKind::For)?;
+                let concrete = self.parse_rigz_type(None, false)?;
+                let mut definitions = Vec::new();
+                loop {
+                    let t = self.peek_required_token_eat_newlines("parse_element")?;
+                    if t.kind == TokenKind::End {
+                        self.consume_token(TokenKind::End)?;
+                        break
+                    }
+                    self.consume_token(TokenKind::FunctionDef)?;
+                    definitions.push(self.parse_function_definition(None)?);
+                }
+                Statement::TraitImpl {
+                    base_trait,
+                    concrete,
+                    definitions,
+                }.into()
             }
             TokenKind::Lparen => {
                 self.consume_token(TokenKind::Lparen)?;

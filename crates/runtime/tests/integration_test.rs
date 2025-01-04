@@ -306,11 +306,8 @@ mod runtime {
             map_filter_reduce(r#"
                 [1, 37, '4', 'a'].filter { |v| v.is_num }.map { |v| v.to_i }.reduce(0, |res, next| res + next)
             "# = 42)
-            map_with_function_reference(r#"
-                fn foo(v)
-                    v.to_i if v.is_num
-                end
-                [1, 37, '4', 'a'].map(foo)
+            list_map_if(r#"
+                [1, 37, '4', 'a'].map(|v| v.to_i if v.is_num)
             "# = vec![1, 37, 4])
             factorial(r#"
             fn factorial(n: Number)
@@ -345,10 +342,11 @@ mod runtime {
             "# = 8)
             trait_impl(r#"
             trait Hello
-                fn Any.hello = 'Hello'
+                fn Self.hello -> String
             end
 
             impl Hello for Any
+                fn Self.hello -> String = "Hello"
             end
 
             1.hello
@@ -360,6 +358,24 @@ mod runtime {
 
             37
             "# = 42)
+            func_early_return(r#"
+            fn foo
+                if true
+                    return 42
+                end
+                30
+            end
+
+            foo + 37
+            "# = 79)
+            func_early_return_trailing(r#"
+            fn foo
+                return 42 unless false
+                30
+            end
+
+            foo + 37
+            "# = 79)
             unless_false(r#"
             a = 37 unless false
             a || 42

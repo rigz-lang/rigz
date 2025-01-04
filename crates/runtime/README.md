@@ -9,8 +9,8 @@ This means that `1 + 2 * 3` is not equal to `3 * 2 + 1`; the first is 9, (1 + 2)
 second is 7, (3 * 2) + 1.
 
 ## TODO
-- update parser to support repl, may require VM updates as well
 - Better error messages
+- Support functions are lambda arguments
 
 
 ### lifecycles

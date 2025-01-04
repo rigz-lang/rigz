@@ -110,7 +110,7 @@ fn match_args_ref<'a, 'vm>(
     res
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub(crate) enum CallSignature<'vm> {
     Function(FunctionCallSignature<'vm>, CallSite<'vm>),
     // call signature is owning function
@@ -532,6 +532,12 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             } => {
                 todo!("Binary assignment not supported for tuple expressions");
             }
+            Statement::TraitImpl { definitions, ..} => {
+                // todo this probably needs some form of checking base_trait and concrete type
+                for fd in definitions {
+                    self.parse_function_definition(fd)?;
+                }
+            }
         }
         Ok(())
     }
@@ -729,7 +735,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 FunctionDeclaration::Declaration {
                     ..
                 } => {
-                    return Err(ValidationError::NotImplemented("Support Function Declarations in Trait definition, call site is determined by impl".to_string()))
+                    // todo currently handled in impl statement, I'm sure there are some cases that should work that don't
                 }
                 FunctionDeclaration::Definition(fd) => self.parse_function_definition(fd)?,
             }
@@ -1090,12 +1096,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                             if this != current {
                                 self.builder.add_load_instruction(*this, (*current).into());
                             }
-                            let is_vm =
-                                if let RigzType::Custom(CustomType { name, .. }) = &f.rigz_type {
-                                    name.as_str() == "VM"
-                                } else {
-                                    false
-                                };
+                            let is_vm = f.rigz_type.is_vm();
                             (is_vm, f.mutable, *this)
                         }
                     };
