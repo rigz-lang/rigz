@@ -205,13 +205,15 @@ impl<'vm> VM<'vm> {
         };
         let mut v = match self.run_scope() {
             VMState::Running => unreachable!(),
-            VMState::Done(v) | VMState::Ran(v) => v,
+            VMState::Done(v) => return v,
+            VMState::Ran(v) => v,
         };
         while current != self.sp {
             self.stack.push(v.into());
             v = match self.run_scope() {
                 VMState::Running => unreachable!(),
-                VMState::Done(v) | VMState::Ran(v) => v,
+                VMState::Done(v) => return v,
+                VMState::Ran(v) => v,
             };
         }
         v
@@ -231,8 +233,34 @@ impl<'vm> VM<'vm> {
                 VMState::Done(source.resolve(self))
             }
             Some(c) => {
-                self.sp = c.borrow().scope_id;
-                self.frames.current = c;
+                let c = c;
+                let pc = self.frames.current.borrow().pc;
+                let mut updated = false;
+                loop {
+                    let sp = self.sp;
+                    let scope = &self.scopes[sp];
+                    let len = scope.instructions.len();
+                    let propagate = len != pc && matches!(scope.named, "if" | "unless" | "else");
+                    if propagate {
+                        match self.frames.pop() {
+                            None => {
+                                let source = self.next_value("process_ret - empty stack");
+                                return VMState::Done(source.resolve(self));
+                            }
+                            Some(next) => {
+                                self.sp = next.borrow().scope_id;
+                                self.frames.current = next;
+                                updated = true;
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                if !updated {
+                    self.sp = c.borrow().scope_id;
+                    self.frames.current = c;
+                }
                 match ran {
                     false => VMState::Running,
                     true => {

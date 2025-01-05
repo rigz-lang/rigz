@@ -411,12 +411,6 @@ mod runtime {
             a = !a
             a
             "# = true)
-        }
-    }
-
-    mod debug {
-        use super::*;
-        run_debug_vm! {
             scopes_run_once(r#"
             mut b = 0
             a = do
@@ -427,5 +421,10 @@ mod runtime {
             a + a
             "# = 14)
         }
+    }
+
+    mod debug {
+        use super::*;
+        run_debug_vm! {}
     }
 }
