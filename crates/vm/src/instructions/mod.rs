@@ -3,7 +3,7 @@ mod unary;
 
 use crate::objects::RigzType;
 use crate::vm::{StackValue, VMState};
-use crate::{outln, BinaryOperation, Number, UnaryOperation, VMError, Value, VM};
+use crate::{outln, BinaryOperation, Number, UnaryOperation, VMError, Value, Variable, VM};
 use indexmap::IndexMap;
 use log::{log, Level};
 use std::ops::{Deref, DerefMut};
@@ -40,6 +40,7 @@ pub enum Instruction<'vm> {
     GetMutableVariable(&'vm str),
     LoadLet(&'vm str),
     LoadMut(&'vm str),
+    PersistScope(&'vm str),
     // requires modules, enabled by default
     /// Module instructions will clone your module, ideally modules implement Copy + Clone
     CallModule {
@@ -170,6 +171,28 @@ impl<'vm> VM<'vm> {
                     }
                 };
             }
+            Instruction::PersistScope(var) => {
+                let next = self.next_resolved_value("persist_scope");
+                self.store_value(next.clone().into());
+                let current = self.frames.current.borrow();
+                if current.parent.is_none() {
+                    return VMError::UnsupportedOperation(format!(
+                        "cannot persist scope without parent {current:?}"
+                    ))
+                    .into();
+                };
+                let parent = self.frames.current.borrow().find_variable(var, self, None);
+
+                let mut frame = match parent {
+                    None => self.frames.current.borrow_mut(),
+                    Some(id) => self.frames.frames[id].borrow_mut(),
+                };
+                let old = match frame.variables.get_mut(var).unwrap() {
+                    Variable::Let(v) => v,
+                    Variable::Mut(v) => v,
+                };
+                *old = next.into();
+            }
             Instruction::Cast { rigz_type } => {
                 let value = self.next_resolved_value("cast");
                 self.store_value(value.borrow().cast(rigz_type).into());
@@ -236,6 +259,7 @@ impl<'vm> VM<'vm> {
                         .into()
                     }
                     Some(v) => {
+                        let v = v.resolve(self).into();
                         self.store_value(v);
                     }
                 }
@@ -264,8 +288,9 @@ impl<'vm> VM<'vm> {
                         ))
                         .into();
                     }
-                    Some(og) => {
-                        self.store_value(og);
+                    Some(v) => {
+                        let v = v.resolve(self).into();
+                        self.store_value(v);
                     }
                 }
             }

@@ -341,7 +341,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                             mutable
                         }
                     };
-                    self.parse_expression(exp)?;
+                    self.parse_lazy_expression(exp, name)?;
                     if mutable {
                         self.builder.add_load_mut_instruction(name);
                     } else {
@@ -387,7 +387,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                 mutable
                             }
                         };
-                        self.parse_expression(exp)?;
+                        self.parse_lazy_expression(exp, name)?;
                         if mutable {
                             self.builder.add_load_mut_instruction(name);
                         } else {
@@ -413,7 +413,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                 mutable: true,
                             },
                         );
-                        self.parse_expression(exp)?;
+                        self.parse_lazy_expression(exp, "self")?;
                     }
                 }
             }
@@ -422,6 +422,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     RigzType::Tuple(t) => t,
                     _ => vec![RigzType::Any; t.len()],
                 };
+                // todo support lazy scopes decontructed into tuples
                 self.parse_expression(expression)?;
                 for (index, (name, mutable)) in t.into_iter().enumerate() {
                     self.identifiers.insert(
@@ -510,6 +511,23 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             }
         }
         Ok(())
+    }
+
+    fn parse_lazy_expression(
+        &mut self,
+        expression: Expression<'vm>,
+        var: &'vm str,
+    ) -> Result<(), ValidationError> {
+        match expression {
+            Expression::Scope(s) => {
+                let scope = self.parse_scope(s, "do")?;
+                self.builder
+                    .add_load_instruction(StackValue::ScopeId(scope));
+                self.builder.convert_to_lazy_scope(scope, var);
+                Ok(())
+            }
+            _ => self.parse_expression(expression),
+        }
     }
 
     fn mutable_this(&mut self) {

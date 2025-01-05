@@ -51,6 +51,8 @@ pub trait RigzBuilder<'vm>: Debug + Default {
 
     fn exit_scope(&mut self, current: usize) -> &mut Self;
 
+    fn convert_to_lazy_scope(&mut self, scope_id: usize, var: &'vm str) -> &mut Self;
+
     fn module_exists(&mut self, module: &'vm str) -> bool;
 
     fn register_module(&mut self, module: impl Module<'vm> + 'static) -> &mut Self;

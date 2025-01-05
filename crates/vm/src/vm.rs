@@ -454,7 +454,7 @@ impl<'vm> VM<'vm> {
 
     pub fn call_frame_memo(&mut self, scope_index: usize) -> Result<(), VMError> {
         let args = self.scopes[scope_index].args.len();
-        let call_args = if let Some(_) = self.scopes[scope_index].set_self {
+        let call_args = if self.scopes[scope_index].set_self.is_some() {
             let mut ca = Vec::with_capacity(args + 1);
             ca.push(self.next_resolved_value("call frame_memo"));
             ca.extend(self.resolve_args(args));

@@ -46,6 +46,16 @@ macro_rules! generate_builder {
         }
 
         #[inline]
+        fn convert_to_lazy_scope(&mut self, scope_id: usize, variable: &'vm str) -> &mut Self {
+            let scope = &mut self.scopes[scope_id];
+            let last = scope.instructions.len() - 1;
+            scope
+                .instructions
+                .insert(last, Instruction::PersistScope(variable));
+            self
+        }
+
+        #[inline]
         fn enter_lifecycle_scope(
             &mut self,
             named: &'vm str,
