@@ -454,8 +454,14 @@ impl<'vm> VM<'vm> {
 
     pub fn call_frame_memo(&mut self, scope_index: usize) -> Result<(), VMError> {
         let args = self.scopes[scope_index].args.len();
-        // todo need to handle self here
-        let call_args = self.resolve_args(args);
+        let call_args = if let Some(_) = self.scopes[scope_index].set_self {
+            let mut ca = Vec::with_capacity(args + 1);
+            ca.push(self.next_resolved_value("call frame_memo"));
+            ca.extend(self.resolve_args(args));
+            ca
+        } else {
+            self.resolve_args(args)
+        };
         let value = match self.scopes.get_mut(scope_index) {
             None => {
                 return Err(VMError::ScopeDoesNotExist(format!(
@@ -503,6 +509,7 @@ impl<'vm> VM<'vm> {
             None => {
                 call_args
                     .iter()
+                    .rev()
                     .for_each(|v| self.stack.push(v.clone().into()));
                 let value = self.handle_scope(scope_index);
                 let s = self.scopes.get_mut(scope_index).unwrap();

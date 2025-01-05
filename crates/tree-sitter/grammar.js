@@ -13,7 +13,6 @@ module.exports = grammar({
     ],
     word: $ => $.identifier,
     rules: {
-        // TODO: add the actual grammar rules
         program: $ => prec.left(repeat1($.statement)),
         statement: $ => prec.left(seq(choice(
             $.binary_assignment,
