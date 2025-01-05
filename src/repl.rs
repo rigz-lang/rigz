@@ -127,7 +127,7 @@ pub(crate) fn repl(args: ReplArgs) {
                     }
                     Err(RuntimeError::Run(p)) => {
                         needs_reset = match p {
-                            VMError::EmptyRegister(_) => {
+                            VMError::EmptyStack(_) => {
                                 // imports and function definitions create an empty register
                                 false
                             }

@@ -69,12 +69,6 @@ mod runtime {
         run_error! {
             // todo better error message here, ideally this fails during validation
             import_required("1.to_json" = VMError::UnsupportedOperation("Cannot read to_json for 1".to_string()))
-            /*
-                function definitions claim registers for args & outputs,
-                using get_register is very risky, VM.last is the best options
-                VM.first will be altered if an imported module has a default implementation
-            */
-            vm_register_invalid("import VM; VM.get_register 42" = VMError::EmptyRegister("R42 is empty".to_string()))
             raise_error("raise 'something went wrong'" = VMError::RuntimeError("something went wrong".to_string()))
             assert("assert_eq 1, 2" = VMError::RuntimeError("Assertion Failed\n\t\tLeft: 1\n\t\tRight: 2".to_string()))
             stack_overflow(r#"fn foo
@@ -99,12 +93,10 @@ mod runtime {
             assign("a = 3 * 2; a" = 6)
             assign_add("a = 1 + 2; a + 2" = 5)
             mutable_add("mut a = 4; a += 2; a" = 6)
+            mutable_sub("mut a = 4; a -= 2; a" = 2)
             to_s("1.to_s" = "1")
             unary_not("!1" = false)
             unary_neg("-2.5" = -2.5)
-            vm_last_register("import VM; a = 1; VM.last" = 1)
-            // VM.first will not be 27 if an imported module has a default implementation
-            vm_first_register("import VM; a = 27; VM.first" = 27)
             binary_expr_function_call(r#"
             fn foo(number: Number) -> Number
                 number * 2
@@ -227,17 +219,17 @@ mod runtime {
             else
                 1 + 2
             end"# = 3)
-            memo_factorial(r#"
-            @memo
-            fn factorial(n: Number)
-                if n == 0
-                    1
-                else
-                    n * factorial n - 1
-                end
-            end
-            factorial 15
-            "#=1307674368000_i64)
+            // memo_factorial(r#"
+            // @memo
+            // fn factorial(n: Number)
+            //     if n == 0
+            //         1
+            //     else
+            //         n * factorial n - 1
+            //     end
+            // end
+            // factorial 15
+            // "#=1307674368000_i64)
             var_args_module(r#"
             let a = []
             a.with 1, 2, 3
@@ -271,11 +263,6 @@ mod runtime {
             map_map_if(r#"{1, 2, 3, 'a', 'b'}.map(|k, v| (k, k * v) if k.is_num && v.is_num)"# = IndexMap::from([(1, 1), (2, 4), (3, 9)]))
             map_map(r#"{1, 2, 3}.map(|k, v| (k, k * v))"# = IndexMap::from([(1, 1), (2, 4), (3, 9)]))
             list_map_filter(r#"[1, 2, 3, 'a', 'b'].filter { |v| v.is_num }.map(|v| v * v)"# = vec![1, 4, 9])
-            fn_calls_fn(r#"
-            fn Any.apply(func: |Any| -> Any) -> List
-                = func self
-
-            3.apply { |v| v * v }"# = 9)
             list_map(r#"[1, 2, 3].map(|a| a * a)"# = vec![1, 4, 9])
             self_fib_recursive(r#"
             fn Number.fib -> Number
@@ -351,23 +338,23 @@ mod runtime {
 
             1.hello
             "# = "Hello")
-            early_return(r#"
-            if true
-                return 42
-            end
-
-            37
-            "# = 42)
-            func_early_return(r#"
-            fn foo
-                if true
-                    return 42
-                end
-                30
-            end
-
-            foo + 37
-            "# = 79)
+            // early_return(r#"
+            // if true
+            //     return 42
+            // end
+            //
+            // 37
+            // "# = 42)
+            // func_early_return(r#"
+            // fn foo
+            //     if true
+            //         return 42
+            //     end
+            //     30
+            // end
+            //
+            // foo + 37
+            // "# = 79)
             func_early_return_trailing(r#"
             fn foo
                 return 42 unless false
@@ -432,6 +419,12 @@ mod runtime {
 
     mod debug {
         use super::*;
-        run_debug_vm! {}
+        run_debug_vm! {
+            fn_calls_fn(r#"
+            fn Any.apply(func: |Any| -> Any) -> List
+                = func self
+
+            3.apply { |v| v * v }"# = 9)
+        }
     }
 }

@@ -43,8 +43,8 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 Some(v) => v.clone().rigz_type,
             },
             Expression::BinExp(lhs, _, rhs) => {
-                let lhs = self.rigz_type(lhs)?;
                 let rhs = self.rigz_type(rhs)?;
+                let lhs = self.rigz_type(lhs)?;
 
                 match lhs.partial_cmp(&rhs) {
                     None => RigzType::Any,
@@ -96,9 +96,9 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                 .filter_map(|cs| match cs {
                                     CallSignature::Function(f, _) => match &f.self_type {
                                         None => None,
-                                        Some((ft, _)) => {
+                                        Some(ft) => {
                                             if &ft.rigz_type == r {
-                                                Some(f.return_type.0.rigz_type.clone())
+                                                Some(f.return_type.rigz_type.clone())
                                             } else {
                                                 None
                                             }
@@ -150,8 +150,8 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                     CallSignature::Function(f, _) => f
                                         .self_type
                                         .as_ref()
-                                        .filter(|t| t.0.rigz_type == this)
-                                        .map(|t| t.0.rigz_type.clone()),
+                                        .filter(|t| t.rigz_type == this)
+                                        .map(|t| t.rigz_type.clone()),
                                     CallSignature::Lambda(_, _, ret) => Some(ret.clone()),
                                 })
                                 .collect();
@@ -229,7 +229,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             .iter()
             .filter_map(|cs| match cs {
                 CallSignature::Function(f, _) => match &f.self_type {
-                    None => Some(f.return_type.0.rigz_type.clone()),
+                    None => Some(f.return_type.rigz_type.clone()),
                     Some(_) => None,
                 },
                 CallSignature::Lambda(_, _, ret) => Some(ret.clone()),

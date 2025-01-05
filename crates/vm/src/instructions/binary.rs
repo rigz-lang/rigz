@@ -53,6 +53,5 @@ impl VM<'_> {
         let lhs = self.next_value("handle_binary_assign - lhs");
         let v = eval_binary_operation(op, lhs.borrow().deref(), rhs.borrow().deref());
         *lhs.borrow_mut().deref_mut() = v;
-        self.store_value(lhs.into())
     }
 }

@@ -138,6 +138,24 @@ pub enum RigzArguments<'lex> {
     Named(Vec<(&'lex str, Expression<'lex>)>),
 }
 
+impl RigzArguments<'_> {
+    pub fn len(&self) -> usize {
+        match self {
+            RigzArguments::Positional(s) => s.len(),
+            RigzArguments::Mixed(a, b) => a.len() + b.len(),
+            RigzArguments::Named(n) => n.len(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        match self {
+            RigzArguments::Positional(s) => s.is_empty(),
+            RigzArguments::Mixed(a, b) => a.is_empty() && b.is_empty(),
+            RigzArguments::Named(n) => n.is_empty(),
+        }
+    }
+}
+
 impl<'lex> From<Vec<Expression<'lex>>> for RigzArguments<'lex> {
     fn from(value: Vec<Expression<'lex>>) -> Self {
         RigzArguments::Positional(value)

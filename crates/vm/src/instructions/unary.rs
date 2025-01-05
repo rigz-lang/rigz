@@ -1,4 +1,4 @@
-use crate::{err, errln, out, outln, Reverse, UnaryOperation, VMError, Value, VM};
+use crate::{err, errln, out, outln, Reverse, UnaryOperation, Value, VM};
 use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;

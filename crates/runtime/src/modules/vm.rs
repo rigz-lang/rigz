@@ -3,57 +3,30 @@ use rigz_ast_derive::derive_module;
 
 derive_module!(
     r#"trait VM
-        fn mut VM.get_register(register: Number) -> Any!
-        fn mut VM.first -> Any!
-        fn mut VM.last -> Any!
-        fn mut VM.remove_register(register: Number) -> Any!
+        fn mut VM.push(value) -> None
+        fn mut VM.peek -> Any?
+        fn mut VM.pop -> Any!
     end"#
 );
 
 impl<'vm> RigzVM<'vm> for VMModule {
-    fn mut_vm_get_register(&self, vm: &mut VM<'vm>, register: Number) -> Result<Value, VMError> {
-        let u = match register.to_usize() {
-            Err(_) => {
-                return Err(VMError::UnsupportedOperation(format!(
-                    "Invalid argument for vm.get_register, expected non negative number received - {:?}",
-                    register
-                )))
-            }
-            Ok(n) => n,
-        };
-        Ok(vm.resolve_register(&u).borrow().clone())
+    fn mut_vm_push(&self, vm: &mut VM<'vm>, value: Value) {
+        vm.stack.push(value.into());
     }
 
-    fn mut_vm_first(&self, vm: &mut VM<'vm>) -> Result<Value, VMError> {
-        let first = match vm.frames.current.borrow().registers.first() {
-            None => return Err(VMError::EmptyRegister("Registers are empty".to_string())),
-            Some((_, v)) => v.borrow().clone(),
+    fn mut_vm_peek(&self, vm: &mut VM<'vm>) -> Option<Value> {
+        let v = match vm.stack.last() {
+            None => return None,
+            Some(v) => v.clone(),
         };
-        let v = first.resolve(vm);
-        let v = v.borrow().clone();
-        Ok(v)
+        Some(v.resolve(vm).borrow().clone())
     }
 
-    fn mut_vm_last(&self, vm: &mut VM<'vm>) -> Result<Value, VMError> {
-        let last = match vm.frames.current.borrow().registers.last() {
-            None => return Err(VMError::EmptyRegister("Registers are empty".to_string())),
-            Some((_, v)) => v.borrow().clone(),
-        };
-        let v = last.resolve(vm);
-        let v = v.borrow().clone();
-        Ok(v)
-    }
-
-    fn mut_vm_remove_register(&self, vm: &mut VM<'vm>, register: Number) -> Result<Value, VMError> {
-        let u = match register.to_usize() {
-            Err(_) => {
-                return Err(VMError::UnsupportedOperation(format!(
-                    "Invalid argument for vm.remove_register, expected non negative number received - {:?}",
-                    register
-                )))
-            }
-            Ok(n) => n,
-        };
-        Ok(vm.remove_register_eval_scope(&u).borrow().clone())
+    fn mut_vm_pop(&self, vm: &mut VM<'vm>) -> Result<Value, VMError> {
+        let v = vm.next_value("vm_pop").borrow().clone();
+        match v {
+            Value::Error(e) => Err(e),
+            _ => Ok(v),
+        }
     }
 }

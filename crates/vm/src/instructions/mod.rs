@@ -6,9 +6,7 @@ use crate::vm::{StackValue, VMState};
 use crate::{outln, BinaryOperation, Number, UnaryOperation, VMError, Value, VM};
 use indexmap::IndexMap;
 use log::{log, Level};
-use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Instruction<'vm> {
@@ -140,11 +138,8 @@ impl<'vm> VM<'vm> {
             Instruction::CallExtension { module, func, args } => {
                 match self.get_module_clone(module) {
                     Ok(module) => {
+                        let this = self.next_value("call_extension");
                         let args = self.resolve_args(*args);
-                        let this = match self.get_variable("self") {
-                            Ok(t) => t,
-                            Err(e) => return e.into(),
-                        };
                         let v = module
                             .call_extension(this, func, args.into())
                             .unwrap_or_else(|e| e.into());
@@ -158,11 +153,8 @@ impl<'vm> VM<'vm> {
             Instruction::CallMutableExtension { module, func, args } => {
                 match self.get_module_clone(module) {
                     Ok(module) => {
+                        let this = self.next_value("call_mut_extension");
                         let args = self.resolve_args(*args);
-                        let this = match self.get_mutable_variable("self") {
-                            Ok(t) => t,
-                            Err(e) => return e.into(),
-                        };
                         match module.call_mutable_extension(this, func, args.into()) {
                             Ok(Some(v)) => {
                                 self.store_value(v.into());
@@ -467,8 +459,8 @@ impl<'vm> VM<'vm> {
     }
 
     fn instance_get(&mut self) {
-        let source = self.next_value("instance_get - source");
         let attr = self.next_value("instance_get - attr");
+        let source = self.next_value("instance_get - source");
         let v = match source.borrow().get(attr.borrow().deref()) {
             Ok(Some(v)) => v,
             Ok(None) => Value::None,

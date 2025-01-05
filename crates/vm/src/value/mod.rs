@@ -33,6 +33,7 @@ pub enum Value {
     Bool(bool),
     Number(Number),
     String(String),
+    // todo Lists, Maps, & Tuples should use Rc<RefCell<Value>> to make this language fully pass by reference
     List(Vec<Value>),
     Map(IndexMap<Value, Value>),
     Range(ValueRange),

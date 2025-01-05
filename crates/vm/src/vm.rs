@@ -4,9 +4,8 @@ use crate::{generate_builder, CallFrame, Instruction, Scope};
 use crate::{out, outln, Module, RigzBuilder, VMError, Value};
 use indexmap::IndexMap;
 use itertools::Itertools;
-use log_derive::{logfn, logfn_inputs};
 use std::cell::RefCell;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::ptr;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -77,11 +76,11 @@ impl From<Rc<RefCell<Value>>> for StackValue {
 }
 
 impl StackValue {
-    pub fn resolve(self, vm: &mut VM) -> Rc<RefCell<Value>> {
+    pub fn resolve(&self, vm: &mut VM) -> Rc<RefCell<Value>> {
         match self {
-            StackValue::ScopeId(scope) => vm.handle_scope(scope),
-            StackValue::Value(v) => v,
-            StackValue::Constant(c) => vm.get_constant(c),
+            &StackValue::ScopeId(scope) => vm.handle_scope(scope),
+            StackValue::Value(v) => v.clone(),
+            &StackValue::Constant(c) => vm.get_constant(c),
         }
     }
 }
@@ -106,7 +105,7 @@ pub struct VM<'vm> {
 }
 
 impl<'v> VM<'v> {
-    pub fn next_value(&mut self, location: &'static str) -> Rc<RefCell<Value>> {
+    pub fn next_value<T: Display>(&mut self, location: T) -> Rc<RefCell<Value>> {
         match self.stack.pop() {
             None => VMError::EmptyStack(format!("Stack is empty for {location}")).into(),
             Some(v) => v.resolve(self),
@@ -198,6 +197,7 @@ impl<'vm> VM<'vm> {
             VMState::Done(v) | VMState::Ran(v) => v,
         };
         while current != self.sp {
+            self.stack.push(v.into());
             v = match self.run_scope() {
                 VMState::Running => unreachable!(),
                 VMState::Done(v) | VMState::Ran(v) => v,
@@ -394,12 +394,12 @@ impl<'vm> VM<'vm> {
     }
 
     pub fn load_mut(&mut self, name: &'vm str) -> Result<(), VMError> {
-        let v = self.next_value("load_mut");
+        let v = self.next_value(format!("load_mut - {name}"));
         self.frames.load_mut(name, v)
     }
 
     pub fn load_let(&mut self, name: &'vm str) -> Result<(), VMError> {
-        let v = self.next_value("load_let");
+        let v = self.next_value(format!("load_let - {name}"));
         self.frames.load_let(name, v)
     }
 
@@ -439,11 +439,7 @@ impl<'vm> VM<'vm> {
 
     pub fn call_frame_memo(&mut self, scope_index: usize) -> Result<(), VMError> {
         let args = self.scopes[scope_index].args.len();
-        let call_args = self
-            .resolve_args(args)
-            .into_iter()
-            .map(|v| v.borrow().clone())
-            .collect();
+        let call_args = self.resolve_args(args);
         let value = match self.scopes.get_mut(scope_index) {
             None => {
                 return Err(VMError::ScopeDoesNotExist(format!(
@@ -457,6 +453,7 @@ impl<'vm> VM<'vm> {
                     )))
                 }
                 Some(l) => {
+                    let call_args: Vec<_> = call_args.iter().map(|v| v.borrow().clone()).collect();
                     let memo = match l {
                         Lifecycle::Memo(m) => m,
                         Lifecycle::Composite(c) => {
@@ -488,6 +485,9 @@ impl<'vm> VM<'vm> {
         };
         let value = match value {
             None => {
+                call_args
+                    .iter()
+                    .for_each(|v| self.stack.push(v.clone().into()));
                 let value = self.handle_scope(scope_index);
                 let s = self.scopes.get_mut(scope_index).unwrap();
                 match &mut s.lifecycle {
@@ -508,6 +508,7 @@ impl<'vm> VM<'vm> {
                             _ => unreachable!(),
                         };
 
+                        let call_args = call_args.into_iter().map(|v| v.borrow().clone()).collect();
                         memo.results.insert(call_args, value.borrow().clone());
                         value
                     }
@@ -521,8 +522,8 @@ impl<'vm> VM<'vm> {
 
     #[inline]
     pub fn call_frame_self(&mut self, scope_index: usize, mutable: bool) -> Result<(), VMError> {
-        self.call_frame(scope_index)?;
         self.set_this(mutable)?;
+        self.call_frame(scope_index)?;
         Ok(())
     }
 
@@ -563,10 +564,11 @@ impl<'vm> VM<'vm> {
 
     /// Snapshots can't include modules so VM must be created before loading snapshot
     pub fn load_snapshot(&mut self, bytes: Vec<u8>) -> Result<(), VMError> {
-        self.options = VMOptions::from_byte(bytes[0]);
+        let mut bytes = bytes.into_iter();
+        self.options = VMOptions::from_byte(bytes.next().unwrap());
         let mut sp = [0; 8];
-        for (i, b) in bytes[1..9].iter().enumerate() {
-            sp[i] = *b;
+        for (i, b) in bytes.take(8).enumerate() {
+            sp[i] = b;
         }
         self.sp = u64::from_le_bytes(sp) as usize;
         // load registers

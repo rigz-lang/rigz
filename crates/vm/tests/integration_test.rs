@@ -3,7 +3,6 @@ mod vm_test {
         BinaryOperation, Instruction, Lifecycle, Module, Number, RigzArgs, RigzBuilder, RigzType,
         Scope, StackValue, TestLifecycle, TestResults, VMBuilder, VMError, Value, VM,
     };
-    use std::str::FromStr;
 
     #[test]
     fn load_works() {
@@ -173,10 +172,11 @@ mod vm_test {
         let mut builder = VMBuilder::new();
         builder
             .add_load_instruction(3.into())
-            .add_load_instruction(7.into())
             .add_load_mut_instruction("a")
             .add_get_mutable_variable_instruction("a")
+            .add_load_instruction(7.into())
             .add_binary_assign_instruction(BinaryOperation::Add)
+            .add_get_mutable_variable_instruction("a")
             .add_halt_instruction();
         let mut vm = builder.build();
         assert_eq!(vm.eval().unwrap(), 10.into())
@@ -273,17 +273,11 @@ mod vm_test {
         let mut vm = VM {
             scopes: vec![
                 Scope {
-                    instructions: vec![
-                        Instruction::Call(2),
-                        Instruction::Halt,
-                    ],
+                    instructions: vec![Instruction::Call(2), Instruction::Halt],
                     ..Default::default()
                 },
                 Scope {
-                    instructions: vec![
-                        Instruction::Load(42.into()),
-                        Instruction::Ret,
-                    ],
+                    instructions: vec![Instruction::Load(42.into()), Instruction::Ret],
                     ..Default::default()
                 },
                 Scope {
