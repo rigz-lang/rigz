@@ -21,14 +21,6 @@ pub enum Instruction<'vm> {
     InstanceSetMut,
     Call(usize),
     CallMemo(usize),
-    CallSelf {
-        scope: usize,
-        mutable: bool,
-    },
-    CallSelfMemo {
-        scope: usize,
-        mutable: bool,
-    },
     Log(Level, &'vm str, usize),
     Puts(usize),
     CallEq(usize),
@@ -91,9 +83,9 @@ impl<'vm> VM<'vm> {
     #[log_derive::logfn_inputs(Debug, fmt = "process_instruction(vm={:#p}, instruction={:?})")]
     pub fn process_core_instruction(&mut self, instruction: &Instruction<'vm>) -> VMState {
         match instruction {
-            Instruction::Halt => return VMState::Done(self.next_value("halt")),
+            Instruction::Halt => return VMState::Done(self.next_resolved_value("halt")),
             Instruction::HaltIfError => {
-                let value = self.next_value("halt if error");
+                let value = self.next_resolved_value("halt if error");
                 if let Value::Error(e) = value.borrow().deref() {
                     return e.clone().into();
                 };
@@ -117,12 +109,6 @@ impl<'vm> VM<'vm> {
                 Ok(_) => {}
                 Err(e) => return e.into(),
             },
-            Instruction::CallSelf { scope, mutable } => {
-                match self.call_frame_self(*scope, *mutable) {
-                    Ok(_) => {}
-                    Err(e) => return e.into(),
-                }
-            }
             Instruction::CallModule { module, func, args } => {
                 match self.get_module_clone(module) {
                     Ok(module) => {
@@ -138,7 +124,7 @@ impl<'vm> VM<'vm> {
             Instruction::CallExtension { module, func, args } => {
                 match self.get_module_clone(module) {
                     Ok(module) => {
-                        let this = self.next_value("call_extension");
+                        let this = self.next_resolved_value("call_extension");
                         let args = self.resolve_args(*args);
                         let v = module
                             .call_extension(this, func, args.into())
@@ -153,7 +139,7 @@ impl<'vm> VM<'vm> {
             Instruction::CallMutableExtension { module, func, args } => {
                 match self.get_module_clone(module) {
                     Ok(module) => {
-                        let this = self.next_value("call_mut_extension");
+                        let this = self.next_resolved_value("call_mut_extension");
                         let args = self.resolve_args(*args);
                         match module.call_mutable_extension(this, func, args.into()) {
                             Ok(Some(v)) => {
@@ -185,12 +171,12 @@ impl<'vm> VM<'vm> {
                 };
             }
             Instruction::Cast { rigz_type } => {
-                let value = self.next_value("cast");
+                let value = self.next_resolved_value("cast");
                 self.store_value(value.borrow().cast(rigz_type).into());
             }
             Instruction::CallEq(scope_index) => {
-                let b = self.next_value("call eq - rhs");
-                let a = self.next_value("call eq - lhs");
+                let b = self.next_resolved_value("call eq - rhs");
+                let a = self.next_resolved_value("call eq - lhs");
                 if a == b {
                     match self.call_frame(*scope_index) {
                         Ok(_) => {}
@@ -199,8 +185,8 @@ impl<'vm> VM<'vm> {
                 }
             }
             Instruction::CallNeq(scope_index) => {
-                let b = self.next_value("call neq - rhs");
-                let a = self.next_value("call neq - lhs");
+                let b = self.next_resolved_value("call neq - rhs");
+                let a = self.next_resolved_value("call neq - lhs");
                 if a == b {
                     match self.call_frame(*scope_index) {
                         Ok(_) => {}
@@ -212,7 +198,7 @@ impl<'vm> VM<'vm> {
                 if_scope,
                 else_scope,
             } => {
-                let truthy = self.next_value("if else");
+                let truthy = self.next_resolved_value("if else");
                 let scope = if truthy.borrow().to_bool() {
                     if_scope
                 } else {
@@ -222,7 +208,7 @@ impl<'vm> VM<'vm> {
                 self.store_value(v.into());
             }
             Instruction::If(if_scope) => {
-                let truthy = self.next_value("if");
+                let truthy = self.next_resolved_value("if");
                 let v = if truthy.borrow().to_bool() {
                     self.handle_scope(*if_scope)
                 } else {
@@ -231,7 +217,7 @@ impl<'vm> VM<'vm> {
                 self.store_value(v.into());
             }
             Instruction::Unless(unless_scope) => {
-                let truthy = self.next_value("unless");
+                let truthy = self.next_resolved_value("unless");
                 let v = if !truthy.borrow().to_bool() {
                     self.handle_scope(*unless_scope)
                 } else {
@@ -250,7 +236,7 @@ impl<'vm> VM<'vm> {
                         .into()
                     }
                     Some(v) => {
-                        self.store_value(v.into());
+                        self.store_value(v);
                     }
                 }
             }
@@ -279,7 +265,7 @@ impl<'vm> VM<'vm> {
                         .into();
                     }
                     Some(og) => {
-                        self.store_value(og.into());
+                        self.store_value(og);
                     }
                 }
             }
@@ -403,15 +389,9 @@ impl<'vm> VM<'vm> {
                 Ok(_) => {}
                 Err(e) => return e.into(),
             },
-            &Instruction::CallSelfMemo { scope, mutable } => {
-                match self.call_frame_self_memo(scope, mutable) {
-                    Ok(_) => {}
-                    Err(e) => return e.into(),
-                }
-            }
             &Instruction::ForList { scope } => {
                 let mut result = vec![];
-                let this = self.next_value("for-list").borrow().to_list();
+                let this = self.next_resolved_value("for-list").borrow().to_list();
                 for value in this {
                     self.stack.push(value.into());
                     // todo ideally this doesn't need a call frame per intermediate, it should be possible to reuse the current scope/fram
@@ -426,7 +406,7 @@ impl<'vm> VM<'vm> {
             }
             &Instruction::ForMap { scope } => {
                 let mut result = IndexMap::new();
-                let this = self.next_value("for-map").borrow().to_map();
+                let this = self.next_resolved_value("for-map").borrow().to_map();
                 for (k, v) in this {
                     self.stack.push(v.into());
                     self.stack.push(k.into());
@@ -459,8 +439,8 @@ impl<'vm> VM<'vm> {
     }
 
     fn instance_get(&mut self) {
-        let attr = self.next_value("instance_get - attr");
-        let source = self.next_value("instance_get - source");
+        let attr = self.next_resolved_value("instance_get - attr");
+        let source = self.next_resolved_value("instance_get - source");
         let v = match source.borrow().get(attr.borrow().deref()) {
             Ok(Some(v)) => v,
             Ok(None) => Value::None,
@@ -470,9 +450,9 @@ impl<'vm> VM<'vm> {
     }
 
     fn instance_set(&mut self, mutable: bool) {
-        let value = self.next_value("instance_set - value");
-        let attr = self.next_value("instance_set - attr");
-        let source = self.next_value("instance_set - source");
+        let value = self.next_resolved_value("instance_set - value");
+        let attr = self.next_resolved_value("instance_set - attr");
+        let source = self.next_resolved_value("instance_set - source");
         let value = value.borrow();
         let source = if mutable {
             source

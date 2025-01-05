@@ -538,9 +538,10 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             .iter()
             .map(|a| (a.name, a.function_type.mutable))
             .collect();
+        let set_self = type_definition.self_type.as_ref().map(|t| t.mutable);
         let memoized = match lifecycle {
             None => {
-                self.builder.enter_scope(name, args);
+                self.builder.enter_scope(name, args, set_self);
                 false
             }
             Some(l) => {
@@ -551,7 +552,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     }
                     _ => false,
                 };
-                self.builder.enter_lifecycle_scope(name, l, args);
+                self.builder.enter_lifecycle_scope(name, l, args, set_self);
                 memoized
             }
         };
@@ -560,8 +561,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             match rt {
                 RigzType::Function(args, ret) => {
                     let args = args.to_vec();
-                    let cs =
-                        CallSignature::Lambda(type_definition.clone(), args, *ret.clone());
+                    let cs = CallSignature::Lambda(type_definition.clone(), args, *ret.clone());
                     match self.function_scopes.entry(arg.name) {
                         IndexMapEntry::Occupied(mut entry) => {
                             entry.get_mut().push(cs);
@@ -795,7 +795,9 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 let old = self
                     .identifiers
                     .insert(var, FunctionType::new(RigzType::Any));
-                let inner_scope = self.builder.enter_scope("for-list", vec![(var, false)]);
+                let inner_scope = self
+                    .builder
+                    .enter_scope("for-list", vec![(var, false)], None);
                 self.parse_expression(*body)?;
                 self.builder.exit_scope(current);
                 match old {
@@ -829,9 +831,9 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 let v_old = self
                     .identifiers
                     .insert(v_var, FunctionType::new(RigzType::Any));
-                let inner_scope = self
-                    .builder
-                    .enter_scope("for-map", vec![(k_var, false), (v_var, false)]);
+                let inner_scope =
+                    self.builder
+                        .enter_scope("for-map", vec![(k_var, false), (v_var, false)], None);
                 match value {
                     None => {
                         self.parse_expression(*key)?;
@@ -1199,7 +1201,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     }
                 }
             }
-            CallSignature::Lambda(_, args, _) => {
+            CallSignature::Lambda(_fcs, args, _) => {
                 let arguments = if let RigzArguments::Positional(a) = arguments {
                     a
                 } else {
@@ -1211,6 +1213,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     // todo ensure arg matches actual
                     self.parse_expression(actual)?;
                 }
+                self.builder.add_get_variable_instruction(name);
             }
         };
         Ok(())
@@ -1452,9 +1455,9 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         match call {
             CallSite::Scope(s, memo) => {
                 if memo {
-                    self.builder.add_call_self_memo_instruction(s, mutable);
+                    self.builder.add_call_memo_instruction(s);
                 } else {
-                    self.builder.add_call_self_instruction(s, mutable);
+                    self.builder.add_call_instruction(s);
                 }
             }
             CallSite::Module(m) => {
@@ -1553,7 +1556,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
     ) -> Result<usize, ValidationError> {
         let current_vars = self.identifiers.clone();
         let current = self.builder.current_scope();
-        self.builder.enter_scope(named, vec![]);
+        self.builder.enter_scope(named, vec![], None);
         let res = self.builder.current_scope();
         for e in scope.elements {
             self.parse_element(e)?;
@@ -1578,9 +1581,11 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         }
 
         let current = self.builder.current_scope();
-        let anon = self
-            .builder
-            .enter_scope(name, fn_args.iter().map(|a| (a.name, false)).collect());
+        let anon = self.builder.enter_scope(
+            name,
+            fn_args.iter().map(|a| (a.name, false)).collect(),
+            None,
+        );
         let old: Vec<_> = fn_args
             .iter()
             .map(|a| {

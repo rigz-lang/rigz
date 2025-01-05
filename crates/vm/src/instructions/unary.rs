@@ -34,7 +34,7 @@ impl VM<'_> {
     }
 
     pub fn handle_unary(&mut self, op: UnaryOperation) {
-        let val = self.next_value("handle_unary");
+        let val = self.next_resolved_value("handle_unary");
         self.apply_unary(op, val);
     }
 }

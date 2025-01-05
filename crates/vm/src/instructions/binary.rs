@@ -43,14 +43,14 @@ impl VM<'_> {
 
     #[inline]
     pub fn handle_binary(&mut self, op: BinaryOperation) {
-        let rhs = self.next_value("handle_binary - rhs");
-        let lhs = self.next_value("handle_binary - lhs");
+        let rhs = self.next_resolved_value("handle_binary - rhs");
+        let lhs = self.next_resolved_value("handle_binary - lhs");
         self.apply_binary(op, lhs, rhs);
     }
 
     pub fn handle_binary_assign(&mut self, op: BinaryOperation) {
-        let rhs = self.next_value("handle_binary_assign - rhs");
-        let lhs = self.next_value("handle_binary_assign - lhs");
+        let rhs = self.next_resolved_value("handle_binary_assign - rhs");
+        let lhs = self.next_resolved_value("handle_binary_assign - lhs");
         let v = eval_binary_operation(op, lhs.borrow().deref(), rhs.borrow().deref());
         *lhs.borrow_mut().deref_mut() = v;
     }

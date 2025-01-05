@@ -105,11 +105,17 @@ pub struct VM<'vm> {
 }
 
 impl<'v> VM<'v> {
-    pub fn next_value<T: Display>(&mut self, location: T) -> Rc<RefCell<Value>> {
-        match self.stack.pop() {
-            None => VMError::EmptyStack(format!("Stack is empty for {location}")).into(),
-            Some(v) => v.resolve(self),
-        }
+    pub fn next_value<T: Display>(&mut self, location: T) -> StackValue {
+        self.stack
+            .pop()
+            .unwrap_or_else(|| VMError::EmptyStack(format!("Stack is empty for {location}")).into())
+    }
+
+    pub fn next_resolved_value<T: Display>(&mut self, location: T) -> Rc<RefCell<Value>> {
+        self.stack
+            .pop()
+            .unwrap_or_else(|| VMError::EmptyStack(format!("Stack is empty for {location}")).into())
+            .resolve(self)
     }
 
     pub fn store_value(&mut self, value: StackValue) {
@@ -118,32 +124,37 @@ impl<'v> VM<'v> {
 
     pub fn resolve_args(&mut self, count: usize) -> Vec<Rc<RefCell<Value>>> {
         (0..count)
-            .map(|_| self.next_value("resolve_args"))
-            .rev()
+            .map(|_| self.next_resolved_value("resolve_args"))
             .collect()
     }
 
-    pub fn get_variable(&self, name: &'v str) -> Result<Rc<RefCell<Value>>, VMError> {
-        match self.frames.current.borrow().get_variable(name, self) {
-            None => Err(VMError::VariableDoesNotExist(format!(
-                "Immutable variable {name} does not exist"
-            ))),
-            Some(v) => Ok(v),
-        }
+    pub fn get_variable(&mut self, name: &'v str) -> Result<Rc<RefCell<Value>>, VMError> {
+        let v = match self.frames.current.borrow().get_variable(name, self) {
+            None => {
+                return Err(VMError::VariableDoesNotExist(format!(
+                    "Immutable variable {name} does not exist"
+                )))
+            }
+            Some(v) => v,
+        };
+        Ok(v.resolve(self))
     }
 
-    pub fn get_mutable_variable(&self, name: &'v str) -> Result<Rc<RefCell<Value>>, VMError> {
-        match self
+    pub fn get_mutable_variable(&mut self, name: &'v str) -> Result<Rc<RefCell<Value>>, VMError> {
+        let v = match self
             .frames
             .current
             .borrow()
             .get_mutable_variable(name, self)?
         {
-            None => Err(VMError::VariableDoesNotExist(format!(
-                "Mutable variable {name} does not exist"
-            ))),
-            Some(v) => Ok(v),
-        }
+            None => {
+                return Err(VMError::VariableDoesNotExist(format!(
+                    "Mutable variable {name} does not exist"
+                )))
+            }
+            Some(v) => v,
+        };
+        Ok(v.resolve(self))
     }
 }
 
@@ -217,7 +228,7 @@ impl<'vm> VM<'vm> {
         match self.frames.pop() {
             None => {
                 let source = self.next_value("process_ret - empty stack");
-                VMState::Done(source)
+                VMState::Done(source.resolve(self))
             }
             Some(c) => {
                 self.sp = c.borrow().scope_id;
@@ -226,7 +237,7 @@ impl<'vm> VM<'vm> {
                     false => VMState::Running,
                     true => {
                         let source = self.next_value("process_ret - ran");
-                        VMState::Ran(source)
+                        VMState::Ran(source.resolve(self))
                     }
                 }
             }
@@ -427,6 +438,10 @@ impl<'vm> VM<'vm> {
         self.frames.push(current);
         self.sp = scope_index;
 
+        if let Some(mutable) = self.scopes[scope_index].set_self {
+            self.set_this(mutable)?;
+        }
+
         for (arg, mutable) in self.scopes[scope_index].args.clone() {
             if mutable {
                 self.load_mut(arg)?;
@@ -439,6 +454,7 @@ impl<'vm> VM<'vm> {
 
     pub fn call_frame_memo(&mut self, scope_index: usize) -> Result<(), VMError> {
         let args = self.scopes[scope_index].args.len();
+        // todo need to handle self here
         let call_args = self.resolve_args(args);
         let value = match self.scopes.get_mut(scope_index) {
             None => {
@@ -520,32 +536,14 @@ impl<'vm> VM<'vm> {
         Ok(())
     }
 
-    #[inline]
-    pub fn call_frame_self(&mut self, scope_index: usize, mutable: bool) -> Result<(), VMError> {
-        self.set_this(mutable)?;
-        self.call_frame(scope_index)?;
-        Ok(())
-    }
-
     // using this to distinguish VM runtime self vs rust self
     fn set_this(&mut self, mutable: bool) -> Result<(), VMError> {
-        let this = self.next_value("set_this");
+        let this = self.next_value(format!("set self: mut {mutable}"));
         if mutable {
             self.frames.load_mut("self", this)
         } else {
             self.frames.load_let("self", this)
         }
-    }
-
-    #[inline]
-    pub fn call_frame_self_memo(
-        &mut self,
-        scope_index: usize,
-        mutable: bool,
-    ) -> Result<(), VMError> {
-        self.call_frame_memo(scope_index)?;
-        self.set_this(mutable)?;
-        Ok(())
     }
 
     /// Snapshots can't include modules or messages from in progress lifecycles

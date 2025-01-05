@@ -14,6 +14,7 @@ pub struct Scope<'vm> {
     pub lifecycle: Option<Lifecycle>,
     pub named: &'vm str,
     pub args: Vec<(&'vm str, bool)>,
+    pub set_self: Option<bool>,
 }
 
 impl Default for Scope<'_> {
@@ -23,26 +24,34 @@ impl Default for Scope<'_> {
             instructions: Default::default(),
             lifecycle: None,
             args: vec![],
+            set_self: None,
         }
     }
 }
 
 impl<'vm> Scope<'vm> {
     #[inline]
-    pub fn new(named: &'vm str, args: Vec<(&'vm str, bool)>) -> Self {
+    pub fn new(named: &'vm str, args: Vec<(&'vm str, bool)>, set_self: Option<bool>) -> Self {
         Scope {
             named,
             args,
+            set_self,
             ..Default::default()
         }
     }
 
     #[inline]
-    pub fn lifecycle(named: &'vm str, args: Vec<(&'vm str, bool)>, lifecycle: Lifecycle) -> Self {
+    pub fn lifecycle(
+        named: &'vm str,
+        args: Vec<(&'vm str, bool)>,
+        lifecycle: Lifecycle,
+        set_self: Option<bool>,
+    ) -> Self {
         Scope {
             lifecycle: Some(lifecycle),
             named,
             args,
+            set_self,
             ..Default::default()
         }
     }

@@ -23,7 +23,7 @@ impl<'vm> RigzVM<'vm> for VMModule {
     }
 
     fn mut_vm_pop(&self, vm: &mut VM<'vm>) -> Result<Value, VMError> {
-        let v = vm.next_value("vm_pop").borrow().clone();
+        let v = vm.next_resolved_value("vm_pop").borrow().clone();
         match v {
             Value::Error(e) => Err(e),
             _ => Ok(v),

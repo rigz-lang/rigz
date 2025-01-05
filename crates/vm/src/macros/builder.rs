@@ -33,9 +33,14 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        fn enter_scope(&mut self, named: &'vm str, args: Vec<(&'vm str, bool)>) -> usize {
+        fn enter_scope(
+            &mut self,
+            named: &'vm str,
+            args: Vec<(&'vm str, bool)>,
+            set_self: Option<bool>,
+        ) -> usize {
             let next = self.scopes.len();
-            self.scopes.push(Scope::new(named, args));
+            self.scopes.push(Scope::new(named, args, set_self));
             self.sp = self.scopes.len() - 1;
             next
         }
@@ -46,9 +51,11 @@ macro_rules! generate_builder {
             named: &'vm str,
             lifecycle: Lifecycle,
             args: Vec<(&'vm str, bool)>,
+            set_self: Option<bool>,
         ) -> usize {
             let next = self.scopes.len();
-            self.scopes.push(Scope::lifecycle(named, args, lifecycle));
+            self.scopes
+                .push(Scope::lifecycle(named, args, lifecycle, set_self));
             self.sp = next;
             next
         }

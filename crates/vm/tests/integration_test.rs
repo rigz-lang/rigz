@@ -65,7 +65,7 @@ mod vm_test {
         let mut builder = VMBuilder::new();
         let scope = builder
             .add_load_instruction("abc".into())
-            .enter_scope("test", vec![]);
+            .enter_scope("test", vec![], None);
         builder.exit_scope(0).add_call_instruction(scope);
         let mut vm = builder.build();
         let v = vm.eval().unwrap();
@@ -117,7 +117,7 @@ mod vm_test {
     fn assignment_scopes_work() {
         let mut builder = VMBuilder::new();
         // a = 1 + 2; a + 2
-        let scope = builder.enter_scope("test", vec![]);
+        let scope = builder.enter_scope("test", vec![], None);
         builder
             .add_load_instruction(1.into())
             .add_load_instruction(2.into())
@@ -138,7 +138,7 @@ mod vm_test {
     #[test]
     fn simple_scope() {
         let mut builder = VMBuilder::new();
-        let scope = builder.enter_scope("test", vec![]);
+        let scope = builder.enter_scope("test", vec![], None);
         builder
             .add_load_instruction("hello".into())
             .exit_scope(0)
@@ -151,7 +151,7 @@ mod vm_test {
     #[test]
     fn function_scope() {
         let mut builder = VMBuilder::new();
-        let scope = builder.enter_scope("test", vec![]);
+        let scope = builder.enter_scope("test", vec![], None);
         builder
             .add_binary_instruction(BinaryOperation::Add)
             .exit_scope(0)
@@ -191,18 +191,9 @@ mod vm_test {
                         Instruction::Load(2.into()),
                         Instruction::LoadMut("a"),
                         Instruction::GetMutableVariable("a"),
-                        Instruction::CallSelf {
-                            scope: 1,
-                            mutable: true,
-                        },
-                        Instruction::CallSelf {
-                            scope: 1,
-                            mutable: true,
-                        },
-                        Instruction::CallSelf {
-                            scope: 1,
-                            mutable: true,
-                        },
+                        Instruction::Call(1),
+                        Instruction::Call(1),
+                        Instruction::Call(1),
                         Instruction::GetMutableVariable("a"),
                         Instruction::Halt,
                     ],
@@ -216,6 +207,7 @@ mod vm_test {
                         Instruction::GetMutableVariable("self"),
                         Instruction::Ret,
                     ],
+                    set_self: Some(true),
                     ..Default::default()
                 },
             ],
@@ -233,20 +225,11 @@ mod vm_test {
                         Instruction::Load(4.2.into()),
                         Instruction::LoadMut("f"),
                         Instruction::GetMutableVariable("f"),
-                        Instruction::CallSelf {
-                            scope: 1,
-                            mutable: true,
-                        },
+                        Instruction::Call(1),
                         Instruction::GetMutableVariable("f"),
-                        Instruction::CallSelf {
-                            scope: 1,
-                            mutable: true,
-                        },
+                        Instruction::Call(1),
                         Instruction::GetMutableVariable("f"),
-                        Instruction::CallSelf {
-                            scope: 1,
-                            mutable: true,
-                        },
+                        Instruction::Call(1),
                         Instruction::GetVariable("f"),
                         Instruction::Halt,
                     ],
@@ -260,6 +243,7 @@ mod vm_test {
                         Instruction::GetMutableVariable("self"),
                         Instruction::Ret,
                     ],
+                    set_self: Some(true),
                     ..Default::default()
                 },
             ],
@@ -295,6 +279,7 @@ mod vm_test {
                     named: "test",
                     lifecycle: Some(Lifecycle::Test(TestLifecycle)),
                     args: Vec::new(),
+                    set_self: None,
                 },
             ],
             ..Default::default()
@@ -316,7 +301,7 @@ mod vm_test {
         // [for v in [1, 2, 3]: v * v]
         let scope = builder
             .add_load_instruction(vec![1, 2, 3].into())
-            .enter_scope("for-list", vec![("v", false)]);
+            .enter_scope("for-list", vec![("v", false)], None);
         builder
             .add_get_variable_instruction("v")
             .add_get_variable_instruction("v")

@@ -197,6 +197,12 @@ mod runtime {
             format("format '{}', 1 + 2" = "3")
             format_parens("format('{}', 1 + 2)" = "3")
             is("1.is Number" = true)
+            fn_calls_fn(r#"
+            fn Any.apply(func: |Any| -> Any)
+                func self
+            end
+
+            3.apply { |v| v * v }"# = 9)
             fib_recursive_dynamic_programming(r#"
             @memo
             fn fib(n: Number) -> Number
@@ -338,23 +344,23 @@ mod runtime {
 
             1.hello
             "# = "Hello")
-            // early_return(r#"
-            // if true
-            //     return 42
-            // end
-            //
-            // 37
-            // "# = 42)
-            // func_early_return(r#"
-            // fn foo
-            //     if true
-            //         return 42
-            //     end
-            //     30
-            // end
-            //
-            // foo + 37
-            // "# = 79)
+            early_return(r#"
+            if true
+                return 42
+            end
+
+            37
+            "# = 42)
+            func_early_return(r#"
+            fn foo
+                if true
+                    return 42
+                end
+                30
+            end
+
+            foo + 37
+            "# = 79)
             func_early_return_trailing(r#"
             fn foo
                 return 42 unless false
@@ -419,12 +425,6 @@ mod runtime {
 
     mod debug {
         use super::*;
-        run_debug_vm! {
-            fn_calls_fn(r#"
-            fn Any.apply(func: |Any| -> Any) -> List
-                = func self
-
-            3.apply { |v| v * v }"# = 9)
-        }
+        run_debug_vm! {}
     }
 }

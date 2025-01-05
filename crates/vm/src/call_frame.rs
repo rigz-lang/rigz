@@ -1,15 +1,14 @@
-use crate::{VMError, Value, VM};
+use crate::{StackValue, VMError, VM};
 use indexmap::map::Entry;
 use indexmap::IndexMap;
 use log_derive::{logfn, logfn_inputs};
 use std::cell::RefCell;
 use std::ops::Index;
-use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub enum Variable {
-    Let(Rc<RefCell<Value>>),
-    Mut(Rc<RefCell<Value>>),
+    Let(StackValue),
+    Mut(StackValue),
 }
 
 #[derive(Clone, Debug)]
@@ -43,7 +42,7 @@ impl<'vm> Frames<'vm> {
     }
 
     #[logfn_inputs(Trace, fmt = "load_let(frames={:#?} name={}, value={:?})")]
-    pub fn load_let(&self, name: &'vm str, value: Rc<RefCell<Value>>) -> Result<(), VMError> {
+    pub fn load_let(&self, name: &'vm str, value: StackValue) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
             Entry::Occupied(v) => {
                 return Err(VMError::UnsupportedOperation(format!(
@@ -59,7 +58,7 @@ impl<'vm> Frames<'vm> {
     }
 
     #[logfn_inputs(Trace, fmt = "load_mut(frames={:#?} name={}, value={:?})")]
-    pub fn load_mut(&self, name: &'vm str, value: Rc<RefCell<Value>>) -> Result<(), VMError> {
+    pub fn load_mut(&self, name: &'vm str, value: StackValue) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
             Entry::Occupied(mut var) => match var.get() {
                 Variable::Let(_) => {
@@ -100,7 +99,7 @@ pub struct CallFrame<'vm> {
 impl<'vm> CallFrame<'vm> {
     #[logfn(Trace)]
     #[logfn_inputs(Trace, fmt = "get_variable(frame={:#p} name={}, vm={:#p})")]
-    pub(crate) fn get_variable(&self, name: &'vm str, vm: &VM<'vm>) -> Option<Rc<RefCell<Value>>> {
+    pub(crate) fn get_variable(&self, name: &'vm str, vm: &VM<'vm>) -> Option<StackValue> {
         match self.variables.get(name) {
             None => match self.parent {
                 None => None,
@@ -119,7 +118,7 @@ impl<'vm> CallFrame<'vm> {
         &self,
         name: &'vm str,
         vm: &VM<'vm>,
-    ) -> Result<Option<Rc<RefCell<Value>>>, VMError> {
+    ) -> Result<Option<StackValue>, VMError> {
         match self.variables.get(name) {
             None => match self.parent {
                 None => Ok(None),
