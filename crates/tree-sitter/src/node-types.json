@@ -279,6 +279,33 @@
     }
   },
   {
+    "type": "function_declaration",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "function_arg",
+          "named": true
+        },
+        {
+          "type": "function_identifier",
+          "named": true
+        },
+        {
+          "type": "lifecycle",
+          "named": true
+        },
+        {
+          "type": "type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "function_definition",
     "named": true,
     "fields": {},
@@ -357,6 +384,25 @@
       "types": [
         {
           "type": "expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "impl",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "function_definition",
+          "named": true
+        },
+        {
+          "type": "type",
           "named": true
         }
       ]
@@ -450,6 +496,25 @@
     }
   },
   {
+    "type": "mod",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "program",
+          "named": true
+        },
+        {
+          "type": "type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "program",
     "named": true,
     "root": true,
@@ -524,7 +589,19 @@
           "named": true
         },
         {
+          "type": "impl",
+          "named": true
+        },
+        {
           "type": "import",
+          "named": true
+        },
+        {
+          "type": "mod",
+          "named": true
+        },
+        {
+          "type": "trait",
           "named": true
         }
       ]
@@ -539,6 +616,29 @@
     "type": "symbol",
     "named": true,
     "fields": {}
+  },
+  {
+    "type": "trait",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "function_declaration",
+          "named": true
+        },
+        {
+          "type": "function_definition",
+          "named": true
+        },
+        {
+          "type": "type",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "tuple",
@@ -898,6 +998,10 @@
     "named": false
   },
   {
+    "type": "impl",
+    "named": false
+  },
+  {
     "type": "import",
     "named": false
   },
@@ -907,6 +1011,10 @@
   },
   {
     "type": "let",
+    "named": false
+  },
+  {
+    "type": "mod",
     "named": false
   },
   {
@@ -928,6 +1036,10 @@
   {
     "type": "self",
     "named": true
+  },
+  {
+    "type": "trait",
+    "named": false
   },
   {
     "type": "true",

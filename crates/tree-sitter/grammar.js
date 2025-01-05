@@ -14,18 +14,24 @@ module.exports = grammar({
     word: $ => $.identifier,
     rules: {
         // TODO: add the actual grammar rules
-        program: $ => repeat1($.statement),
+        program: $ => prec.left(repeat1($.statement)),
         statement: $ => prec.left(seq(choice(
             $.binary_assignment,
             $.assignment,
             $.function_definition,
             $.expression,
             $.import,
+            $.mod,
+            $.trait,
+            $.impl,
         ), optional($._terminator))),
         type_definition: $ => choice(
             seq($._type, $.type_identifier, "=", $.type_object),
         ),
         type_object: $ => seq("{", seq($.identifier, "=", $.type), repeat(seq(',', seq($.identifier, "=", $.type))), optional(','), "}"),
+        mod: $ => seq("mod", $.type, repeat($.program), "end"),
+        trait: $ => seq("trait", $.type, repeat(choice($.function_declaration, $.function_definition)), "end"),
+        impl: $ => seq("impl", $.type, "for", $.type, repeat($.function_definition), "end"),
         _terminator: _ => choice(";", "\n"),
         _type: _ => "type",
         _let: _ => "let",
@@ -54,13 +60,19 @@ module.exports = grammar({
             seq(choice("+", "-", "*", "/", "%", "^", "|", "||", "&", "&&", ">>", "<<"), "="),
             $.expression
         ),
-        function_definition: $ => seq(
+        function_declaration: $ => seq(
+            optional($.lifecycle),
+            $._fn, $.function_identifier, seq(
+                optional($._function_args), optional(seq("->", optional($._mut), $.type))
+            ),
+        ),
+        function_definition: $ => prec(2, seq(
             optional($.lifecycle),
             $._fn, $.function_identifier, seq(
                 optional($._function_args), optional(seq("->", optional($._mut), $.type))
             ),
             $.scope
-        ),
+        )),
         _function_args: $ => seq("(", $.function_arg,
             repeat(seq(',', $.function_arg)),
             ")"),
