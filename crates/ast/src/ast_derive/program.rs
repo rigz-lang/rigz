@@ -207,6 +207,13 @@ impl ToTokens for Expression<'_> {
                     }
                 }
             }
+            Expression::Index(lhs, index) => {
+                let lhs = boxed(lhs);
+                let index = boxed(index);
+                quote! {
+                    Expression::Index(#lhs, #index)
+                }
+            }
         };
         tokens.extend(t)
     }

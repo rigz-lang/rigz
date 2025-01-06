@@ -642,6 +642,27 @@ impl<'lex> Parser<'lex> {
                 TokenKind::BinOp(_) | TokenKind::Pipe | TokenKind::Minus | TokenKind::Period => {
                     Ok(self.parse_inline_expression(exp)?)
                 }
+                TokenKind::Lbracket => {
+                    self.consume_token(TokenKind::Lbracket)?;
+                    let index = self.parse_expression()?;
+                    self.consume_token(TokenKind::Rbracket)?;
+                    let mut base = Expression::Index(exp.into(), index.into());
+                    loop {
+                        let next = self.peek_token();
+                        match next {
+                            Some(t) if t.kind == TokenKind::Lbracket => {
+                                self.consume_token(TokenKind::Lbracket)?;
+                                let index = self.parse_expression()?;
+                                self.consume_token(TokenKind::Rbracket)?;
+                                // todo handle edge case where indexed value may be a function that accepts a list
+                                // v = { a = |list| list + [1, 2, 3] }; key = 'a'; v[key] [4, 5, 6]
+                                base = Expression::Index(base.into(), index.into())
+                            }
+                            _ => break,
+                        }
+                    }
+                    Ok(base)
+                }
                 TokenKind::Newline | TokenKind::Into => {
                     let mut new_lines = 0;
                     // todo should other suffix tokens be allowed to have leading newlines?
@@ -1036,11 +1057,15 @@ impl<'lex> Parser<'lex> {
         lhs: Expression<'lex>,
     ) -> Result<Expression<'lex>, ParsingError> {
         let next = self.next_required_token("parse_instance_call")?;
+        let mut lhs = lhs;
         let mut calls = match next.kind {
             TokenKind::Identifier(id) => {
                 vec![id]
             }
-            // todo support a.0.blah
+            TokenKind::Value(TokenValue::Number(Number::Int(n))) => {
+                lhs = Expression::Index(lhs.into(), Expression::Value(n.into()).into());
+                vec![]
+            }
             _ => {
                 return Err(ParsingError::ParseError(format!(
                     "Unexpected {:?} for instance call",
@@ -1055,32 +1080,64 @@ impl<'lex> Parser<'lex> {
                 Some(t) if t.terminal() => break,
                 Some(t) => {
                     if needs_separator {
-                        if t.kind == TokenKind::Period {
-                            self.consume_token(TokenKind::Period)?;
-                            needs_separator = false;
-                            continue;
-                        } else {
-                            break;
+                        match t.kind {
+                            TokenKind::Period => {
+                                self.consume_token(TokenKind::Period)?;
+                                needs_separator = false;
+                                continue;
+                            }
+                            // todo how to handle this
+                            // TokenKind::Lbracket => {
+                            //     // a.b.c [1, 2, 3]
+                            //     // a.b.c[1]
+                            // }
+                            _ => {
+                                break;
+                            }
                         }
                     } else {
-                        if let TokenKind::Identifier(n) = t.kind {
-                            self.consume_token(TokenKind::Identifier(n))?;
-                            calls.push(n);
-                            needs_separator = true;
-                            continue;
+                        match t.kind {
+                            TokenKind::Identifier(n) => {
+                                self.consume_token(TokenKind::Identifier(n))?;
+                                calls.push(n);
+                                needs_separator = true;
+                                continue;
+                            }
+                            TokenKind::Value(TokenValue::Number(Number::Int(n))) => {
+                                let base = if !calls.is_empty() {
+                                    FunctionExpression::InstanceFunctionCall(
+                                        Box::new(lhs),
+                                        calls,
+                                        vec![].into(),
+                                    )
+                                    .into()
+                                } else {
+                                    lhs.into()
+                                };
+                                lhs = Expression::Index(base, Expression::Value(n.into()).into());
+                                calls = vec![];
+                                needs_separator = true;
+                            }
+                            _ => {
+                                return Err(ParsingError::ParseError(format!(
+                                    "Unexpected {:?} for instance call, {:?}.{}",
+                                    t,
+                                    lhs,
+                                    calls.join(".")
+                                )))
+                            }
                         }
-                        return Err(ParsingError::ParseError(format!(
-                            "Unexpected {:?} for instance call, {:?}.{}",
-                            t,
-                            lhs,
-                            calls.join(".")
-                        )));
                     }
                 }
             }
         }
-        let args = self.parse_args()?;
-        Ok(FunctionExpression::InstanceFunctionCall(Box::new(lhs), calls, args).into())
+
+        if !calls.is_empty() {
+            let args = self.parse_args()?;
+            Ok(FunctionExpression::InstanceFunctionCall(Box::new(lhs), calls, args).into())
+        } else {
+            Ok(lhs)
+        }
     }
 
     fn parse_value_expression(

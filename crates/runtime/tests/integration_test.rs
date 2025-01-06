@@ -86,6 +86,8 @@ mod runtime {
         run_expected! {
             raw_value("'Hello World'" = "Hello World")
             addition("2 + 2" = 4)
+            list_index("[1, 2, 3][2]" = 3)
+            list_index_getter("[1, 2, 3].2" = 3)
             split_first("[1, 2, 3].split_first" = Value::Tuple(vec![1.into(), vec![2, 3].into()]))
             split_first_assign("(first, rest) = [1, 2, 3].split_first; first + rest" = vec![1, 2, 3])
             complex_expression_ignore_precedence("1 + 2 * 3 - 4 / 5" = 1)
@@ -224,17 +226,17 @@ mod runtime {
             else
                 1 + 2
             end"# = 3)
-            // memo_factorial(r#"
-            // @memo
-            // fn factorial(n: Number)
-            //     if n == 0
-            //         1
-            //     else
-            //         n * factorial n - 1
-            //     end
-            // end
-            // factorial 15
-            // "#=1307674368000_i64)
+            memo_factorial(r#"
+            @memo
+            fn factorial(n: Number)
+                if n == 0
+                    1
+                else
+                    n * factorial n - 1
+                end
+            end
+            factorial 15
+            "#=1307674368000_i64)
             var_args_module(r#"
             let a = []
             a.with 1, 2, 3
@@ -451,14 +453,13 @@ mod runtime {
                 puts v, b
                 v - b
              end"# = 1)
+            format("format '{}', 1 + 2" = "3")
+            format_parens("format('{}', 1 + 2)" = "3")
         }
     }
 
     mod debug {
         use super::*;
-        run_debug_vm! {
-            format("format '{}', 1 + 2" = "3")
-            format_parens("format('{}', 1 + 2)" = "3")
-        }
+        run_debug_vm! {}
     }
 }

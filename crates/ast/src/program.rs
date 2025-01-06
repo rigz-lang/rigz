@@ -242,8 +242,7 @@ pub enum Expression<'lex> {
         then: Scope<'lex>,
     },
     Return(Option<Box<Expression<'lex>>>),
-    // todo support later
-    // Index(Box<Expression<'lex>>, Vec<Expression<'lex>>),
+    Index(Box<Expression<'lex>>, Box<Expression<'lex>>),
     Tuple(Vec<Expression<'lex>>),
     Lambda {
         arguments: Vec<FunctionArgument<'lex>>,

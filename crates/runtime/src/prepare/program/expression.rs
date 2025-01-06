@@ -221,6 +221,35 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             // todo more accurate typing
             Expression::List(_) => RigzType::List(Box::new(RigzType::Any)),
             Expression::Map(_) => RigzType::Map(Box::new(RigzType::Any), Box::new(RigzType::Any)),
+            Expression::Index(base, _index) => {
+                let base = self.rigz_type(base)?;
+                // todo confirm index can be used
+                match base {
+                    RigzType::None | RigzType::Bool | RigzType::Error => RigzType::Error,
+                    RigzType::Any => RigzType::Any,
+                    RigzType::Int | RigzType::Float | RigzType::Number => RigzType::Bool,
+                    RigzType::String => RigzType::String,
+                    RigzType::List(l) | RigzType::Map(_, l) => *l,
+                    RigzType::Type => RigzType::Error,
+                    _ => todo!(),
+                    // todo need to know whether int range, char range, or dynamic
+                    /*
+                    RigzType::Range => RigzType::Any,
+                    RigzType::Function(_, _) => {}
+                    RigzType::This => {
+                        // todo improve this logic, move most of this to a function
+                        match self.identifiers.get("self") {
+                            None => RigzType::This,
+                            Some(v) => v.rigz_type.clone(),
+                        }
+                    }
+                    RigzType::Tuple(_) => {}
+                    RigzType::Union(_) => {}
+                    RigzType::Composite(_) => {}
+                    RigzType::Custom(_) => {}
+                     */
+                }
+            }
         };
         Ok(t)
     }

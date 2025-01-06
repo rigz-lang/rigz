@@ -750,7 +750,11 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             Expression::Tuple(v) => {
                 self.parse_tuple(v)?;
             }
-            // Expression::Index(_, _) => {}
+            Expression::Index(base, index) => {
+                self.parse_expression(*base)?;
+                self.parse_expression(*index)?;
+                self.builder.add_instance_get_instruction(false);
+            }
             Expression::Value(v) => self.parse_value(v),
             Expression::BinExp(a, op, b) => {
                 self.parse_expression(*a)?;
