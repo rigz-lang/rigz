@@ -74,6 +74,7 @@ impl RigzArgs {
         for (i, v) in self.0.into_iter().enumerate().take(N) {
             results[i] = v;
         }
+        results.reverse();
         Ok(results)
     }
 
@@ -90,7 +91,7 @@ impl RigzArgs {
 
         let mut results = [(); START].map(|_| Value::None.into());
         let mut var = [(); COUNT].map(|_| Vec::new());
-        for (i, v) in self.0.into_iter().enumerate() {
+        for (i, v) in self.0.into_iter().rev().enumerate() {
             if i < START {
                 results[i] = v;
                 continue;
@@ -134,8 +135,8 @@ mod rigz_args {
     #[test]
     fn var_args_one() {
         let args = RigzArgs(vec![
-            Rc::new(RefCell::new(1.into())),
             Rc::new(RefCell::new(vec![Value::Number(2.into()), 3.into()].into())),
+            Rc::new(RefCell::new(1.into())),
         ]);
         let ([first], [var]) = args.var_args().expect("Failed to get var_args");
         assert_eq!(first, Rc::new(RefCell::new(1.into())));
@@ -154,9 +155,9 @@ mod rigz_args {
     #[test]
     fn var_args_two() {
         let args = RigzArgs(vec![
-            Rc::new(RefCell::new(1.into())),
-            Rc::new(RefCell::new(Value::List(vec![2.into()]).into())),
             Rc::new(RefCell::new(vec![Value::Number(3.into())].into())),
+            Rc::new(RefCell::new(Value::List(vec![2.into()]).into())),
+            Rc::new(RefCell::new(1.into())),
         ]);
         let ([first], [var1, var2]) = args.var_args().expect("Failed to get var_args");
         let v: Value = 1.into();

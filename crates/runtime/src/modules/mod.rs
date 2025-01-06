@@ -1,3 +1,5 @@
+mod any;
+mod assertions;
 mod date;
 mod file;
 mod json;
@@ -10,6 +12,8 @@ mod string;
 mod uuid;
 mod vm;
 
+pub use any::AnyModule;
+pub use assertions::AssertionsModule;
 pub use date::DateModule;
 pub use file::FileModule;
 pub use json::JSONModule;

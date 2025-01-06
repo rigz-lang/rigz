@@ -1,6 +1,8 @@
 mod program;
 
-use crate::modules::{DateModule, NumberModule, RandomModule, StringModule, UUIDModule};
+use crate::modules::{
+    AnyModule, AssertionsModule, DateModule, NumberModule, RandomModule, StringModule, UUIDModule,
+};
 use crate::RuntimeError;
 use crate::{FileModule, JSONModule, LogModule, RigzBuilder, StdModule, VMModule};
 use log::Level;
@@ -217,6 +219,8 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
 
     fn add_default_modules(&mut self) {
         self.register_module(VMModule);
+        self.register_module(AnyModule);
+        self.register_module(AssertionsModule);
         self.register_module(NumberModule);
         self.register_module(StringModule);
         self.register_module(StdModule);
@@ -556,6 +560,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             .arguments
             .iter()
             .map(|a| (a.name, a.function_type.mutable))
+            .rev()
             .collect();
         let set_self = type_definition.self_type.as_ref().map(|t| t.mutable);
         let memoized = match lifecycle {
@@ -1423,7 +1428,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             )));
         }
         let arg_len = arguments.len();
-        for (arg, expression) in fcs.arguments.iter().zip(arguments).rev() {
+        for (arg, expression) in fcs.arguments.iter().zip(arguments) {
             match expression {
                 Expression::Lambda {
                     arguments,
@@ -1433,9 +1438,48 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     self.parse_anon_lambda(&fcs, arg.name, arguments, var_args_start, *body)?;
                 }
                 _ => {
-                    if let RigzType::Function(..) = &arg.function_type.rigz_type {
-                        self.builder
-                            .add_get_variable_reference_instruction(arg.name);
+                    if let RigzType::Function(args, res) = &arg.function_type.rigz_type {
+                        let Expression::Identifier(id) = expression else {
+                            return Err(ValidationError::InvalidFunction(format!("Function type argument, expected anonymous lambda or function reference |{args:?}| -> {res}, received {expression:?}")));
+                        };
+                        match self.function_scopes.get(id) {
+                            None => {
+                                self.builder
+                                    .add_get_variable_reference_instruction(arg.name);
+                            }
+                            Some(fcs) => {
+                                let func = fcs.iter()
+                                    .filter_map(|cs| match cs {
+                                        CallSignature::Function(fcs, cs) => {
+                                            match cs {
+                                                // todo better matching on args, support defaults
+                                                CallSite::Scope(id, _) if fcs.arguments.len() == args.len() => {
+                                                    Some(*id)
+                                                }
+                                                CallSite::Module(_) => todo!("Module function references are not supported yet {id}"),
+                                                _ => None,
+                                            }
+                                        }
+                                        CallSignature::Lambda(_, _, _) => None,
+                                    })
+                                    .collect::<Vec<_>>();
+                                if func.is_empty() {
+                                    self.builder
+                                        .add_get_variable_reference_instruction(arg.name);
+                                    continue;
+                                }
+                                if func.len() > 1 {
+                                    return Err(ValidationError::InvalidFunction(format!(
+                                        "Ambiguous function reference {id} - {func:?}"
+                                    )));
+                                }
+                                let func = func[0];
+                                self.builder.add_load_instruction(StackValue::ScopeId(func));
+                                self.builder.add_load_let_instruction(arg.name);
+                                self.builder
+                                    .add_get_variable_reference_instruction(arg.name);
+                            }
+                        }
                     } else {
                         self.parse_expression(expression)?;
                     }
@@ -1616,14 +1660,21 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
     ) -> Result<(), ValidationError> {
         if var_args_start.is_some() {
             return Err(ValidationError::NotImplemented(format!(
-                "var args not implemented for lambas {name}"
+                "var args not implemented for lambdas {name}"
             )));
         }
+
+        let s = match exp {
+            Expression::Scope(s) => s,
+            e => Scope {
+                elements: vec![e.into()],
+            },
+        };
 
         let current = self.builder.current_scope();
         let anon = self.builder.enter_scope(
             name,
-            fn_args.iter().map(|a| (a.name, false)).collect(),
+            fn_args.iter().map(|a| (a.name, false)).rev().collect(),
             None,
         );
         let old: Vec<_> = fn_args
@@ -1635,7 +1686,9 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 )
             })
             .collect();
-        self.parse_expression(exp)?;
+        for exp in s.elements {
+            self.parse_element(exp)?;
+        }
         old.into_iter().for_each(|(name, rt)| match rt {
             None => {
                 self.identifiers.remove(name);

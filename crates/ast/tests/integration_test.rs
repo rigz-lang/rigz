@@ -124,6 +124,7 @@ mod valid {
         types_as_values r#"fn Any.is(type: Type) -> Bool = false"#,
         lambda_static r#"forty_two: || = || 42"#,
         lambda_def r#"square: |Number| -> Number = |n| n * n"#,
+        lambda_def_do r#"square: |Number| -> Number = do |n| = n * n"#,
         lambda_args r#"fn Any.map(func: |Any| -> Any) -> Any = func(self)"#,
         tuple_assign r#"(first, second) = (1, 2)"#,
         tuple_mut_assign r#"mut (first, second) = ('a', 2)"#,

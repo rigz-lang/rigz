@@ -484,6 +484,7 @@ impl<'lex> Parser<'lex> {
                 let next = self.peek_required_token("parse_expression - do")?;
                 match next.kind {
                     TokenKind::Pipe => {
+                        self.consume_token(next.kind)?;
                         let (arguments, var_args_start) = self.parse_lambda_arguments()?;
                         Expression::Lambda {
                             arguments,
@@ -491,11 +492,14 @@ impl<'lex> Parser<'lex> {
                             body: Box::new(Expression::Scope(self.parse_scope()?)),
                         }
                     }
-                    TokenKind::BinOp(BinaryOperation::Or) => Expression::Lambda {
-                        arguments: vec![],
-                        var_args_start: None,
-                        body: Box::new(Expression::Scope(self.parse_scope()?)),
-                    },
+                    TokenKind::BinOp(BinaryOperation::Or) => {
+                        self.consume_token(next.kind)?;
+                        Expression::Lambda {
+                            arguments: vec![],
+                            var_args_start: None,
+                            body: Box::new(Expression::Scope(self.parse_scope()?)),
+                        }
+                    }
                     _ => Expression::Scope(self.parse_scope()?),
                 }
             }

@@ -195,8 +195,6 @@ mod runtime {
             end"# = Value::None)
             to_json("import JSON; {a=5}.to_json" = r#"{"a":5}"#)
             json_parse("import JSON; JSON.parse '5'" = 5)
-            format("format '{}', 1 + 2" = "3")
-            format_parens("format('{}', 1 + 2)" = "3")
             is("1.is Number" = true)
             fn_calls_fn(r#"
             fn Any.apply(func: |Any| -> Any)
@@ -298,6 +296,21 @@ mod runtime {
             "# = vec![1, 2, 3, 1, 2, 3])
             map_filter_reduce(r#"
                 [1, 37, '4', 'a'].filter { |v| v.is_num }.map { |v| v.to_i }.reduce(0, |res, next| res + next)
+            "# = 42)
+            map_filter_reduce_subtract(r#"
+                [1, 37, '4', 'a'].filter { |v| v.is_num }.map { |v| v.to_i }.reduce(100, |res, next| res - next)
+            "# = 58)
+            map_filter_reduce_func_ref(r#"
+                fn foo(c, d)
+                    if d.is_num
+                        puts 'c', c, 'd', d
+                        c + d.to_i
+                    else
+                        c
+                    end
+                end
+
+                [1, 37, '4', 'a'].reduce(0, foo)
             "# = 42)
             list_map_if(r#"
                 [1, 37, '4', 'a'].map(|v| v.to_i if v.is_num)
@@ -429,11 +442,23 @@ mod runtime {
             [2, 3] |> a.extend
             a
             "# = vec![1, 2, 3])
+            fn_calls_fn_two_args(r#"
+            fn apply(value, func: |Any, Any| -> Any)
+                func value, value - 1
+            end
+
+            apply 4, do |v, b|
+                puts v, b
+                v - b
+             end"# = 1)
         }
     }
 
     mod debug {
         use super::*;
-        run_debug_vm! {}
+        run_debug_vm! {
+            format("format '{}', 1 + 2" = "3")
+            format_parens("format('{}', 1 + 2)" = "3")
+        }
     }
 }
