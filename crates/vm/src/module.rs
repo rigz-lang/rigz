@@ -71,10 +71,9 @@ impl RigzArgs {
         }
 
         let mut results = [(); N].map(|_| Value::None.into());
-        for (i, v) in self.0.into_iter().enumerate().take(N) {
+        for (i, v) in self.0.into_iter().take(N).rev().enumerate() {
             results[i] = v;
         }
-        results.reverse();
         Ok(results)
     }
 
