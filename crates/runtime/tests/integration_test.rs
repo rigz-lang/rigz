@@ -420,13 +420,14 @@ mod runtime {
 
             a + a
             "# = 14)
+            list_sum(r#"[1, 20, 21].sum"# = 42)
+            puts_assign(r#"puts 1, 2, 3"# = ())
         }
     }
 
     mod debug {
         use super::*;
         run_debug_vm! {
-            list_sum(r#"[1, 20, 21].sum"# = 42)
         }
     }
 }

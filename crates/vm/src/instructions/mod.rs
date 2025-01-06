@@ -322,6 +322,7 @@ impl<'vm> VM<'vm> {
                     res = res.replacen("{}", l.as_str(), 1);
                 }
                 log!(*level, "{}", res);
+                self.store_value(Value::None.into());
             }
             Instruction::Puts(args) => {
                 if args == &0 {
@@ -338,6 +339,7 @@ impl<'vm> VM<'vm> {
                     }
                     outln!("{}", puts);
                 }
+                self.store_value(Value::None.into());
             }
             Instruction::Ret => {
                 return VMError::UnsupportedOperation(
