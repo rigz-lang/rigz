@@ -43,6 +43,14 @@ impl Default for RigzType {
 }
 
 impl RigzType {
+    pub fn matches(&self, other: &RigzType) -> bool {
+        if self == other {
+            return true;
+        }
+
+        matches!(self, RigzType::Any | RigzType::This)
+    }
+
     #[inline]
     pub fn is_vm(&self) -> bool {
         if let RigzType::Custom(c) = &self {

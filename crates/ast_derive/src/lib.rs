@@ -3,8 +3,8 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
 use rigz_ast::{
-    rigz_type_to_rust_str, FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser,
-    RigzType, Tokens,
+    csv_vec, rigz_type_to_rust_str, FunctionDeclaration, FunctionSignature, ModuleTraitDefinition,
+    Parser, RigzType, Tokens,
 };
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -624,7 +624,7 @@ fn base_call(
                 }
             }
             RigzType::Tuple(v) => {
-                let v = tuple_call(base_call, v);
+                let v = tuple_call(base_call, v, None);
                 quote! {
                     #v
                 }
@@ -637,8 +637,8 @@ fn base_call(
                 } = t
                 {
                     if let RigzType::Tuple(values) = base_type.as_ref() {
-                        let args = tuple_args(values);
-                        let call_args = tuple_call_args(values);
+                        let args = tuple_args(values, None);
+                        let call_args = tuple_call_args(values, None);
                         if *optional {
                             if *can_return_error {
                                 quote! {
@@ -667,7 +667,7 @@ fn base_call(
                                 Ok(Value::Tuple(vec![#call_args]))
                             }
                         } else {
-                            let v = tuple_call(base_call, values);
+                            let v = tuple_call(base_call, values, None);
                             quote! {
                                 #v
                             }
@@ -744,11 +744,17 @@ fn base_call(
     }
 }
 
-fn tuple_args(values: &[RigzType]) -> Tokens {
-    let values = values.iter().enumerate().map(|(index, v)| {
-        let id = match v {
+fn rigz_type_to_arg(value: &RigzType, index: usize, offset: Option<usize>) -> Tokens {
+    if let RigzType::Tuple(t) = value {
+        tuple_args(t, Some(index))
+    } else {
+        let id = match value {
             RigzType::None => "none",
-            RigzType::Any => "any",
+            RigzType::Any
+            | RigzType::Custom(_)
+            | RigzType::Composite(_)
+            | RigzType::Union(_)
+            | RigzType::Wrapper { .. } => "any",
             RigzType::Bool => "bool",
             RigzType::Int => "int",
             RigzType::Float => "float",
@@ -758,44 +764,49 @@ fn tuple_args(values: &[RigzType]) -> Tokens {
             RigzType::Map(_, _) => "map",
             RigzType::Error => "error",
             RigzType::Range => "range",
-            RigzType::Tuple(_) => todo!("Support nested tuples"),
-            _ => "any",
+            RigzType::Tuple(_) => unreachable!(),
+            RigzType::This => "any",
+            RigzType::Type => "rigz_type",
+            RigzType::Function(_, _) => {
+                todo!("Functions are not supported as module return values")
+            }
         };
-        Ident::new(format!("{id}{index}").as_str(), Span::call_site())
-    });
+        let id = match offset {
+            None => Ident::new(format!("{id}{index}").as_str(), Span::call_site()),
+            Some(o) => Ident::new(format!("{id}_{o}_{index}").as_str(), Span::call_site()),
+        };
+        quote! { #id }
+    }
+}
+
+fn tuple_args(values: &[RigzType], offset: Option<usize>) -> Tokens {
+    let values = values
+        .iter()
+        .enumerate()
+        .map(|(index, v)| rigz_type_to_arg(v, index, offset));
 
     quote! { #(#values, )* }
 }
 
-fn tuple_call_args(values: &[RigzType]) -> Tokens {
+fn tuple_call_args(values: &[RigzType], offset: Option<usize>) -> Tokens {
     let values = values.iter().enumerate().map(|(index, v)| {
-        let id = match v {
-            RigzType::None => "none",
-            RigzType::Any => "any",
-            RigzType::Bool => "bool",
-            RigzType::Int => "int",
-            RigzType::Float => "float",
-            RigzType::Number => "number",
-            RigzType::String => "string",
-            RigzType::List(_) => "list",
-            RigzType::Map(_, _) => "map",
-            RigzType::Error => "error",
-            RigzType::Range => "range",
-            RigzType::Tuple(_) => todo!("Support nested tuples"),
-            _ => "any",
-        };
-        let id = Ident::new(format!("{id}{index}").as_str(), Span::call_site());
-        quote! {
-            #id.into()
+        if let RigzType::Tuple(t) = v {
+            let v = tuple_call_args(t, offset);
+            quote! { Value::Tuple(vec![#v]) }
+        } else {
+            let v = rigz_type_to_arg(v, index, offset);
+            quote! {
+                #v.into()
+            }
         }
     });
 
     quote! { #(#values, )* }
 }
 
-fn tuple_call(base_call: Tokens, values: &[RigzType]) -> Tokens {
-    let args = tuple_args(values);
-    let call_args = tuple_call_args(values);
+fn tuple_call(base_call: Tokens, values: &[RigzType], offset: Option<usize>) -> Tokens {
+    let args = tuple_args(values, offset);
+    let call_args = tuple_call_args(values, offset);
     quote! {
         let (#args) = #base_call;
         Ok(Value::Tuple(vec![#call_args]))
@@ -889,6 +900,20 @@ fn convert_type_for_arg(name: Tokens, rigz_type: &RigzType, mutable: bool) -> Op
         return None;
     }
 
+    if let RigzType::Tuple(tu) = rigz_type {
+        let tuple = tu
+            .iter()
+            .enumerate()
+            .map(
+                |(i, r)| match convert_type_for_arg(quote! { #name.#i }, r, mutable) {
+                    None => quote! { #name.#i },
+                    Some(t) => t,
+                },
+            )
+            .collect::<Vec<_>>();
+        return Some(quote! { (#(#tuple)*) });
+    }
+
     let t = if mutable {
         match &rigz_type {
             RigzType::Any => return None,
@@ -899,7 +924,6 @@ fn convert_type_for_arg(name: Tokens, rigz_type: &RigzType, mutable: bool) -> Op
             RigzType::Bool => quote! { #name.borrow_mut().as_bool() },
             RigzType::List(_) => quote! { #name.borrow_mut().as_list() },
             RigzType::Map(_, _) => quote! { #name.borrow_mut().as_map() },
-            // todo this isn't quite right
             RigzType::Type => quote! { #name.borrow_mut().rigz_type() },
             r => todo!("call arg {r:?} is not supported"),
         }

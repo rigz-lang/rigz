@@ -96,6 +96,43 @@ impl From<()> for Value {
     }
 }
 
+impl<A: Into<Value>, B: Into<Value>> From<(A, B)> for Value {
+    fn from(value: (A, B)) -> Self {
+        Value::Tuple(vec![value.0.into(), value.1.into()])
+    }
+}
+
+impl<A: Into<Value>, B: Into<Value>, C: Into<Value>> From<(A, B, C)> for Value {
+    fn from(value: (A, B, C)) -> Self {
+        Value::Tuple(vec![value.0.into(), value.1.into(), value.2.into()])
+    }
+}
+
+impl<A: Into<Value>, B: Into<Value>, C: Into<Value>, D: Into<Value>> From<(A, B, C, D)> for Value {
+    fn from(value: (A, B, C, D)) -> Self {
+        Value::Tuple(vec![
+            value.0.into(),
+            value.1.into(),
+            value.2.into(),
+            value.3.into(),
+        ])
+    }
+}
+
+impl<A: Into<Value>, B: Into<Value>, C: Into<Value>, D: Into<Value>, E: Into<Value>>
+    From<(A, B, C, D, E)> for Value
+{
+    fn from(value: (A, B, C, D, E)) -> Self {
+        Value::Tuple(vec![
+            value.0.into(),
+            value.1.into(),
+            value.2.into(),
+            value.3.into(),
+            value.4.into(),
+        ])
+    }
+}
+
 impl<V: Into<Value>> From<Option<V>> for Value {
     fn from(value: Option<V>) -> Self {
         match value {

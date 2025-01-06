@@ -28,8 +28,8 @@ derive_module!(
         fn List.split_last -> (Any?, List)
         fn List.zip(other: List) -> Map
 
-        fn Map.split_first -> ((Any?, Any?), Map)
-        fn Map.split_last -> ((Any?, Any?), Map)
+        fn Map.split_first -> ((Any, Any)?, Map)
+        fn Map.split_last -> ((Any, Any)?, Map)
 
         fn List.to_tuple -> Any
         fn List.reduce(init: Any, func: |Any, Any| -> Any) -> Any
@@ -47,22 +47,20 @@ derive_module!(
             self.reduce(0, |res, next| res + next)
         end
 
-        /*
-        requires AST updates to process
-        fn Map.reduce(init: Any, func: |Any, (Any, Any)| -> Any) -> Any
+        fn Map.reduce(init: Any, func: |Any, Any, Any| -> Any) -> Any
             if !self
                 init
             else
-                (first, rest) = self.split_first
-                next = func init, first
+                (k, rest) = self.split_first
+                (key, first) = k
+                next = func key, init, first
                 rest.reduce next, func
             end
         end
 
         fn Map.sum -> Number
-            self.reduce(0, |res, (_, next)| res + next)
+            self.reduce(0, |res, _, next| res + next)
         end
-        */
 
         fn List.empty = self.to_bool
         fn List.first -> Any?
@@ -116,14 +114,13 @@ impl RigzCollections for CollectionsModule {
     fn map_split_first(
         &self,
         this: IndexMap<Value, Value>,
-    ) -> (Option<Value>, Option<Value>, IndexMap<Value, Value>) {
+    ) -> (Option<(Value, Value)>, IndexMap<Value, Value>) {
         if this.is_empty() {
-            (None, None, IndexMap::new())
+            (None, IndexMap::new())
         } else {
             let (k, v) = this.first().unwrap();
             (
-                Some(k.clone()),
-                Some(v.clone()),
+                Some((k.clone(), v.clone())),
                 this.iter()
                     .skip(1)
                     .map(|(k, v)| (k.clone(), v.clone()))
@@ -135,14 +132,13 @@ impl RigzCollections for CollectionsModule {
     fn map_split_last(
         &self,
         this: IndexMap<Value, Value>,
-    ) -> (Option<Value>, Option<Value>, IndexMap<Value, Value>) {
+    ) -> (Option<(Value, Value)>, IndexMap<Value, Value>) {
         if this.is_empty() {
-            (None, None, IndexMap::new())
+            (None, IndexMap::new())
         } else {
             let (k, v) = this.first().unwrap();
             (
-                Some(k.clone()),
-                Some(v.clone()),
+                Some((k.clone(), v.clone())),
                 this.iter()
                     .rev()
                     .skip(1)

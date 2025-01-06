@@ -45,3 +45,4 @@ impl RigzJSON for JSONModule {
     - Use try_borrow and return an error
     - Clone all arguments passed into mutable extensions before the mutable borrow occurs
     - Keep cloning and accept that module calls are less efficient than they could be
+- Self cannot be used as a return type

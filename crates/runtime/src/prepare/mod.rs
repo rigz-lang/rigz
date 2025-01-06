@@ -404,20 +404,19 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 }
             }
             Assign::Tuple(t) => {
-                let expt = match self.rigz_type(&expression)? {
+                let rt = self.rigz_type(&expression)?;
+                let expt = match rt {
                     RigzType::Tuple(t) => t,
                     _ => vec![RigzType::Any; t.len()],
                 };
                 // todo support lazy scopes deconstructed into tuples
                 self.parse_expression(expression)?;
                 for (index, (name, mutable)) in t.into_iter().enumerate().rev() {
-                    self.identifiers.insert(
-                        name,
-                        FunctionType {
-                            rigz_type: expt[index].clone(),
-                            mutable,
-                        },
-                    );
+                    let ft = FunctionType {
+                        rigz_type: expt[index].clone(),
+                        mutable,
+                    };
+                    self.identifiers.insert(name, ft);
                     self.builder.add_load_instruction((index as i64).into());
                     self.builder.add_instance_get_instruction(index != 0);
                     if mutable {
@@ -1277,11 +1276,12 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 lambda => fcs = Some(lambda.clone()),
             }
         } else {
+            let arg_len = arguments.len();
+
             for cs in function_call_signatures {
                 match cs {
                     CallSignature::Function(fc, call_site) => {
-                        let arguments = fc.convert_ref(arguments);
-                        let arg_len = arguments.len();
+                        // let arguments = fc.convert_ref(arguments); todo check arg type
                         let fc_arg_len = fc.arguments.len();
                         match (&fc.self_type, &rigz_type) {
                             (None, None) => {
@@ -1326,9 +1326,11 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                             (None, Some(_)) | (Some(_), None) => {}
                         }
                     }
-                    cs => {
-                        // todo ensure best match
-                        fcs = Some(cs)
+                    CallSignature::Lambda(acs, args, ret) => {
+                        if rigz_type.is_none() && args.len() == arg_len {
+                            fcs = Some(CallSignature::Lambda(acs, args, ret));
+                            break;
+                        }
                     }
                 }
             }

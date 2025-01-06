@@ -88,7 +88,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 match self.function_scopes.get(name) {
                     None => {
                         return Err(ValidationError::InvalidFunction(format!(
-                            "extension function {r}.{name} does not exist"
+                            "typed extension function {r}.{name} does not exist"
                         )))
                     }
                     Some(f) => {
@@ -114,11 +114,11 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                             match matched.len() {
                                 0 => {
                                     return Err(ValidationError::InvalidFunction(format!(
-                                        "extension function {r}.{name} does not exist"
+                                        "typed extension function {r}.{name} does not exist"
                                     )))
                                 }
                                 1 => matched.iter().next().cloned().unwrap(),
-                                _ => RigzType::Any,
+                                _ => r.clone(),
                             }
                         } else {
                             f[0].rigz_type()
@@ -155,7 +155,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                         .self_type
                                         .as_ref()
                                         .filter(|t| t.rigz_type == this)
-                                        .map(|t| t.rigz_type.clone()),
+                                        .map(|t| f.return_type.rigz_type.clone()),
                                     CallSignature::Lambda(_, _, ret) => Some(ret.clone()),
                                 })
                                 .collect();
@@ -166,7 +166,10 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                     )))
                                 }
                                 1 => matched.iter().next().cloned().unwrap(),
-                                _ => RigzType::Any,
+                                _ => {
+                                    dbg!(f);
+                                    this
+                                }
                             }
                         } else {
                             f[0].rigz_type()

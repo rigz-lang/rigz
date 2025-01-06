@@ -7,6 +7,20 @@ use crate::{outln, BinaryOperation, Number, UnaryOperation, VMError, Value, Vari
 use indexmap::IndexMap;
 use log::{log, Level};
 use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum VMCallSite<'vm> {
+    Scope(usize),
+    Module { module: &'vm str, func: &'vm str },
+    VMModule { module: &'vm str, func: &'vm str },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum VMArg {
+    Type(Rc<RigzType>),
+    Value(Value),
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Instruction<'vm> {
@@ -21,6 +35,10 @@ pub enum Instruction<'vm> {
     InstanceSetMut,
     Call(usize),
     CallMemo(usize),
+    CallMatchingSelf(Vec<(VMArg, Vec<VMArg>, VMCallSite<'vm>)>),
+    CallMatchingSelfMemo(Vec<(VMArg, Vec<VMArg>, VMCallSite<'vm>)>),
+    CallMatching(Vec<(Vec<VMArg>, VMCallSite<'vm>)>),
+    CallMatchingMemo(Vec<(Vec<VMArg>, VMCallSite<'vm>)>),
     Log(Level, &'vm str, usize),
     Puts(usize),
     CallEq(usize),
@@ -107,6 +125,13 @@ impl<'vm> VM<'vm> {
                 Ok(_) => {}
                 Err(e) => return VMState::Done(e.into()),
             },
+            Instruction::CallMatching(possible) | Instruction::CallMatchingMemo(possible) => {
+                todo!("Support dynamic matching")
+            }
+            Instruction::CallMatchingSelf(possible)
+            | Instruction::CallMatchingSelfMemo(possible) => {
+                todo!("Support dynamic matching")
+            }
             Instruction::Call(scope) => match self.call_frame(*scope) {
                 Ok(_) => {}
                 Err(e) => return e.into(),

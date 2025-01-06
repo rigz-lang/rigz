@@ -2121,12 +2121,19 @@ fn convert_to_assign<'e>(
 ) -> Result<Vec<(&'e str, bool)>, ParsingError> {
     let mut results = Vec::with_capacity(tuple.len());
     for e in tuple.iter() {
-        let Expression::Identifier(id) = e else {
-            return Err(ParsingError::ParseError(format!(
-                "Expression found in tuple assign {e:?}"
-            )));
-        };
-        results.push((*id, false));
+        match e {
+            &Expression::Identifier(id) => {
+                results.push((id, false));
+            }
+            Expression::Tuple(_) => {
+                todo!("nested tuples not supported yet")
+            }
+            _ => {
+                return Err(ParsingError::ParseError(format!(
+                    "Expression found in tuple assign {e:?}"
+                )))
+            }
+        }
     }
     tuple.clear();
     Ok(results)
