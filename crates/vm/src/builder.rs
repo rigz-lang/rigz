@@ -225,6 +225,11 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     }
 
     #[inline]
+    fn add_get_variable_reference_instruction(&mut self, name: &'vm str) -> &mut Self {
+        self.add_instruction(Instruction::GetVariableReference(name))
+    }
+
+    #[inline]
     fn add_get_variable_instruction(&mut self, name: &'vm str) -> &mut Self {
         self.add_instruction(Instruction::GetVariable(name))
     }
@@ -270,8 +275,8 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     }
 
     #[inline]
-    fn add_instance_get_instruction(&mut self) -> &mut Self {
-        self.add_instruction(Instruction::InstanceGet)
+    fn add_instance_get_instruction(&mut self, multiple: bool) -> &mut Self {
+        self.add_instruction(Instruction::InstanceGet(multiple))
     }
 
     #[inline]

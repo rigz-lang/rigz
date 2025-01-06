@@ -16,7 +16,7 @@ pub enum Instruction<'vm> {
     Binary(BinaryOperation),
     BinaryAssign(BinaryOperation),
     Load(StackValue),
-    InstanceGet,
+    InstanceGet(bool),
     InstanceSet,
     InstanceSetMut,
     Call(usize),
@@ -38,6 +38,7 @@ pub enum Instruction<'vm> {
     Ret,
     GetVariable(&'vm str),
     GetMutableVariable(&'vm str),
+    GetVariableReference(&'vm str),
     LoadLet(&'vm str),
     LoadMut(&'vm str),
     PersistScope(&'vm str),
@@ -248,6 +249,21 @@ impl<'vm> VM<'vm> {
                 };
                 self.store_value(v.into());
             }
+            Instruction::GetVariableReference(name) => {
+                let r = self.frames.current.borrow().get_variable(name, self);
+                match r {
+                    None => {
+                        return VMError::VariableDoesNotExist(format!(
+                            "Variable {} does not exist",
+                            name
+                        ))
+                        .into()
+                    }
+                    Some(v) => {
+                        self.store_value(v);
+                    }
+                }
+            }
             Instruction::GetVariable(name) => {
                 let r = self.frames.current.borrow().get_variable(name, self);
                 match r {
@@ -305,7 +321,7 @@ impl<'vm> VM<'vm> {
                     let l = arg.borrow().to_string();
                     res = res.replacen("{}", l.as_str(), 1);
                 }
-                log!(*level, "{}", res)
+                log!(*level, "{}", res);
             }
             Instruction::Puts(args) => {
                 if args == &0 {
@@ -393,8 +409,8 @@ impl<'vm> VM<'vm> {
                     s.instructions.remove(index);
                 }
             },
-            Instruction::InstanceGet => {
-                self.instance_get();
+            &Instruction::InstanceGet(multiple) => {
+                self.instance_get(multiple);
             }
             Instruction::InstanceSet => {
                 self.instance_set(false);
@@ -463,7 +479,7 @@ impl<'vm> VM<'vm> {
         VMState::Running
     }
 
-    fn instance_get(&mut self) {
+    fn instance_get(&mut self, multiple: bool) {
         let attr = self.next_resolved_value("instance_get - attr");
         let source = self.next_resolved_value("instance_get - source");
         let v = match source.borrow().get(attr.borrow().deref()) {
@@ -471,6 +487,9 @@ impl<'vm> VM<'vm> {
             Ok(None) => Value::None,
             Err(e) => e.into(),
         };
+        if multiple {
+            self.store_value(source.into());
+        }
         self.store_value(v.into());
     }
 

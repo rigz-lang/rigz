@@ -6,6 +6,7 @@ use crate::{FileModule, JSONModule, LogModule, RigzBuilder, StdModule, VMModule}
 use log::Level;
 pub use program::Program;
 use rigz_ast::*;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -321,7 +322,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 exp => {
                     let ext = self.rigz_type(&exp)?;
                     let mutable = match self.identifiers.entry(name) {
-                        std::collections::hash_map::Entry::Occupied(mut t) => {
+                        Entry::Occupied(mut t) => {
                             let v = t.get();
                             if v.rigz_type == ext {
                                 v.mutable
@@ -333,7 +334,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                 mutable
                             }
                         }
-                        std::collections::hash_map::Entry::Vacant(v) => {
+                        Entry::Vacant(v) => {
                             v.insert(FunctionType {
                                 rigz_type: ext,
                                 mutable,
@@ -367,7 +368,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                             )));
                         }
                         let mutable = match self.identifiers.entry(name) {
-                            std::collections::hash_map::Entry::Occupied(mut t) => {
+                            Entry::Occupied(mut t) => {
                                 let v = t.get();
                                 if v.rigz_type == ext {
                                     v.mutable
@@ -379,7 +380,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                     mutable
                                 }
                             }
-                            std::collections::hash_map::Entry::Vacant(v) => {
+                            Entry::Vacant(v) => {
                                 v.insert(FunctionType {
                                     rigz_type: ext,
                                     mutable,
@@ -422,9 +423,9 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     RigzType::Tuple(t) => t,
                     _ => vec![RigzType::Any; t.len()],
                 };
-                // todo support lazy scopes decontructed into tuples
+                // todo support lazy scopes deconstructed into tuples
                 self.parse_expression(expression)?;
-                for (index, (name, mutable)) in t.into_iter().enumerate() {
+                for (index, (name, mutable)) in t.into_iter().enumerate().rev() {
                     self.identifiers.insert(
                         name,
                         FunctionType {
@@ -433,7 +434,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                         },
                     );
                     self.builder.add_load_instruction((index as i64).into());
-                    self.builder.add_instance_get_instruction();
+                    self.builder.add_instance_get_instruction(index != 0);
                     if mutable {
                         self.builder.add_load_mut_instruction(name);
                     } else {
@@ -891,7 +892,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     false => {
                         self.parse_expression(*exp)?;
                         self.builder.add_load_instruction(first.into());
-                        self.builder.add_instance_get_instruction();
+                        self.builder.add_instance_get_instruction(false);
                     }
                     true if last == 0 => {
                         self.call_extension_function(*exp, first, args)?;
@@ -906,7 +907,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     let fcs = match self.function_scopes.get(c) {
                         None => {
                             self.builder.add_load_instruction(c.into());
-                            self.builder.add_instance_get_instruction();
+                            self.builder.add_instance_get_instruction(false);
                             continue;
                         }
                         Some(fcs) => fcs.clone(),
@@ -1135,10 +1136,6 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         Ok(level)
     }
 
-    fn load_none(&mut self) {
-        self.builder.add_load_instruction(StackValue::Constant(0));
-    }
-
     fn call_function(
         &mut self,
         rigz_type: Option<RigzType>,
@@ -1154,7 +1151,6 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     self.parse_expression(arg)?;
                 }
                 self.builder.add_puts_instruction(len);
-                self.load_none();
                 return Ok(());
             }
         }
@@ -1186,9 +1182,19 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     }
                     self.builder
                         .add_log_instruction(level, template.leak(), len);
-                    self.load_none();
                     return Ok(());
                 }
+            }
+        }
+
+        if arguments.is_empty() {
+            if let Some(v) = self.identifiers.get(name) {
+                if v.mutable {
+                    self.builder.add_get_mutable_variable_instruction(name);
+                } else {
+                    self.builder.add_get_variable_instruction(name);
+                }
+                return Ok(());
             }
         }
 
@@ -1416,7 +1422,12 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     self.parse_anon_lambda(&fcs, arg.name, arguments, var_args_start, *body)?;
                 }
                 _ => {
-                    self.parse_expression(expression)?;
+                    if let RigzType::Function(..) = &arg.function_type.rigz_type {
+                        self.builder
+                            .add_get_variable_reference_instruction(arg.name);
+                    } else {
+                        self.parse_expression(expression)?;
+                    }
                 }
             }
         }

@@ -87,6 +87,7 @@ mod runtime {
             raw_value("'Hello World'" = "Hello World")
             addition("2 + 2" = 4)
             split_first("[1, 2, 3].split_first" = Value::Tuple(vec![1.into(), vec![2, 3].into()]))
+            split_first_assign("(first, rest) = [1, 2, 3].split_first; first + rest" = vec![1, 2, 3])
             complex_expression_ignore_precedence("1 + 2 * 3 - 4 / 5" = 1)
             ignore_precedence("2 + 1 * 3" = 9)
             paren_precedence("2 + (1 * 3)" = 5)
@@ -280,7 +281,6 @@ mod runtime {
             end
             6.fib
             "# = 8)
-            list_sum(r#"[1, 20, 21].sum"# = 42)
             list_dup(r#"
             mut a = [1, 2, 3]
             a.extend a
@@ -425,6 +425,8 @@ mod runtime {
 
     mod debug {
         use super::*;
-        run_debug_vm! {}
+        run_debug_vm! {
+            list_sum(r#"[1, 20, 21].sum"# = 42)
+        }
     }
 }

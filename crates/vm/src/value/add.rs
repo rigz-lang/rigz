@@ -70,9 +70,15 @@ impl Add for &Value {
                 result.extend(b.clone());
                 Value::List(result)
             }
-            (Value::List(a), b) | (b, Value::List(a)) => {
+            (Value::List(a), b) => {
                 let mut result = a.clone();
                 result.push(b.clone());
+                Value::List(result)
+            }
+            (b, Value::List(a)) => {
+                let mut result = Vec::with_capacity(a.len() + 1);
+                result.push(b.clone());
+                result.extend(a.clone());
                 Value::List(result)
             }
             (Value::Map(a), Value::Map(b)) => {
@@ -85,6 +91,7 @@ impl Add for &Value {
                 result.insert(b.clone(), b.clone());
                 Value::Map(result)
             }
+            // todo should "a" + true = "atrue" or true
             (Value::Bool(a), b) | (b, Value::Bool(a)) => Value::Bool(a | b.to_bool()),
         }
     }
