@@ -791,7 +791,6 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             Expression::Map(map) => {
                 self.parse_map(map)?;
             }
-            // todo use clear in function calls when appropriate
             Expression::FunctionCall(name, args) => {
                 self.call_function(None, name, args)?;
             }

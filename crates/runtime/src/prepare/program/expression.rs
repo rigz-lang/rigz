@@ -69,6 +69,10 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             Expression::Cast(_, r) => r.clone(),
             Expression::Scope(s) => self.scope_type(s)?,
             Expression::FunctionCall(name, _) => {
+                if matches!(*name, "puts" | "log") {
+                    return Ok(RigzType::None);
+                }
+
                 self.check_module_exists(name)?;
                 match self.function_scopes.get(name) {
                     None => {
