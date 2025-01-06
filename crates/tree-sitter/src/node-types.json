@@ -168,6 +168,10 @@
           "named": true
         },
         {
+          "type": "into",
+          "named": true
+        },
+        {
           "type": "self",
           "named": true
         },
@@ -418,6 +422,21 @@
       "types": [
         {
           "type": "type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "into",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "function_call",
           "named": true
         }
       ]
@@ -1059,6 +1078,10 @@
   },
   {
     "type": "|",
+    "named": false
+  },
+  {
+    "type": "|>",
     "named": false
   },
   {

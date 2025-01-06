@@ -92,12 +92,13 @@ module.exports = grammar({
             $.tuple,
             // todo support string interpolation
             seq("(", $.expression, ")")
-        ), optional(choice($.cast, $.unless_guard, $.if_guard)))),
+        ), optional(choice($.cast, $.unless_guard, $.if_guard, $.into)))),
         do_scope: $ => seq(optional($.lifecycle), "do", $.scope),
         function_call: $ => choice(prec.right(seq(
             $.function_identifier,
             optional($._args)
         )), prec.left(2, seq($.expression, ".", $.function_call))),
+        into: $ => prec.left(repeat1(prec(3, seq("|>", $.function_call)))),
         _args: $ => prec.right(seq($._expression_or_lambda, repeat(seq(",", $._expression_or_lambda)))),
         unary: $ => prec.left(seq(choice("-", "!"), $.expression)),
         binary: $ => prec.right(2, seq(
