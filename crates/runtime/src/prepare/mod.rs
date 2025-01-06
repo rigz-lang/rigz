@@ -1,10 +1,6 @@
 mod program;
 
-use crate::modules::{
-    AnyModule, AssertionsModule, DateModule, NumberModule, RandomModule, StringModule, UUIDModule,
-};
 use crate::RuntimeError;
-use crate::{FileModule, JSONModule, LogModule, RigzBuilder, StdModule, VMModule};
 use log::Level;
 pub use program::Program;
 use rigz_ast::*;
@@ -215,21 +211,6 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         let mut p = ProgramParser::default();
         p.add_default_modules();
         p
-    }
-
-    fn add_default_modules(&mut self) {
-        self.register_module(VMModule);
-        self.register_module(AnyModule);
-        self.register_module(AssertionsModule);
-        self.register_module(NumberModule);
-        self.register_module(StringModule);
-        self.register_module(StdModule);
-        self.register_module(LogModule);
-        self.register_module(JSONModule);
-        self.register_module(FileModule);
-        self.register_module(DateModule);
-        self.register_module(UUIDModule);
-        self.register_module(RandomModule);
     }
 
     pub(crate) fn register_module(&mut self, module: impl ParsedModule<'vm> + 'static) {
