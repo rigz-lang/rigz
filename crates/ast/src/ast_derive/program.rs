@@ -1,4 +1,4 @@
-use crate::program::{ArgType, ImportValue, RigzArguments};
+use crate::program::{ArgType, FunctionExpression, ImportValue, RigzArguments};
 use crate::{
     Assign, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration,
     FunctionDefinition, FunctionSignature, FunctionType, ModuleTraitDefinition, Scope, Statement,
@@ -19,6 +19,30 @@ impl ToTokens for Element<'_> {
             Element::Statement(s) => {
                 quote! {
                     Element::Statement(#s)
+                }
+            }
+        };
+        tokens.extend(t)
+    }
+}
+
+impl ToTokens for FunctionExpression<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let t = match self {
+            FunctionExpression::FunctionCall(name, args) => {
+                quote! {
+                    FunctionExpression::FunctionCall(#name, #args)
+                }
+            }
+            FunctionExpression::TypeFunctionCall(ty, name, args) => {
+                quote! {
+                    FunctionExpression::TypeFunctionCall(#ty, #name, #args)
+                }
+            }
+            FunctionExpression::InstanceFunctionCall(ex, calls, args) => {
+                let ex = boxed(ex);
+                quote! {
+                    FunctionExpression::InstanceFunctionCall(#ex, vec![#(#calls)*], #args)
                 }
             }
         };
@@ -76,20 +100,9 @@ impl ToTokens for Expression<'_> {
                     Expression::UnaryExp(#op, #ex)
                 }
             }
-            Expression::FunctionCall(name, args) => {
+            Expression::Function(f) => {
                 quote! {
-                    Expression::FunctionCall(#name, #args)
-                }
-            }
-            Expression::TypeFunctionCall(ty, name, args) => {
-                quote! {
-                    Expression::TypeFunctionCall(#ty, #name, #args)
-                }
-            }
-            Expression::InstanceFunctionCall(ex, calls, args) => {
-                let ex = boxed(ex);
-                quote! {
-                    Expression::InstanceFunctionCall(#ex, vec![#(#calls)*], #args)
+                    Expression::Function(#f)
                 }
             }
             Expression::Scope(s) => {

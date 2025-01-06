@@ -14,8 +14,8 @@ pub use modules::ParsedModule;
 // Scope will collide with rigz_vm Scope if this is program::*
 pub use program::{
     ArgType, Assign, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration,
-    FunctionDefinition, FunctionSignature, FunctionType, ImportValue, ModuleTraitDefinition,
-    Program, RigzArguments, Scope, Statement, TraitDefinition,
+    FunctionDefinition, FunctionExpression, FunctionSignature, FunctionType, ImportValue,
+    ModuleTraitDefinition, Program, RigzArguments, Scope, Statement, TraitDefinition,
 };
 
 // todo it'd be nice for rigz_vm to not be required by the ast parser, rigz_value?, changes to vm will require lots of downstream crate updates
@@ -530,7 +530,12 @@ impl<'lex> Parser<'lex> {
                         let func_name =
                             self.next_required_token("parse_expression - TypeFunctionCall")?;
                         if let TokenKind::Identifier(func_name) = func_name.kind {
-                            Expression::TypeFunctionCall(type_value, func_name, self.parse_args()?)
+                            FunctionExpression::TypeFunctionCall(
+                                type_value,
+                                func_name,
+                                self.parse_args()?,
+                            )
+                            .into()
                         } else {
                             return Err(ParsingError::ParseError(format!(
                                 "Invalid Token for Type Function Call {:?}",
@@ -599,7 +604,7 @@ impl<'lex> Parser<'lex> {
     ) -> Result<Expression<'lex>, ParsingError> {
         match self.peek_token() {
             None => Ok(exp),
-            Some(t) if t.terminal() => {
+            Some(t) if t.kind == TokenKind::Semi => {
                 // dont consume newline here
                 Ok(exp)
             }
@@ -632,6 +637,52 @@ impl<'lex> Parser<'lex> {
                 }
                 TokenKind::BinOp(_) | TokenKind::Pipe | TokenKind::Minus | TokenKind::Period => {
                     Ok(self.parse_inline_expression(exp)?)
+                }
+                TokenKind::Newline | TokenKind::Into => {
+                    let mut new_lines = 0;
+                    // todo should other suffix tokens be allowed to have leading newlines?
+                    for t in &self.tokens {
+                        match t.kind {
+                            TokenKind::Into => break,
+                            TokenKind::Newline => {
+                                new_lines += 1;
+                            }
+                            _ => return Ok(exp),
+                        }
+                    }
+                    for _ in 0..new_lines {
+                        self.consume_token(TokenKind::Newline)?;
+                    }
+                    self.consume_token(TokenKind::Into)?;
+                    let fe = self.parse_expression()?;
+                    let Expression::Function(fe) = fe else {
+                        return Err(ParsingError::ParseError(format!(
+                            "Invalid expression after {t:?}, {fe:?} a Function call is required"
+                        )));
+                    };
+
+                    let mut exp = fe.prepend(exp).into();
+
+                    loop {
+                        let t = self.peek_token();
+                        match t {
+                            None => break,
+                            Some(t) if t.kind == TokenKind::Newline => {
+                                self.consume_token(TokenKind::Newline)?;
+                            }
+                            Some(t) if t.kind == TokenKind::Into => {
+                                self.consume_token(TokenKind::Into)?;
+                                let fe = self.parse_expression()?;
+                                let Expression::Function(fe) = fe else {
+                                    return Err(ParsingError::ParseError(format!("Invalid expression after {t:?}, {fe:?} a Function call is required")));
+                                };
+
+                                exp = fe.prepend(exp).into();
+                            }
+                            Some(_) => break,
+                        }
+                    }
+                    Ok(exp)
                 }
                 _ => Ok(exp),
             },
@@ -748,7 +799,7 @@ impl<'lex> Parser<'lex> {
                 _ => return self.parse_inline_expression(id),
             },
         };
-        Ok(Expression::FunctionCall(id, args))
+        Ok(FunctionExpression::FunctionCall(id, args).into())
     }
 
     fn parse_identifier_expression_skip_inline(
@@ -771,7 +822,7 @@ impl<'lex> Parser<'lex> {
                 _ => return Ok(id.into()),
             },
         };
-        Ok(Expression::FunctionCall(id, args))
+        Ok(FunctionExpression::FunctionCall(id, args).into())
     }
 
     fn parse_paren_expression(&mut self) -> Result<Element<'lex>, ParsingError> {
@@ -1025,7 +1076,7 @@ impl<'lex> Parser<'lex> {
             }
         }
         let args = self.parse_args()?;
-        Ok(Expression::InstanceFunctionCall(Box::new(lhs), calls, args))
+        Ok(FunctionExpression::InstanceFunctionCall(Box::new(lhs), calls, args).into())
     }
 
     fn parse_value_expression(

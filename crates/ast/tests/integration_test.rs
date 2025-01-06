@@ -247,7 +247,7 @@ test_parse_equivalent! {
                 },
                 lifecycle: None
             })),
-            Element::Expression(Expression::FunctionCall("add", vec![Expression::Value(Value::Number(1.into())), Expression::Value(Value::Number(2.into())), Expression::Value(Value::Number(3.into()))].into()))
+            Element::Expression(FunctionExpression::FunctionCall("add", vec![Expression::Value(Value::Number(1.into())), Expression::Value(Value::Number(2.into())), Expression::Value(Value::Number(3.into()))].into()).into())
         ]
     };
 }
@@ -255,7 +255,7 @@ test_parse_equivalent! {
 test_parse! {
     symbols "foo :hello" = Program {
         elements: vec![
-            Element::Expression(Expression::FunctionCall("foo", vec![Expression::Symbol("hello")].into()))
+            Element::Expression(FunctionExpression::FunctionCall("foo", vec![Expression::Symbol("hello")].into()).into())
         ]
     },
     traits r#"trait Hello
@@ -310,7 +310,7 @@ test_parse! {
                         },
                         body: Scope {
                             elements: vec![
-                                Element::Expression(Expression::FunctionCall("puts", vec!["message".into()].into()))
+                                Element::Expression(FunctionExpression::FunctionCall("puts", vec!["message".into()].into()).into())
                             ]
                         },
                         lifecycle: None
@@ -543,7 +543,7 @@ test_parse! {
                     ],
                 }
             })),
-            Element::Expression(Expression::FunctionCall("add", RigzArguments::Named(vec![("a", Expression::Value(1.into())), ("b", Expression::Value(2.into())), ("c", Expression::Value(3.into()))])))
+            Element::Expression(FunctionExpression::FunctionCall("add", RigzArguments::Named(vec![("a", Expression::Value(1.into())), ("b", Expression::Value(2.into())), ("c", Expression::Value(3.into()))])).into())
         ]
     },
     define_function_named_args_var r#"
@@ -603,14 +603,14 @@ test_parse! {
                 lhs: Assign::Identifier("v", false),
                 expression: Expression::Map(vec![(Expression::Identifier("a"), Expression::Value(Value::Number(1.into()))), (Expression::Identifier("b"), Expression::Value(Value::Number(2.into()))), (Expression::Identifier("c"), Expression::Value(Value::Number(3.into())))]),
             }),
-            Element::Expression(Expression::FunctionCall("add", vec![Expression::Identifier("v")].into()))
+            Element::Expression(FunctionExpression::FunctionCall("add", vec![Expression::Identifier("v")].into()).into())
         ]
     },
     lambda_instance_call r#"[1, 2, 3, 'a', 'b'].filter { |v| v.is_num }.map(|v| v * v)"# = Program {
         elements: vec![
             Element::Expression(
-                Expression::InstanceFunctionCall(
-                    Expression::InstanceFunctionCall(
+                FunctionExpression::InstanceFunctionCall(
+                    FunctionExpression::InstanceFunctionCall(
                         Expression::List(vec![
                             Expression::Value(1.into()),
                             Expression::Value(2.into()),
@@ -633,7 +633,7 @@ test_parse! {
                                 }
                             ],
                             var_args_start: None,
-                            body: Expression::InstanceFunctionCall(
+                            body: FunctionExpression::InstanceFunctionCall(
                                     Expression::Identifier("v").into(),
                                     vec!["is_num"],
                                     RigzArguments::Positional(vec![])
@@ -656,7 +656,7 @@ test_parse! {
                     body: Expression::BinExp(Expression::Identifier("v").into(), BinaryOperation::Mul, Expression::Identifier("v").into()).into()
                 }]
                     )
-                )
+                ).into()
             )
         ]
     },

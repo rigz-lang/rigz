@@ -138,7 +138,25 @@ pub enum RigzArguments<'lex> {
     Named(Vec<(&'lex str, Expression<'lex>)>),
 }
 
-impl RigzArguments<'_> {
+impl<'a> RigzArguments<'a> {
+    pub fn prepend(self, base: Expression<'a>) -> Self {
+        match self {
+            RigzArguments::Positional(a) => {
+                let mut p = Vec::with_capacity(a.len() + 1);
+                p.push(base);
+                p.extend(a);
+                RigzArguments::Positional(p)
+            }
+            RigzArguments::Mixed(a, m) => {
+                let mut p = Vec::with_capacity(a.len() + 1);
+                p.push(base);
+                p.extend(a);
+                RigzArguments::Mixed(p, m)
+            }
+            RigzArguments::Named(n) => RigzArguments::Mixed(vec![base], n),
+        }
+    }
+
     pub fn len(&self) -> usize {
         match self {
             RigzArguments::Positional(s) => s.len(),
@@ -163,6 +181,41 @@ impl<'lex> From<Vec<Expression<'lex>>> for RigzArguments<'lex> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub enum FunctionExpression<'lex> {
+    FunctionCall(&'lex str, RigzArguments<'lex>),
+    TypeFunctionCall(RigzType, &'lex str, RigzArguments<'lex>),
+    InstanceFunctionCall(Box<Expression<'lex>>, Vec<&'lex str>, RigzArguments<'lex>),
+}
+
+impl<'lex> FunctionExpression<'lex> {
+    pub(crate) fn prepend(self, expression: Expression<'lex>) -> Self {
+        match self {
+            FunctionExpression::FunctionCall(n, args) => {
+                FunctionExpression::FunctionCall(n, args.prepend(expression))
+            }
+            FunctionExpression::TypeFunctionCall(t, name, args) => {
+                FunctionExpression::TypeFunctionCall(t, name, args.prepend(expression))
+            }
+            FunctionExpression::InstanceFunctionCall(n, calls, args) => {
+                FunctionExpression::InstanceFunctionCall(n, calls, args.prepend(expression))
+            }
+        }
+    }
+}
+
+impl<'lex> From<FunctionExpression<'lex>> for Expression<'lex> {
+    fn from(value: FunctionExpression<'lex>) -> Self {
+        Expression::Function(value)
+    }
+}
+
+impl<'lex> From<FunctionExpression<'lex>> for Box<Expression<'lex>> {
+    fn from(value: FunctionExpression<'lex>) -> Self {
+        Box::new(value.into())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Expression<'lex> {
     This,
     Value(Value),
@@ -175,9 +228,7 @@ pub enum Expression<'lex> {
         Box<Expression<'lex>>,
     ),
     UnaryExp(UnaryOperation, Box<Expression<'lex>>),
-    FunctionCall(&'lex str, RigzArguments<'lex>),
-    TypeFunctionCall(RigzType, &'lex str, RigzArguments<'lex>),
-    InstanceFunctionCall(Box<Expression<'lex>>, Vec<&'lex str>, RigzArguments<'lex>),
+    Function(FunctionExpression<'lex>),
     Scope(Scope<'lex>),
     Cast(Box<Expression<'lex>>, RigzType),
     Symbol(&'lex str),

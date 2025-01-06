@@ -1,6 +1,6 @@
 use crate::prepare::{CallSignature, FunctionCallSignatures, ProgramParser};
 use crate::{RigzBuilder, RigzType, UnaryOperation};
-use rigz_ast::{Element, Expression, Scope, ValidationError};
+use rigz_ast::{Element, Expression, FunctionExpression, Scope, ValidationError};
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
@@ -68,7 +68,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             },
             Expression::Cast(_, r) => r.clone(),
             Expression::Scope(s) => self.scope_type(s)?,
-            Expression::FunctionCall(name, _) => {
+            Expression::Function(FunctionExpression::FunctionCall(name, _)) => {
                 if matches!(*name, "puts" | "log") {
                     return Ok(RigzType::None);
                 }
@@ -83,7 +83,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     Some(f) => Self::function_call_return_type(name, f)?,
                 }
             }
-            Expression::TypeFunctionCall(r, name, _) => {
+            Expression::Function(FunctionExpression::TypeFunctionCall(r, name, _)) => {
                 self.check_module_exists(name)?;
                 match self.function_scopes.get(name) {
                     None => {
@@ -126,7 +126,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     }
                 }
             }
-            Expression::InstanceFunctionCall(ex, calls, _) => {
+            Expression::Function(FunctionExpression::InstanceFunctionCall(ex, calls, _)) => {
                 let this = self.rigz_type(ex)?;
                 let this = match this {
                     RigzType::This => match self.identifiers.get("self") {

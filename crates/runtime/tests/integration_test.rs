@@ -423,6 +423,12 @@ mod runtime {
             list_sum(r#"[1, 20, 21].sum"# = 42)
             puts_is_none("puts 1, 2, 3" = ())
             puts_assign("a = puts 1, 2, 3; a" = ())
+            into(r#"
+            mut a = []
+            [1] |> a.extend
+            [2, 3] |> a.extend
+            a
+            "# = vec![1, 2, 3])
         }
     }
 

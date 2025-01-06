@@ -791,12 +791,8 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             Expression::Map(map) => {
                 self.parse_map(map)?;
             }
-            Expression::FunctionCall(name, args) => {
-                self.call_function(None, name, args)?;
-            }
-            // todo make a clear delineation between self.foo & Self.foo
-            Expression::TypeFunctionCall(rigz_type, name, args) => {
-                self.call_function(Some(rigz_type), name, args)?;
+            Expression::Function(f) => {
+                self.parse_function(f)?;
             }
             Expression::Lambda { .. } => {
                 return Err(ValidationError::MissingExpression(
@@ -880,7 +876,49 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 self.parse_expression(*expression)?;
                 self.builder.add_for_map_instruction(inner_scope);
             }
-            Expression::InstanceFunctionCall(exp, calls, args) => {
+            Expression::Scope(s) => {
+                let s = self.parse_scope(s, "do")?;
+                self.builder.add_load_instruction(StackValue::ScopeId(s));
+            }
+            Expression::Cast(e, t) => {
+                self.parse_expression(*e)?;
+                self.builder.add_cast_instruction(t);
+            }
+            Expression::Symbol(s) => {
+                let index = self.find_or_create_constant(s.into());
+                self.builder
+                    .add_load_instruction(StackValue::Constant(index));
+            }
+            Expression::Return(ret) => {
+                match ret {
+                    None => {
+                        let none = self.find_or_create_constant(Value::None);
+                        self.builder
+                            .add_load_instruction(StackValue::Constant(none));
+                    }
+                    Some(e) => {
+                        self.parse_expression(*e)?;
+                    }
+                };
+                self.builder.add_ret_instruction();
+            }
+        }
+        Ok(())
+    }
+
+    fn parse_function(
+        &mut self,
+        function_expression: FunctionExpression<'vm>,
+    ) -> Result<(), ValidationError> {
+        match function_expression {
+            FunctionExpression::FunctionCall(name, args) => {
+                self.call_function(None, name, args)?;
+            }
+            // todo make a clear delineation between self.foo & Self.foo
+            FunctionExpression::TypeFunctionCall(rigz_type, name, args) => {
+                self.call_function(Some(rigz_type), name, args)?;
+            }
+            FunctionExpression::InstanceFunctionCall(exp, calls, args) => {
                 let len = calls.len();
                 assert!(len > 0, "Invalid Instance Function Call no calls");
                 let last = len - 1;
@@ -919,32 +957,6 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                         self.call_inline_extension(c, fcs, vec![].into())?;
                     }
                 }
-            }
-            Expression::Scope(s) => {
-                let s = self.parse_scope(s, "do")?;
-                self.builder.add_load_instruction(StackValue::ScopeId(s));
-            }
-            Expression::Cast(e, t) => {
-                self.parse_expression(*e)?;
-                self.builder.add_cast_instruction(t);
-            }
-            Expression::Symbol(s) => {
-                let index = self.find_or_create_constant(s.into());
-                self.builder
-                    .add_load_instruction(StackValue::Constant(index));
-            }
-            Expression::Return(ret) => {
-                match ret {
-                    None => {
-                        let none = self.find_or_create_constant(Value::None);
-                        self.builder
-                            .add_load_instruction(StackValue::Constant(none));
-                    }
-                    Some(e) => {
-                        self.parse_expression(*e)?;
-                    }
-                };
-                self.builder.add_ret_instruction();
             }
         }
         Ok(())

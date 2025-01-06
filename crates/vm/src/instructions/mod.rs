@@ -299,7 +299,7 @@ impl<'vm> VM<'vm> {
                 match og {
                     None => {
                         return VMError::VariableDoesNotExist(format!(
-                            "Variable {} does not exist",
+                            "Mutable variable {} does not exist",
                             name
                         ))
                         .into();
