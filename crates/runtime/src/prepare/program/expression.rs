@@ -21,6 +21,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         let t = match expression {
             Expression::This => self.identifiers["self"].clone().rigz_type,
             Expression::Value(v) => v.rigz_type(),
+            Expression::Error(_) => RigzType::Error,
             Expression::Identifier(a) => match self.identifiers.get(a) {
                 None => {
                     self.check_module_exists(a)?;
@@ -155,7 +156,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                         .self_type
                                         .as_ref()
                                         .filter(|t| t.rigz_type == this)
-                                        .map(|t| f.return_type.rigz_type.clone()),
+                                        .map(|_| f.return_type.rigz_type.clone()),
                                     CallSignature::Lambda(_, _, ret) => Some(ret.clone()),
                                 })
                                 .collect();

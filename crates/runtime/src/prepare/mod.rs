@@ -727,6 +727,11 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             Expression::This => {
                 self.this();
             }
+            Expression::Error(e) => {
+                self.parse_expression(*e)?;
+                self.builder.add_cast_instruction(RigzType::Error);
+                self.builder.add_ret_instruction();
+            }
             Expression::Tuple(v) => {
                 self.parse_tuple(v)?;
             }

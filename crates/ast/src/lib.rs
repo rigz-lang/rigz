@@ -551,19 +551,8 @@ impl<'lex> Parser<'lex> {
                 }
             }
             TokenKind::Error => {
-                let next = self.next_required_token("parse_expression - Error")?;
-                match next.kind {
-                    TokenKind::Value(v) => {
-                        Expression::Value(Value::Error(VMError::RuntimeError(v.to_string())))
-                    }
-                    // todo support identifier, lists, map, and args
-                    _ => {
-                        return Err(ParsingError::ParseError(format!(
-                            "Invalid Token for Error {:?}",
-                            next
-                        )));
-                    }
-                }
+                let ex = self.parse_expression()?;
+                Expression::Error(ex.into())
             }
             TokenKind::Return => match self.peek_token() {
                 None => Expression::Return(None),

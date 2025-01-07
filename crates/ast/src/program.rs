@@ -241,6 +241,7 @@ pub enum Expression<'lex> {
         condition: Box<Expression<'lex>>,
         then: Scope<'lex>,
     },
+    Error(Box<Expression<'lex>>),
     Return(Option<Box<Expression<'lex>>>),
     Index(Box<Expression<'lex>>, Box<Expression<'lex>>),
     Tuple(Vec<Expression<'lex>>),

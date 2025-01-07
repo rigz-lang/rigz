@@ -419,6 +419,7 @@ impl Value {
     #[inline]
     pub fn cast(&self, rigz_type: &RigzType) -> Value {
         match (self, rigz_type) {
+            (s, RigzType::Error) => Value::Error(VMError::RuntimeError(s.to_string())),
             (_, RigzType::None) => Value::None,
             (v, RigzType::Bool) => Value::Bool(v.to_bool()),
             (v, RigzType::String) => Value::String(v.to_string()),

@@ -214,6 +214,12 @@ impl ToTokens for Expression<'_> {
                     Expression::Index(#lhs, #index)
                 }
             }
+            Expression::Error(err) => {
+                let err = boxed(err);
+                quote! {
+                    Expression::Error(#err)
+                }
+            }
         };
         tokens.extend(t)
     }
