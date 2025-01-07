@@ -79,7 +79,8 @@ macro_rules! generate_builder {
 
         #[inline]
         fn register_module(&mut self, module: impl Module<'vm> + 'static) -> &mut Self {
-            self.modules.insert(module.name(), Box::new(module));
+            self.modules
+                .insert(module.name(), Rc::new(RefCell::new(module)));
             self
         }
 

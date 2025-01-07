@@ -74,6 +74,14 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     return Ok(RigzType::None);
                 }
 
+                if name == &"send" {
+                    return Ok(RigzType::Int);
+                }
+
+                if name == &"receive" {
+                    return Ok(RigzType::Any);
+                }
+
                 self.check_module_exists(name)?;
                 match self.function_scopes.get(name) {
                     None => {

@@ -2,6 +2,7 @@ mod runtime {
     use rigz_ast::{VMError, Value};
     #[allow(unused_imports)] // used by macro
     use rigz_runtime::runtime::{eval, eval_print_vm};
+    use rigz_runtime::RuntimeError;
 
     macro_rules! run_expected {
         ($($name:ident($input:literal = $expected:expr))*) => {
@@ -44,6 +45,23 @@ mod runtime {
         };
     }
 
+    macro_rules! run_error_starts_with {
+        ($($name:ident($input:literal = $expected:literal))*) => {
+            $(
+                 #[test]
+                fn $name() {
+                    let input = $input;
+                    let v = eval(input);
+                    let Err(RuntimeError::Run(VMError::RuntimeError(e))) = v else {
+                        assert!(false, "Unexpected result {v:?} for {input}");
+                        return
+                    };
+                    assert!(e.starts_with($expected), "Unexpected result {e:?} for {input}")
+                }
+            )*
+        };
+    }
+
     macro_rules! run_invalid {
         ($($name:ident($input:literal))*) => {
             $(
@@ -76,6 +94,16 @@ mod runtime {
             end
             foo
             "# = VMError::RuntimeError("Stack overflow: exceeded 1024".to_string()))
+        }
+
+        run_error_starts_with! {
+            on_timeout_works(r#"
+            @on("message")
+            fn foo(a) = a * 2
+
+            pid = send 'message', 21
+            receive pid, 0
+            "# = "`receive` timed out after 0ms")
         }
     }
 
@@ -457,6 +485,13 @@ mod runtime {
              end"# = 1)
             format("format '{}', 1 + 2" = "3")
             format_parens("format('{}', 1 + 2)" = "3")
+            on_works(r#"
+            @on("message")
+            fn foo(a) = a * 2
+
+            pid = send 'message', 21
+            receive pid
+            "# = 42)
         }
     }
 

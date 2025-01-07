@@ -6,13 +6,15 @@ use crate::{
 };
 use indexmap::IndexMap;
 use log::Level;
+use std::cell::RefCell;
 use std::fmt::Debug;
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub struct VMBuilder<'vm> {
     pub sp: usize,
     pub scopes: Vec<Scope<'vm>>,
-    pub modules: IndexMap<&'static str, Box<dyn Module<'vm>>>,
+    pub modules: IndexMap<&'static str, Rc<RefCell<dyn Module<'vm>>>>,
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
     pub constants: Vec<Value>,
@@ -283,6 +285,16 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     fn add_instance_set_instruction(&mut self) -> &mut Self {
         self.add_instruction(Instruction::InstanceSet)
     }
+
+    #[inline]
+    fn add_send_instruction(&mut self, args: usize) -> &mut Self {
+        self.add_instruction(Instruction::Send(args))
+    }
+
+    #[inline]
+    fn add_receive_instruction(&mut self, args: usize) -> &mut Self {
+        self.add_instruction(Instruction::Receive(args))
+    }
 }
 
 impl<'vm> RigzBuilder<'vm> for VMBuilder<'vm> {
@@ -292,13 +304,11 @@ impl<'vm> RigzBuilder<'vm> for VMBuilder<'vm> {
     fn build(self) -> VM<'vm> {
         VM {
             scopes: self.scopes,
-            frames: Default::default(),
             modules: self.modules,
-            sp: 0,
             options: self.options,
             lifecycles: self.lifecycles,
             constants: self.constants,
-            stack: Default::default(),
+            ..Default::default()
         }
     }
 }

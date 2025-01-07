@@ -3,8 +3,11 @@ mod unary;
 
 use crate::objects::RigzType;
 use crate::vm::{StackValue, VMState};
-use crate::{outln, BinaryOperation, Number, UnaryOperation, VMError, Value, Variable, VM};
+use crate::{
+    outln, BinaryOperation, Lifecycle, Number, UnaryOperation, VMError, Value, Variable, VM,
+};
 use indexmap::IndexMap;
+use itertools::Itertools;
 use log::{log, Level};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
@@ -88,6 +91,8 @@ pub enum Instruction<'vm> {
     ForMap {
         scope: usize,
     },
+    Send(usize),
+    Receive(usize),
     /// Danger Zone, use these instructions at your own risk (sorted by risk)
     /// in the right situations these will be fantastic, otherwise avoid them
     Pop(usize),
@@ -140,7 +145,10 @@ impl<'vm> VM<'vm> {
                 match self.get_module_clone(module) {
                     Ok(module) => {
                         let args = self.resolve_args(*args);
-                        let v = module.call(func, args.into()).unwrap_or_else(|e| e.into());
+                        let v = module
+                            .borrow()
+                            .call(func, args.into())
+                            .unwrap_or_else(|e| e.into());
                         self.store_value(v.into());
                     }
                     Err(e) => {
@@ -154,6 +162,7 @@ impl<'vm> VM<'vm> {
                         let this = self.next_resolved_value("call_extension");
                         let args = self.resolve_args(*args);
                         let v = module
+                            .borrow()
                             .call_extension(this, func, args.into())
                             .unwrap_or_else(|e| e.into());
                         self.store_value(v.into());
@@ -168,7 +177,10 @@ impl<'vm> VM<'vm> {
                     Ok(module) => {
                         let this = self.next_resolved_value("call_mut_extension");
                         let args = self.resolve_args(*args);
-                        match module.call_mutable_extension(this, func, args.into()) {
+                        match module
+                            .borrow()
+                            .call_mutable_extension(this, func, args.into())
+                        {
                             Ok(Some(v)) => {
                                 self.store_value(v.into());
                             }
@@ -188,6 +200,7 @@ impl<'vm> VM<'vm> {
                     Ok(module) => {
                         let args = self.resolve_args(*args);
                         let value = module
+                            .borrow()
                             .vm_extension(self, func, args.into())
                             .unwrap_or_else(|e| e.into());
                         self.store_value(value.into());
@@ -501,6 +514,61 @@ impl<'vm> VM<'vm> {
                     }
                 }
                 self.store_value(result.into());
+            }
+            Instruction::Send(args) => {
+                let mut args = self
+                    .resolve_args(*args)
+                    .into_iter()
+                    .map(|v| v.borrow().clone());
+                let message = args.next().unwrap().to_string();
+                let process = self
+                    .processes
+                    .iter()
+                    .find_position(|p| match &p.scope.lifecycle {
+                        Some(Lifecycle::On(e)) => e.event == message,
+                        _ => false,
+                    });
+
+                match process {
+                    None => {
+                        return VMError::RuntimeError(format!(
+                            "No process found matching '{message}'"
+                        ))
+                        .into()
+                    }
+                    Some((id, process)) => {
+                        let v = match process.send(Vec::from_iter(args)) {
+                            Ok(_) => Value::Number((id as i64).into()),
+                            Err(e) => e.into(),
+                        };
+                        self.store_value(v.into());
+                    }
+                }
+            }
+            Instruction::Receive(args) => {
+                let mut args = self
+                    .resolve_args(*args)
+                    .into_iter()
+                    .map(|v| v.borrow().clone());
+                let pid = match args.next().unwrap().to_usize() {
+                    Ok(u) => u,
+                    Err(e) => return e.into(),
+                };
+
+                let timeout = match args.next().map(|v| v.to_usize()) {
+                    Some(Ok(u)) => Some(u),
+                    Some(Err(e)) => return e.into(),
+                    None => None,
+                };
+
+                let res = match self.processes.get(pid) {
+                    None => {
+                        return VMError::RuntimeError(format!("Process {pid} does not exist"))
+                            .into()
+                    }
+                    Some(p) => p.receive(timeout),
+                };
+                self.store_value(res.into());
             }
         };
         VMState::Running

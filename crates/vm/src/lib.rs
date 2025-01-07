@@ -15,6 +15,7 @@ mod vm;
 
 #[cfg(feature = "derive")]
 pub mod derive;
+mod process;
 
 pub type IndexMapEntry<'a, K, V> = indexmap::map::Entry<'a, K, V>;
 

@@ -1141,28 +1141,24 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         Ok(level)
     }
 
-    fn call_function(
+    fn call_built_in_function(
         &mut self,
-        rigz_type: Option<RigzType>,
         name: &'vm str,
         arguments: RigzArguments<'vm>,
-    ) -> Result<(), ValidationError> {
-        self.check_module_exists(name)?;
-        // todo this should check if another function named puts exists first
-        if name == "puts" {
-            if let RigzArguments::Positional(arguments) = arguments {
+    ) -> Result<Option<RigzArguments<'vm>>, ValidationError> {
+        let RigzArguments::Positional(arguments) = arguments else {
+            return Ok(Some(arguments));
+        };
+
+        match name {
+            "puts" => {
                 let len = arguments.len();
                 for arg in arguments.into_iter().rev() {
                     self.parse_expression(arg)?;
                 }
                 self.builder.add_puts_instruction(len);
-                return Ok(());
             }
-        }
-
-        // todo this should check if another function named log exists first
-        if name == "log" {
-            if let RigzArguments::Positional(arguments) = &arguments {
+            "log" => {
                 if arguments.len() >= 2 {
                     let len = arguments.len() - 2;
                     let mut arguments = arguments.iter();
@@ -1187,10 +1183,47 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     }
                     self.builder
                         .add_log_instruction(level, template.leak(), len);
-                    return Ok(());
+                } else {
+                    return Err(ValidationError::InvalidFunction(format!(
+                        "Invalid args to log, need at least 2 arguments - {arguments:?}"
+                    )));
                 }
             }
+            "send" => {
+                if arguments.is_empty() {
+                    return Err(ValidationError::InvalidFunction("`send` requires at least one argument that includes the event being triggered".to_string()));
+                }
+                let args = arguments.len();
+                for e in arguments.into_iter().rev() {
+                    self.parse_expression(e)?;
+                }
+                self.builder.add_send_instruction(args);
+            }
+            "receive" => {
+                let args = arguments.len();
+                if matches!(args, 1 | 2) {
+                    for e in arguments.into_iter().rev() {
+                        self.parse_expression(e)?;
+                    }
+                    self.builder.add_receive_instruction(args);
+                } else {
+                    return Err(ValidationError::InvalidFunction(format!("Invalid args to `receive`, only possible arguments are process_id (required) and timeout (ms, optional defaults to infinity) - {arguments:?}")));
+                }
+            }
+            _ => return Ok(Some(RigzArguments::Positional(arguments))),
         }
+        Ok(None)
+    }
+
+    fn call_function(
+        &mut self,
+        rigz_type: Option<RigzType>,
+        name: &'vm str,
+        arguments: RigzArguments<'vm>,
+    ) -> Result<(), ValidationError> {
+        let Some(arguments) = self.call_built_in_function(name, arguments)? else {
+            return Ok(());
+        };
 
         if arguments.is_empty() {
             if let Some(v) = self.identifiers.get(name) {
@@ -1202,6 +1235,8 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 return Ok(());
             }
         }
+
+        self.check_module_exists(name)?;
 
         let BestMatch {
             fcs,

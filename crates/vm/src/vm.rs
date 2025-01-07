@@ -1,10 +1,12 @@
 use crate::call_frame::Frames;
 use crate::lifecycle::{Lifecycle, TestResults};
-use crate::{generate_builder, CallFrame, Instruction, Scope};
+use crate::process::Process;
+use crate::{generate_builder, CallFrame, Instruction, Scope, Variable};
 use crate::{out, outln, Module, RigzBuilder, VMError, Value};
 use indexmap::IndexMap;
 use itertools::Itertools;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::ptr;
 use std::rc::Rc;
@@ -96,12 +98,13 @@ impl<T: Into<Value>> From<T> for StackValue {
 pub struct VM<'vm> {
     pub scopes: Vec<Scope<'vm>>,
     pub frames: Frames<'vm>,
-    pub modules: IndexMap<&'static str, Box<dyn Module<'vm>>>,
+    pub modules: IndexMap<&'static str, Rc<RefCell<dyn Module<'vm>>>>,
     pub stack: Vec<StackValue>,
     pub sp: usize,
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
     pub constants: Vec<Value>,
+    pub processes: Vec<Process<'vm>>,
 }
 
 impl<'v> VM<'v> {
@@ -178,6 +181,7 @@ impl Default for VM<'_> {
             lifecycles: Default::default(),
             constants: Default::default(),
             stack: Default::default(),
+            processes: vec![],
         }
     }
 }
@@ -189,7 +193,10 @@ impl<'vm> VM<'vm> {
         Self::default()
     }
 
-    pub fn get_module_clone(&self, module: &'vm str) -> Result<Box<dyn Module<'vm>>, VMError> {
+    pub fn get_module_clone(
+        &self,
+        module: &'vm str,
+    ) -> Result<Rc<RefCell<dyn Module<'vm>>>, VMError> {
         match self.modules.get(&module) {
             None => Err(VMError::InvalidModule(module.to_string())),
             Some(m) => Ok(m.clone()),
@@ -301,7 +308,7 @@ impl<'vm> VM<'vm> {
         scope.instructions.get(pc).map(ptr::from_ref)
     }
 
-    /// Generally this should be used instead of run. It will evaluate the VM & start lifecycles
+    /// Calls run and returns an error if the resulting value is an error
     pub fn eval(&mut self) -> Result<Value, VMError> {
         match self.run() {
             Value::Error(e) => Err(e),
@@ -316,13 +323,39 @@ impl<'vm> VM<'vm> {
         }
     }
 
+    pub fn add_bindings(&mut self, bindings: HashMap<&'vm str, (StackValue, bool)>) {
+        let mut current = self.frames.current.borrow_mut();
+        for (k, (v, mutable)) in bindings {
+            let v = if mutable {
+                Variable::Mut(v)
+            } else {
+                Variable::Let(v)
+            };
+            current.variables.insert(k, v);
+        }
+    }
+
+    // Starts processes for each "On" lifecycle
     pub fn run(&mut self) -> Value {
-        loop {
+        self.processes.extend(
+            self.scopes
+                .iter()
+                .filter(|s| matches!(s.lifecycle, Some(Lifecycle::On(_))))
+                .map(|s| Process::new(s.clone())),
+        );
+
+        self.processes.iter_mut().for_each(|p| p.start());
+
+        let mut run = || loop {
             match self.step() {
                 None => {}
                 Some(v) => return v,
             }
-        }
+        };
+
+        let res = run();
+        self.processes.iter_mut().for_each(|p| p.close());
+        res
     }
 
     #[inline]

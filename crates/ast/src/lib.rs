@@ -1422,6 +1422,13 @@ impl<'lex> Parser<'lex> {
             FunctionDeclaration::Definition(mut f) => match lifecycle {
                 None => Ok(f),
                 Some(l) => {
+                    if matches!(l, Lifecycle::On(_))
+                        && f.type_definition.arg_type != ArgType::Positional
+                    {
+                        return Err(ParsingError::ParseError(format!(
+                            "Positional arguments are required for @on lifecycle - {f:?}"
+                        )));
+                    }
                     f.lifecycle = Some(l);
                     Ok(f)
                 }
@@ -2067,6 +2074,11 @@ impl<'lex> Parser<'lex> {
             TokenKind::Type => {
                 // hack to support type as function name
                 "type"
+            }
+            TokenKind::Identifier(name) if matches!(name, "send" | "receive" | "log" | "puts") => {
+                return Err(ParsingError::ParseError(format!(
+                    "{name} is a reserved function name and cannot be overwritten"
+                )))
             }
             TokenKind::Identifier(name) => name,
             // todo support nested types, Module.CustomType
