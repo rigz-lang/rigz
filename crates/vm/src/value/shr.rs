@@ -76,7 +76,6 @@ mod tests {
             test_true_0_shr_true => (true, 0) = 1;
             append_to_from => ("abc", "123") = "123abc";
             int_like => (1, 2) = (1 >> 2);
-            // todo add more test cases
         }
     }
 }

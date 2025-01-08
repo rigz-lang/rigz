@@ -78,7 +78,6 @@ mod tests {
             test_false_bool_true_bitand_true => (false, true) = false;
             test_false_0_bitand_true => (false, 0) = false;
             test_true_0_bitand_true => (true, 0) = false;
-            // todo add more test cases
         }
     }
 }

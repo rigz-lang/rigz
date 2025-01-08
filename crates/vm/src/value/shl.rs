@@ -76,7 +76,6 @@ mod tests {
             test_true_0_shl_true => (true, 0) = 1;
             push_to_end => ("abc", "123") = "abc123";
             int_like => (1, 2.0) = (1 << 2);
-            // todo add more test cases
         }
     }
 }

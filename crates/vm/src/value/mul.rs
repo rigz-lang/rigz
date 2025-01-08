@@ -97,7 +97,6 @@ mod tests {
             test_false_0_mul_true => (false, 0) = false;
             test_true_0_mul_true => (true, 0) = 1;
             test_str_f64_str => ("abc", 2.5) = "abcabca";
-            // todo add more test cases
         }
     }
 }

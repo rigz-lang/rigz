@@ -89,7 +89,6 @@ mod tests {
             test_false_bool_true_div_true => (false, true) = true;
             test_false_0_div_true => (false, 0) = false;
             test_true_0_div_true => (true, 0) = 1;
-            // todo add more test cases
         }
     }
 }

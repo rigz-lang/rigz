@@ -52,7 +52,6 @@ mod tests {
             test_false_bool_true_rem_true => (false, true) = true;
             test_false_0_rem_true => (false, 0) = false;
             test_true_0_rem_true => (true, 0) = 1;
-            // todo add more test cases
         }
     }
 }

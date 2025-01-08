@@ -79,7 +79,6 @@ mod tests {
             test_false_bool_true_bitxor_true => ((), ()) = ();
             test_false_0_bitxor_true => ((), 0) = ();
             test_true_0_bitxor_true => ((), 0) = 1;
-            // todo add more test cases
         }
     }
 }

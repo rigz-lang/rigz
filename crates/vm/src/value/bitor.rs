@@ -78,7 +78,6 @@ mod tests {
             test_false_bool_true_bitor_true => (false, true) = true;
             test_false_0_bitor_true => (false, 0) = false;
             test_true_0_bitor_true => (true, 0) = 1;
-            // todo add more test cases
         }
     }
 }
