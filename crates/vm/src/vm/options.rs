@@ -18,7 +18,7 @@ impl Default for VMOptions {
 }
 
 impl VMOptions {
-    pub(crate) fn to_byte(&self) -> u8 {
+    pub(crate) fn as_byte(&self) -> u8 {
         let mut result = 0;
         result |= self.enable_logging as u8;
         result |= (self.disable_modules as u8) << 1;
@@ -48,7 +48,7 @@ mod tests {
             disable_variable_cleanup: true,
             ..Default::default()
         };
-        let byte = options.to_byte();
+        let byte = options.as_byte();
         assert_eq!(VMOptions::from_byte(byte), options)
     }
 }

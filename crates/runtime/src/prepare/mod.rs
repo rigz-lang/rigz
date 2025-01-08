@@ -213,10 +213,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         p
     }
 
-    pub(crate) fn register_module(
-        &mut self,
-        module: impl ParsedModule<'vm> + 'static + Send + Sync,
-    ) {
+    pub(crate) fn register_module(&mut self, module: impl ParsedModule<'vm> + 'static) {
         let name = module.name();
         let def = module.module_definition();
         self.modules.insert(name, ModuleDefinition::Module(def));

@@ -65,7 +65,7 @@ macro_rules! errln {
 #[macro_export]
 macro_rules! define_value_tests {
     ($op:tt { $($test_name:ident => ($lhs:expr, $rhs:expr) = $expected:expr);* $(;)? }) => {
-        use crate::value::Value;
+        use $crate::value::Value;
 
         $(
             #[test]

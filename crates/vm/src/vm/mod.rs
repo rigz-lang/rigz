@@ -360,7 +360,7 @@ impl<'vm> VM<'vm> {
     /// Snapshots can't include modules or messages from in progress lifecycles
     pub fn snapshot(&self) -> Result<Vec<u8>, VMError> {
         let mut bytes = Vec::new();
-        bytes.push(self.options.to_byte());
+        bytes.push(self.options.as_byte());
         bytes.extend((self.sp as u64).to_le_bytes());
 
         // write registers

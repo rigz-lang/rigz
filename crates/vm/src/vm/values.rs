@@ -38,7 +38,7 @@ pub trait ResolveValue {
     fn get_constant(&self, constant_id: usize) -> Rc<RefCell<Value>>;
 }
 
-impl<'vm> ResolveValue for VM<'vm> {
+impl ResolveValue for VM<'_> {
     fn location(&self) -> &'static str {
         "VM"
     }

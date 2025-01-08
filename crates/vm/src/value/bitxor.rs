@@ -73,12 +73,12 @@ mod tests {
     define_value_tests! {
         ^ {
             test_none_bitxor_none => ((), ()) = ();
-            test_none_bool_false_bitxor_none => ((), ()) = ();
-            test_bool_true_bitxor_none => ((), ()) = ();
-            test_none_bool_true_bitxor_true => ((), ()) = ();
-            test_false_bool_true_bitxor_true => ((), ()) = ();
-            test_false_0_bitxor_true => ((), 0) = ();
-            test_true_0_bitxor_true => ((), 0) = 1;
+            test_none_bool_false_bitxor_none => (false, ()) = false;
+            test_bool_true_bitxor_none => (true, ()) = true;
+            test_none_bool_true_bitxor_true => ((), true) = true;
+            test_false_bool_true_bitxor_true => (false, true) = true;
+            test_false_0_bitxor_true => (false, 0) = false;
+            test_true_0_bitxor_true => (true, 0) = 1;
         }
     }
 }

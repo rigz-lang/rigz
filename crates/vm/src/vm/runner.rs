@@ -4,6 +4,7 @@ use crate::{
 };
 use itertools::Itertools;
 use log_derive::{logfn, logfn_inputs};
+use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -21,16 +22,6 @@ impl<'vm> Runner<'vm> for VM<'vm> {
             ))),
             Some(s) => update(s),
         }
-    }
-
-    fn load_mut(&mut self, name: &'vm str) -> Result<(), VMError> {
-        let v = self.next_value(format!("load_mut - {name}"));
-        self.frames.load_mut(name, v)
-    }
-
-    fn load_let(&mut self, name: &'vm str) -> Result<(), VMError> {
-        let v = self.next_value(format!("load_let - {name}"));
-        self.frames.load_let(name, v)
     }
 
     #[inline]
@@ -100,9 +91,11 @@ impl<'vm> Runner<'vm> for VM<'vm> {
                         Lifecycle::Composite(c) => {
                             let index = c.iter().find_position(|l| matches!(l, Lifecycle::Memo(_)));
                             match index {
-                                None => return Err(VMError::ScopeDoesNotExist(format!(
+                                None => {
+                                    return Err(VMError::ScopeDoesNotExist(format!(
                                     "Invalid Scope {scope_index}, does not contain @memo lifecycle"
-                                ))),
+                                )))
+                                }
                                 Some((index, _)) => {
                                     let Lifecycle::Memo(m) = c.get_mut(index).unwrap() else {
                                         unreachable!()
@@ -218,50 +211,6 @@ impl<'vm> Runner<'vm> for VM<'vm> {
         };
         self.store_value(res.into());
         Ok(())
-    }
-
-    fn get_variable(&mut self, name: &'vm str) {
-        let r = self.frames.current.borrow().get_variable(name, self);
-        let v = match r {
-            None => {
-                VMError::VariableDoesNotExist(format!("Variable {} does not exist", name)).into()
-            }
-            Some(v) => v.resolve(self).into(),
-        };
-        self.store_value(v);
-    }
-
-    fn get_mutable_variable(&mut self, name: &'vm str) {
-        let og = match self
-            .frames
-            .current
-            .borrow()
-            .get_mutable_variable(name, self)
-        {
-            Ok(None) => None,
-            Err(e) => Some(e.into()),
-            Ok(Some(original)) => Some(original),
-        };
-
-        let v = match og {
-            None => {
-                VMError::VariableDoesNotExist(format!("Mutable variable {} does not exist", name))
-                    .into()
-            }
-            Some(v) => v.resolve(self).into(),
-        };
-        self.store_value(v);
-    }
-
-    fn get_variable_reference(&mut self, name: &'vm str) {
-        let r = self.frames.current.borrow().get_variable(name, self);
-        let v = match r {
-            None => {
-                VMError::VariableDoesNotExist(format!("Variable {} does not exist", name)).into()
-            }
-            Some(v) => v,
-        };
-        self.store_value(v);
     }
 
     fn call(

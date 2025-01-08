@@ -7,10 +7,12 @@ use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
+type FromChannel = (Sender<Option<Vec<Value>>>, Receiver<Option<Vec<Value>>>);
+
 #[derive(Debug)]
 pub struct Process<'vm> {
     pub scope: Scope<'vm>,
-    from_vm: (Sender<Option<Vec<Value>>>, Receiver<Option<Vec<Value>>>),
+    from_vm: FromChannel,
     to_vm: (Sender<Option<Value>>, Receiver<Option<Value>>),
     options: VMOptions,
     modules: ModulesMap<'vm>,

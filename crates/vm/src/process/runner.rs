@@ -18,7 +18,7 @@ pub(crate) struct ProcessRunner<'s, 'vm> {
     modules: ModulesMap<'vm>,
 }
 
-impl<'vm> ResolveValue for ProcessRunner<'_, 'vm> {
+impl ResolveValue for ProcessRunner<'_, '_> {
     fn location(&self) -> &'static str {
         "Process"
     }
@@ -59,14 +59,6 @@ impl<'vm> Runner<'vm> for ProcessRunner<'_, 'vm> {
         todo!()
     }
 
-    fn load_mut(&mut self, name: &'vm str) -> Result<(), VMError> {
-        todo!()
-    }
-
-    fn load_let(&mut self, name: &'vm str) -> Result<(), VMError> {
-        todo!()
-    }
-
     fn call_frame(&mut self, scope_index: usize) -> Result<(), VMError> {
         todo!()
     }
@@ -84,18 +76,6 @@ impl<'vm> Runner<'vm> for ProcessRunner<'_, 'vm> {
     }
 
     fn receive(&mut self, args: usize) -> Result<(), VMState> {
-        todo!()
-    }
-
-    fn get_variable(&mut self, name: &'vm str) {
-        todo!()
-    }
-
-    fn get_mutable_variable(&mut self, name: &'vm str) {
-        todo!()
-    }
-
-    fn get_variable_reference(&mut self, name: &'vm str) {
         todo!()
     }
 
@@ -136,8 +116,19 @@ impl<'vm> Runner<'vm> for ProcessRunner<'_, 'vm> {
     }
 }
 
-impl<'vm> ProcessRunner<'_, 'vm> {
+impl ProcessRunner<'_, '_> {
     pub fn run(&mut self) -> Value {
+        for (arg, mutable) in &self.scope.args {
+            let v = if *mutable {
+                self.load_mut(arg)
+            } else {
+                self.load_let(arg)
+            };
+            if let Err(e) = v {
+                return e.into();
+            }
+        }
+
         loop {
             let pc = self.frames.current.borrow().pc;
             if pc >= self.scope.instructions.len() {
