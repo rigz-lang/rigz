@@ -338,9 +338,10 @@ pub trait Runner<'vm>: ResolveValue {
         args: usize,
     ) -> Result<Value, VMError>;
 
+    #[allow(unused_variables)]
     #[inline]
     #[log_derive::logfn_inputs(Debug, fmt = "process_instruction(vm={:#p}, instruction={:?})")]
-    fn process_core_instruction(&mut self, instruction: &Instruction<'vm>) -> VMState {
+    fn process_core_instruction(&mut self, instruction: Instruction<'vm>) -> VMState {
         match instruction {
             Instruction::Halt => return VMState::Done(self.next_resolved_value("halt")),
             Instruction::HaltIfError => {
@@ -350,9 +351,9 @@ pub trait Runner<'vm>: ResolveValue {
                 };
                 self.store_value(value.into());
             }
-            &Instruction::Unary(u) => self.handle_unary(u),
-            &Instruction::Binary(b) => self.handle_binary(b),
-            &Instruction::BinaryAssign(b) => self.handle_binary_assign(b),
+            Instruction::Unary(u) => self.handle_unary(u),
+            Instruction::Binary(b) => self.handle_binary(b),
+            Instruction::BinaryAssign(b) => self.handle_binary_assign(b),
             Instruction::Load(r) => {
                 self.store_value(r.clone().into());
             }
@@ -374,17 +375,17 @@ pub trait Runner<'vm>: ResolveValue {
                 todo!("Support dynamic matching")
             }
             Instruction::Call(scope) => {
-                if let Err(e) = self.call_frame(*scope) {
+                if let Err(e) = self.call_frame(scope) {
                     return e.into();
                 }
             }
-            &Instruction::CallModule { module, func, args } => {
+            Instruction::CallModule { module, func, args } => {
                 if let Some(module) = self.get_module_clone(module) {
                     let v = self.call(module, func, args).unwrap_or_else(|e| e.into());
                     self.store_value(v.into());
                 };
             }
-            &Instruction::CallExtension { module, func, args } => {
+            Instruction::CallExtension { module, func, args } => {
                 if let Some(module) = self.get_module_clone(module) {
                     let v = self
                         .call_extension(module, func, args)
@@ -392,7 +393,7 @@ pub trait Runner<'vm>: ResolveValue {
                     self.store_value(v.into());
                 };
             }
-            &Instruction::CallMutableExtension { module, func, args } => {
+            Instruction::CallMutableExtension { module, func, args } => {
                 if let Some(module) = self.get_module_clone(module) {
                     match self.call_mutable_extension(module, func, args) {
                         Ok(Some(v)) => {
@@ -405,7 +406,7 @@ pub trait Runner<'vm>: ResolveValue {
                     }
                 }
             }
-            &Instruction::CallVMExtension { module, func, args } => {
+            Instruction::CallVMExtension { module, func, args } => {
                 if let Some(module) = self.get_module_clone(module) {
                     let value = self
                         .vm_extension(module, func, args)
@@ -420,13 +421,13 @@ pub trait Runner<'vm>: ResolveValue {
             }
             Instruction::Cast { rigz_type } => {
                 let value = self.next_resolved_value("cast");
-                self.store_value(value.borrow().cast(rigz_type).into());
+                self.store_value(value.borrow().cast(&rigz_type).into());
             }
             Instruction::CallEq(scope_index) => {
                 let b = self.next_resolved_value("call eq - rhs");
                 let a = self.next_resolved_value("call eq - lhs");
                 if a == b {
-                    if let Err(e) = self.call_frame(*scope_index) {
+                    if let Err(e) = self.call_frame(scope_index) {
                         return e.into();
                     };
                 }
@@ -435,7 +436,7 @@ pub trait Runner<'vm>: ResolveValue {
                 let b = self.next_resolved_value("call neq - rhs");
                 let a = self.next_resolved_value("call neq - lhs");
                 if a == b {
-                    if let Err(e) = self.call_frame(*scope_index) {
+                    if let Err(e) = self.call_frame(scope_index) {
                         return e.into();
                     };
                 }
@@ -450,13 +451,13 @@ pub trait Runner<'vm>: ResolveValue {
                 } else {
                     else_scope
                 };
-                let v = self.handle_scope(*scope);
+                let v = self.handle_scope(scope);
                 self.store_value(v.into());
             }
             Instruction::If(if_scope) => {
                 let truthy = self.next_resolved_value("if");
                 let v = if truthy.borrow().to_bool() {
-                    self.handle_scope(*if_scope)
+                    self.handle_scope(if_scope)
                 } else {
                     Value::None.into()
                 };
@@ -465,7 +466,7 @@ pub trait Runner<'vm>: ResolveValue {
             Instruction::Unless(unless_scope) => {
                 let truthy = self.next_resolved_value("unless");
                 let v = if !truthy.borrow().to_bool() {
-                    self.handle_scope(*unless_scope)
+                    self.handle_scope(unless_scope)
                 } else {
                     Value::None.into()
                 };
@@ -479,20 +480,20 @@ pub trait Runner<'vm>: ResolveValue {
                     return VMState::Running;
                 }
 
-                let mut res = (*tmpl).to_string();
-                let args = self.resolve_args(*args);
+                let mut res = tmpl.to_string();
+                let args = self.resolve_args(args);
                 for arg in args {
                     let l = arg.borrow().to_string();
                     res = res.replacen("{}", l.as_str(), 1);
                 }
-                log!(*level, "{}", res);
+                log!(level, "{}", res);
                 self.store_value(Value::None.into());
             }
             Instruction::Puts(args) => {
-                if args == &0 {
+                if args == 0 {
                     outln!();
                 } else {
-                    let args = self.resolve_args(*args);
+                    let args = self.resolve_args(args);
                     let mut puts = String::new();
                     let len = args.len() - 1;
                     for (index, arg) in args.into_iter().enumerate() {
@@ -512,11 +513,11 @@ pub trait Runner<'vm>: ResolveValue {
                 ))
                 .into()
             }
-            &Instruction::Goto(scope_id, index) => {
+            Instruction::Goto(scope_id, index) => {
                 self.goto(scope_id, index);
             }
             Instruction::AddInstruction(scope, instruction) => {
-                let updated = self.update_scope(*scope, |s| {
+                let updated = self.update_scope(scope, |s| {
                     s.instructions.push(*instruction.clone());
                     Ok(())
                 });
@@ -525,9 +526,9 @@ pub trait Runner<'vm>: ResolveValue {
                 }
             }
             Instruction::InsertAtInstruction(scope, index, new_instruction) => {
-                let updated = self.update_scope(*scope, |s| {
+                let updated = self.update_scope(scope, |s| {
                     // todo this can panic
-                    s.instructions.insert(*index, *new_instruction.clone());
+                    s.instructions.insert(index, *new_instruction.clone());
                     Ok(())
                 });
                 if let Err(e) = updated {
@@ -535,8 +536,8 @@ pub trait Runner<'vm>: ResolveValue {
                 }
             }
             Instruction::UpdateInstruction(scope, index, new_instruction) => {
-                let updated = self.update_scope(*scope, |s| {
-                    match s.instructions.get_mut(*index) {
+                let updated = self.update_scope(scope, |s| {
+                    match s.instructions.get_mut(index) {
                         None => {
                             return Err(VMError::ScopeDoesNotExist(format!(
                                 "Instruction does not exist: {}",
@@ -553,7 +554,7 @@ pub trait Runner<'vm>: ResolveValue {
                     return e.into();
                 }
             }
-            &Instruction::RemoveInstruction(scope, index) => {
+            Instruction::RemoveInstruction(scope, index) => {
                 let updated = self.update_scope(scope, |s| {
                     if index >= s.instructions.len() {
                         return Err(VMError::UnsupportedOperation(format!(
@@ -568,7 +569,7 @@ pub trait Runner<'vm>: ResolveValue {
                     return e.into();
                 }
             }
-            &Instruction::InstanceGet(multiple) => {
+            Instruction::InstanceGet(multiple) => {
                 self.instance_get(multiple);
             }
             Instruction::InstanceSet => {
@@ -577,7 +578,7 @@ pub trait Runner<'vm>: ResolveValue {
             Instruction::InstanceSetMut => {
                 self.instance_set(true);
             }
-            &Instruction::Pop(output) => {
+            Instruction::Pop(output) => {
                 for _ in 0..output {
                     let s = self.pop();
                     if s.is_none() {
@@ -585,12 +586,12 @@ pub trait Runner<'vm>: ResolveValue {
                     }
                 }
             }
-            &Instruction::CallMemo(scope) => {
+            Instruction::CallMemo(scope) => {
                 if let Err(e) = self.call_frame_memo(scope) {
                     return e.into();
                 }
             }
-            &Instruction::ForList { scope } => {
+            Instruction::ForList { scope } => {
                 let mut result = vec![];
                 let this = self.next_resolved_value("for-list").borrow().to_list();
                 for value in this {
@@ -605,7 +606,7 @@ pub trait Runner<'vm>: ResolveValue {
                 }
                 self.store_value(result.into());
             }
-            &Instruction::ForMap { scope } => {
+            Instruction::ForMap { scope } => {
                 let mut result = IndexMap::new();
                 let this = self.next_resolved_value("for-map").borrow().to_map();
                 for (k, v) in this {
@@ -635,17 +636,17 @@ pub trait Runner<'vm>: ResolveValue {
                 }
                 self.store_value(result.into());
             }
-            &Instruction::Send(args) => {
+            Instruction::Send(args) => {
                 if let Err(o) = self.send(args) {
                     return o;
                 }
             }
-            &Instruction::Broadcast(args) => {
+            Instruction::Broadcast(args) => {
                 if let Err(o) = self.broadcast(args) {
                     return o;
                 }
             }
-            &Instruction::Spawn(scope_id, timeout) => {
+            Instruction::Spawn(scope_id, timeout) => {
                 let timeout = if timeout {
                     let v = self.next_resolved_value("spawn");
                     let v = v.borrow();
@@ -660,12 +661,12 @@ pub trait Runner<'vm>: ResolveValue {
                     return o;
                 }
             }
-            &Instruction::Receive(args) => {
+            Instruction::Receive(args) => {
                 if let Err(o) = self.receive(args) {
                     return o;
                 }
             }
-            &Instruction::Sleep => {
+            Instruction::Sleep => {
                 let v = self.next_resolved_value("sleep");
                 let duration = match v.borrow().to_usize() {
                     Ok(v) => Duration::from_millis(v as u64),

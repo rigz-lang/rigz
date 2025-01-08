@@ -1,11 +1,9 @@
 use crate::vm::VMOptions;
 use crate::{
-    BinaryOperation, BroadcastArgs, Instruction, Lifecycle, LoadValue, Module, RigzType, Scope,
-    UnaryOperation, Value, VM,
+    BinaryOperation, BroadcastArgs, Instruction, Lifecycle, LoadValue, Module, ModulesMap,
+    RigzType, Scope, UnaryOperation, Value, VM,
 };
-use dashmap::DashMap;
 use log::Level;
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -13,7 +11,7 @@ use std::sync::Arc;
 pub struct VMBuilder<'vm> {
     pub sp: usize,
     pub scopes: Vec<Scope<'vm>>,
-    pub modules: HashMap<&'static str, Arc<dyn Module<'vm> + Send + Sync>>,
+    pub modules: ModulesMap<'vm>,
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
     pub constants: Vec<Value>,
@@ -27,8 +25,8 @@ impl Default for VMBuilder<'_> {
             scopes: vec![Default::default()],
             modules: Default::default(),
             options: Default::default(),
-            lifecycles: vec![],
-            constants: vec![],
+            lifecycles: Default::default(),
+            constants: Default::default(),
         }
     }
 }
@@ -122,10 +120,12 @@ pub trait RigzBuilder<'vm>: Debug + Default {
         add_reverse_instruction => Reverse
     }
 
+    #[inline]
     fn add_for_list_instruction(&mut self, scope: usize) -> &mut Self {
         self.add_instruction(Instruction::ForList { scope })
     }
 
+    #[inline]
     fn add_for_map_instruction(&mut self, scope: usize) -> &mut Self {
         self.add_instruction(Instruction::ForMap { scope })
     }
@@ -345,6 +345,7 @@ pub trait RigzBuilder<'vm>: Debug + Default {
 #[macro_export]
 macro_rules! generate_builder {
     () => {
+        /// call this before calling `enter_scope` or `enter_lifecycle_scope`, result should be used for `exit_scope`
         fn current_scope(&self) -> usize {
             self.sp
         }
@@ -436,7 +437,7 @@ impl<'vm> RigzBuilder<'vm> for VMBuilder<'vm> {
     fn build(self) -> VM<'vm> {
         VM {
             scopes: self.scopes,
-            modules: Arc::new(DashMap::from_iter(self.modules)),
+            modules: self.modules,
             options: self.options,
             lifecycles: self.lifecycles,
             constants: self.constants,

@@ -9,6 +9,7 @@ use std::fmt::Display;
 use std::ops::Deref;
 use std::sync::Arc;
 
+#[allow(unused_variables)]
 impl<'vm> Runner<'vm> for VM<'vm> {
     runner_common!();
 

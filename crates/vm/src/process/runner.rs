@@ -18,6 +18,7 @@ pub(crate) struct ProcessRunner<'s, 'vm> {
     modules: ModulesMap<'vm>,
 }
 
+#[allow(unused_variables)]
 impl ResolveValue for ProcessRunner<'_, '_> {
     fn location(&self) -> &'static str {
         "Process"
@@ -49,6 +50,7 @@ impl<'s, 'vm> ProcessRunner<'s, 'vm> {
     }
 }
 
+#[allow(unused_variables, unused_mut)]
 impl<'vm> Runner<'vm> for ProcessRunner<'_, 'vm> {
     runner_common!();
 
@@ -142,7 +144,7 @@ impl ProcessRunner<'_, '_> {
             if pc >= self.scope.instructions.len() {
                 break;
             }
-            let instruction = &self.scope.instructions[pc];
+            let instruction = self.scope.instructions[pc].clone();
             self.frames.current.borrow_mut().pc += 1;
             let state: VMState = if let Instruction::Ret = instruction {
                 VMState::Ran(self.stack.next_value("process_run").resolve(self))

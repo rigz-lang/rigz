@@ -11,7 +11,6 @@ use derive_more::IntoIterator;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::ptr;
 use std::time::{Duration, Instant};
 
 use dashmap::DashMap;
@@ -113,32 +112,28 @@ impl<'vm> VM<'vm> {
     }
 
     #[inline]
-    fn process_instruction(&mut self, instruction: *const Instruction<'vm>) -> VMState {
-        unsafe {
-            match instruction.as_ref().unwrap() {
-                Instruction::Ret => self.process_ret(false),
-                instruction => self.process_core_instruction(instruction),
-            }
+    fn process_instruction(&mut self, instruction: Instruction<'vm>) -> VMState {
+        match instruction {
+            Instruction::Ret => self.process_ret(false),
+            instruction => self.process_core_instruction(instruction),
         }
     }
 
-    fn process_instruction_scope(&mut self, instruction: *const Instruction<'vm>) -> VMState {
-        unsafe {
-            match instruction.as_ref().unwrap() {
-                Instruction::Ret => self.process_ret(true),
-                ins => self.process_core_instruction(ins),
-            }
+    fn process_instruction_scope(&mut self, instruction: Instruction<'vm>) -> VMState {
+        match instruction {
+            Instruction::Ret => self.process_ret(true),
+            ins => self.process_core_instruction(ins),
         }
     }
 
     #[inline]
-    fn next_instruction(&self) -> Option<*const Instruction<'vm>> {
+    fn next_instruction(&self) -> Option<Instruction<'vm>> {
         let scope_id = self.sp;
         // scope_id must be valid when this is called, otherwise function will panic
         let scope = &self.scopes[scope_id];
         let pc = self.frames.current.borrow().pc;
         self.frames.current.borrow_mut().pc += 1;
-        scope.instructions.get(pc).map(ptr::from_ref)
+        scope.instructions.get(pc).cloned()
     }
 
     /// Calls run and returns an error if the resulting value is an error
