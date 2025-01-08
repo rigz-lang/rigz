@@ -2075,7 +2075,9 @@ impl<'lex> Parser<'lex> {
                 // hack to support type as function name
                 "type"
             }
-            TokenKind::Identifier(name) if matches!(name, "send" | "receive" | "log" | "puts") => {
+            TokenKind::Identifier(name)
+                if matches!(name, "send" | "receive" | "log" | "puts" | "spawn") =>
+            {
                 return Err(ParsingError::ParseError(format!(
                     "{name} is a reserved function name and cannot be overwritten"
                 )))

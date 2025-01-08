@@ -1,20 +1,19 @@
-use crate::vm::StackValue;
 use crate::vm::VMOptions;
 use crate::{
-    generate_bin_op_methods, generate_builder, generate_unary_op_methods, BinaryOperation,
-    Instruction, Lifecycle, Module, RigzType, Scope, UnaryOperation, Value, VM,
+    BinaryOperation, Instruction, Lifecycle, LoadValue, Module, RigzType, Scope, UnaryOperation,
+    Value, VM,
 };
-use indexmap::IndexMap;
+use dashmap::DashMap;
 use log::Level;
-use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::Debug;
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct VMBuilder<'vm> {
     pub sp: usize,
     pub scopes: Vec<Scope<'vm>>,
-    pub modules: IndexMap<&'static str, Rc<RefCell<dyn Module<'vm>>>>,
+    pub modules: HashMap<&'static str, Arc<dyn Module<'vm> + Send + Sync>>,
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
     pub constants: Vec<Value>,
@@ -23,8 +22,39 @@ pub struct VMBuilder<'vm> {
 impl Default for VMBuilder<'_> {
     #[inline]
     fn default() -> Self {
-        Self::new()
+        Self {
+            sp: 0,
+            scopes: vec![Default::default()],
+            modules: Default::default(),
+            options: Default::default(),
+            lifecycles: vec![],
+            constants: vec![],
+        }
     }
+}
+
+#[macro_export]
+macro_rules! generate_unary_op_methods {
+    ($($name:ident => $variant:ident),*) => {
+        $(
+            #[inline]
+            fn $name(&mut self) -> &mut Self {
+                self.add_instruction(Instruction::Unary(UnaryOperation::$variant))
+            }
+        )*
+    };
+}
+
+#[macro_export]
+macro_rules! generate_bin_op_methods {
+    ($($name:ident => $variant:ident),*) => {
+        $(
+            #[inline]
+            fn $name(&mut self) -> &mut Self {
+                self.add_instruction(Instruction::Binary(BinaryOperation::$variant))
+            }
+        )*
+    };
 }
 
 pub trait RigzBuilder<'vm>: Debug + Default {
@@ -57,7 +87,7 @@ pub trait RigzBuilder<'vm>: Debug + Default {
 
     fn module_exists(&mut self, module: &'vm str) -> bool;
 
-    fn register_module(&mut self, module: impl Module<'vm> + 'static) -> &mut Self;
+    fn register_module(&mut self, module: impl Module<'vm> + 'static + Send + Sync) -> &mut Self;
 
     fn with_options(&mut self, options: VMOptions) -> &mut Self;
 
@@ -222,7 +252,7 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     }
 
     #[inline]
-    fn add_load_instruction(&mut self, value: StackValue) -> &mut Self {
+    fn add_load_instruction(&mut self, value: LoadValue) -> &mut Self {
         self.add_instruction(Instruction::Load(value))
     }
 
@@ -297,6 +327,93 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     }
 }
 
+#[macro_export]
+macro_rules! generate_builder {
+    () => {
+        fn current_scope(&self) -> usize {
+            self.sp
+        }
+
+        #[inline]
+        fn enter_scope(
+            &mut self,
+            named: &'vm str,
+            args: Vec<(&'vm str, bool)>,
+            set_self: Option<bool>,
+        ) -> usize {
+            let next = self.scopes.len();
+            self.scopes.push(Scope::new(named, args, set_self));
+            self.sp = self.scopes.len() - 1;
+            next
+        }
+
+        #[inline]
+        fn convert_to_lazy_scope(&mut self, scope_id: usize, variable: &'vm str) -> &mut Self {
+            let scope = &mut self.scopes[scope_id];
+            let last = scope.instructions.len() - 1;
+            scope
+                .instructions
+                .insert(last, Instruction::PersistScope(variable));
+            self
+        }
+
+        #[inline]
+        fn enter_lifecycle_scope(
+            &mut self,
+            named: &'vm str,
+            lifecycle: Lifecycle,
+            args: Vec<(&'vm str, bool)>,
+            set_self: Option<bool>,
+        ) -> usize {
+            let next = self.scopes.len();
+            self.scopes
+                .push(Scope::lifecycle(named, args, lifecycle, set_self));
+            self.sp = next;
+            next
+        }
+
+        #[inline]
+        fn exit_scope(&mut self, current: usize) -> &mut Self {
+            let s = self.add_instruction(Instruction::Ret);
+            s.sp = current;
+            s
+        }
+
+        #[inline]
+        fn register_module(
+            &mut self,
+            module: impl Module<'vm> + 'static + Send + Sync,
+        ) -> &mut Self {
+            self.modules.insert(module.name(), Arc::new(module));
+            self
+        }
+
+        #[inline]
+        fn with_options(&mut self, options: VMOptions) -> &mut Self {
+            self.options = options;
+            self
+        }
+
+        #[inline]
+        fn add_instruction(&mut self, instruction: Instruction<'vm>) -> &mut Self {
+            self.scopes[self.sp].instructions.push(instruction);
+            self
+        }
+
+        #[inline]
+        fn module_exists(&mut self, module: &'vm str) -> bool {
+            self.modules.contains_key(module)
+        }
+
+        #[inline]
+        fn add_constant(&mut self, value: Value) -> usize {
+            let index = self.constants.len();
+            self.constants.push(value);
+            index
+        }
+    };
+}
+
 impl<'vm> RigzBuilder<'vm> for VMBuilder<'vm> {
     generate_builder!();
 
@@ -304,7 +421,7 @@ impl<'vm> RigzBuilder<'vm> for VMBuilder<'vm> {
     fn build(self) -> VM<'vm> {
         VM {
             scopes: self.scopes,
-            modules: self.modules,
+            modules: Arc::new(DashMap::from_iter(self.modules)),
             options: self.options,
             lifecycles: self.lifecycles,
             constants: self.constants,
@@ -316,13 +433,6 @@ impl<'vm> RigzBuilder<'vm> for VMBuilder<'vm> {
 impl VMBuilder<'_> {
     #[inline]
     pub fn new() -> Self {
-        Self {
-            sp: 0,
-            scopes: vec![Scope::default()],
-            modules: IndexMap::new(),
-            options: Default::default(),
-            lifecycles: Default::default(),
-            constants: Default::default(),
-        }
+        Self::default()
     }
 }

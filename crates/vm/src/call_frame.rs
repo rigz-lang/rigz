@@ -133,28 +133,6 @@ impl<'vm> CallFrame<'vm> {
             },
         }
     }
-
-    #[logfn(Trace)]
-    #[logfn_inputs(
-        Trace,
-        fmt = "find_variable(frame={:#p} name={}, vm={:#p}, parent={:?})"
-    )]
-    pub(crate) fn find_variable(
-        &self,
-        name: &'vm str,
-        vm: &VM<'vm>,
-        parent: Option<usize>,
-    ) -> Option<usize> {
-        match self.variables.contains_key(name) {
-            false => match self.parent {
-                None => None,
-                Some(parent) => vm.frames[parent]
-                    .borrow()
-                    .find_variable(name, vm, Some(parent)),
-            },
-            true => parent,
-        }
-    }
 }
 
 impl CallFrame<'_> {

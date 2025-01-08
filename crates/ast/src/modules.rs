@@ -1,7 +1,7 @@
 use crate::{ModuleTraitDefinition, Parser};
 use rigz_vm::Module;
 
-pub trait ParsedModule<'a>: Module<'a> {
+pub trait ParsedModule<'a>: Module<'a> + Send + Sync {
     fn module_definition(&self) -> ModuleTraitDefinition<'static> {
         let mut parser = match Parser::prepare(self.trait_definition()) {
             Ok(p) => p,

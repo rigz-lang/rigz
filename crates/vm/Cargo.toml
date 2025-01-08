@@ -15,6 +15,7 @@ log_std_out = []
 
 [dependencies]
 crossbeam = "0.8.4"
+dashmap = "6.1.0"
 derive_more = { version = "1.0.0", features = ["into_iterator"] }
 dyn-clone = "1.0.17"
 indexmap = { version = "2.7.0", features = ["serde"] }

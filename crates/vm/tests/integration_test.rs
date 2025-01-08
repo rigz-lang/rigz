@@ -1,7 +1,7 @@
 mod vm_test {
     use rigz_vm::{
-        BinaryOperation, Instruction, Lifecycle, Module, Number, RigzArgs, RigzBuilder, RigzType,
-        Scope, StackValue, TestLifecycle, TestResults, VMBuilder, VMError, Value, VM,
+        BinaryOperation, Instruction, Lifecycle, LoadValue, Module, Number, RigzArgs, RigzBuilder,
+        RigzType, Scope, StackValue, TestLifecycle, TestResults, VMBuilder, VMError, Value, VM,
     };
 
     #[test]
@@ -123,7 +123,7 @@ mod vm_test {
             .add_load_instruction(2.into())
             .add_add_instruction()
             .exit_scope(0)
-            .add_load_instruction(StackValue::ScopeId(scope))
+            .add_load_instruction(LoadValue::ScopeId(scope))
             .add_load_let_instruction("a")
             .add_get_variable_instruction("a")
             .add_load_instruction(2.into())
@@ -142,7 +142,7 @@ mod vm_test {
         builder
             .add_load_instruction("hello".into())
             .exit_scope(0)
-            .add_load_instruction(StackValue::ScopeId(scope))
+            .add_load_instruction(LoadValue::ScopeId(scope))
             .add_halt_instruction();
         let mut vm = builder.build();
         assert_eq!(vm.eval().unwrap(), Value::String("hello".to_string()))

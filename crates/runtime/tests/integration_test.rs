@@ -95,16 +95,6 @@ mod runtime {
             foo
             "# = VMError::RuntimeError("Stack overflow: exceeded 1024".to_string()))
         }
-
-        run_error_starts_with! {
-            on_timeout_works(r#"
-            @on("message")
-            fn foo(a) = a * 2
-
-            pid = send 'message', 21
-            receive pid, 0
-            "# = "`receive` timed out after 0ms")
-        }
     }
 
     mod valid {
@@ -485,6 +475,12 @@ mod runtime {
              end"# = 1)
             format("format '{}', 1 + 2" = "3")
             format_parens("format('{}', 1 + 2)" = "3")
+        }
+    }
+
+    mod debug {
+        use super::*;
+        run_debug_vm! {
             on_works(r#"
             @on("message")
             fn foo(a) = a * 2
@@ -493,10 +489,15 @@ mod runtime {
             receive pid
             "# = 42)
         }
-    }
 
-    mod debug {
-        use super::*;
-        run_debug_vm! {}
+        run_error_starts_with! {
+            on_timeout_works(r#"
+            @on("message")
+            fn foo(a) = a * 2
+
+            pid = send 'message', 21
+            receive pid, 0
+            "# = "`receive` timed out after 0ms")
+        }
     }
 }

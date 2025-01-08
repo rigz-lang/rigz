@@ -16,6 +16,7 @@ mod vm;
 #[cfg(feature = "derive")]
 pub mod derive;
 mod process;
+mod stack;
 
 pub type IndexMapEntry<'a, K, V> = indexmap::map::Entry<'a, K, V>;
 
@@ -28,7 +29,9 @@ pub use module::*;
 pub use number::*;
 pub use objects::*;
 pub use operations::*;
+pub use process::Process;
 pub use scope::Scope;
+pub use stack::VMStack;
 pub use traits::*;
 pub use value::*;
 pub use value_range::*;

@@ -213,7 +213,10 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         p
     }
 
-    pub(crate) fn register_module(&mut self, module: impl ParsedModule<'vm> + 'static) {
+    pub(crate) fn register_module(
+        &mut self,
+        module: impl ParsedModule<'vm> + 'static + Send + Sync,
+    ) {
         let name = module.name();
         let def = module.module_definition();
         self.modules.insert(name, ModuleDefinition::Module(def));
@@ -506,8 +509,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         match expression {
             Expression::Scope(s) => {
                 let scope = self.parse_scope(s, "do")?;
-                self.builder
-                    .add_load_instruction(StackValue::ScopeId(scope));
+                self.builder.add_load_instruction(LoadValue::ScopeId(scope));
                 self.builder.convert_to_lazy_scope(scope, var);
                 Ok(())
             }
@@ -872,7 +874,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             }
             Expression::Scope(s) => {
                 let s = self.parse_scope(s, "do")?;
-                self.builder.add_load_instruction(StackValue::ScopeId(s));
+                self.builder.add_load_instruction(LoadValue::ScopeId(s));
             }
             Expression::Cast(e, t) => {
                 self.parse_expression(*e)?;
@@ -881,14 +883,13 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             Expression::Symbol(s) => {
                 let index = self.find_or_create_constant(s.into());
                 self.builder
-                    .add_load_instruction(StackValue::Constant(index));
+                    .add_load_instruction(LoadValue::Constant(index));
             }
             Expression::Return(ret) => {
                 match ret {
                     None => {
                         let none = self.find_or_create_constant(Value::None);
-                        self.builder
-                            .add_load_instruction(StackValue::Constant(none));
+                        self.builder.add_load_instruction(LoadValue::Constant(none));
                     }
                     Some(e) => {
                         self.parse_expression(*e)?;
@@ -1501,7 +1502,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                                     )));
                                 }
                                 let func = func[0];
-                                self.builder.add_load_instruction(StackValue::ScopeId(func));
+                                self.builder.add_load_instruction(LoadValue::ScopeId(func));
                                 self.builder.add_load_let_instruction(arg.name);
                                 self.builder
                                     .add_get_variable_reference_instruction(arg.name);
@@ -1726,7 +1727,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         });
         self.builder.exit_scope(current);
         // todo ensure fn_args match signature
-        self.builder.add_load_instruction(StackValue::ScopeId(anon));
+        self.builder.add_load_instruction(LoadValue::ScopeId(anon));
         Ok(())
     }
 }

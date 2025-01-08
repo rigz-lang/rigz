@@ -1,4 +1,5 @@
 use crate::Value;
+use crossbeam::channel::RecvError;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
@@ -17,6 +18,12 @@ pub enum VMError {
     InvalidModule(String),
     InvalidModuleFunction(String),
     LifecycleError(String),
+}
+
+impl From<RecvError> for VMError {
+    fn from(value: RecvError) -> Self {
+        VMError::RuntimeError(format!("Process failed: {value:?}"))
+    }
 }
 
 impl From<VMError> for Rc<RefCell<Value>> {

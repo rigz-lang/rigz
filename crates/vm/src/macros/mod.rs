@@ -1,5 +1,3 @@
-mod builder;
-
 #[macro_export]
 macro_rules! outln {
     () => {
