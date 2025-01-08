@@ -64,20 +64,18 @@ impl Shl for &Value {
 #[cfg(test)]
 mod tests {
     use crate::define_value_tests;
-    use crate::number::Number;
-    use crate::value::Value;
 
     define_value_tests! {
         << {
-            test_none_shl_none => (Value::None, Value::None, Value::None);
-            test_none_bool_false_shl_none => (Value::Bool(false), Value::None, Value::Bool(false));
-            test_bool_true_shl_none => (Value::Bool(true), Value::None, Value::Bool(true));
-            test_none_bool_true_shl_true => (Value::None, Value::Bool(true), Value::None);
-            test_false_bool_true_shl_true => (Value::Bool(false), Value::Bool(true), Value::Number(Number::zero()));
-            test_false_0_shl_true => (Value::Bool(false), Value::Number(Number::Int(0)), Value::Bool(false));
-            test_true_0_shl_true => (Value::Bool(true), Value::Number(Number::Int(0)), Value::Number(Number::Int(1)));
-            push_to_end => (Value::String("abc".into()), Value::String("123".into()), Value::String("abc123".into()));
-            int_like => (Value::Number(1.into()), Value::Number(2.0.into()), Value::Number((1 << 2).into()));
+            test_none_shl_none => ((), ()) = ();
+            test_none_bool_false_shl_none => (false, ()) = false;
+            test_bool_true_shl_none => (true, ()) = true;
+            test_none_bool_true_shl_true => ((), true) = ();
+            test_false_bool_true_shl_true => (false, true) = 0;
+            test_false_0_shl_true => (false, 0) = false;
+            test_true_0_shl_true => (true, 0) = 1;
+            push_to_end => ("abc", "123") = "abc123";
+            int_like => (1, 2.0) = (1 << 2);
             // todo add more test cases
         }
     }

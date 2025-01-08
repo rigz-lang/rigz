@@ -26,7 +26,7 @@ impl Shr for &Value {
                 if lhs {
                     Value::Number(&Number::Int(1) >> rhs)
                 } else {
-                    Value::Number(Number::Int(0))
+                    0.into()
                 }
             }
             (Value::Number(lhs), Value::Number(rhs)) => Value::Number(lhs >> rhs),
@@ -64,20 +64,18 @@ impl Shr for &Value {
 #[cfg(test)]
 mod tests {
     use crate::define_value_tests;
-    use crate::number::Number;
-    use crate::value::Value;
 
     define_value_tests! {
         >> {
-            test_none_shr_none => (Value::None, Value::None, Value::None);
-            test_none_bool_false_shr_none => (Value::Bool(false), Value::None, Value::Bool(false));
-            test_bool_true_shr_none => (Value::Bool(true), Value::None, Value::Bool(true));
-            test_none_bool_true_shr_true => (Value::None, Value::Bool(true), Value::None);
-            test_false_bool_true_shr_true => (Value::Bool(false), Value::Bool(true), Value::Number(Number::Int(0)));
-            test_false_0_shr_true => (Value::Bool(false), Value::Number(Number::Int(0)), Value::Number(Number::Int(0)));
-            test_true_0_shr_true => (Value::Bool(true), Value::Number(Number::Int(0)), Value::Number(Number::Int(1)));
-            append_to_from => (Value::String("abc".into()), Value::String("123".into()), Value::String("123abc".into()));
-            int_like => (Value::Number(1.into()), Value::Number(2.into()), Value::Number((1 >> 2).into()));
+            test_none_shr_none => ((), ()) = ();
+            test_none_bool_false_shr_none => (false, ()) = false;
+            test_bool_true_shr_none => (true, ()) = true;
+            test_none_bool_true_shr_true => ((), true) = ();
+            test_false_bool_true_shr_true => (false, true) = 0;
+            test_false_0_shr_true => (false, 0) = 0;
+            test_true_0_shr_true => (true, 0) = 1;
+            append_to_from => ("abc", "123") = "123abc";
+            int_like => (1, 2) = (1 >> 2);
             // todo add more test cases
         }
     }

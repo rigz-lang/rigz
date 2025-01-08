@@ -1,7 +1,7 @@
 mod vm_test {
     use rigz_vm::{
         BinaryOperation, Instruction, Lifecycle, LoadValue, Module, Number, RigzArgs, RigzBuilder,
-        RigzType, Scope, StackValue, TestLifecycle, TestResults, VMBuilder, VMError, Value, VM,
+        RigzType, Scope, TestLifecycle, TestResults, VMBuilder, VMError, Value, VM,
     };
 
     #[test]

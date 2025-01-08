@@ -41,18 +41,17 @@ impl Rem for &Value {
 
 #[cfg(test)]
 mod tests {
-    use crate::value::Value;
-    use crate::{define_value_tests, Number};
+    use crate::{define_value_tests};
 
     define_value_tests! {
         % {
-            test_none_rem_none => (Value::None, Value::None, Value::None);
-            test_none_bool_false_rem_none => (Value::Bool(false), Value::None, Value::Bool(false));
-            test_bool_true_rem_none => (Value::Bool(true), Value::None, Value::Bool(true));
-            test_none_bool_true_rem_true => (Value::None, Value::Bool(true), Value::None);
-            test_false_bool_true_rem_true => (Value::Bool(false), Value::Bool(true), Value::Bool(true));
-            test_false_0_rem_true => (Value::Bool(false), Value::Number(Number::Int(0)), Value::Bool(false));
-            test_true_0_rem_true => (Value::Bool(true), Value::Number(Number::Int(0)), Value::Number(Number::Int(1)));
+            test_none_rem_none => ((), ()) = ();
+            test_none_bool_false_rem_none => (false, ()) = false;
+            test_bool_true_rem_none => (true, ()) = true;
+            test_none_bool_true_rem_true => ((), true) = ();
+            test_false_bool_true_rem_true => (false, true) = true;
+            test_false_0_rem_true => (false, 0) = false;
+            test_true_0_rem_true => (true, 0) = 1;
             // todo add more test cases
         }
     }

@@ -68,18 +68,16 @@ impl BitOr for &Value {
 #[cfg(test)]
 mod tests {
     use crate::define_value_tests;
-    use crate::number::Number;
-    use crate::value::Value;
 
     define_value_tests! {
         | {
-            test_none_bitor_none => (Value::None, Value::None, Value::None);
-            test_none_bool_false_bitor_none => (Value::Bool(false), Value::None, Value::Bool(false));
-            test_bool_true_bitor_none => (Value::Bool(true), Value::None, Value::Bool(true));
-            test_none_bool_true_bitor_true => (Value::None, Value::Bool(true), Value::Bool(true));
-            test_false_bool_true_bitor_true => (Value::Bool(false), Value::Bool(true), Value::Bool(true));
-            test_false_0_bitor_true => (Value::Bool(false), Value::Number(Number::Int(0)), Value::Bool(false));
-            test_true_0_bitor_true => (Value::Bool(true), Value::Number(Number::Int(0)), Value::Number(Number::Int(1)));
+            test_none_bitor_none => ((), ()) = ();
+            test_none_bool_false_bitor_none => (false, ()) = false;
+            test_bool_true_bitor_none => (true, ()) = true;
+            test_none_bool_true_bitor_true => ((), true) = true;
+            test_false_bool_true_bitor_true => (false, true) = true;
+            test_false_0_bitor_true => (false, 0) = false;
+            test_true_0_bitor_true => (true, 0) = 1;
             // todo add more test cases
         }
     }

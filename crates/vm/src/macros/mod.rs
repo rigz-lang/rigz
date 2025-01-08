@@ -64,11 +64,15 @@ macro_rules! errln {
 
 #[macro_export]
 macro_rules! define_value_tests {
-    ($op:tt { $($test_name:ident => ($val1:expr, $val2:expr, $expected:expr));* $(;)? }) => {
+    ($op:tt { $($test_name:ident => ($lhs:expr, $rhs:expr) = $expected:expr);* $(;)? }) => {
+        use crate::value::Value;
+
         $(
             #[test]
             fn $test_name() {
-                assert_eq!($expected, &$val1 $op &$val2);
+                let lhs: Value = $lhs.into();
+                let expected: Value = $expected.into();
+                assert_eq!(expected, &lhs $op &$rhs.into());
             }
         )*
     };

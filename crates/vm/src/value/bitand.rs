@@ -68,18 +68,16 @@ impl BitAnd for &Value {
 #[cfg(test)]
 mod tests {
     use crate::define_value_tests;
-    use crate::number::Number;
-    use crate::value::Value;
 
     define_value_tests! {
         & {
-            test_none_bitand_none => (Value::None, Value::None, Value::None);
-            test_none_bool_false_bitand_none => (Value::Bool(false), Value::None, Value::Bool(false));
-            test_bool_true_bitand_none => (Value::Bool(true), Value::None, Value::None);
-            test_none_bool_true_bitand_true => (Value::None, Value::Bool(true), Value::None);
-            test_false_bool_true_bitand_true => (Value::Bool(false), Value::Bool(true), Value::Bool(false));
-            test_false_0_bitand_true => (Value::Bool(false), Value::Number(Number::Int(0)), Value::Bool(false));
-            test_true_0_bitand_true => (Value::Bool(true), Value::Number(Number::Int(0)), Value::Bool(false));
+            test_none_bitand_none => ((), ()) = ();
+            test_none_bool_false_bitand_none => (false, ()) = false;
+            test_bool_true_bitand_none => (true, ()) = ();
+            test_none_bool_true_bitand_true => ((), true) = ();
+            test_false_bool_true_bitand_true => (false, true) = false;
+            test_false_0_bitand_true => (false, 0) = false;
+            test_true_0_bitand_true => (true, 0) = false;
             // todo add more test cases
         }
     }

@@ -100,22 +100,19 @@ impl Add for &Value {
 #[cfg(test)]
 mod tests {
     use crate::define_value_tests;
-    use crate::number::Number;
-    use crate::value::Value;
 
     define_value_tests! {
         + {
-            test_none_add_none => (Value::None, Value::None, Value::None);
-            test_none_bool_false_add_none => (Value::Bool(false), Value::None, Value::Bool(false));
-            test_bool_true_add_none => (Value::Bool(true), Value::None, Value::Bool(true));
-            test_none_bool_true_add_true => (Value::None, Value::Bool(true), Value::Bool(true));
-            test_false_bool_true_add_true => (Value::Bool(false), Value::Bool(true), Value::Bool(true));
-            test_false_0_add_true => (Value::Bool(false), Value::Number(Number::Int(0)), Value::Bool(false));
-            test_true_0_add_true => (Value::Bool(true), Value::Number(Number::Int(0)), Value::Number(Number::Int(1)));
-            test_str_1_add_num => (Value::String("1".into()), Value::Number(6.into()), Value::Number(7.into()));
-            test_str_abc_add_num => (Value::String("abc".into()), Value::Number(6.into()), Value::String("abc6".into()));
-            test_num_add_abc => (Value::Number(6.into()), Value::String("abc".into()), Value::String("6abc".into()));
-            // todo add more test cases
+            test_none_add_none => ((), ()) = ();
+            test_none_bool_false_add_none => (false, ()) = false;
+            test_bool_true_add_none => (true, ()) = true;
+            test_none_bool_true_add_true => ((), true) = true;
+            test_false_bool_true_add_true => (false, true) = true;
+            test_false_0_add_true => (false, 0) = false;
+            test_true_0_add_true => (true, 0) = 1;
+            test_str_1_add_num => ("1", 6) = 7;
+            test_str_abc_add_num => ("abc", 6) = "abc6";
+            test_num_add_abc => (6, "abc") = "6abc";
         }
     }
 }
