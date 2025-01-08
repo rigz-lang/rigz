@@ -1,7 +1,7 @@
 mod program;
 
 use crate::RuntimeError;
-use log::Level;
+use log::{warn, Level};
 pub use program::Program;
 use rigz_ast::*;
 use std::collections::hash_map::Entry;
@@ -1197,6 +1197,34 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 }
                 self.builder.add_send_instruction(args);
             }
+            "broadcast" => {
+                if arguments.is_empty() {
+                    return Err(ValidationError::InvalidFunction("`broadcast` requires at least one argument that includes the event being triggered, or :all".to_string()));
+                }
+
+                let args = arguments.len();
+                if let Some(index) = arguments
+                    .iter()
+                    .position(|e| e == &Expression::Symbol("all"))
+                {
+                    if index != 0 {
+                        warn!(":all is not first argument, passing arguments unchanged");
+                    } else {
+                        for e in arguments.into_iter().skip(1).rev() {
+                            self.parse_expression(e)?;
+                        }
+                        self.builder
+                            .add_broadcast_instruction(BroadcastArgs::All(args - 1));
+                        return Ok(None);
+                    }
+                };
+
+                for e in arguments.into_iter().rev() {
+                    self.parse_expression(e)?;
+                }
+                self.builder
+                    .add_broadcast_instruction(BroadcastArgs::Args(args));
+            }
             "receive" => {
                 let args = arguments.len();
                 if matches!(args, 1 | 2) {
@@ -1207,6 +1235,31 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 } else {
                     return Err(ValidationError::InvalidFunction(format!("Invalid args to `receive`, only possible arguments are process_id (required) and timeout (ms, optional defaults to infinity) - {arguments:?}")));
                 }
+            }
+            "spawn" => {
+                let args = arguments.len();
+                let (scope_id, timeout) = match args {
+                    1 => {
+                        todo!()
+                    }
+                    2 => {
+                        todo!()
+                    }
+                    _ => {
+                        return Err(ValidationError::InvalidFunction("`spawn` requires the scope argument to initialize the process with an optional timeout (ms), i.e. `spawn do = 'hi'` or `spawn 1, do = 42`".to_string()));
+                    }
+                };
+                self.builder.add_spawn_instruction(scope_id, timeout);
+            }
+            "sleep" => {
+                if arguments.len() != 1 {
+                    return Err(ValidationError::InvalidFunction(
+                        "`sleep` requires one argument, duration to sleep (ms)".to_string(),
+                    ));
+                }
+                let mut args = arguments.into_iter();
+                self.parse_expression(args.next().unwrap())?;
+                self.builder.add_sleep_instruction();
             }
             _ => return Ok(Some(RigzArguments::Positional(arguments))),
         }

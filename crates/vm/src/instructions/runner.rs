@@ -1,6 +1,7 @@
 use crate::{
-    err, errln, out, outln, BinaryOperation, CallFrame, Instruction, Logical, Module, Number,
-    ResolveValue, Reverse, Scope, StackValue, UnaryOperation, VMError, VMOptions, VMState, Value,
+    err, errln, out, outln, BinaryOperation, BroadcastArgs, CallFrame, Instruction, Logical,
+    Module, Number, ResolveValue, Reverse, Scope, StackValue, UnaryOperation, VMError, VMOptions,
+    VMState, Value,
 };
 use indexmap::IndexMap;
 use log::log;
@@ -9,6 +10,8 @@ use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
 
 #[macro_export]
 macro_rules! runner_common {
@@ -299,6 +302,10 @@ pub trait Runner<'vm>: ResolveValue {
     fn send(&mut self, args: usize) -> Result<(), VMState>;
 
     fn receive(&mut self, args: usize) -> Result<(), VMState>;
+
+    fn broadcast(&mut self, args: BroadcastArgs) -> Result<(), VMState>;
+
+    fn spawn(&mut self, scope_id: usize, timeout: Option<usize>) -> Result<(), VMState>;
 
     fn get_variable(&mut self, name: &'vm str);
 
@@ -633,10 +640,39 @@ pub trait Runner<'vm>: ResolveValue {
                     return o;
                 }
             }
+            &Instruction::Broadcast(args) => {
+                if let Err(o) = self.broadcast(args) {
+                    return o;
+                }
+            }
+            &Instruction::Spawn(scope_id, timeout) => {
+                let timeout = if timeout {
+                    let v = self.next_resolved_value("spawn");
+                    let v = v.borrow();
+                    match v.to_usize() {
+                        Ok(u) => Some(u),
+                        Err(o) => return o.into(),
+                    }
+                } else {
+                    None
+                };
+                if let Err(o) = self.spawn(scope_id, timeout) {
+                    return o;
+                }
+            }
             &Instruction::Receive(args) => {
                 if let Err(o) = self.receive(args) {
                     return o;
                 }
+            }
+            &Instruction::Sleep => {
+                let v = self.next_resolved_value("sleep");
+                let duration = match v.borrow().to_usize() {
+                    Ok(v) => Duration::from_millis(v as u64),
+                    Err(e) => return e.into(),
+                };
+                thread::sleep(duration);
+                self.store_value(Value::None.into());
             }
         };
         VMState::Running

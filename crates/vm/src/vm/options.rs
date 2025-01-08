@@ -18,6 +18,7 @@ impl Default for VMOptions {
 }
 
 impl VMOptions {
+    // todo use bytes instead of byte
     pub(crate) fn as_byte(&self) -> u8 {
         let mut result = 0;
         result |= self.enable_logging as u8;

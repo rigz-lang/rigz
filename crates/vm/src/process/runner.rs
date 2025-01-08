@@ -1,7 +1,7 @@
 use crate::call_frame::{CallFrame, Frames};
 use crate::{
-    runner_common, Instruction, Module, ModulesMap, ResolveValue, ResolvedModule, Runner, Scope,
-    StackValue, VMError, VMOptions, VMStack, VMState, Value, Variable,
+    runner_common, BroadcastArgs, Instruction, Module, ModulesMap, ResolveValue, ResolvedModule,
+    Runner, Scope, StackValue, VMError, VMOptions, VMStack, VMState, Value, Variable,
 };
 use log_derive::{logfn, logfn_inputs};
 use std::cell::RefCell;
@@ -76,6 +76,14 @@ impl<'vm> Runner<'vm> for ProcessRunner<'_, 'vm> {
     }
 
     fn receive(&mut self, args: usize) -> Result<(), VMState> {
+        todo!()
+    }
+
+    fn broadcast(&mut self, args: BroadcastArgs) -> Result<(), VMState> {
+        todo!()
+    }
+
+    fn spawn(&mut self, scope_id: usize, timeout: Option<usize>) -> Result<(), VMState> {
         todo!()
     }
 

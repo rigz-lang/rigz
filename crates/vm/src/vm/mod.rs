@@ -12,7 +12,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ptr;
-use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use dashmap::DashMap;
@@ -34,37 +33,6 @@ pub struct VM<'vm> {
     pub lifecycles: Vec<Lifecycle>,
     pub constants: Vec<Value>,
     pub processes: Vec<Process<'vm>>,
-}
-
-impl<'v> VM<'v> {
-    pub fn get_variable(&mut self, name: &'v str) -> Result<Rc<RefCell<Value>>, VMError> {
-        let v = match self.frames.current.borrow().get_variable(name, self) {
-            None => {
-                return Err(VMError::VariableDoesNotExist(format!(
-                    "Immutable variable {name} does not exist"
-                )))
-            }
-            Some(v) => v,
-        };
-        Ok(v.resolve(self))
-    }
-
-    pub fn get_mutable_variable(&mut self, name: &'v str) -> Result<Rc<RefCell<Value>>, VMError> {
-        let v = match self
-            .frames
-            .current
-            .borrow()
-            .get_mutable_variable(name, self)?
-        {
-            None => {
-                return Err(VMError::VariableDoesNotExist(format!(
-                    "Mutable variable {name} does not exist"
-                )))
-            }
-            Some(v) => v,
-        };
-        Ok(v.resolve(self))
-    }
 }
 
 impl<'vm> RigzBuilder<'vm> for VM<'vm> {

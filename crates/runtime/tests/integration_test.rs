@@ -95,6 +95,19 @@ mod runtime {
             foo
             "# = VMError::RuntimeError("Stack overflow: exceeded 1024".to_string()))
         }
+
+        run_error_starts_with! {
+            on_timeout_works(r#"
+            @on("message")
+            fn foo(a)
+                sleep 1
+                a * 2
+            end
+
+            pid = send 'message', 21
+            receive pid, 0
+            "# = "`receive` timed out after 0ms")
+        }
     }
 
     mod valid {
@@ -461,6 +474,7 @@ mod runtime {
             into(r#"
             mut a = []
             [1] |> a.extend
+            foo = 'hi'
             [2, 3] |> a.extend
             a
             "# = vec![1, 2, 3])
@@ -475,12 +489,6 @@ mod runtime {
              end"# = 1)
             format("format '{}', 1 + 2" = "3")
             format_parens("format('{}', 1 + 2)" = "3")
-        }
-    }
-
-    mod debug {
-        use super::*;
-        run_debug_vm! {
             on_works(r#"
             @on("message")
             fn foo(a) = a * 2
@@ -488,16 +496,28 @@ mod runtime {
             pid = send 'message', 21
             receive pid
             "# = 42)
-        }
-
-        run_error_starts_with! {
-            on_timeout_works(r#"
+            on_works_broadcast(r#"
             @on("message")
-            fn foo(a) = a * 2
+            fn foo(a, b) = a * b
 
-            pid = send 'message', 21
-            receive pid, 0
-            "# = "`receive` timed out after 0ms")
+            @on("message")
+            fn bar(a, b) = a - b
+
+            broadcast 'message', 21, 12
+            |> receive
+            "# = vec![252, 9])
+            spawn_works(r#"
+            pid = spawn do
+                42
+            end
+
+            receive pid
+            "# = 42)
         }
+    }
+
+    mod debug {
+        use super::*;
+        run_debug_vm! {}
     }
 }

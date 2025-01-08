@@ -70,12 +70,16 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             Expression::Cast(_, r) => r.clone(),
             Expression::Scope(s) => self.scope_type(s)?,
             Expression::Function(FunctionExpression::FunctionCall(name, _)) => {
-                if matches!(*name, "puts" | "log") {
+                if matches!(*name, "puts" | "log" | "sleep") {
                     return Ok(RigzType::None);
                 }
 
-                if name == &"send" {
+                if matches!(*name, "send" | "spawn") {
                     return Ok(RigzType::Int);
+                }
+
+                if name == &"broadcast" {
+                    return Ok(RigzType::List(RigzType::Int.into()));
                 }
 
                 if name == &"receive" {

@@ -42,6 +42,12 @@ impl From<LoadValue> for StackValue {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum BroadcastArgs {
+    Args(usize),
+    All(usize),
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Instruction<'vm> {
     Halt,
@@ -108,7 +114,10 @@ pub enum Instruction<'vm> {
     ForMap {
         scope: usize,
     },
+    Sleep,
     Send(usize),
+    Broadcast(BroadcastArgs),
+    Spawn(usize, bool),
     Receive(usize),
     /// Danger Zone, use these instructions at your own risk (sorted by risk)
     /// in the right situations these will be fantastic, otherwise avoid them

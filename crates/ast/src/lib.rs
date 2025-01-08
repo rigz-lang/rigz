@@ -669,13 +669,20 @@ impl<'lex> Parser<'lex> {
                     }
                     self.consume_token(TokenKind::Into)?;
                     let fe = self.parse_expression()?;
-                    let Expression::Function(fe) = fe else {
-                        return Err(ParsingError::ParseError(format!(
-                            "Invalid expression after {t:?}, {fe:?} a Function call is required"
-                        )));
+                    let mut exp = match fe {
+                        Expression::Function(fe) => fe.prepend(exp).into(),
+                        Expression::Identifier(id) => {
+                            Expression::Function(FunctionExpression::FunctionCall(
+                                id,
+                                RigzArguments::Positional(vec![exp]),
+                            ))
+                        }
+                        _ => {
+                            return Err(ParsingError::ParseError(format!(
+                                "Invalid expression after {t:?}, {fe:?} a Function call is required"
+                            )));
+                        }
                     };
-
-                    let mut exp = fe.prepend(exp).into();
 
                     loop {
                         let t = self.peek_token();
@@ -809,7 +816,9 @@ impl<'lex> Parser<'lex> {
                 | TokenKind::Lparen
                 | TokenKind::Lcurly
                 | TokenKind::This
-                | TokenKind::Lbracket => self.parse_args()?,
+                | TokenKind::Lbracket
+                // if/unless not allowed as args without parens
+                | TokenKind::Do => self.parse_args()?,
                 _ => return self.parse_inline_expression(id),
             },
         };
@@ -832,7 +841,8 @@ impl<'lex> Parser<'lex> {
                 | TokenKind::Symbol(_)
                 | TokenKind::Lparen
                 | TokenKind::Lcurly
-                | TokenKind::Lbracket => self.parse_args()?,
+                | TokenKind::Lbracket
+                | TokenKind::Do => self.parse_args()?,
                 _ => return Ok(id.into()),
             },
         };
@@ -2076,7 +2086,10 @@ impl<'lex> Parser<'lex> {
                 "type"
             }
             TokenKind::Identifier(name)
-                if matches!(name, "send" | "receive" | "log" | "puts" | "spawn") =>
+                if matches!(
+                    name,
+                    "send" | "receive" | "log" | "puts" | "spawn" | "broadcast" | "sleep"
+                ) =>
             {
                 return Err(ParsingError::ParseError(format!(
                     "{name} is a reserved function name and cannot be overwritten"

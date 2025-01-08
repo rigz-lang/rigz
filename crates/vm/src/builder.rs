@@ -1,7 +1,7 @@
 use crate::vm::VMOptions;
 use crate::{
-    BinaryOperation, Instruction, Lifecycle, LoadValue, Module, RigzType, Scope, UnaryOperation,
-    Value, VM,
+    BinaryOperation, BroadcastArgs, Instruction, Lifecycle, LoadValue, Module, RigzType, Scope,
+    UnaryOperation, Value, VM,
 };
 use dashmap::DashMap;
 use log::Level;
@@ -324,6 +324,21 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     #[inline]
     fn add_receive_instruction(&mut self, args: usize) -> &mut Self {
         self.add_instruction(Instruction::Receive(args))
+    }
+
+    #[inline]
+    fn add_spawn_instruction(&mut self, scope_id: usize, timeout: bool) -> &mut Self {
+        self.add_instruction(Instruction::Spawn(scope_id, timeout))
+    }
+
+    #[inline]
+    fn add_broadcast_instruction(&mut self, args: BroadcastArgs) -> &mut Self {
+        self.add_instruction(Instruction::Broadcast(args))
+    }
+
+    #[inline]
+    fn add_sleep_instruction(&mut self) -> &mut Self {
+        self.add_instruction(Instruction::Sleep)
     }
 }
 

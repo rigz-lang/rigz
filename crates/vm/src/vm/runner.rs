@@ -1,6 +1,6 @@
 use crate::{
-    runner_common, CallFrame, Lifecycle, Module, ResolveValue, ResolvedModule, Runner, Scope,
-    StackValue, VMError, VMOptions, VMState, Value, Variable, VM,
+    runner_common, BroadcastArgs, CallFrame, Lifecycle, Module, ResolveValue, ResolvedModule,
+    Runner, Scope, StackValue, VMError, VMOptions, VMState, Value, Variable, VM,
 };
 use itertools::Itertools;
 use log_derive::{logfn, logfn_inputs};
@@ -211,6 +211,14 @@ impl<'vm> Runner<'vm> for VM<'vm> {
         };
         self.store_value(res.into());
         Ok(())
+    }
+
+    fn broadcast(&mut self, args: BroadcastArgs) -> Result<(), VMState> {
+        todo!()
+    }
+
+    fn spawn(&mut self, scope_id: usize, timeout: Option<usize>) -> Result<(), VMState> {
+        todo!()
     }
 
     fn call(
