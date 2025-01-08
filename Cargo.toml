@@ -16,6 +16,9 @@ members = [
     "crates/lsp"
 ]
 
+[profile.bench]
+debug = true
+
 [workspace.dependencies]
 log = { version = "0.4.22", features = [] }
 rigz_vm = {version = "0.36", path = "crates/vm"}

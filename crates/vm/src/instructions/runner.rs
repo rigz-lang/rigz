@@ -16,22 +16,27 @@ use std::time::Duration;
 #[macro_export]
 macro_rules! runner_common {
     () => {
+        #[inline]
         fn next_value<T: Display>(&mut self, location: T) -> StackValue {
             self.stack.next_value(location)
         }
 
+        #[inline]
         fn store_value(&mut self, value: StackValue) {
             self.stack.store_value(value)
         }
 
+        #[inline]
         fn pop(&mut self) -> Option<StackValue> {
             self.stack.pop()
         }
 
+        #[inline]
         fn options(&self) -> &VMOptions {
             &self.options
         }
 
+        #[inline]
         fn get_module_clone(
             &mut self,
             module: &'vm str,
@@ -67,6 +72,7 @@ macro_rules! runner_common {
             }
         }
 
+        #[inline]
         fn persist_scope(&mut self, var: &'vm str) -> Option<VMState> {
             let next = self.next_resolved_value("persist_scope");
             self.store_value(next.clone().into());
@@ -90,16 +96,19 @@ macro_rules! runner_common {
             None
         }
 
+        #[inline]
         fn load_mut(&mut self, name: &'vm str) -> Result<(), VMError> {
             let v = self.next_value(format!("load_mut - {name}"));
             self.frames.load_mut(name, v)
         }
 
+        #[inline]
         fn load_let(&mut self, name: &'vm str) -> Result<(), VMError> {
             let v = self.next_value(format!("load_let - {name}"));
             self.frames.load_let(name, v)
         }
 
+        #[inline]
         fn parent_frame(&self) -> Option<&RefCell<CallFrame<'vm>>> {
             match self.frames.current.borrow().parent {
                 None => None,
@@ -107,6 +116,7 @@ macro_rules! runner_common {
             }
         }
 
+        #[inline]
         fn get_variable(&mut self, name: &'vm str) {
             let r = self.frames.current.borrow().get_variable(name, self);
             let v = match r {
@@ -117,6 +127,7 @@ macro_rules! runner_common {
             self.store_value(v);
         }
 
+        #[inline]
         fn get_mutable_variable(&mut self, name: &'vm str) {
             let og = match self
                 .frames
@@ -140,6 +151,7 @@ macro_rules! runner_common {
             self.store_value(v);
         }
 
+        #[inline]
         fn get_variable_reference(&mut self, name: &'vm str) {
             let r = self.frames.current.borrow().get_variable(name, self);
             let v = match r {
@@ -233,6 +245,7 @@ pub trait Runner<'vm>: ResolveValue {
     ) -> Option<Option<usize>>;
 
     // using this to distinguish VM runtime self vs rust self
+    #[inline]
     fn set_this(&mut self, mutable: bool) -> Result<(), VMError> {
         if mutable {
             self.load_mut("self")
@@ -319,18 +332,21 @@ pub trait Runner<'vm>: ResolveValue {
         func: &'vm str,
         args: usize,
     ) -> Result<Value, VMError>;
+
     fn call_extension(
         &mut self,
         module: ResolvedModule<'vm>,
         func: &'vm str,
         args: usize,
     ) -> Result<Value, VMError>;
+
     fn call_mutable_extension(
         &mut self,
         module: ResolvedModule<'vm>,
         func: &'vm str,
         args: usize,
     ) -> Result<Option<Value>, VMError>;
+
     fn vm_extension(
         &mut self,
         module: ResolvedModule<'vm>,
@@ -679,6 +695,7 @@ pub trait Runner<'vm>: ResolveValue {
         VMState::Running
     }
 
+    #[inline]
     fn instance_get(&mut self, multiple: bool) {
         let attr = self.next_resolved_value("instance_get - attr");
         let source = self.next_resolved_value("instance_get - source");
@@ -693,6 +710,7 @@ pub trait Runner<'vm>: ResolveValue {
         self.store_value(v.into());
     }
 
+    #[inline]
     fn instance_set(&mut self, mutable: bool) {
         let value = self.next_resolved_value("instance_set - value");
         let attr = self.next_resolved_value("instance_set - attr");

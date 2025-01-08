@@ -27,12 +27,14 @@ pub enum LoadValue {
 }
 
 impl<T: Into<Value>> From<T> for LoadValue {
+    #[inline]
     fn from(value: T) -> Self {
         LoadValue::Value(value.into())
     }
 }
 
 impl From<LoadValue> for StackValue {
+    #[inline]
     fn from(value: LoadValue) -> Self {
         match value {
             LoadValue::ScopeId(s) => StackValue::ScopeId(s),

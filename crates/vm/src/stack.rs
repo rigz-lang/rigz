@@ -6,6 +6,7 @@ use std::fmt::Display;
 pub struct VMStack(Vec<StackValue>);
 
 impl VMStack {
+    #[inline]
     pub fn new(stack: Vec<StackValue>) -> Self {
         VMStack(stack)
     }
@@ -20,6 +21,7 @@ impl VMStack {
         self.0.push(value)
     }
 
+    #[inline]
     pub fn store_value(&mut self, value: StackValue) {
         self.push(value)
     }
@@ -29,6 +31,7 @@ impl VMStack {
         self.0.last()
     }
 
+    #[inline]
     pub fn next_value<T: Display>(&mut self, location: T) -> StackValue {
         self.pop()
             .unwrap_or_else(|| VMError::EmptyStack(format!("Stack is empty for {location}")).into())

@@ -163,14 +163,14 @@ impl<'vm> VM<'vm> {
         }
     }
 
-    // Starts processes for each "On" lifecycle
+    /// Starts processes for each "On" lifecycle, Errors are returned as Value::Error(VMError)
     pub fn run(&mut self) -> Value {
-        self.processes.extend(
-            self.scopes
-                .iter()
-                .filter(|s| matches!(s.lifecycle, Some(Lifecycle::On(_))))
-                .map(|s| Process::new(s.clone(), self.options, self.modules.clone())),
-        );
+        self.processes = self
+            .scopes
+            .iter()
+            .filter(|s| matches!(s.lifecycle, Some(Lifecycle::On(_))))
+            .map(|s| Process::new(s.clone(), self.options, self.modules.clone()))
+            .collect();
 
         let threads = self.processes.iter().map(|p| p.start()).collect::<Vec<_>>();
 

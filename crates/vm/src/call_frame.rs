@@ -20,6 +20,7 @@ pub struct Frames<'vm> {
 impl<'vm> Index<usize> for Frames<'vm> {
     type Output = RefCell<CallFrame<'vm>>;
 
+    #[inline]
     fn index(&self, index: usize) -> &Self::Output {
         &self.frames[index]
     }
@@ -41,6 +42,7 @@ impl<'vm> Frames<'vm> {
         self.frames.push(call_frame.into())
     }
 
+    #[inline]
     #[logfn_inputs(Trace, fmt = "load_let(frames={:#?} name={}, value={:?})")]
     pub fn load_let(&self, name: &'vm str, value: StackValue) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
@@ -57,6 +59,7 @@ impl<'vm> Frames<'vm> {
         Ok(())
     }
 
+    #[inline]
     #[logfn_inputs(Trace, fmt = "load_mut(frames={:#?} name={}, value={:?})")]
     pub fn load_mut(&self, name: &'vm str, value: StackValue) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
@@ -80,6 +83,7 @@ impl<'vm> Frames<'vm> {
 }
 
 impl Default for Frames<'_> {
+    #[inline]
     fn default() -> Self {
         Frames {
             current: RefCell::new(CallFrame::main()),

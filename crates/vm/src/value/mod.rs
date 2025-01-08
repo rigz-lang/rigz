@@ -59,6 +59,7 @@ impl_from! {
 }
 
 impl From<&'_ str> for Value {
+    #[inline]
     fn from(value: &'_ str) -> Self {
         Value::String(value.to_string())
     }
@@ -91,24 +92,28 @@ impl<K: Into<Value>, V: Into<Value>> From<IndexMap<K, V>> for Value {
 }
 
 impl From<()> for Value {
+    #[inline]
     fn from(_value: ()) -> Self {
         Value::None
     }
 }
 
 impl<A: Into<Value>, B: Into<Value>> From<(A, B)> for Value {
+    #[inline]
     fn from(value: (A, B)) -> Self {
         Value::Tuple(vec![value.0.into(), value.1.into()])
     }
 }
 
 impl<A: Into<Value>, B: Into<Value>, C: Into<Value>> From<(A, B, C)> for Value {
+    #[inline]
     fn from(value: (A, B, C)) -> Self {
         Value::Tuple(vec![value.0.into(), value.1.into(), value.2.into()])
     }
 }
 
 impl<A: Into<Value>, B: Into<Value>, C: Into<Value>, D: Into<Value>> From<(A, B, C, D)> for Value {
+    #[inline]
     fn from(value: (A, B, C, D)) -> Self {
         Value::Tuple(vec![
             value.0.into(),
@@ -122,6 +127,7 @@ impl<A: Into<Value>, B: Into<Value>, C: Into<Value>, D: Into<Value>> From<(A, B,
 impl<A: Into<Value>, B: Into<Value>, C: Into<Value>, D: Into<Value>, E: Into<Value>>
     From<(A, B, C, D, E)> for Value
 {
+    #[inline]
     fn from(value: (A, B, C, D, E)) -> Self {
         Value::Tuple(vec![
             value.0.into(),
@@ -134,6 +140,7 @@ impl<A: Into<Value>, B: Into<Value>, C: Into<Value>, D: Into<Value>, E: Into<Val
 }
 
 impl<V: Into<Value>> From<Option<V>> for Value {
+    #[inline]
     fn from(value: Option<V>) -> Self {
         match value {
             None => Value::None,
@@ -143,6 +150,7 @@ impl<V: Into<Value>> From<Option<V>> for Value {
 }
 
 impl<V: Into<Value>> From<Result<V, VMError>> for Value {
+    #[inline]
     fn from(value: Result<V, VMError>) -> Self {
         match value {
             Ok(v) => v.into(),
@@ -213,14 +221,17 @@ impl Value {
         }
     }
 
+    #[inline]
     pub fn to_float(&self) -> Result<f64, VMError> {
         Ok(self.to_number()?.to_float())
     }
 
+    #[inline]
     pub fn to_int(&self) -> Result<i64, VMError> {
         Ok(self.to_number()?.to_int())
     }
 
+    #[inline]
     pub fn to_usize(&self) -> Result<usize, VMError> {
         self.to_number()?.to_usize()
     }

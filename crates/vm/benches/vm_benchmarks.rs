@@ -14,14 +14,16 @@ fn builder_benchmark(c: &mut Criterion) {
 }
 
 fn vm_benchmark(c: &mut Criterion) {
-    c.bench_function("VM(build): 2 + 2", |b| {
+    c.bench_function("VM(skip build): 2 + 2", |b| {
+        let mut builder = VMBuilder::new();
+        builder
+            .add_load_instruction(2.into())
+            .add_load_instruction(2.into())
+            .add_add_instruction();
+        let mut vm = builder.build();
         b.iter(|| {
-            let mut builder = VMBuilder::new();
-            builder
-                .add_load_instruction(2.into())
-                .add_load_instruction(2.into())
-                .add_add_instruction();
-            let _ = builder.build().eval().expect("Failed to run");
+            vm.frames.current.get_mut().pc = 0;
+            let _ = vm.eval().expect("Failed to run");
         })
     });
 }
