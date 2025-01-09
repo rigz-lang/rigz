@@ -271,7 +271,9 @@ impl RigzJSON for JSONModule {
     }
 }
 
-#[test]
+use wasm_bindgen_test::*;
+
+#[wasm_bindgen_test(unsupported = test)]
 fn blah() {
     let json = JSONModule;
     assert_eq!(

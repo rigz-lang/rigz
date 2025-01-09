@@ -1,5 +1,4 @@
 use crate::Value;
-use crossbeam::channel::RecvError;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
@@ -20,8 +19,9 @@ pub enum VMError {
     LifecycleError(String),
 }
 
-impl From<RecvError> for VMError {
-    fn from(value: RecvError) -> Self {
+#[cfg(feature = "threaded")]
+impl From<crossbeam::channel::RecvError> for VMError {
+    fn from(value: crossbeam::channel::RecvError) -> Self {
         VMError::RuntimeError(format!("Process failed: {value:?}"))
     }
 }

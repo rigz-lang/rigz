@@ -1,7 +1,7 @@
 use crate::{
-    err, errln, out, outln, BinaryOperation, BroadcastArgs, CallFrame, Instruction, Logical,
-    Module, Number, ResolveValue, Reverse, Scope, StackValue, UnaryOperation, VMError, VMOptions,
-    VMState, Value,
+    err, errln, handle_js, out, outln, BinaryOperation, BroadcastArgs, CallFrame, Instruction,
+    Logical, Module, Number, ResolveValue, Reverse, Scope, StackValue, UnaryOperation, VMError,
+    VMOptions, VMState, Value,
 };
 use indexmap::IndexMap;
 use log::log;
@@ -9,7 +9,6 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
-use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
@@ -37,13 +36,16 @@ macro_rules! runner_common {
         }
 
         #[inline]
-        fn get_module_clone(
-            &mut self,
-            module: &'vm str,
-        ) -> Option<Arc<dyn Module<'vm> + Send + Sync>> {
+        fn get_module_clone(&mut self, module: &'vm str) -> Option<ResolvedModule<'vm>> {
             let e = match self.modules.get(module) {
                 None => VMError::InvalidModule(module.to_string()),
-                Some(m) => return Some(m.value().clone()),
+                Some(m) => {
+                    #[cfg(feature = "threaded")]
+                    let m = m.value().clone();
+                    #[cfg(not(feature = "threaded"))]
+                    let m = m.clone();
+                    return Some(m);
+                }
             };
             self.store_value(e.into());
             None
@@ -215,7 +217,11 @@ pub fn eval_binary_operation(binary_operation: BinaryOperation, lhs: &Value, rhs
     }
 }
 
-pub type ResolvedModule<'vm> = Arc<dyn Module<'vm> + Send + Sync>;
+#[cfg(feature = "threaded")]
+pub type ResolvedModule<'vm> = std::sync::Arc<dyn Module<'vm> + Send + Sync>;
+
+#[cfg(not(feature = "threaded"))]
+pub type ResolvedModule<'vm> = Box<dyn Module<'vm>>;
 
 pub trait Runner<'vm>: ResolveValue {
     fn store_value(&mut self, value: StackValue);
@@ -232,7 +238,7 @@ pub trait Runner<'vm>: ResolveValue {
     where
         F: FnMut(&mut Scope<'vm>) -> Result<(), VMError>;
 
-    fn get_module_clone(&mut self, module: &'vm str) -> Option<Arc<dyn Module<'vm> + Send + Sync>>;
+    fn get_module_clone(&mut self, module: &'vm str) -> Option<ResolvedModule<'vm>>;
 
     fn load_mut(&mut self, name: &'vm str) -> Result<(), VMError>;
     fn load_let(&mut self, name: &'vm str) -> Result<(), VMError>;

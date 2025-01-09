@@ -42,6 +42,7 @@ impl RigzNumber for NumberModule {
     fn number_to_bits(&self, this: Number) -> Vec<Value> {
         let bits = this.to_bits();
         let start = bits.leading_zeros();
+        let bits = bits.reverse_bits();
         (start..64)
             .map(|index| {
                 let mask = 1 << index;
@@ -51,15 +52,22 @@ impl RigzNumber for NumberModule {
     }
 
     fn int_from_bits(&self, raw: Vec<Value>) -> i64 {
-        raw.into_iter().enumerate().fold(0, |res, (index, next)| {
-            res | ((next.to_bool() as i64) << index as i64)
-        })
+        raw.into_iter()
+            .rev()
+            .enumerate()
+            .fold(0, |res, (index, next)| {
+                res | ((next.to_bool() as i64) << index as i64)
+            })
     }
 
     fn float_from_bits(&self, raw: Vec<Value>) -> f64 {
-        let raw = raw.into_iter().enumerate().fold(0, |res, (index, next)| {
-            res | ((next.to_bool() as u64) << index as u64)
-        });
+        let raw = raw
+            .into_iter()
+            .rev()
+            .enumerate()
+            .fold(0, |res, (index, next)| {
+                res | ((next.to_bool() as u64) << index as u64)
+            });
         f64::from_bits(raw)
     }
 }

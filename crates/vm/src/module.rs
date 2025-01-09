@@ -159,12 +159,13 @@ impl RigzArgs {
 }
 
 #[cfg(test)]
-mod rigz_args {
+pub mod rigz_args {
     use crate::{RigzArgs, Value};
     use std::cell::RefCell;
     use std::rc::Rc;
+    use wasm_bindgen_test::*;
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn take() {
         let args = RigzArgs(vec![
             Rc::new(RefCell::new(1.into())),
@@ -174,7 +175,7 @@ mod rigz_args {
         assert_eq!(first, Rc::new(RefCell::new(1.into())));
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn var_args_one() {
         let args = RigzArgs(vec![
             Rc::new(RefCell::new(vec![Value::Number(2.into()), 3.into()].into())),
@@ -185,7 +186,7 @@ mod rigz_args {
         assert_eq!(var, vec![2.into(), 3.into()]);
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn var_args_skip_first() {
         let args = RigzArgs(vec![Rc::new(RefCell::new(
             Value::List(vec![1.into(), 2.into(), 3.into()]).into(),
@@ -194,7 +195,7 @@ mod rigz_args {
         assert_eq!(var, vec![1.into(), 2.into(), 3.into()]);
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn var_args_two() {
         let args = RigzArgs(vec![
             Rc::new(RefCell::new(vec![Value::Number(3.into())].into())),
@@ -208,7 +209,7 @@ mod rigz_args {
         assert_eq!(var2, vec![3.into()]);
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn var_args_error() {
         let args = RigzArgs(vec![
             Rc::new(RefCell::new(1.into())),

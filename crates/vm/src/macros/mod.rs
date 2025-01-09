@@ -1,64 +1,74 @@
 #[macro_export]
+macro_rules! handle_js {
+    ($enabled: expr, $default: expr) => {
+        #[cfg(feature = "js")]
+        $enabled;
+        #[cfg(not(feature = "js"))]
+        $default;
+    };
+}
+
+#[macro_export]
 macro_rules! outln {
     () => {
-        #[cfg(feature = "log_std_out")]
-        log::info!("");
-        #[cfg(not(feature = "log_std_out"))]
-        println!();
+        handle_js! {
+            web_sys::console::log_0(),
+            println!()
+        }
     };
     ($($arg:tt)*) => {{
-        #[cfg(feature = "log_std_out")]
-        log::info!($($arg)*);
-        #[cfg(not(feature = "log_std_out"))]
-        println!($($arg)*);
+        handle_js! {
+            web_sys::console::log_1(&format_args!($($arg)*).to_string().into()),
+            println!($($arg)*)
+        }
     }};
 }
 
 #[macro_export]
 macro_rules! out {
     () => {
-        #[cfg(feature = "log_std_out")]
-        log::info!("");
-        #[cfg(not(feature = "log_std_out"))]
-        print!()
+        handle_js! {
+            web_sys::console::log_0(),
+            print!()
+        }
     };
     ($($arg:tt)*) => {{
-        #[cfg(feature = "log_std_out")]
-        log::info!($($arg)*);
-        #[cfg(not(feature = "log_std_out"))]
-        print!($($arg)*);
+        handle_js! {
+            web_sys::console::log_1(&format_args!($($arg)*).to_string().into()),
+            print!($($arg)*)
+        }
     }};
 }
 
 #[macro_export]
 macro_rules! err {
     () => {
-        #[cfg(feature = "log_std_out")]
-        log::error!("");
-        #[cfg(not(feature = "log_std_out"))]
-        eprint!();
+        handle_js! {
+           web_sys::console::error_0(),
+           eprint!()
+        }
     };
     ($($arg:tt)*) => {{
-        #[cfg(feature = "log_std_out")]
-        log::error!($($arg)*);
-        #[cfg(not(feature = "log_std_out"))]
-        eprint!($($arg)*);
+        handle_js! {
+           web_sys::console::error_1(&format_args!($($arg)*).to_string().into()),
+           eprint!($($arg)*)
+        }
     }};
 }
 
 #[macro_export]
 macro_rules! errln {
     () => {
-        #[cfg(feature = "log_std_out")]
-        log::error!();
-        #[cfg(not(feature = "log_std_out"))]
-        eprintln!();
+        handle_js! {
+           web_sys::console::error_0(),
+           eprintln!()
+        }
     };
     ($($arg:tt)*) => {{
-        #[cfg(feature = "log_std_out")]
-        log::error!($($arg)*);
-        #[cfg(not(feature = "log_std_out"))]
-        eprintln!($($arg)*);
+        handle_js! {
+           web_sys::console::error_1(&format_args!($($arg)*).to_string().into()),
+           eprintln!($($arg)*)
+        }
     }};
 }
 
@@ -66,9 +76,10 @@ macro_rules! errln {
 macro_rules! define_value_tests {
     ($op:tt { $($test_name:ident => ($lhs:expr, $rhs:expr) = $expected:expr);* $(;)? }) => {
         use $crate::value::Value;
+        use wasm_bindgen_test::*;
 
         $(
-            #[test]
+            #[wasm_bindgen_test(unsupported = test)]
             fn $test_name() {
                 let lhs: Value = $lhs.into();
                 let expected: Value = $expected.into();

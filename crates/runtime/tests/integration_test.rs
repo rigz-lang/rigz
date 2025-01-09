@@ -1,13 +1,14 @@
-mod runtime {
+pub mod runtime {
     use rigz_ast::{VMError, Value};
     #[allow(unused_imports)] // used by macro
     use rigz_runtime::runtime::{eval, eval_print_vm};
     use rigz_runtime::RuntimeError;
+    use wasm_bindgen_test::*;
 
     macro_rules! run_expected {
         ($($name:ident($input:literal = $expected:expr))*) => {
             $(
-                 #[test]
+                 #[wasm_bindgen_test(unsupported = test)]
                 fn $name() {
                     let input = $input;
                     let v = eval(input);
@@ -21,7 +22,7 @@ mod runtime {
     macro_rules! run_debug_vm {
         ($($name:ident($input:literal = $expected:expr))*) => {
             $(
-                 #[test]
+                 #[wasm_bindgen_test(unsupported = test)]
                 fn $name() {
                     let _ = pretty_env_logger::try_init();
                     let input = $input;
@@ -35,7 +36,7 @@ mod runtime {
     macro_rules! run_error {
         ($($name:ident($input:literal = $expected:expr))*) => {
             $(
-                 #[test]
+                 #[wasm_bindgen_test(unsupported = test)]
                 fn $name() {
                     let input = $input;
                     let v = eval(input);
@@ -48,7 +49,7 @@ mod runtime {
     macro_rules! run_error_starts_with {
         ($($name:ident($input:literal = $expected:literal))*) => {
             $(
-                 #[test]
+                 #[wasm_bindgen_test(unsupported = test)]
                 fn $name() {
                     let input = $input;
                     let v = eval(input);
@@ -65,7 +66,7 @@ mod runtime {
     macro_rules! run_invalid {
         ($($name:ident($input:literal))*) => {
             $(
-                 #[test]
+                 #[wasm_bindgen_test(unsupported = test)]
                 fn $name() {
                     let input = $input;
                     let v = eval(input);
@@ -75,7 +76,7 @@ mod runtime {
         };
     }
 
-    mod invalid {
+    pub mod invalid {
         use super::*;
 
         run_invalid! {
@@ -110,7 +111,7 @@ mod runtime {
         }
     }
 
-    mod valid {
+    pub mod valid {
         use super::*;
         use rigz_ast::IndexMap;
 
@@ -513,10 +514,16 @@ mod runtime {
 
             receive pid
             "# = 42)
+            to_bits(
+                "2.to_bits" = vec![true, false]
+            )
+            from_bits(
+                "int_from_bits [true, false]" = 2
+            )
         }
     }
 
-    mod debug {
+    pub mod debug {
         use super::*;
         run_debug_vm! {}
     }

@@ -38,10 +38,11 @@ impl VMOptions {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use crate::vm::VMOptions;
+    use wasm_bindgen_test::*;
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn options_snapshot() {
         let options = VMOptions {
             enable_logging: true,

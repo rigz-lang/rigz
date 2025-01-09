@@ -19,6 +19,6 @@ impl RigzRandom for RandomModule {
     }
 
     fn next_bool(&self, percent: f64) -> bool {
-        rand::random_bool(percent)
+        self.next_float() <= percent
     }
 }

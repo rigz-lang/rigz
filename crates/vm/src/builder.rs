@@ -1,11 +1,11 @@
+use crate::process::ModulesMap;
 use crate::vm::VMOptions;
 use crate::{
-    BinaryOperation, BroadcastArgs, Instruction, Lifecycle, LoadValue, Module, ModulesMap,
-    RigzType, Scope, UnaryOperation, Value, VM,
+    BinaryOperation, BroadcastArgs, Instruction, Lifecycle, LoadValue, Module, RigzType, Scope,
+    UnaryOperation, Value, VM,
 };
 use log::Level;
 use std::fmt::Debug;
-use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct VMBuilder<'vm> {
@@ -85,7 +85,11 @@ pub trait RigzBuilder<'vm>: Debug + Default {
 
     fn module_exists(&mut self, module: &'vm str) -> bool;
 
+    #[cfg(feature = "threaded")]
     fn register_module(&mut self, module: impl Module<'vm> + 'static + Send + Sync) -> &mut Self;
+
+    #[cfg(not(feature = "threaded"))]
+    fn register_module(&mut self, module: impl Module<'vm> + 'static) -> &mut Self;
 
     fn with_options(&mut self, options: VMOptions) -> &mut Self;
 
@@ -396,11 +400,20 @@ macro_rules! generate_builder {
         }
 
         #[inline]
+        #[cfg(feature = "threaded")]
         fn register_module(
             &mut self,
             module: impl Module<'vm> + 'static + Send + Sync,
         ) -> &mut Self {
-            self.modules.insert(module.name(), Arc::new(module));
+            self.modules
+                .insert(module.name(), std::sync::Arc::new(module));
+            self
+        }
+
+        #[inline]
+        #[cfg(not(feature = "threaded"))]
+        fn register_module(&mut self, module: impl Module<'vm> + 'static) -> &mut Self {
+            self.modules.insert(module.name(), Box::new(module));
             self
         }
 

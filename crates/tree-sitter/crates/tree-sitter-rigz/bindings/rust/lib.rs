@@ -44,7 +44,7 @@ pub const TAGS_QUERY: &str = include_str!("../../queries/tags.scm");
 
 #[cfg(test)]
 mod tests {
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn test_can_load_grammar() {
         let mut parser = tree_sitter::Parser::new();
         parser

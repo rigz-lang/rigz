@@ -1,5 +1,5 @@
 use crate::{
-    runner_common, BroadcastArgs, CallFrame, Lifecycle, Module, Number, Process, ResolveValue,
+    runner_common, BroadcastArgs, CallFrame, Lifecycle, Number, Process, ResolveValue,
     ResolvedModule, Runner, Scope, StackValue, VMError, VMOptions, Value, Variable, VM,
 };
 use itertools::Itertools;
@@ -7,12 +7,11 @@ use log_derive::{logfn, logfn_inputs};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Deref;
-use std::sync::Arc;
 
 macro_rules! broadcast {
     ($args:expr, $ex: expr) => {
         let args: Vec<Value> = $args.collect();
-        $ex.map(|(id, (p, _))| (id, p.send(args.clone())))
+        $ex.map(|(id, p)| (id, p.send(args.clone())))
             .map(|(id, r)| match r {
                 Ok(_) => Value::Number((id as i64).into()),
                 Err(e) => e.into(),
@@ -23,7 +22,7 @@ macro_rules! broadcast {
         let message = $args.next().unwrap().to_string();
         broadcast! {
             $args,
-            $ex.filter(|(_, (p, _))| match &p.scope.lifecycle {
+            $ex.filter(|(_, p)| match p.lifecycle() {
                     Some(Lifecycle::On(e)) => e.event == message,
                     _ => false,
                 })
@@ -191,7 +190,7 @@ impl<'vm> Runner<'vm> for VM<'vm> {
         let process = self
             .processes
             .iter()
-            .find_position(|(p, _)| match &p.scope.lifecycle {
+            .find_position(|p| match p.lifecycle() {
                 Some(Lifecycle::On(e)) => e.event == message,
                 _ => false,
             });
@@ -202,7 +201,7 @@ impl<'vm> Runner<'vm> for VM<'vm> {
                     "No process found matching '{message}'"
                 )))
             }
-            Some((id, (p, _))) => match p.send(Vec::from_iter(args)) {
+            Some((id, p)) => match p.send(Vec::from_iter(args)) {
                 Ok(_) => Value::Number((id as i64).into()),
                 Err(e) => e.into(),
             },
@@ -236,7 +235,7 @@ impl<'vm> Runner<'vm> for VM<'vm> {
                         None => {
                             VMError::RuntimeError(format!("Process {pid} does not exist")).into()
                         }
-                        Some((p, _)) => p.receive(timeout),
+                        Some(p) => p.receive(timeout),
                     };
                     res.push(r);
                 }
@@ -249,7 +248,7 @@ impl<'vm> Runner<'vm> for VM<'vm> {
                 };
                 match self.processes.get(pid) {
                     None => VMError::RuntimeError(format!("Process {pid} does not exist")).into(),
-                    Some((p, _)) => p.receive(timeout),
+                    Some(p) => p.receive(timeout),
                 }
             }
         };
@@ -294,7 +293,7 @@ impl<'vm> Runner<'vm> for VM<'vm> {
         let m = self.modules.clone();
         let pid = self.processes.len();
         let p = Process::spawn(scope, options, m, timeout);
-        match p.0.send(vec![]) {
+        match p.send(vec![]) {
             Ok(_) => {}
             Err(e) => return Err(e),
         }

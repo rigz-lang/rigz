@@ -1,14 +1,14 @@
 use crate::call_frame::{CallFrame, Frames};
+use crate::process::ModulesMap;
 use crate::{
-    runner_common, BroadcastArgs, Instruction, Module, ModulesMap, ResolveValue, ResolvedModule,
-    Runner, Scope, StackValue, VMError, VMOptions, VMStack, VMState, Value, Variable,
+    runner_common, BroadcastArgs, Instruction, ResolveValue, ResolvedModule, Runner, Scope,
+    StackValue, VMError, VMOptions, VMStack, VMState, Value, Variable,
 };
 use log_derive::{logfn, logfn_inputs};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::sync::Arc;
 
 pub(crate) struct ProcessRunner<'s, 'vm> {
     scope: &'s Scope<'vm>,

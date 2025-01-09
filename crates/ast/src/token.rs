@@ -316,10 +316,11 @@ impl Token<'_> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
+    use wasm_bindgen_test::*;
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn tokenize_works() {
         let raw = r#"
             a = 1

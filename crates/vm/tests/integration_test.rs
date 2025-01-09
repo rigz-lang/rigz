@@ -3,8 +3,9 @@ mod vm_test {
         BinaryOperation, Instruction, Lifecycle, LoadValue, Module, Number, RigzArgs, RigzBuilder,
         RigzType, Scope, TestLifecycle, TestResults, VMBuilder, VMError, Value, VM,
     };
+    use wasm_bindgen_test::*;
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn load_works() {
         let mut builder = VMBuilder::new();
         builder.add_load_instruction(Value::Number(Number::Int(42)).into());
@@ -13,7 +14,7 @@ mod vm_test {
         assert_eq!(v, 42.into());
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn cast_works() {
         let mut builder = VMBuilder::new();
         builder
@@ -24,7 +25,7 @@ mod vm_test {
         assert_eq!(v, 42.to_string().into());
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn add_works() {
         let mut builder = VMBuilder::new();
         builder
@@ -36,7 +37,7 @@ mod vm_test {
         assert_eq!(v, Value::Number(Number::Int(84)).into());
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn shr_works_str_number() {
         let mut builder = VMBuilder::new();
         builder
@@ -48,7 +49,7 @@ mod vm_test {
         assert_eq!(v, "ab".into());
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn shl_works_str_number() {
         let mut builder = VMBuilder::new();
         builder
@@ -60,7 +61,7 @@ mod vm_test {
         assert_eq!(v, "bc".into());
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn call_works() {
         let mut builder = VMBuilder::new();
         let scope = builder
@@ -100,7 +101,7 @@ mod vm_test {
         }
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn module_works() {
         let mut builder = VMBuilder::new();
         let module = TestModule {};
@@ -113,7 +114,7 @@ mod vm_test {
         assert_eq!(v, Value::None.into());
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn assignment_scopes_work() {
         let mut builder = VMBuilder::new();
         // a = 1 + 2; a + 2
@@ -135,7 +136,7 @@ mod vm_test {
         assert_eq!(v, 5.into())
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn simple_scope() {
         let mut builder = VMBuilder::new();
         let scope = builder.enter_scope("test", vec![], None);
@@ -148,7 +149,7 @@ mod vm_test {
         assert_eq!(vm.eval().unwrap(), Value::String("hello".to_string()))
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn function_scope() {
         let mut builder = VMBuilder::new();
         let scope = builder.enter_scope("test", vec![], None);
@@ -167,7 +168,7 @@ mod vm_test {
         assert_eq!(vm.eval().unwrap(), 10.into())
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn mutable_bin_assign() {
         let mut builder = VMBuilder::new();
         builder
@@ -182,7 +183,7 @@ mod vm_test {
         assert_eq!(vm.eval().unwrap(), 10.into())
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn multi_mut_scope() {
         let mut vm = VM::from_scopes(vec![
             Scope {
@@ -213,7 +214,7 @@ mod vm_test {
         assert_eq!(vm.run(), 54.into(), "Run Failed {vm:#?}");
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn multi_mut_scope_get_var_between() {
         let mut vm = VM::from_scopes(vec![
             Scope {
@@ -246,7 +247,7 @@ mod vm_test {
         assert_eq!(vm.run(), 113.4.into(), "Run Failed {vm:#?}")
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn test_works() {
         let mut vm = VM::from_scopes(vec![
             Scope {
@@ -286,7 +287,7 @@ mod vm_test {
         )
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn for_list() {
         let mut builder = VMBuilder::new();
         // [for v in [1, 2, 3]: v * v]

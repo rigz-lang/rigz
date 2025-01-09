@@ -4,24 +4,17 @@ mod values;
 
 use crate::call_frame::Frames;
 use crate::lifecycle::{Lifecycle, TestResults};
-use crate::process::Process;
+use crate::process::{ModulesMap, Process, SpawnedProcess};
 use crate::{generate_builder, CallFrame, Instruction, Runner, Scope, VMStack, Variable};
-use crate::{out, outln, Module, RigzBuilder, VMError, Value};
+use crate::{handle_js, out, outln, Module, RigzBuilder, VMError, Value};
 use derive_more::IntoIterator;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use dashmap::DashMap;
 pub use options::VMOptions;
-use std::sync::Arc;
-use std::thread::JoinHandle;
 pub use values::*;
-
-pub type ModulesMap<'vm> = Arc<DashMap<&'static str, Arc<dyn Module<'vm> + Send + Sync>>>;
-
-type SpawnedProcess<'vm> = (Box<Process<'vm>>, JoinHandle<Result<(), VMError>>);
 
 #[derive(Debug)]
 pub struct VM<'vm> {
@@ -219,15 +212,13 @@ impl<'vm> VM<'vm> {
     }
 
     fn close_processes(&mut self, result: Value) -> Value {
-        let mut errors = vec![];
-        for (p, t) in self.processes.drain(..) {
-            p.close();
-            match t.join() {
-                Ok(Ok(_)) => {}
-                Ok(Err(r)) => errors.push(r),
-                Err(e) => errors.push(VMError::RuntimeError(format!(
-                    "Failed to join thread for {p:?} - {e:?}"
-                ))),
+        let mut errors: Vec<VMError> = vec![];
+        for p in self.processes.drain(..) {
+            match p.close() {
+                Ok(_) => {}
+                Err(r) => {
+                    errors.push(r);
+                }
             }
         }
 
@@ -251,7 +242,10 @@ impl<'vm> VM<'vm> {
     }
 
     pub fn run_within(&mut self, duration: Duration) -> Value {
-        let now = Instant::now();
+        #[cfg(not(feature = "js"))]
+        let now = std::time::Instant::now();
+        #[cfg(feature = "js")]
+        let now = web_time::Instant::now();
         loop {
             let elapsed = now.elapsed();
             if elapsed > duration {
@@ -291,7 +285,10 @@ impl<'vm> VM<'vm> {
 
         let mut passed = 0;
         let mut failed = 0;
-        let start = Instant::now();
+        #[cfg(not(feature = "js"))]
+        let start = std::time::Instant::now();
+        #[cfg(feature = "js")]
+        let start = web_time::Instant::now();
         let mut failure_messages = Vec::new();
         for (s, named) in test_scopes {
             out!("test {named} ... ");
@@ -370,12 +367,13 @@ impl<'vm> VM<'vm> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use crate::builder::RigzBuilder;
     use crate::vm::VM;
     use crate::{VMBuilder, Value};
+    use wasm_bindgen_test::*;
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn snapshot() {
         let mut builder = VMBuilder::new();
         builder.add_load_instruction(Value::Bool(true).into());

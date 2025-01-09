@@ -646,10 +646,11 @@ impl PartialEq for Value {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use crate::{Number, Value};
+    use wasm_bindgen_test::*;
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn value_eq() {
         assert_eq!(Value::None, Value::None);
         assert_eq!(Value::None, Value::Bool(false));

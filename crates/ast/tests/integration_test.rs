@@ -1,9 +1,10 @@
 use rigz_ast::*;
+use wasm_bindgen_test::*;
 
 macro_rules! test_parse {
     ($($name:ident $input:literal = $expected:expr,)*) => {
         $(
-            #[test]
+            #[wasm_bindgen_test(unsupported = test)]
             fn $name() {
                 let input = $input;
                 let v = parse(input);
@@ -20,7 +21,7 @@ macro_rules! test_parse_equivalent {
     )*) => {
         $(
             $(
-                #[test]
+                #[wasm_bindgen_test(unsupported = test)]
                 fn $name() {
                     let input = $input;
                     let v = parse(input);
@@ -34,7 +35,7 @@ macro_rules! test_parse_equivalent {
 macro_rules! test_parse_valid {
     ($($name:ident $input:literal,)*) => {
         $(
-            #[test]
+            #[wasm_bindgen_test(unsupported = test)]
             fn $name() {
                 let input = $input;
                 let v = parse(input);
@@ -47,7 +48,7 @@ macro_rules! test_parse_valid {
 macro_rules! test_parse_invalid {
     ($($name:ident $input:literal,)*) => {
         $(
-            #[test]
+            #[wasm_bindgen_test(unsupported = test)]
             fn $name() {
                 let input = $input;
                 let v = parse(input);
@@ -57,8 +58,9 @@ macro_rules! test_parse_invalid {
     };
 }
 
-mod invalid {
+pub mod invalid {
     use super::*;
+    use wasm_bindgen_test::*;
 
     test_parse_invalid!(
         invalid_bin_exp "1 +",
@@ -73,8 +75,9 @@ mod invalid {
     );
 }
 
-mod valid {
+pub mod valid {
     use super::*;
+    use wasm_bindgen_test::*;
 
     test_parse_valid!(
         do_one_line "do = 1 + 2",

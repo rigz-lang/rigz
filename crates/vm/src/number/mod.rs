@@ -184,15 +184,16 @@ impl Number {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use crate::Number;
+    use wasm_bindgen_test::*;
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn parse_float() {
         assert_eq!(Number::Float(1.0), "1.0".parse().unwrap())
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn to_s() {
         assert_eq!(Number::Float(1.0).to_string(), "1".to_string());
         assert_eq!(Number::Float(1.2).to_string(), "1.2".to_string());
