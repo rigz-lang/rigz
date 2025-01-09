@@ -9,7 +9,7 @@ repository = "https://gitlab.com/inapinch/rigz/crates/vm"
 keywords = ["rigz", "vm"]
 
 [features]
-default = ["derive", "threaded"]
+default = ["threaded"]
 derive = ["dep:proc-macro2", "dep:quote"]
 js = ["dep:web-sys", "dep:web-time"]
 threaded = ["dep:crossbeam", "dep:dashmap"]
