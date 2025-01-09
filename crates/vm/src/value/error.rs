@@ -65,4 +65,8 @@ impl VMError {
     pub fn invalid_function(func: &str) -> Self {
         VMError::InvalidModuleFunction(format!("Function {func} does not exist"))
     }
+
+    pub fn todo<T: Display>(message: T) -> Self {
+        VMError::UnsupportedOperation(format!("Not implemented - {message}"))
+    }
 }

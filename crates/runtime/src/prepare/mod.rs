@@ -894,6 +894,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 };
                 self.builder.add_ret_instruction();
             }
+            Expression::Into { .. } => {}
         }
         Ok(())
     }
@@ -1237,13 +1238,34 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 }
             }
             "spawn" => {
-                let args = arguments.len();
-                let (scope_id, timeout) = match args {
+                let len = arguments.len();
+                let mut args = arguments.into_iter();
+                let (scope_id, timeout) = match len {
                     1 => {
-                        todo!()
+                        let scope = args.next().unwrap();
+                        let id = match scope {
+                            Expression::Scope(s) => self.parse_scope(s, "spawn")?,
+                            _ => {
+                                return Err(ValidationError::NotImplemented(format!(
+                                    "Only scopes are supported for `spawn` - receieved {scope:?}"
+                                )))
+                            }
+                        };
+                        (id, false)
                     }
                     2 => {
-                        todo!()
+                        let timeout = args.next().unwrap();
+                        self.parse_expression(timeout)?;
+                        let scope = args.next().unwrap();
+                        let id = match scope {
+                            Expression::Scope(s) => self.parse_scope(s, "spawn")?,
+                            _ => {
+                                return Err(ValidationError::NotImplemented(format!(
+                                    "Only scopes are supported for `spawn` - receieved {scope:?}"
+                                )))
+                            }
+                        };
+                        (id, true)
                     }
                     _ => {
                         return Err(ValidationError::InvalidFunction("`spawn` requires the scope argument to initialize the process with an optional timeout (ms), i.e. `spawn do = 'hi'` or `spawn 1, do = 42`".to_string()));

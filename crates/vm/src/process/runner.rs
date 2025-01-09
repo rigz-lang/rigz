@@ -25,11 +25,11 @@ impl ResolveValue for ProcessRunner<'_, '_> {
     }
 
     fn handle_scope(&mut self, scope: usize) -> Rc<RefCell<Value>> {
-        todo!()
+        VMError::todo("Process does not implement `handle_scope`").into()
     }
 
     fn get_constant(&self, constant_id: usize) -> Rc<RefCell<Value>> {
-        todo!()
+        VMError::todo("Process does not implement `get_constant`").into()
     }
 }
 
@@ -58,35 +58,37 @@ impl<'vm> Runner<'vm> for ProcessRunner<'_, 'vm> {
     where
         F: FnMut(&mut Scope<'vm>) -> Result<(), VMError>,
     {
-        todo!()
+        Err(VMError::todo("Process does not implement `update_scope`"))
     }
 
     fn call_frame(&mut self, scope_index: usize) -> Result<(), VMError> {
-        todo!()
+        Err(VMError::todo("Process does not implement `call_frame`"))
     }
 
     fn call_frame_memo(&mut self, scope_index: usize) -> Result<(), VMError> {
-        todo!()
+        Err(VMError::todo(
+            "Process does not implement `call_frame_memo`",
+        ))
     }
 
-    fn goto(&mut self, scope_id: usize, pc: usize) {
-        todo!()
+    fn goto(&mut self, scope_id: usize, pc: usize) -> Result<(), VMError> {
+        Err(VMError::todo("Process does not implement `goto`"))
     }
 
-    fn send(&mut self, args: usize) -> Result<(), VMState> {
-        todo!()
+    fn send(&mut self, args: usize) -> Result<(), VMError> {
+        Err(VMError::todo("Process does not implement `send`"))
     }
 
-    fn receive(&mut self, args: usize) -> Result<(), VMState> {
-        todo!()
+    fn receive(&mut self, args: usize) -> Result<(), VMError> {
+        Err(VMError::todo("Process does not implement `receive`"))
     }
 
-    fn broadcast(&mut self, args: BroadcastArgs) -> Result<(), VMState> {
-        todo!()
+    fn broadcast(&mut self, args: BroadcastArgs) -> Result<(), VMError> {
+        Err(VMError::todo("Process does not implement `broadcast`"))
     }
 
-    fn spawn(&mut self, scope_id: usize, timeout: Option<usize>) -> Result<(), VMState> {
-        todo!()
+    fn spawn(&mut self, scope_id: usize, timeout: Option<usize>) -> Result<(), VMError> {
+        Err(VMError::todo("Process does not implement `spawn`"))
     }
 
     fn call(
@@ -95,7 +97,7 @@ impl<'vm> Runner<'vm> for ProcessRunner<'_, 'vm> {
         func: &'vm str,
         args: usize,
     ) -> Result<Value, VMError> {
-        todo!()
+        Err(VMError::todo("Process does not implement `call`"))
     }
 
     fn call_extension(
@@ -104,7 +106,7 @@ impl<'vm> Runner<'vm> for ProcessRunner<'_, 'vm> {
         func: &'vm str,
         args: usize,
     ) -> Result<Value, VMError> {
-        todo!()
+        Err(VMError::todo("Process does not implement `call_extension`"))
     }
 
     fn call_mutable_extension(
@@ -113,7 +115,9 @@ impl<'vm> Runner<'vm> for ProcessRunner<'_, 'vm> {
         func: &'vm str,
         args: usize,
     ) -> Result<Option<Value>, VMError> {
-        todo!()
+        Err(VMError::todo(
+            "Process does not implement `call_mutable_extension`",
+        ))
     }
 
     fn vm_extension(
@@ -122,7 +126,7 @@ impl<'vm> Runner<'vm> for ProcessRunner<'_, 'vm> {
         func: &'vm str,
         args: usize,
     ) -> Result<Value, VMError> {
-        todo!()
+        Err(VMError::todo("Process does not implement `vm_extension`"))
     }
 }
 

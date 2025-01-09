@@ -14,12 +14,14 @@ use std::fmt::Debug;
 use std::time::{Duration, Instant};
 
 use dashmap::DashMap;
-use std::sync::Arc;
-
 pub use options::VMOptions;
+use std::sync::Arc;
+use std::thread::JoinHandle;
 pub use values::*;
 
 pub type ModulesMap<'vm> = Arc<DashMap<&'static str, Arc<dyn Module<'vm> + Send + Sync>>>;
+
+type SpawnedProcess<'vm> = (Box<Process<'vm>>, JoinHandle<Result<(), VMError>>);
 
 #[derive(Debug)]
 pub struct VM<'vm> {
@@ -31,7 +33,7 @@ pub struct VM<'vm> {
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
     pub constants: Vec<Value>,
-    pub processes: Vec<Process<'vm>>,
+    pub processes: Vec<SpawnedProcess<'vm>>,
 }
 
 impl<'vm> RigzBuilder<'vm> for VM<'vm> {
@@ -165,14 +167,7 @@ impl<'vm> VM<'vm> {
 
     /// Starts processes for each "On" lifecycle, Errors are returned as Value::Error(VMError)
     pub fn run(&mut self) -> Value {
-        self.processes = self
-            .scopes
-            .iter()
-            .filter(|s| matches!(s.lifecycle, Some(Lifecycle::On(_))))
-            .map(|s| Process::new(s.clone(), self.options, self.modules.clone()))
-            .collect();
-
-        let threads = self.processes.iter().map(|p| p.start()).collect::<Vec<_>>();
+        self.start_processes();
 
         let mut run = || loop {
             match self.step() {
@@ -182,35 +177,7 @@ impl<'vm> VM<'vm> {
         };
 
         let res = run();
-        let mut errors = vec![];
-        for (t, p) in threads.into_iter().zip(&self.processes) {
-            p.close();
-            match t.join() {
-                Ok(Ok(_)) => {}
-                Ok(Err(r)) => errors.push(r),
-                Err(e) => errors.push(VMError::RuntimeError(format!(
-                    "Failed to join thread for {p:?} - {e:?}"
-                ))),
-            }
-        }
-
-        if errors.is_empty() {
-            res
-        } else {
-            let len = errors.len() - 1;
-            let messages =
-                errors
-                    .iter()
-                    .enumerate()
-                    .fold(String::new(), |mut res, (index, next)| {
-                        res.push_str(next.to_string().as_str());
-                        if index != len {
-                            res.push_str(", ");
-                        }
-                        res
-                    });
-            VMError::RuntimeError(format!("Process Failures: {messages}")).into()
-        }
+        self.close_processes(res)
     }
 
     #[inline]
@@ -231,6 +198,47 @@ impl<'vm> VM<'vm> {
             VMState::Done(v) => return Some(v.borrow().clone()),
         };
         None
+    }
+
+    fn start_processes(&mut self) {
+        self.processes = self
+            .scopes
+            .iter()
+            .filter(|s| matches!(s.lifecycle, Some(Lifecycle::On(_))))
+            .map(|s| Process::spawn(s.clone(), self.options, self.modules.clone(), None))
+            .collect();
+    }
+
+    fn close_processes(&mut self, result: Value) -> Value {
+        let mut errors = vec![];
+        for (p, t) in self.processes.drain(..) {
+            p.close();
+            match t.join() {
+                Ok(Ok(_)) => {}
+                Ok(Err(r)) => errors.push(r),
+                Err(e) => errors.push(VMError::RuntimeError(format!(
+                    "Failed to join thread for {p:?} - {e:?}"
+                ))),
+            }
+        }
+
+        if errors.is_empty() {
+            result
+        } else {
+            let len = errors.len() - 1;
+            let messages =
+                errors
+                    .iter()
+                    .enumerate()
+                    .fold(String::new(), |mut res, (index, next)| {
+                        res.push_str(next.to_string().as_str());
+                        if index != len {
+                            res.push_str(", ");
+                        }
+                        res
+                    });
+            VMError::RuntimeError(format!("Process Failures: {messages}")).into()
+        }
     }
 
     pub fn run_within(&mut self, duration: Duration) -> Value {

@@ -16,17 +16,37 @@ pub struct Process<'vm> {
     to_vm: (Sender<Option<Value>>, Receiver<Option<Value>>),
     options: VMOptions,
     modules: ModulesMap<'vm>,
+    timeout: Option<usize>,
 }
 
 impl<'vm> Process<'vm> {
-    pub fn new(scope: Scope<'vm>, options: VMOptions, modules: ModulesMap<'vm>) -> Self {
+    pub fn new(
+        scope: Scope<'vm>,
+        options: VMOptions,
+        modules: ModulesMap<'vm>,
+        timeout: Option<usize>,
+    ) -> Self {
         Self {
             scope,
             from_vm: unbounded(),
             to_vm: unbounded(),
             options,
             modules,
+            timeout,
         }
+    }
+
+    pub fn spawn(
+        scope: Scope<'vm>,
+        options: VMOptions,
+        modules: ModulesMap<'vm>,
+        timeout: Option<usize>,
+    ) -> (Box<Self>, JoinHandle<Result<(), VMError>>) {
+        let p = Self::new(scope, options, modules, timeout);
+        // ensure memory address doesn't move if Vec<Process> is re-allocated
+        let p = Box::new(p);
+        let t = p.start();
+        (p, t)
     }
 
     pub fn close(&self) {
@@ -60,6 +80,10 @@ impl<'vm> Process<'vm> {
 
     pub fn receive(&self, timeout: Option<usize>) -> Value {
         let channel = &self.to_vm.1;
+        let timeout = match timeout {
+            None => self.timeout,
+            Some(t) => Some(t),
+        };
         let v = match timeout {
             None => channel.recv().unwrap_or_else(|e| {
                 Some(VMError::RuntimeError(format!("Failed to receive value {e:?}")).into())

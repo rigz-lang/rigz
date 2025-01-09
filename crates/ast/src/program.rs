@@ -262,6 +262,10 @@ pub enum Expression<'lex> {
         key: Box<Expression<'lex>>,
         value: Option<Box<Expression<'lex>>>,
     },
+    Into {
+        base: Box<Expression<'lex>>,
+        next: FunctionExpression<'lex>,
+    },
 }
 
 impl<'lex> From<Vec<Expression<'lex>>> for Expression<'lex> {

@@ -69,127 +69,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
             },
             Expression::Cast(_, r) => r.clone(),
             Expression::Scope(s) => self.scope_type(s)?,
-            Expression::Function(FunctionExpression::FunctionCall(name, _)) => {
-                if matches!(*name, "puts" | "log" | "sleep") {
-                    return Ok(RigzType::None);
-                }
-
-                if matches!(*name, "send" | "spawn") {
-                    return Ok(RigzType::Int);
-                }
-
-                if name == &"broadcast" {
-                    return Ok(RigzType::List(RigzType::Int.into()));
-                }
-
-                if name == &"receive" {
-                    return Ok(RigzType::Any);
-                }
-
-                self.check_module_exists(name)?;
-                match self.function_scopes.get(name) {
-                    None => {
-                        return Err(ValidationError::InvalidFunction(format!(
-                            "function {name} does not exist"
-                        )))
-                    }
-                    Some(f) => Self::function_call_return_type(name, f)?,
-                }
-            }
-            Expression::Function(FunctionExpression::TypeFunctionCall(r, name, _)) => {
-                self.check_module_exists(name)?;
-                match self.function_scopes.get(name) {
-                    None => {
-                        return Err(ValidationError::InvalidFunction(format!(
-                            "typed extension function {r}.{name} does not exist"
-                        )))
-                    }
-                    Some(f) => {
-                        // todo ignore extension functions here
-                        if f.len() > 1 {
-                            // todo support union types
-                            let matched: HashSet<_> = f
-                                .iter()
-                                .filter_map(|cs| match cs {
-                                    CallSignature::Function(f, _) => match &f.self_type {
-                                        None => None,
-                                        Some(ft) => {
-                                            if &ft.rigz_type == r {
-                                                Some(f.return_type.rigz_type.clone())
-                                            } else {
-                                                None
-                                            }
-                                        }
-                                    },
-                                    CallSignature::Lambda(_, _, ret) => Some(ret.clone()),
-                                })
-                                .collect();
-                            match matched.len() {
-                                0 => {
-                                    return Err(ValidationError::InvalidFunction(format!(
-                                        "typed extension function {r}.{name} does not exist"
-                                    )))
-                                }
-                                1 => matched.iter().next().cloned().unwrap(),
-                                _ => r.clone(),
-                            }
-                        } else {
-                            f[0].rigz_type()
-                        }
-                    }
-                }
-            }
-            Expression::Function(FunctionExpression::InstanceFunctionCall(ex, calls, _)) => {
-                let this = self.rigz_type(ex)?;
-                let this = match this {
-                    RigzType::This => match self.identifiers.get("self") {
-                        None => RigzType::This,
-                        Some(v) => v.rigz_type.clone(),
-                    },
-                    _ => this,
-                };
-                let name = calls.last().expect("Invalid instance function call");
-                // todo need to handle call chaining
-                self.check_module_exists(name)?;
-                match self.function_scopes.get(name) {
-                    None => {
-                        return Err(ValidationError::InvalidFunction(format!(
-                            "extension function {this}.{name} does not exist",
-                        )))
-                    }
-                    Some(f) => {
-                        // todo ignore extension functions here
-                        if f.len() > 1 {
-                            // todo support union types
-                            let matched: HashSet<_> = f
-                                .iter()
-                                .filter_map(|cs| match cs {
-                                    CallSignature::Function(f, _) => f
-                                        .self_type
-                                        .as_ref()
-                                        .filter(|t| t.rigz_type == this)
-                                        .map(|_| f.return_type.rigz_type.clone()),
-                                    CallSignature::Lambda(_, _, ret) => Some(ret.clone()),
-                                })
-                                .collect();
-                            match matched.len() {
-                                0 => {
-                                    return Err(ValidationError::InvalidFunction(format!(
-                                        "extension {name} does not exist"
-                                    )))
-                                }
-                                1 => matched.iter().next().cloned().unwrap(),
-                                _ => {
-                                    dbg!(f);
-                                    this
-                                }
-                            }
-                        } else {
-                            f[0].rigz_type()
-                        }
-                    }
-                }
-            }
+            Expression::Function(fe) => self.function_type(fe)?,
             Expression::Symbol(_) => RigzType::String,
             Expression::If { then, branch, .. } => match branch {
                 None => self.scope_type(then)?,
@@ -266,8 +146,139 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                      */
                 }
             }
+            Expression::Into { next, .. } => {
+                // todo check base arg
+                self.function_type(next)?
+            }
         };
         Ok(t)
+    }
+
+    fn function_type(&mut self, fe: &FunctionExpression<'vm>) -> Result<RigzType, ValidationError> {
+        let e = match fe {
+            FunctionExpression::FunctionCall(name, _) => {
+                if matches!(*name, "puts" | "log" | "sleep") {
+                    return Ok(RigzType::None);
+                }
+
+                if matches!(*name, "send" | "spawn") {
+                    return Ok(RigzType::Int);
+                }
+
+                if name == &"broadcast" {
+                    return Ok(RigzType::List(RigzType::Int.into()));
+                }
+
+                if name == &"receive" {
+                    return Ok(RigzType::Any);
+                }
+
+                self.check_module_exists(name)?;
+                match self.function_scopes.get(name) {
+                    None => {
+                        return Err(ValidationError::InvalidFunction(format!(
+                            "function {name} does not exist"
+                        )))
+                    }
+                    Some(f) => Self::function_call_return_type(name, f)?,
+                }
+            }
+            FunctionExpression::TypeFunctionCall(r, name, _) => {
+                self.check_module_exists(name)?;
+                match self.function_scopes.get(name) {
+                    None => {
+                        return Err(ValidationError::InvalidFunction(format!(
+                            "typed extension function {r}.{name} does not exist"
+                        )))
+                    }
+                    Some(f) => {
+                        // todo ignore extension functions here
+                        if f.len() > 1 {
+                            // todo support union types
+                            let matched: HashSet<_> = f
+                                .iter()
+                                .filter_map(|cs| match cs {
+                                    CallSignature::Function(f, _) => match &f.self_type {
+                                        None => None,
+                                        Some(ft) => {
+                                            if &ft.rigz_type == r {
+                                                Some(f.return_type.rigz_type.clone())
+                                            } else {
+                                                None
+                                            }
+                                        }
+                                    },
+                                    CallSignature::Lambda(_, _, ret) => Some(ret.clone()),
+                                })
+                                .collect();
+                            match matched.len() {
+                                0 => {
+                                    return Err(ValidationError::InvalidFunction(format!(
+                                        "typed extension function {r}.{name} does not exist"
+                                    )))
+                                }
+                                1 => matched.iter().next().cloned().unwrap(),
+                                _ => r.clone(),
+                            }
+                        } else {
+                            f[0].rigz_type()
+                        }
+                    }
+                }
+            }
+            FunctionExpression::InstanceFunctionCall(ex, calls, _) => {
+                let this = self.rigz_type(ex)?;
+                let this = match this {
+                    RigzType::This => match self.identifiers.get("self") {
+                        None => RigzType::This,
+                        Some(v) => v.rigz_type.clone(),
+                    },
+                    _ => this,
+                };
+                let name = calls.last().expect("Invalid instance function call");
+                // todo need to handle call chaining
+                self.check_module_exists(name)?;
+                match self.function_scopes.get(name) {
+                    None => {
+                        return Err(ValidationError::InvalidFunction(format!(
+                            "extension function {this}.{name} does not exist",
+                        )))
+                    }
+                    Some(f) => {
+                        // todo ignore extension functions here
+                        if f.len() > 1 {
+                            // todo support union types
+                            let matched: HashSet<_> = f
+                                .iter()
+                                .filter_map(|cs| match cs {
+                                    CallSignature::Function(f, _) => f
+                                        .self_type
+                                        .as_ref()
+                                        .filter(|t| t.rigz_type == this)
+                                        .map(|_| f.return_type.rigz_type.clone()),
+                                    CallSignature::Lambda(_, _, ret) => Some(ret.clone()),
+                                })
+                                .collect();
+                            match matched.len() {
+                                0 => {
+                                    return Err(ValidationError::InvalidFunction(format!(
+                                        "extension {name} does not exist"
+                                    )))
+                                }
+                                1 => matched.iter().next().cloned().unwrap(),
+                                _ => {
+                                    dbg!(f);
+                                    this
+                                }
+                            }
+                        } else {
+                            f[0].rigz_type()
+                        }
+                    }
+                }
+            }
+        };
+        Ok(e)
     }
 
     fn function_call_return_type(

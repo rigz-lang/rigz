@@ -220,6 +220,15 @@ impl ToTokens for Expression<'_> {
                     Expression::Error(#err)
                 }
             }
+            Expression::Into { base, next } => {
+                let base = boxed(base);
+                quote! {
+                    Expression::Into {
+                        base: #base,
+                        next: #next
+                    }
+                }
+            }
         };
         tokens.extend(t)
     }

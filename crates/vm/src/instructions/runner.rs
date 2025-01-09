@@ -73,7 +73,7 @@ macro_rules! runner_common {
         }
 
         #[inline]
-        fn persist_scope(&mut self, var: &'vm str) -> Option<VMState> {
+        fn persist_scope(&mut self, var: &'vm str) -> Option<VMError> {
             let next = self.next_resolved_value("persist_scope");
             self.store_value(next.clone().into());
             let current = self.frames.current.borrow();
@@ -308,17 +308,17 @@ pub trait Runner<'vm>: ResolveValue {
             .collect()
     }
 
-    fn persist_scope(&mut self, var: &'vm str) -> Option<VMState>;
+    fn persist_scope(&mut self, var: &'vm str) -> Option<VMError>;
 
-    fn goto(&mut self, scope_id: usize, pc: usize);
+    fn goto(&mut self, scope_id: usize, pc: usize) -> Result<(), VMError>;
 
-    fn send(&mut self, args: usize) -> Result<(), VMState>;
+    fn send(&mut self, args: usize) -> Result<(), VMError>;
 
-    fn receive(&mut self, args: usize) -> Result<(), VMState>;
+    fn receive(&mut self, args: usize) -> Result<(), VMError>;
 
-    fn broadcast(&mut self, args: BroadcastArgs) -> Result<(), VMState>;
+    fn broadcast(&mut self, args: BroadcastArgs) -> Result<(), VMError>;
 
-    fn spawn(&mut self, scope_id: usize, timeout: Option<usize>) -> Result<(), VMState>;
+    fn spawn(&mut self, scope_id: usize, timeout: Option<usize>) -> Result<(), VMError>;
 
     fn get_variable(&mut self, name: &'vm str);
 
@@ -375,12 +375,12 @@ pub trait Runner<'vm>: ResolveValue {
             }
             Instruction::LoadLet(name) => {
                 if let Err(e) = self.load_let(name) {
-                    return VMState::Done(e.into());
+                    return e.into();
                 }
             }
             Instruction::LoadMut(name) => {
                 if let Err(e) = self.load_mut(name) {
-                    return VMState::Done(e.into());
+                    return e.into();
                 }
             }
             Instruction::CallMatching(possible) | Instruction::CallMatchingMemo(possible) => {
@@ -432,7 +432,7 @@ pub trait Runner<'vm>: ResolveValue {
             }
             Instruction::PersistScope(var) => {
                 if let Some(s) = self.persist_scope(var) {
-                    return s;
+                    return s.into();
                 }
             }
             Instruction::Cast { rigz_type } => {
@@ -529,9 +529,10 @@ pub trait Runner<'vm>: ResolveValue {
                 ))
                 .into()
             }
-            Instruction::Goto(scope_id, index) => {
-                self.goto(scope_id, index);
-            }
+            Instruction::Goto(scope_id, index) => match self.goto(scope_id, index) {
+                Ok(_) => {}
+                Err(e) => return e.into(),
+            },
             Instruction::AddInstruction(scope, instruction) => {
                 let updated = self.update_scope(scope, |s| {
                     s.instructions.push(*instruction.clone());
@@ -654,12 +655,12 @@ pub trait Runner<'vm>: ResolveValue {
             }
             Instruction::Send(args) => {
                 if let Err(o) = self.send(args) {
-                    return o;
+                    return o.into();
                 }
             }
             Instruction::Broadcast(args) => {
                 if let Err(o) = self.broadcast(args) {
-                    return o;
+                    return o.into();
                 }
             }
             Instruction::Spawn(scope_id, timeout) => {
@@ -674,12 +675,12 @@ pub trait Runner<'vm>: ResolveValue {
                     None
                 };
                 if let Err(o) = self.spawn(scope_id, timeout) {
-                    return o;
+                    return o.into();
                 }
             }
             Instruction::Receive(args) => {
                 if let Err(o) = self.receive(args) {
-                    return o;
+                    return o.into();
                 }
             }
             Instruction::Sleep => {

@@ -503,8 +503,8 @@ mod runtime {
             @on("message")
             fn bar(a, b) = a - b
 
-            broadcast 'message', 21, 12
-            |> receive
+            pids = broadcast 'message', 21, 12
+            receive pids
             "# = vec![252, 9])
             spawn_works(r#"
             pid = spawn do
