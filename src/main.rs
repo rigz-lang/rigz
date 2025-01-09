@@ -1,5 +1,6 @@
 mod ast;
 mod debug;
+mod format;
 mod repl;
 mod run;
 mod test;
@@ -13,6 +14,7 @@ use log::{warn, LevelFilter};
 use repl::repl;
 use run::run;
 use test::test;
+use crate::format::{format, FormatArgs};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -35,6 +37,7 @@ pub enum Commands {
     Ast(AstArgs),
     Run(RunArgs),
     Repl(ReplArgs),
+    Fmt(FormatArgs),
     // Debug(DebugArgs),
     Test(TestArgs),
 }
@@ -69,6 +72,7 @@ fn main() {
                 Commands::Repl(args) => repl(args),
                 Commands::Test(args) => test(args),
                 // Commands::Debug(args) => debug(args),
+                Commands::Fmt(args) => format(args)
             }
         }
     }
