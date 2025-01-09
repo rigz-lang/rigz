@@ -60,7 +60,6 @@ macro_rules! test_parse_invalid {
 
 pub mod invalid {
     use super::*;
-    use wasm_bindgen_test::*;
 
     test_parse_invalid!(
         invalid_bin_exp "1 +",
@@ -77,7 +76,6 @@ pub mod invalid {
 
 pub mod valid {
     use super::*;
-    use wasm_bindgen_test::*;
 
     test_parse_valid!(
         do_one_line "do = 1 + 2",

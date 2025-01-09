@@ -184,7 +184,7 @@ impl Number {
 }
 
 #[cfg(test)]
-pub mod tests {
+pub mod number_tests {
     use crate::Number;
     use wasm_bindgen_test::*;
 

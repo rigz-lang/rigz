@@ -367,7 +367,7 @@ impl<'vm> VM<'vm> {
 }
 
 #[cfg(test)]
-pub mod tests {
+pub mod vm_tests {
     use crate::builder::RigzBuilder;
     use crate::vm::VM;
     use crate::{VMBuilder, Value};

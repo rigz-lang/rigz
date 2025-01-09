@@ -646,7 +646,7 @@ impl PartialEq for Value {
 }
 
 #[cfg(test)]
-pub mod tests {
+pub mod value_tests {
     use crate::{Number, Value};
     use wasm_bindgen_test::*;
 
