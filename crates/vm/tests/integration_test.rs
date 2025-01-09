@@ -184,106 +184,97 @@ mod vm_test {
 
     #[test]
     fn multi_mut_scope() {
-        let mut vm = VM {
-            scopes: vec![
-                Scope {
-                    instructions: vec![
-                        Instruction::Load(2.into()),
-                        Instruction::LoadMut("a"),
-                        Instruction::GetMutableVariable("a"),
-                        Instruction::Call(1),
-                        Instruction::Call(1),
-                        Instruction::Call(1),
-                        Instruction::GetMutableVariable("a"),
-                        Instruction::Halt,
-                    ],
-                    ..Default::default()
-                },
-                Scope {
-                    instructions: vec![
-                        Instruction::GetMutableVariable("self"),
-                        Instruction::Load(3.into()),
-                        Instruction::BinaryAssign(BinaryOperation::Mul),
-                        Instruction::GetMutableVariable("self"),
-                        Instruction::Ret,
-                    ],
-                    set_self: Some(true),
-                    ..Default::default()
-                },
-            ],
-            ..Default::default()
-        };
+        let mut vm = VM::from_scopes(vec![
+            Scope {
+                instructions: vec![
+                    Instruction::Load(2.into()),
+                    Instruction::LoadMut("a"),
+                    Instruction::GetMutableVariable("a"),
+                    Instruction::Call(1),
+                    Instruction::Call(1),
+                    Instruction::Call(1),
+                    Instruction::GetMutableVariable("a"),
+                    Instruction::Halt,
+                ],
+                ..Default::default()
+            },
+            Scope {
+                instructions: vec![
+                    Instruction::GetMutableVariable("self"),
+                    Instruction::Load(3.into()),
+                    Instruction::BinaryAssign(BinaryOperation::Mul),
+                    Instruction::GetMutableVariable("self"),
+                    Instruction::Ret,
+                ],
+                set_self: Some(true),
+                ..Default::default()
+            },
+        ]);
         assert_eq!(vm.run(), 54.into(), "Run Failed {vm:#?}");
     }
 
     #[test]
     fn multi_mut_scope_get_var_between() {
-        let mut vm = VM {
-            scopes: vec![
-                Scope {
-                    instructions: vec![
-                        Instruction::Load(4.2.into()),
-                        Instruction::LoadMut("f"),
-                        Instruction::GetMutableVariable("f"),
-                        Instruction::Call(1),
-                        Instruction::GetMutableVariable("f"),
-                        Instruction::Call(1),
-                        Instruction::GetMutableVariable("f"),
-                        Instruction::Call(1),
-                        Instruction::GetVariable("f"),
-                        Instruction::Halt,
-                    ],
-                    ..Default::default()
-                },
-                Scope {
-                    instructions: vec![
-                        Instruction::GetMutableVariable("self"),
-                        Instruction::Load(3.into()),
-                        Instruction::BinaryAssign(BinaryOperation::Mul),
-                        Instruction::GetMutableVariable("self"),
-                        Instruction::Ret,
-                    ],
-                    set_self: Some(true),
-                    ..Default::default()
-                },
-            ],
-            ..Default::default()
-        };
+        let mut vm = VM::from_scopes(vec![
+            Scope {
+                instructions: vec![
+                    Instruction::Load(4.2.into()),
+                    Instruction::LoadMut("f"),
+                    Instruction::GetMutableVariable("f"),
+                    Instruction::Call(1),
+                    Instruction::GetMutableVariable("f"),
+                    Instruction::Call(1),
+                    Instruction::GetMutableVariable("f"),
+                    Instruction::Call(1),
+                    Instruction::GetVariable("f"),
+                    Instruction::Halt,
+                ],
+                ..Default::default()
+            },
+            Scope {
+                instructions: vec![
+                    Instruction::GetMutableVariable("self"),
+                    Instruction::Load(3.into()),
+                    Instruction::BinaryAssign(BinaryOperation::Mul),
+                    Instruction::GetMutableVariable("self"),
+                    Instruction::Ret,
+                ],
+                set_self: Some(true),
+                ..Default::default()
+            },
+        ]);
         assert_eq!(vm.run(), 113.4.into(), "Run Failed {vm:#?}")
     }
 
     #[test]
     fn test_works() {
-        let mut vm = VM {
-            scopes: vec![
-                Scope {
-                    instructions: vec![Instruction::Call(2), Instruction::Halt],
-                    ..Default::default()
-                },
-                Scope {
-                    instructions: vec![Instruction::Load(42.into()), Instruction::Ret],
-                    ..Default::default()
-                },
-                Scope {
-                    instructions: vec![
-                        Instruction::Load(41.into()),
-                        Instruction::Call(1),
-                        Instruction::Load("".into()),
-                        Instruction::CallModule {
-                            module: "Std",
-                            func: "assert_eq",
-                            args: 3,
-                        },
-                        Instruction::Ret,
-                    ],
-                    named: "test",
-                    lifecycle: Some(Lifecycle::Test(TestLifecycle)),
-                    args: Vec::new(),
-                    set_self: None,
-                },
-            ],
-            ..Default::default()
-        };
+        let mut vm = VM::from_scopes(vec![
+            Scope {
+                instructions: vec![Instruction::Call(2), Instruction::Halt],
+                ..Default::default()
+            },
+            Scope {
+                instructions: vec![Instruction::Load(42.into()), Instruction::Ret],
+                ..Default::default()
+            },
+            Scope {
+                instructions: vec![
+                    Instruction::Load(41.into()),
+                    Instruction::Call(1),
+                    Instruction::Load("".into()),
+                    Instruction::CallModule {
+                        module: "Std",
+                        func: "assert_eq",
+                        args: 3,
+                    },
+                    Instruction::Ret,
+                ],
+                named: "test",
+                lifecycle: Some(Lifecycle::Test(TestLifecycle)),
+                args: Vec::new(),
+                set_self: None,
+            },
+        ]);
         assert_eq!(
             vm.test(),
             TestResults {

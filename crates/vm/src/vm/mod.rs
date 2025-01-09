@@ -33,7 +33,7 @@ pub struct VM<'vm> {
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
     pub constants: Vec<Value>,
-    pub processes: Vec<SpawnedProcess<'vm>>,
+    pub(crate) processes: Vec<SpawnedProcess<'vm>>,
 }
 
 impl<'vm> RigzBuilder<'vm> for VM<'vm> {
@@ -65,6 +65,13 @@ impl<'vm> VM<'vm> {
     #[inline]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn from_scopes(scopes: Vec<Scope<'vm>>) -> Self {
+        Self {
+            scopes,
+            ..Default::default()
+        }
     }
 
     pub fn process_ret(&mut self, ran: bool) -> VMState {
