@@ -39,6 +39,7 @@ pub struct VM<'vm> {
 impl<'vm> RigzBuilder<'vm> for VM<'vm> {
     generate_builder!();
 
+    #[inline]
     fn build(self) -> VM<'vm> {
         self
     }
@@ -67,6 +68,7 @@ impl<'vm> VM<'vm> {
         Self::default()
     }
 
+    #[inline]
     pub fn from_scopes(scopes: Vec<Scope<'vm>>) -> Self {
         Self {
             scopes,
