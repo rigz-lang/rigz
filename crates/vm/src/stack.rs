@@ -12,6 +12,11 @@ impl VMStack {
     }
 
     #[inline]
+    pub fn clear(&mut self) {
+        self.0.clear()
+    }
+
+    #[inline]
     pub fn pop(&mut self) -> Option<StackValue> {
         self.0.pop()
     }

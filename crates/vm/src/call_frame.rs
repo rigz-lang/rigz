@@ -28,6 +28,12 @@ impl<'vm> Index<usize> for Frames<'vm> {
 
 impl<'vm> Frames<'vm> {
     #[inline]
+    pub fn reset(&mut self) {
+        self.current = RefCell::new(CallFrame::main());
+        self.frames.clear();
+    }
+
+    #[inline]
     pub fn pop(&mut self) -> Option<RefCell<CallFrame<'vm>>> {
         self.frames.pop()
     }

@@ -1,7 +1,7 @@
 use clap::Args;
 
 #[derive(Args)]
-pub(crate) struct FormatArgs {
+pub struct FormatArgs {
 
 }
 

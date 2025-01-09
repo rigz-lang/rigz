@@ -334,6 +334,13 @@ impl<'vm> VM<'vm> {
         }
     }
 
+    /// All variables are reset and will need to be set again by calling `add_bindings`
+    pub fn reset(&mut self) {
+        self.sp = 0;
+        self.stack.clear();
+        self.frames.reset()
+    }
+
     /// Snapshots can't include modules or messages from in progress lifecycles
     pub fn snapshot(&self) -> Result<Vec<u8>, VMError> {
         let mut bytes = Vec::new();
