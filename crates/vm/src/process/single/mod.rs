@@ -39,22 +39,32 @@ impl<'vm> Process<'vm> {
     }
 
     pub fn close(self) -> Result<(), VMError> {
-        todo!()
+        Err(VMError::todo(
+            "`close` is not implemented for Single Threaded Process".to_string(),
+        ))
     }
 
     pub fn run(&self, args: Vec<Value>) {
-        todo!()
+        Err(VMError::todo(
+            "`run` is not implemented for Single Threaded Process".to_string(),
+        ))
     }
 
     pub fn start(&self) -> JoinHandle<Result<(), VMError>> {
-        todo!()
+        Err(VMError::todo(
+            "`start` is not implemented for Single Threaded Process".to_string(),
+        ))
     }
 
     pub fn receive(&self, timeout: Option<usize>) -> Value {
-        todo!()
+        Err(VMError::todo(
+            "`receive` is not implemented for Single Threaded Process".to_string(),
+        ))
     }
 
     pub fn send(&self, args: Vec<Value>) -> Result<(), VMError> {
-        todo!()
+        Err(VMError::todo(
+            "`send` is not implemented for Single Threaded Process".to_string(),
+        ))
     }
 }

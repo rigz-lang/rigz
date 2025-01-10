@@ -374,13 +374,6 @@ pub trait Runner<'vm>: ResolveValue {
                     return e.into();
                 }
             }
-            Instruction::CallMatching(possible) | Instruction::CallMatchingMemo(possible) => {
-                todo!("Support dynamic matching")
-            }
-            Instruction::CallMatchingSelf(possible)
-            | Instruction::CallMatchingSelfMemo(possible) => {
-                todo!("Support dynamic matching")
-            }
             Instruction::Call(scope) => {
                 if let Err(e) = self.call_frame(scope) {
                     return e.into();
@@ -682,6 +675,9 @@ pub trait Runner<'vm>: ResolveValue {
                 };
                 thread::sleep(duration);
                 self.store_value(Value::None.into());
+            }
+            ins => {
+                return VMError::todo(format!("Instruction is not supported yet {ins:?}")).into()
             }
         };
         VMState::Running

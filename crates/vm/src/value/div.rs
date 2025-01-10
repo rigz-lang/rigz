@@ -51,27 +51,9 @@ impl Div for &Value {
             }
             (Value::Tuple(a), b) => Value::Tuple(a.iter().map(|a| a / b).collect()),
             (b, Value::Tuple(a)) => Value::Tuple(a.iter().map(|a| b / a).collect()),
-            // (Value::List(a), Value::List(b)) => {
-            //     let mut result = a.clone();
-            //     result.extend(b);
-            //     Value::List(result)
-            // }
-            // (Value::List(a), b) => {
-            //     let mut result = a.clone();
-            //     result.push(b);
-            //     Value::List(result)
-            // }
-            // (Value::Map(a), Value::Map(b)) => {
-            //     let mut result = a.clone();
-            //     result.extend(b);
-            //     Value::Map(result)
-            // }
-            // (Value::Map(a), b) => {
-            //     let mut result = a.clone();
-            //     result.insert(b.clone(), b);
-            //     Value::Map(result)
-            // }
-            _ => todo!(),
+            (lhs, rhs) => {
+                VMError::UnsupportedOperation(format!("Not supported: {lhs} / {rhs}")).into()
+            }
         }
     }
 }

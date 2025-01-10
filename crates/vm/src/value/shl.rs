@@ -56,7 +56,9 @@ impl Shl for &Value {
             }
             (Value::Tuple(a), b) => Value::Tuple(a.iter().map(|a| a << b).collect()),
             (b, Value::Tuple(a)) => Value::Tuple(a.iter().map(|a| b << a).collect()),
-            _ => todo!(),
+            (lhs, rhs) => {
+                VMError::UnsupportedOperation(format!("Not supported: {lhs} << {rhs}")).into()
+            }
         }
     }
 }
