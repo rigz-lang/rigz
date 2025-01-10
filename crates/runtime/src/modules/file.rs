@@ -1,12 +1,12 @@
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
 
-derive_module!(
+derive_module! {
     r#"trait File
         fn read(path: String, encoding = "utf-8") -> String!
         fn write(path: String, contents: String, encoding = "utf-8") -> None!
     end"#
-);
+}
 
 use std::fs::{read_to_string, File};
 use std::io::Write;

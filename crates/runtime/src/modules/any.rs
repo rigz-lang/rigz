@@ -3,7 +3,7 @@ use rigz_ast_derive::derive_module;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-derive_module!(
+derive_module! {
     r#"
     import trait Any
         fn Any.clone -> Any
@@ -28,7 +28,7 @@ derive_module!(
         fn printf(template: String, var args) -> None
     end
 "#
-);
+}
 
 fn is_float(s: &str) -> bool {
     let mut float = false;

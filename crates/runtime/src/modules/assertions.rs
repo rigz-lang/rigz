@@ -1,7 +1,7 @@
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
 
-derive_module!(
+derive_module! {
     r#"
     import trait Assertions
         fn assert(condition: Bool, message = '') -> None!
@@ -9,7 +9,7 @@ derive_module!(
         fn assert_neq(lhs, rhs, message = '') -> None!
     end
 "#
-);
+}
 
 impl RigzAssertions for AssertionsModule {
     // todo support formatting message

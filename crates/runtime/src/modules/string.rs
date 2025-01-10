@@ -3,9 +3,8 @@ use rigz_ast_derive::derive_module;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-derive_module!(
-    r#"
-import trait String
+derive_module! {
+    r#"import trait String
     fn mut String.push(value)
     fn String.concat(value: String) -> String
     fn String.with(var value) -> String
@@ -13,7 +12,7 @@ import trait String
     fn String.split(pattern: String) -> [String]
     fn String.replace(pattern: String, value: String) -> String
 end"#
-);
+}
 
 impl RigzString for StringModule {
     fn mut_string_push(&self, this: &mut String, value: Value) {

@@ -3,7 +3,7 @@ use rigz_ast_derive::derive_module;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-derive_module!(
+derive_module! {
     r#"
 import trait Number
     fn Number.ceil -> Number
@@ -15,7 +15,7 @@ import trait Number
     fn float_from_bits(raw: List) -> Float
 end
 "#
-);
+}
 
 impl RigzNumber for NumberModule {
     fn number_ceil(&self, this: Number) -> Number {

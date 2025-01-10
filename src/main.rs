@@ -6,6 +6,7 @@ mod run;
 mod test;
 
 use crate::ast::{ast, AstArgs};
+use crate::format::{format, FormatArgs};
 use crate::repl::ReplArgs;
 use crate::run::RunArgs;
 use crate::test::TestArgs;
@@ -14,7 +15,6 @@ use log::{warn, LevelFilter};
 use repl::repl;
 use run::run;
 use test::test;
-use crate::format::{format, FormatArgs};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -72,7 +72,7 @@ fn main() {
                 Commands::Repl(args) => repl(args),
                 Commands::Test(args) => test(args),
                 // Commands::Debug(args) => debug(args),
-                Commands::Fmt(args) => format(args)
+                Commands::Fmt(args) => format(args),
             }
         }
     }

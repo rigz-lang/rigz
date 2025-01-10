@@ -3,7 +3,7 @@ use rigz_ast_derive::derive_module;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-derive_module!(
+derive_module! {
     r#"import trait Collections
         fn List.filter(func: |Any| -> Bool) -> List
             [for v in self: v if func v]
@@ -82,7 +82,7 @@ derive_module!(
         fn Map.keys -> List
         fn Map.values -> List
     end"#
-);
+}
 
 impl RigzCollections for CollectionsModule {
     fn mut_list_extend(&self, this: &mut Vec<Value>, value: Vec<Value>) {

@@ -22,6 +22,7 @@ pub use date::DateModule;
 pub use file::FileModule;
 pub use json::JSONModule;
 pub use log::LogModule;
+pub use math::MathModule;
 pub use number::NumberModule;
 pub use random::RandomModule;
 pub use string::StringModule;
@@ -42,5 +43,6 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         self.register_module(DateModule);
         self.register_module(UUIDModule);
         self.register_module(RandomModule);
+        self.register_module(MathModule);
     }
 }

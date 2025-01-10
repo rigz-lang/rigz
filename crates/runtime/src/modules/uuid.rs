@@ -2,14 +2,14 @@ use rigz_ast::*;
 use rigz_ast_derive::derive_module;
 use uuid::Uuid;
 
-derive_module!(
+derive_module! {
     r#"
 trait UUID
     fn v4 -> String
     fn from(input: String) -> String!
 end
 "#
-);
+}
 
 // todo once object exists use that instead of strings
 impl RigzUUID for UUIDModule {

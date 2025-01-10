@@ -3,12 +3,12 @@ use rigz_ast_derive::derive_module;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-derive_module!(
+derive_module! {
     r#"trait JSON
         fn Any.to_json -> String!
         fn parse(input: String) -> Any!
     end"#
-);
+}
 
 impl RigzJSON for JSONModule {
     #[inline]
