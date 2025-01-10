@@ -293,9 +293,8 @@ impl<'vm> Runner<'vm> for VM<'vm> {
         let m = self.modules.clone();
         let pid = self.processes.len();
         let p = Process::spawn(scope, options, m, timeout);
-        match p.send(vec![]) {
-            Ok(_) => {}
-            Err(e) => return Err(e),
+        if let Err(e) = p.send(vec![]) {
+            return Err(e)
         }
         self.processes.push(p);
         self.store_value(Number::Int(pid as i64).into());

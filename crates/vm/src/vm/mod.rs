@@ -132,9 +132,7 @@ impl<'vm> VM<'vm> {
 
     #[inline]
     fn next_instruction(&self) -> Option<Instruction<'vm>> {
-        let scope_id = self.sp;
-        // scope_id must be valid when this is called, otherwise function will panic
-        let scope = &self.scopes[scope_id];
+        let scope = &self.scopes[self.sp];
         let pc = self.frames.current.borrow().pc;
         self.frames.current.borrow_mut().pc += 1;
         scope.instructions.get(pc).cloned()
