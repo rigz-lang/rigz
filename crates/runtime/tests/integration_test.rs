@@ -469,6 +469,17 @@ pub mod runtime {
 
             a + a
             "# = 14)
+            scopes_run_once_in_fn(r#"
+            mut a = 1
+            bar = do
+                a += 1
+                21 * a
+            end
+
+            fn foo = bar
+
+            foo / foo
+            "# = 1)
             list_sum(r#"[1, 20, 21].sum"# = 42)
             puts_is_none("puts 1, 2, 3" = ())
             puts_assign("a = puts 1, 2, 3; a" = ())

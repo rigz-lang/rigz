@@ -111,16 +111,8 @@ macro_rules! runner_common {
         }
 
         #[inline]
-        fn parent_frame(&self) -> Option<&RefCell<CallFrame<'vm>>> {
-            match self.frames.current.borrow().parent {
-                None => None,
-                Some(f) => Some(&self.frames[f]),
-            }
-        }
-
-        #[inline]
         fn get_variable(&mut self, name: &'vm str) {
-            let r = self.frames.current.borrow().get_variable(name, self);
+            let r = self.frames.get_variable(name);
             let v = match r {
                 None => VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))
                     .into(),
@@ -131,12 +123,7 @@ macro_rules! runner_common {
 
         #[inline]
         fn get_mutable_variable(&mut self, name: &'vm str) {
-            let og = match self
-                .frames
-                .current
-                .borrow()
-                .get_mutable_variable(name, self)
-            {
+            let og = match self.frames.get_mutable_variable(name) {
                 Ok(None) => None,
                 Err(e) => Some(e.into()),
                 Ok(Some(original)) => Some(original),
@@ -155,7 +142,7 @@ macro_rules! runner_common {
 
         #[inline]
         fn get_variable_reference(&mut self, name: &'vm str) {
-            let r = self.frames.current.borrow().get_variable(name, self);
+            let r = self.frames.get_variable(name);
             let v = match r {
                 None => VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))
                     .into(),
@@ -231,8 +218,6 @@ pub trait Runner<'vm>: ResolveValue {
     fn next_value<T: Display>(&mut self, location: T) -> StackValue;
 
     fn options(&self) -> &VMOptions;
-
-    fn parent_frame(&self) -> Option<&RefCell<CallFrame<'vm>>>;
 
     fn update_scope<F>(&mut self, index: usize, update: F) -> Result<(), VMError>
     where

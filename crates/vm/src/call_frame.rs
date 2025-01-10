@@ -1,4 +1,4 @@
-use crate::{Runner, StackValue, VMError};
+use crate::{StackValue, VMError};
 use indexmap::map::Entry;
 use indexmap::IndexMap;
 use log_derive::{logfn, logfn_inputs};
@@ -65,6 +65,18 @@ impl<'vm> Frames<'vm> {
         Ok(())
     }
 
+    #[logfn(Trace)]
+    #[logfn_inputs(Trace, fmt = "get_variable(frames={:#p} name={})")]
+    pub fn get_variable(&self, name: &'vm str) -> Option<StackValue> {
+        self.current.borrow().get_variable(name, self)
+    }
+
+    #[logfn(Trace)]
+    #[logfn_inputs(Trace, fmt = "get_mutable_variable(frames={:#p} name={})")]
+    pub fn get_mutable_variable(&self, name: &'vm str) -> Result<Option<StackValue>, VMError> {
+        self.current.borrow().get_mutable_variable(name, self)
+    }
+
     #[inline]
     #[logfn_inputs(Trace, fmt = "load_mut(frames={:#?} name={}, value={:?})")]
     pub fn load_mut(&self, name: &'vm str, value: StackValue) -> Result<(), VMError> {
@@ -107,17 +119,11 @@ pub struct CallFrame<'vm> {
 }
 
 impl<'vm> CallFrame<'vm> {
-    #[logfn(Trace)]
-    #[logfn_inputs(Trace, fmt = "get_variable(frame={:#p} name={}, vm={:#p})")]
-    pub(crate) fn get_variable<T: Runner<'vm>>(
-        &self,
-        name: &'vm str,
-        vm: &T,
-    ) -> Option<StackValue> {
+    fn get_variable(&self, name: &'vm str, frames: &Frames<'vm>) -> Option<StackValue> {
         match self.variables.get(name) {
-            None => match vm.parent_frame() {
+            None => match self.parent {
                 None => None,
-                Some(parent) => parent.borrow().get_variable(name, vm),
+                Some(parent) => frames[parent].borrow().get_variable(name, frames),
             },
             Some(v) => match v {
                 Variable::Let(v) => Some(v.clone()),
@@ -126,17 +132,15 @@ impl<'vm> CallFrame<'vm> {
         }
     }
 
-    #[logfn(Trace)]
-    #[logfn_inputs(Trace, fmt = "get_mutable_variable(frame={:#p} name={}, vm={:#p})")]
-    pub(crate) fn get_mutable_variable<T: Runner<'vm>>(
+    fn get_mutable_variable(
         &self,
         name: &'vm str,
-        vm: &T,
+        frames: &Frames<'vm>,
     ) -> Result<Option<StackValue>, VMError> {
         match self.variables.get(name) {
-            None => match vm.parent_frame() {
+            None => match self.parent {
                 None => Ok(None),
-                Some(parent) => parent.borrow().get_mutable_variable(name, vm),
+                Some(parent) => frames[parent].borrow().get_mutable_variable(name, frames),
             },
             Some(v) => match v {
                 Variable::Let(_) => Err(VMError::VariableDoesNotExist(format!(

@@ -31,10 +31,6 @@ impl SpawnedProcess<'_> {
         }
     }
 
-    pub fn start(&self) -> JoinHandle<Result<(), VMError>> {
-        self.0.start()
-    }
-
     pub fn receive(&self, timeout: Option<usize>) -> Value {
         self.0.receive(timeout)
     }

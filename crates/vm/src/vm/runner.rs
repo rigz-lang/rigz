@@ -4,7 +4,6 @@ use crate::{
 };
 use itertools::Itertools;
 use log_derive::{logfn, logfn_inputs};
-use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Deref;
 
@@ -293,9 +292,7 @@ impl<'vm> Runner<'vm> for VM<'vm> {
         let m = self.modules.clone();
         let pid = self.processes.len();
         let p = Process::spawn(scope, options, m, timeout);
-        if let Err(e) = p.send(vec![]) {
-            return Err(e)
-        }
+        p.send(vec![])?;
         self.processes.push(p);
         self.store_value(Number::Int(pid as i64).into());
         Ok(())
