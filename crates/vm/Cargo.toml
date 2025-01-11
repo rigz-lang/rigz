@@ -20,7 +20,7 @@ dashmap = { version = "6.1.0", optional = true, features = ["inline"] }
 dyn-clone = "1.0.17"
 indexmap = { version = "2.7.0", features = ["serde"] }
 itertools = "0.14.0"
-log = "0.4.22"
+log.workspace = true
 log-derive = "0.4.1"
 quote = { version = "1", optional = true }
 proc-macro2 = { version = "1.0", optional = true }

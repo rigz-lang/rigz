@@ -20,7 +20,7 @@ members = [
 debug = true
 
 [workspace.dependencies]
-log = { version = "0.4.22", features = [] }
+log = { version = "0.4", features = [] }
 rigz_vm = {version = "0.36", path = "crates/vm", default-features = false}
 rigz_ast = {version = "0.5", path = "crates/ast", default-features = false }
 rigz_ast_derive = {version = "0.5", path = "crates/ast_derive"}
