@@ -1,8 +1,7 @@
 use crate::{StackValue, VMError};
-use derive_more::IntoIterator;
 use std::fmt::Display;
 
-#[derive(Debug, Default, IntoIterator)]
+#[derive(Debug, Default)]
 pub struct VMStack(Vec<StackValue>);
 
 impl VMStack {

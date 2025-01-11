@@ -1,12 +1,11 @@
 use crate::{VMError, Value, VM};
-use derive_more::IntoIterator;
 use dyn_clone::DynClone;
 use std::cell::RefCell;
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
 use std::rc::Rc;
 
-#[derive(Clone, IntoIterator)]
+#[derive(Clone)]
 pub struct RigzArgs(pub Vec<Rc<RefCell<Value>>>);
 
 impl Debug for RigzArgs {

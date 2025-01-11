@@ -7,7 +7,6 @@ use crate::lifecycle::{Lifecycle, TestResults};
 use crate::process::{ModulesMap, Process, SpawnedProcess};
 use crate::{generate_builder, CallFrame, Instruction, Runner, Scope, VMStack, Variable};
 use crate::{handle_js, out, outln, Module, RigzBuilder, VMError, Value};
-use derive_more::IntoIterator;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
