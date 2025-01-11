@@ -100,26 +100,6 @@ impl<'vm> Runner<'vm> for ProcessRunner<'_, 'vm> {
         Err(VMError::todo("Process does not implement `call`"))
     }
 
-    fn call_extension(
-        &mut self,
-        module: ResolvedModule<'vm>,
-        func: &'vm str,
-        args: usize,
-    ) -> Result<Value, VMError> {
-        Err(VMError::todo("Process does not implement `call_extension`"))
-    }
-
-    fn call_mutable_extension(
-        &mut self,
-        module: ResolvedModule<'vm>,
-        func: &'vm str,
-        args: usize,
-    ) -> Result<Option<Value>, VMError> {
-        Err(VMError::todo(
-            "Process does not implement `call_mutable_extension`",
-        ))
-    }
-
     fn vm_extension(
         &mut self,
         module: ResolvedModule<'vm>,

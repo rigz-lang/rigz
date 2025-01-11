@@ -150,6 +150,31 @@ macro_rules! runner_common {
             };
             self.store_value(v);
         }
+
+        #[inline]
+        fn call_extension(
+            &mut self,
+            module: ResolvedModule<'vm>,
+            func: &'vm str,
+            args: usize,
+        ) -> Result<Value, VMError> {
+            let this = self.next_resolved_value("call_extension");
+            let args = self.resolve_args(args).into();
+            module.call_extension(this, func, args)
+        }
+
+        #[inline]
+        fn call_mutable_extension(
+            &mut self,
+            module: ResolvedModule<'vm>,
+            func: &'vm str,
+            args: usize,
+        ) -> Result<Option<Value>, VMError> {
+            let this = self.next_resolved_value("call_extension");
+            let args = self.resolve_args(args).into();
+            module.call_mutable_extension(this, func, args)
+        }
+
     };
 }
 

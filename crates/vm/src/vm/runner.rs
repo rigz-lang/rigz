@@ -302,28 +302,6 @@ impl<'vm> Runner<'vm> for VM<'vm> {
         module.call(func, args)
     }
 
-    fn call_extension(
-        &mut self,
-        module: ResolvedModule<'vm>,
-        func: &'vm str,
-        args: usize,
-    ) -> Result<Value, VMError> {
-        let this = self.next_resolved_value("call_extension");
-        let args = self.resolve_args(args).into();
-        module.call_extension(this, func, args)
-    }
-
-    fn call_mutable_extension(
-        &mut self,
-        module: ResolvedModule<'vm>,
-        func: &'vm str,
-        args: usize,
-    ) -> Result<Option<Value>, VMError> {
-        let this = self.next_resolved_value("call_extension");
-        let args = self.resolve_args(args).into();
-        module.call_mutable_extension(this, func, args)
-    }
-
     fn vm_extension(
         &mut self,
         module: ResolvedModule<'vm>,
