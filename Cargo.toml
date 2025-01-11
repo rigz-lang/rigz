@@ -20,7 +20,9 @@ members = [
 debug = true
 
 [workspace.dependencies]
+itertools = "0.14.0"
 log = { version = "0.4", features = [] }
+rand = { version = "0.8.5" }
 rigz_vm = {version = "0.36.1", path = "crates/vm" }
 rigz_ast = {version = "0.5", path = "crates/ast" }
 rigz_ast_derive = {version = "0.5", path = "crates/ast_derive"}
@@ -30,10 +32,11 @@ web-sys = { version = "0.3.76" }
 
 [features]
 default = []
-js = ["rigz_vm/js", "rigz_ast/js", "rigz_runtime/js"]
+js = ["dep:getrandom", "rigz_vm/js", "rigz_ast/js", "rigz_runtime/js"]
 
 [dependencies]
 clap = {version = "4.5.15", features = ["env", "derive"]}
+getrandom = { version = "0.2.15", optional = true, features = ["js"]}
 pretty_env_logger = "0.5.0"
 log.workspace = true
 rigz_vm.workspace = true

@@ -1,5 +1,7 @@
 # rigz
 
+## Rust Minimum Version: 1.84
+
 ## Installation
 `cargo install rigz`
 

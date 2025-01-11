@@ -19,7 +19,7 @@ crossbeam = { version = "0.8.4", optional = true }
 dashmap = { version = "6.1.0", optional = true, features = ["inline"] }
 dyn-clone = "1.0.17"
 indexmap = { version = "2.7.0", features = ["serde"] }
-itertools = "0.14.0"
+itertools.workspace = true
 log.workspace = true
 log-derive = "0.4.1"
 quote = { version = "1", optional = true }

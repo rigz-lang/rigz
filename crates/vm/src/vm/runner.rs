@@ -226,10 +226,7 @@ impl<'vm> Runner<'vm> for VM<'vm> {
             Value::List(val) => {
                 let mut res = Vec::with_capacity(val.len());
                 for v in val {
-                    let pid = match v.to_usize() {
-                        Ok(u) => u,
-                        Err(e) => return Err(e),
-                    };
+                    let pid = v.to_usize()?;
                     let r = match self.processes.get(pid) {
                         None => {
                             VMError::RuntimeError(format!("Process {pid} does not exist")).into()
@@ -241,10 +238,7 @@ impl<'vm> Runner<'vm> for VM<'vm> {
                 res.into()
             }
             _ => {
-                let pid = match v.to_usize() {
-                    Ok(u) => u,
-                    Err(e) => return Err(e),
-                };
+                let pid = v.to_usize()?;
                 match self.processes.get(pid) {
                     None => VMError::RuntimeError(format!("Process {pid} does not exist")).into(),
                     Some(p) => p.receive(timeout),

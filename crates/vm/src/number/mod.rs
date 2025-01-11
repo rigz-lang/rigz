@@ -132,6 +132,125 @@ impl Number {
     }
 
     #[inline]
+    pub fn logn(self, other: Self) -> Result<Self, VMError> {
+        match other {
+            Number::Int(e) => {
+                match self {
+                    Number::Int(i) if i <= 0 || e < 2 => Err(VMError::UnsupportedOperation(format!("Cannot take log({e}) of {i}, convert to float"))),
+                    Number::Int(i) => Ok(i.ilog(e).into()),
+                    Number::Float(f) => Ok(f.log(e as f64).into())
+                }
+            }
+            Number::Float(n) => {
+                Ok(self.to_float().log(n).into())
+            }
+        }
+    }
+
+    #[inline]
+    pub fn log2(self) -> Result<Self, VMError> {
+        match self {
+            Number::Int(i) if i <= 0 => Err(VMError::UnsupportedOperation(format!("Cannot take log2 of {i}, convert to float"))),
+            Number::Int(i) => Ok(i.ilog2().into()),
+            Number::Float(f) => Ok(f.log2().into())
+        }
+    }
+
+    #[inline]
+    pub fn log10(self) -> Result<Self, VMError> {
+        match self {
+            Number::Int(i) if i <= 0 => Err(VMError::UnsupportedOperation(format!("Cannot take log10 of {i}, convert to float"))),
+            Number::Int(i) => Ok(i.ilog10().into()),
+            Number::Float(f) => Ok(f.log10().into())
+        }
+    }
+
+    #[inline]
+    pub fn max(self, other: Self) -> Self {
+        match (self, other) {
+            (Number::Int(a), Number::Int(b)) => {
+                a.max(b).into()
+            }
+            (Number::Float(a), Number::Float(b)) => {
+                a.max(b).into()
+            }
+            (Number::Int(a), Number::Float(b)) | (Number::Float(b), Number::Int(a))=> {
+                (a as f64).max(b).into()
+            }
+        }
+    }
+
+    #[inline]
+    pub fn min(self, other: Self) -> Self {
+        match (self, other) {
+            (Number::Int(a), Number::Int(b)) => {
+                a.min(b).into()
+            }
+            (Number::Float(a), Number::Float(b)) => {
+                a.min(b).into()
+            }
+            (Number::Int(a), Number::Float(b)) | (Number::Float(b), Number::Int(a))=> {
+                (a as f64).min(b).into()
+            }
+        }
+    }
+
+    #[inline]
+    pub fn sqrt(self) -> Result<Self, VMError> {
+        let v = match self {
+            Number::Int(i) => {
+                if i.is_negative() {
+                    return Err(VMError::UnsupportedOperation(format!("cannot take sqrt of negative number {i}")));
+                }
+                i.isqrt().into()
+            },
+            Number::Float(f) => f.sqrt().into()
+        };
+        Ok(v)
+    }
+
+    #[inline]
+    pub fn pow(self, e: Self) -> Result<Self, VMError> {
+        let v = match self {
+            Number::Int(i) => {
+                match e {
+                    Number::Int(e) => {
+                        if e.is_negative() {
+                            if e < i32::MIN as i64 {
+                                return Err(VMError::UnsupportedOperation(format!("Cannot perform {i} ^ {e}, exponent is smaller than {}", i32::MIN)))
+                            }
+                            (i as f64).powi(e as i32).into()
+                        } else {
+                            if e > u32::MAX as i64 {
+                                return Err(VMError::UnsupportedOperation(format!("Cannot perform {i} ^ {e}, exponent is larger than {}", u32::MAX)))
+                            }
+                            i.pow(e as u32).into()
+                        }
+                    }
+                    Number::Float(e) => {
+                        (i as f64).powf(e).into()
+                    }
+                }
+            },
+            Number::Float(f) => {
+                match e {
+                    Number::Int(e) => {
+                        if e < i32::MIN as i64 {
+                            return Err(VMError::UnsupportedOperation(format!("Cannot perform {f} ^ {e}, exponent is smaller than {}", i32::MIN)))
+                        }
+                        if e > i32::MAX as i64 {
+                            return Err(VMError::UnsupportedOperation(format!("Cannot perform {f} ^ {e}, exponent is larger than {}", i32::MAX)))
+                        }
+                        f.powi(e as i32).into()
+                    },
+                    Number::Float(e) => f.powf(e).into()
+                }
+            }
+        };
+        Ok(v)
+    }
+
+    #[inline]
     pub fn to_float(self) -> f64 {
         match self {
             Number::Int(i) => i as f64,

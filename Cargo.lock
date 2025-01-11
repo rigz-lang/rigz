@@ -1435,6 +1435,7 @@ dependencies = [
  "chrono",
  "clap",
  "crossterm",
+ "getrandom",
  "log",
  "pretty_env_logger",
  "ratatui",
@@ -1486,7 +1487,7 @@ version = "0.5.1"
 dependencies = [
  "chrono",
  "criterion",
- "getrandom",
+ "itertools 0.14.0",
  "log",
  "pretty_env_logger",
  "rand",

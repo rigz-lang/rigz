@@ -2,6 +2,7 @@ use rigz_ast::*;
 use rigz_ast_derive::derive_module;
 use std::cell::RefCell;
 use std::rc::Rc;
+use itertools::Itertools;
 
 derive_module! {
     r#"
@@ -143,7 +144,7 @@ impl RigzAny for AnyModule {
     }
 
     fn print(&self, args: Vec<Value>) {
-        let s = args.iter().map(|a| a.to_string()).join();
+        let s = args.iter().map(|a| a.to_string()).join("");
         out!("{s}")
     }
 

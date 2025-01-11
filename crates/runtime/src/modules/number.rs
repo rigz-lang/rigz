@@ -10,6 +10,9 @@ import trait Number
     fn Number.round -> Number
     fn Number.trunc -> Number
 
+    fn Number.min(other: Number) -> Number
+    fn Number.max(other: Number) -> Number
+
     fn Number.to_bits -> List
     fn int_from_bits(raw: List) -> Int
     fn float_from_bits(raw: List) -> Float
@@ -37,6 +40,14 @@ impl RigzNumber for NumberModule {
             Number::Int(_) => this,
             Number::Float(f) => (f.trunc() as i64).into(),
         }
+    }
+
+    fn number_min(&self, this: Number, other: Number) -> Number {
+        this.min(other)
+    }
+
+    fn number_max(&self, this: Number, other: Number) -> Number {
+        this.max(other)
     }
 
     fn number_to_bits(&self, this: Number) -> Vec<Value> {

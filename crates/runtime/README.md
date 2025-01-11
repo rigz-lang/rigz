@@ -1,4 +1,5 @@
 # rigz_runtime
+## Rust Minimum Version: 1.84
 
 Handles parsing and converting rigz to its VM instructions.
 
