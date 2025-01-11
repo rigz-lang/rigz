@@ -1430,7 +1430,7 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
 name = "rigz"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "chrono",
  "clap",
@@ -1448,7 +1448,7 @@ dependencies = [
 
 [[package]]
 name = "rigz_ast"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "logos",
  "proc-macro2",
@@ -1459,7 +1459,7 @@ dependencies = [
 
 [[package]]
 name = "rigz_ast_derive"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1482,7 +1482,7 @@ dependencies = [
 
 [[package]]
 name = "rigz_runtime"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "chrono",
  "criterion",
@@ -1499,7 +1499,7 @@ dependencies = [
 
 [[package]]
 name = "rigz_vm"
-version = "0.36.0"
+version = "0.36.1"
 dependencies = [
  "criterion",
  "crossbeam",

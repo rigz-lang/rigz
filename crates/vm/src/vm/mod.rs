@@ -6,7 +6,7 @@ use crate::call_frame::Frames;
 use crate::lifecycle::{Lifecycle, TestResults};
 use crate::process::{ModulesMap, Process, SpawnedProcess};
 use crate::{generate_builder, CallFrame, Instruction, Runner, Scope, VMStack, Variable};
-use crate::{handle_js, out, outln, Module, RigzBuilder, VMError, Value};
+use crate::{handle_js, out, Module, RigzBuilder, VMError, Value};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -297,12 +297,18 @@ impl<'vm> VM<'vm> {
             let v = self.eval();
             match v {
                 Err(e) => {
-                    outln!("\x1b[31mFAILED\x1b[0m");
+                    #[cfg(not(feature = "js"))]
+                    println!("\x1b[31mFAILED\x1b[0m");
+                    #[cfg(feature = "js")]
+                    web_sys::console::log_2(&"%c FAILED".into(), &"color: red".into());
                     failed += 1;
                     failure_messages.push((named.to_string(), e));
                 }
                 Ok(_) => {
-                    outln!("\x1b[32mok\x1b[0m");
+                    #[cfg(not(feature = "js"))]
+                    println!("\x1b[32mok\x1b[0m");
+                    #[cfg(feature = "js")]
+                    web_sys::console::log_2(&"%c ok".into(), &"color: green".into());
                     passed += 1;
                 }
             };

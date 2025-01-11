@@ -59,13 +59,22 @@ impl Display for TestResults {
         let success = self.failed == 0;
 
         let preamble = if success {
-            "test result: \x1b[32mok\x1b[0m".to_string()
+            if cfg!(feature = "js") {
+                "test result: ok".to_string()
+            } else {
+                "test result: \x1b[32mok\x1b[0m".to_string()
+            }
         } else {
             let mut result = "\nfailures:\n".to_string();
             for (name, reason) in &self.failure_messages {
                 result.push_str(format!("\t{name}: {reason}\n").as_str())
             }
-            result.push_str("\ntest result: \x1b[31mFAILED\x1b[0m");
+            let res = if cfg!(feature = "js") {
+                "\ntest result: FAILED"
+            } else {
+                "\ntest result: \x1b[31mFAILED\x1b[0m"
+            };
+            result.push_str(res);
             result
         };
 

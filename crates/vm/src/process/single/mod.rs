@@ -45,9 +45,7 @@ impl<'vm> Process<'vm> {
     }
 
     pub fn receive(&self, timeout: Option<usize>) -> Value {
-        VMError::todo(
-            "`receive` is not implemented for Single Threaded Process".to_string(),
-        ).into()
+        VMError::todo("`receive` is not implemented for Single Threaded Process".to_string()).into()
     }
 
     pub fn send(&self, args: Vec<Value>) -> Result<(), VMError> {

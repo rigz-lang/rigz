@@ -25,6 +25,7 @@ derive_module! {
         fn Any.get(index) -> Any!?
 
         fn format(template: String, var args) -> String
+        fn print(var args) -> None
         fn printf(template: String, var args) -> None
     end
 "#
@@ -141,7 +142,12 @@ impl RigzAny for AnyModule {
         res
     }
 
+    fn print(&self, args: Vec<Value>) {
+        let s = args.iter().map(|a| a.to_string()).join();
+        out!("{s}")
+    }
+
     fn printf(&self, template: String, args: Vec<Value>) {
-        println!("{}", self.format(template, args))
+        outln!("{}", self.format(template, args))
     }
 }

@@ -494,15 +494,10 @@ pub trait Runner<'vm>: ResolveValue {
                     outln!();
                 } else {
                     let args = self.resolve_args(args);
-                    let mut puts = String::new();
-                    let len = args.len() - 1;
-                    for (index, arg) in args.into_iter().enumerate() {
-                        puts.push_str(arg.borrow().to_string().as_str());
-                        if index < len {
-                            puts.push_str(", ");
-                        }
+                    for arg in args {
+                        let s = arg.borrow().to_string();
+                        outln!("{}", s);
                     }
-                    outln!("{}", puts);
                 }
                 self.store_value(Value::None.into());
             }

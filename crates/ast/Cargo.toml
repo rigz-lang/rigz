@@ -1,6 +1,6 @@
 [package]
 name = "rigz_ast"
-version = "0.5.0"
+version = "0.5.1"
 description = "AST parser for the rigz programming language"
 edition = "2021"
 readme = "README.md"
