@@ -247,7 +247,7 @@ impl<'vm> VM<'vm> {
         let now = std::time::Instant::now();
         #[cfg(feature = "js")]
         let now = web_time::Instant::now();
-        let run = || loop {
+        let mut run = || loop {
             let elapsed = now.elapsed();
             if elapsed > duration {
                 return VMError::TimeoutError(format!(
@@ -262,11 +262,10 @@ impl<'vm> VM<'vm> {
                 Some(v) => return v,
             }
         };
-        let v = run();
+        run()
         // todo need a way to capture in progress processes so they can be resumed
         // close_processes removes all spawned processes
         // self.close_processes(v)
-        v
     }
 
     pub fn test(&mut self) -> TestResults {

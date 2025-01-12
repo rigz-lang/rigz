@@ -188,7 +188,7 @@ pub enum FunctionExpression<'lex> {
 }
 
 impl<'lex> FunctionExpression<'lex> {
-    pub(crate) fn prepend(self, expression: Expression<'lex>) -> Self {
+    pub fn prepend(self, expression: Expression<'lex>) -> Self {
         match self {
             FunctionExpression::FunctionCall(n, args) => {
                 FunctionExpression::FunctionCall(n, args.prepend(expression))

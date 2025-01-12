@@ -38,8 +38,8 @@ impl Program<'_> {
                 "Invalid Program, no elements".to_string(),
             )),
             Some(e) => match e {
-                Element::Statement(s) => Err(ValidationError::MissingExpression(
-                    format!("Invalid Program, must end with expression, received statement {s:?}",
+                Element::Statement(s) => Err(ValidationError::MissingExpression(format!(
+                    "Invalid Program, must end with expression, received statement {s:?}",
                 ))),
                 Element::Expression(_) => Ok(()),
             },

@@ -384,7 +384,131 @@ impl<'lex> Parser<'lex> {
             }
             Some(_) => {}
         }
-        Ok(ele)
+
+        self.parse_element_suffix(ele)
+    }
+
+    fn parse_element_suffix(
+        &mut self,
+        element: Element<'lex>,
+    ) -> Result<Element<'lex>, ParsingError> {
+        let next = self.peek_token();
+        match next {
+            None => Ok(element),
+            Some(t) => {
+                let (exp, assn) = match element {
+                    Element::Statement(s) => match s {
+                        Statement::Assignment { lhs, expression } => {
+                            (expression, Some((lhs, None)))
+                        }
+                        Statement::BinaryAssignment {
+                            lhs,
+                            op,
+                            expression,
+                        } => (expression, Some((lhs, Some(op)))),
+                        s => return Ok(Element::Statement(s)),
+                    },
+                    Element::Expression(e) => (e, None),
+                };
+                match t.kind {
+                    TokenKind::Newline | TokenKind::Into => {
+                        let mut new_lines = 0;
+                        for t in &self.tokens {
+                            match t.kind {
+                                TokenKind::Into => break,
+                                TokenKind::Newline => {
+                                    new_lines += 1;
+                                }
+                                _ => {
+                                    let el = match assn {
+                                        None => Element::Expression(exp),
+                                        Some((assn, op)) => match op {
+                                            None => Statement::Assignment {
+                                                lhs: assn,
+                                                expression: exp,
+                                            }
+                                            .into(),
+                                            Some(op) => Statement::BinaryAssignment {
+                                                lhs: assn,
+                                                op,
+                                                expression: exp,
+                                            }
+                                            .into(),
+                                        },
+                                    };
+                                    return Ok(el);
+                                }
+                            }
+                        }
+                        for _ in 0..new_lines {
+                            self.consume_token(TokenKind::Newline)?;
+                        }
+                        self.consume_token(TokenKind::Into)?;
+                        let fe = self.parse_expression()?;
+
+                        let fe = match fe {
+                            Expression::Function(fe) => fe,
+                            Expression::Identifier(id) => FunctionExpression::FunctionCall(
+                                id,
+                                RigzArguments::Positional(vec![]),
+                            ),
+                            _ => {
+                                return Err(ParsingError::ParseError(format!(
+                                    "Invalid expression after {t:?}, {fe:?} a Function is required"
+                                )));
+                            }
+                        };
+                        let mut exp = Expression::Into {
+                            base: exp.into(),
+                            next: fe,
+                        };
+
+                        loop {
+                            let t = self.peek_token();
+                            match t {
+                                None => break,
+                                Some(t) if t.kind == TokenKind::Newline => {
+                                    self.consume_token(TokenKind::Newline)?;
+                                }
+                                Some(t) if t.kind == TokenKind::Into => {
+                                    self.consume_token(TokenKind::Into)?;
+                                    let fe = self.parse_expression()?;
+                                    let Expression::Function(fe) = fe else {
+                                        return Err(ParsingError::ParseError(format!("Invalid expression after {t:?}, {fe:?} a Function call is required")));
+                                    };
+
+                                    exp = Expression::Into {
+                                        base: exp.into(),
+                                        next: fe,
+                                    };
+                                }
+                                Some(_) => break,
+                            }
+                        }
+                        Ok(exp.into())
+                    }
+                    _ => {
+                        let el = match assn {
+                            None => Element::Expression(exp),
+                            Some((assn, op)) => match op {
+                                None => Statement::Assignment {
+                                    lhs: assn,
+                                    expression: exp,
+                                }
+                                .into(),
+                                Some(op) => Statement::BinaryAssignment {
+                                    lhs: assn,
+                                    op,
+                                    expression: exp,
+                                }
+                                .into(),
+                            },
+                        };
+                        Ok(el)
+                    }
+                }
+            }
+        }
     }
 
     fn parse_lifecycle(&mut self, lifecycle: &'lex str) -> Result<Lifecycle, ParsingError> {
@@ -595,6 +719,7 @@ impl<'lex> Parser<'lex> {
         &mut self,
         exp: Expression<'lex>,
     ) -> Result<Expression<'lex>, ParsingError> {
+        // todo should other suffix tokens be allowed to have leading newlines?
         match self.peek_token() {
             None => Ok(exp),
             Some(t) if t.kind == TokenKind::Semi => {
@@ -651,59 +776,6 @@ impl<'lex> Parser<'lex> {
                         }
                     }
                     Ok(base)
-                }
-                TokenKind::Newline | TokenKind::Into => {
-                    let mut new_lines = 0;
-                    // todo should other suffix tokens be allowed to have leading newlines?
-                    for t in &self.tokens {
-                        match t.kind {
-                            TokenKind::Into => break,
-                            TokenKind::Newline => {
-                                new_lines += 1;
-                            }
-                            _ => return Ok(exp),
-                        }
-                    }
-                    for _ in 0..new_lines {
-                        self.consume_token(TokenKind::Newline)?;
-                    }
-                    self.consume_token(TokenKind::Into)?;
-                    let fe = self.parse_expression()?;
-                    let mut exp = match fe {
-                        Expression::Function(fe) => fe.prepend(exp).into(),
-                        Expression::Identifier(id) => {
-                            Expression::Function(FunctionExpression::FunctionCall(
-                                id,
-                                RigzArguments::Positional(vec![exp]),
-                            ))
-                        }
-                        _ => {
-                            return Err(ParsingError::ParseError(format!(
-                                "Invalid expression after {t:?}, {fe:?} a Function call is required"
-                            )));
-                        }
-                    };
-
-                    loop {
-                        let t = self.peek_token();
-                        match t {
-                            None => break,
-                            Some(t) if t.kind == TokenKind::Newline => {
-                                self.consume_token(TokenKind::Newline)?;
-                            }
-                            Some(t) if t.kind == TokenKind::Into => {
-                                self.consume_token(TokenKind::Into)?;
-                                let fe = self.parse_expression()?;
-                                let Expression::Function(fe) = fe else {
-                                    return Err(ParsingError::ParseError(format!("Invalid expression after {t:?}, {fe:?} a Function call is required")));
-                                };
-
-                                exp = fe.prepend(exp).into();
-                            }
-                            Some(_) => break,
-                        }
-                    }
-                    Ok(exp)
                 }
                 _ => Ok(exp),
             },

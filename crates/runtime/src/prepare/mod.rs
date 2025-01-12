@@ -894,7 +894,9 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                 };
                 self.builder.add_ret_instruction();
             }
-            Expression::Into { .. } => {}
+            Expression::Into { base, next } => {
+                self.parse_function(next.prepend(*base))?;
+            }
         }
         Ok(())
     }

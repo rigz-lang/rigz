@@ -488,6 +488,12 @@ pub mod runtime {
             [2, 3] |> a.extend
             a
             "# = vec![1, 2, 3])
+            args_into(r#"
+            fn add(a, b) = a + b
+
+            puts 1, 2, 3
+            |> add 6
+            "# = 6)
             fn_calls_fn_two_args(r#"
             fn apply(value, func: |Any, Any| -> Any)
                 func value, value - 1
