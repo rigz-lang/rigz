@@ -10,7 +10,7 @@ pub mod runtime {
             $(
                  #[wasm_bindgen_test(unsupported = test)]
                 fn $name() {
-                    let input = $input;
+                    let input = $input.to_string();
                     let v = eval(input);
                     assert_eq!(v, Ok($expected.into()), "VM eval failed {input}");
                 }
@@ -25,7 +25,7 @@ pub mod runtime {
                  #[wasm_bindgen_test(unsupported = test)]
                 fn $name() {
                     let _ = pretty_env_logger::try_init();
-                    let input = $input;
+                    let input = $input.to_string();
                     let v = eval_print_vm(input);
                     assert_eq!(v, Ok($expected.into()), "VM eval failed {input}");
                 }
@@ -38,7 +38,7 @@ pub mod runtime {
             $(
                  #[wasm_bindgen_test(unsupported = test)]
                 fn $name() {
-                    let input = $input;
+                    let input = $input.to_string();
                     let v = eval(input);
                     assert_eq!(v, Err($expected.into()), "Failed to parse input {}", input)
                 }
@@ -51,7 +51,7 @@ pub mod runtime {
             $(
                  #[wasm_bindgen_test(unsupported = test)]
                 fn $name() {
-                    let input = $input;
+                    let input = $input.to_string();
                     let v = eval(input);
                     let Err(RuntimeError::Run(VMError::RuntimeError(e))) = v else {
                         assert!(false, "Unexpected result {v:?} for {input}");
@@ -68,7 +68,7 @@ pub mod runtime {
             $(
                  #[wasm_bindgen_test(unsupported = test)]
                 fn $name() {
-                    let input = $input;
+                    let input = $input.to_string();
                     let v = eval(input);
                     assert!(v.is_err(), "Successfully parsed invalid input: {}", input)
                 }

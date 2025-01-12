@@ -19,20 +19,18 @@ use syn::{parse_macro_input, parse_str, LitStr, Type};
 pub fn derive_module(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as LitStr).value();
 
-    let input = input.as_str();
-    let mut parser = Parser::prepare(input).expect("Failed to setup parser");
+    let input = &input;
+    let mut parser = Parser::prepare(input, false).expect("Failed to setup parser");
     let module = parser
         .parse_module_trait_definition()
         .expect("Failed to parse input");
 
-    let name = module.definition.name;
+    let name = module.definition.name.as_str();
 
     let module_name = Ident::new(format!("{name}Module").as_str(), Span::call_site());
     let module_trait = Ident::new(format!("Rigz{name}").as_str(), Span::call_site());
 
     let mut methods = Vec::new();
-
-    let mut needs_lifetime = false;
 
     let mut all_fcs: HashMap<&str, Vec<&FunctionSignature>> = HashMap::new();
     for func in &module.definition.functions {
@@ -64,7 +62,7 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
                         .iter()
                         .map(|a| {
                             var_arg = var_arg || a.var_arg;
-                            let name = Ident::new(a.name, Span::call_site());
+                            let name = Ident::new(&a.name, Span::call_site());
                             let ty = rigz_type_to_return_type(&a.function_type.rigz_type).unwrap();
                             if var_arg {
                                 quote! {
@@ -82,7 +80,6 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
                         None => args,
                         Some(t) if t.rigz_type.is_vm() && t.mutable => {
                             is_vm = true;
-                            needs_lifetime = true;
                             args
                         }
                         Some(t) => {
@@ -107,12 +104,12 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
                         match rigz_type_to_return_type(&fs.return_type.rigz_type) {
                             None => {
                                 quote! {
-                                    fn #method_name(&self, vm: &mut VM<'vm>, #(#args)*);
+                                    fn #method_name(&self, vm: &mut VM, #(#args)*);
                                 }
                             }
                             Some(rt) => {
                                 quote! {
-                                    fn #method_name(&self, vm: &mut VM<'vm>, #(#args)*) -> #rt;
+                                    fn #method_name(&self, vm: &mut VM, #(#args)*) -> #rt;
                                 }
                             }
                         }
@@ -165,8 +162,8 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
 
     if !calls.is_empty() {
         module_methods.push(quote! {
-            fn call(&self, function: &'vm str, args: RigzArgs) -> Result<Value, VMError> {
-                match function {
+            fn call(&self, function: Reference<String>, args: RigzArgs) -> Result<Value, VMError> {
+                match function.as_str() {
                     #(#calls)*
                     _ => Err(VMError::InvalidModuleFunction(format!(
                         "Function {function} does not exist"
@@ -199,10 +196,10 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
             fn call_extension(
                 &self,
                 this: Rc<RefCell<Value>>,
-                function: &'vm str,
+                function: Reference<String>,
                 args: RigzArgs,
             ) -> Result<Value, VMError> {
-                match function {
+                match function.as_str() {
                     #(#ext_calls)*
                     _ => Err(VMError::InvalidModuleFunction(format!(
                         "Function {function} does not exist"
@@ -235,10 +232,10 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
             fn call_mutable_extension(
                 &self,
                 this: Rc<RefCell<Value>>,
-                function: &'vm str,
+                function: Reference<String>,
                 args: RigzArgs,
             ) -> Result<Option<Value>, VMError> {
-                match function {
+                match function.as_str() {
                     #(#mut_ext_calls)*
                     _ => return Err(VMError::InvalidModuleFunction(format!(
                         "Function {function} does not exist"
@@ -271,11 +268,11 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
         module_methods.push(quote! {
             fn vm_extension(
                 &self,
-                vm: &mut VM<'vm>,
-                function: &'vm str,
+                vm: &mut VM,
+                function:Reference<String>,
                 args: RigzArgs,
             ) -> Result<Value, VMError> {
-                match function {
+                match function.as_str() {
                     #(#vm_calls)*
                     _ => Err(VMError::InvalidModuleFunction(format!(
                         "Function {function} does not exist"
@@ -285,38 +282,30 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
         });
     }
 
-    let module_def = if needs_lifetime {
-        quote! {
-            trait #module_trait<'vm> {
-                #(#methods)*
-            }
-        }
-    } else {
-        quote! {
-            trait #module_trait {
-                #(#methods)*
-            }
+    let module_def = quote! {
+        trait #module_trait {
+            #(#methods)*
         }
     };
 
-    final_definition(input, module, name, module_name, module_methods, module_def)
+    final_definition(input, module, module_name, module_methods, module_def)
 }
 
 fn final_definition(
     input: &str,
-    module: ModuleTraitDefinition<'_>,
-    name: &str,
+    module: ModuleTraitDefinition,
     module_name: Ident,
     module_methods: Vec<Tokens>,
     module_def: Tokens,
 ) -> TokenStream {
+    let name = &module.definition.name;
     let tokens = quote! {
         #[derive(Copy, Clone, Debug)]
         pub struct #module_name;
 
         #module_def
 
-        impl <'vm> Module<'vm> for #module_name {
+        impl Module for #module_name {
             #[inline]
             fn name(&self) -> &'static str {
                 #name
@@ -330,9 +319,9 @@ fn final_definition(
             }
         }
 
-        impl <'a> ParsedModule<'a> for #module_name {
+        impl ParsedModule for #module_name {
             #[inline]
-            fn module_definition(&self) -> ModuleTraitDefinition<'static> {
+            fn module_definition(&self) -> ModuleTraitDefinition {
                 #module
             }
         }
@@ -855,7 +844,7 @@ fn setup_call_args(
 
     let mut var_args = None;
     for (index, arg) in function_signature.arguments.iter().enumerate() {
-        let name = Ident::new(arg.name, Span::call_site());
+        let name = Ident::new(&arg.name, Span::call_site());
 
         if arg.var_arg {
             var_args = Some(index);
@@ -876,7 +865,7 @@ fn setup_call_args(
             continue;
         }
 
-        let name = Ident::new(arg.name, Span::call_site());
+        let name = Ident::new(&arg.name, Span::call_site());
         let name = quote! { #name };
         match convert_type_for_arg(
             name.clone(),

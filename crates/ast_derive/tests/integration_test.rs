@@ -225,20 +225,20 @@ impl RigzStd for StdModule {
 }
 
 #[allow(unused_variables)]
-impl<'vm> RigzVM<'vm> for VMModule {
-    fn mut_vm_get_register(&self, vm: &mut VM<'vm>, register: Number) -> Result<Value, VMError> {
+impl RigzVM for VMModule {
+    fn mut_vm_get_register(&self, vm: &mut VM, register: Number) -> Result<Value, VMError> {
         todo!()
     }
 
-    fn mut_vm_first(&self, vm: &mut VM<'vm>) -> Result<Value, VMError> {
+    fn mut_vm_first(&self, vm: &mut VM) -> Result<Value, VMError> {
         todo!()
     }
 
-    fn mut_vm_last(&self, vm: &mut VM<'vm>) -> Result<Value, VMError> {
+    fn mut_vm_last(&self, vm: &mut VM) -> Result<Value, VMError> {
         todo!()
     }
 
-    fn mut_vm_remove_register(&self, vm: &mut VM<'vm>, register: Number) -> Result<Value, VMError> {
+    fn mut_vm_remove_register(&self, vm: &mut VM, register: Number) -> Result<Value, VMError> {
         todo!()
     }
 }
@@ -278,9 +278,12 @@ fn blah() {
     let json = JSONModule;
     assert_eq!(
         "5",
-        json.call("parse", vec![Rc::new(RefCell::new(5.into()))].into())
-            .expect("json parse failed")
-            .to_string()
-            .as_str()
+        json.call(
+            "parse".to_string().into(),
+            vec![Rc::new(RefCell::new(5.into()))].into()
+        )
+        .expect("json parse failed")
+        .to_string()
+        .as_str()
     )
 }

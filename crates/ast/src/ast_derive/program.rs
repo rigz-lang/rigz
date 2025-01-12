@@ -31,12 +31,12 @@ impl ToTokens for FunctionExpression {
         let t = match self {
             FunctionExpression::FunctionCall(name, args) => {
                 quote! {
-                    FunctionExpression::FunctionCall(#name, #args)
+                    FunctionExpression::FunctionCall(#name.to_string(), #args)
                 }
             }
             FunctionExpression::TypeFunctionCall(ty, name, args) => {
                 quote! {
-                    FunctionExpression::TypeFunctionCall(#ty, #name, #args)
+                    FunctionExpression::TypeFunctionCall(#ty, #name.to_string(), #args)
                 }
             }
             FunctionExpression::InstanceFunctionCall(ex, calls, args) => {
@@ -86,7 +86,7 @@ impl ToTokens for Expression {
             }
             Expression::Identifier(i) => {
                 quote! {
-                    Expression::Identifier(#i)
+                    Expression::Identifier(#i.to_string())
                 }
             }
             Expression::BinExp(lhs, op, rhs) => {
@@ -117,7 +117,7 @@ impl ToTokens for Expression {
                 }
             }
             Expression::Symbol(s) => quote! {
-                Expression::Symbol(#s)
+                Expression::Symbol(#s.to_string())
             },
             Expression::If {
                 condition,
@@ -267,14 +267,14 @@ impl ToTokens for Assign {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
             Assign::This => quote! { Assign::This },
-            Assign::Identifier(name, mutable) => quote! { Assign::Identifier(#name, #mutable) },
+            Assign::Identifier(name, mutable) => quote! { Assign::Identifier(#name.to_string(), #mutable) },
             Assign::TypedIdentifier(n, mutable, rt) => {
-                quote! { Assign::TypedIdentifier(#n, #mutable, #rt) }
+                quote! { Assign::TypedIdentifier(#n.to_string(), #mutable, #rt) }
             }
             Assign::Tuple(t) => {
                 let values: Vec<_> = t
                     .iter()
-                    .map(|(id, mutable)| quote! { (#id, #mutable), })
+                    .map(|(id, mutable)| quote! { (#id.to_string(), #mutable), })
                     .collect();
                 quote! { Assign::Tuple(vec![#(#values)*]) }
             }
@@ -286,9 +286,9 @@ impl ToTokens for Assign {
 impl ToTokens for ImportValue {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
-            ImportValue::TypeValue(s) => quote! {ImportValue::TypeValue(#s)},
-            ImportValue::FilePath(s) => quote! {ImportValue::FilePath(#s)},
-            ImportValue::UrlPath(s) => quote! {ImportValue::UrlPath(#s)},
+            ImportValue::TypeValue(s) => quote! {ImportValue::TypeValue(#s.to_string())},
+            ImportValue::FilePath(s) => quote! {ImportValue::FilePath(#s.to_string())},
+            ImportValue::UrlPath(s) => quote! {ImportValue::UrlPath(#s.to_string())},
         };
         tokens.extend(t)
     }
@@ -297,8 +297,8 @@ impl ToTokens for ImportValue {
 impl ToTokens for Exposed {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
-            Exposed::TypeValue(tv) => quote! { Exposed::TypeValue(#tv) },
-            Exposed::Identifier(id) => quote! { Exposed::Identifier(#id) },
+            Exposed::TypeValue(tv) => quote! { Exposed::TypeValue(#tv.to_string()) },
+            Exposed::Identifier(id) => quote! { Exposed::Identifier(#id.to_string()) },
         };
         tokens.extend(t)
     }
@@ -362,7 +362,7 @@ impl ToTokens for Statement {
             }
             Statement::TypeDefinition(name, typ) => {
                 quote! {
-                    Statement::TypeDefinition(#name, #typ)
+                    Statement::TypeDefinition(#name.to_string(), #typ)
                 }
             }
             Statement::TraitImpl {
@@ -396,7 +396,7 @@ impl ToTokens for FunctionDefinition {
         let name = name.as_str();
         tokens.extend(quote! {
             FunctionDefinition {
-                name: #name.to_string().into(),
+                name: #name.to_string(),
                 lifecycle: #l,
                 type_definition: #type_definition,
                 body: #body
@@ -431,7 +431,7 @@ impl ToTokens for FunctionArgument {
         let name = name.as_str();
         tokens.extend(quote! {
             FunctionArgument {
-                name: #name.to_string().into(),
+                name: #name.to_string(),
                 default: #d,
                 function_type: #function_type,
                 var_arg: #var_arg,
@@ -485,7 +485,7 @@ impl ToTokens for FunctionDeclaration {
             } => {
                 quote! {
                     FunctionDeclaration::Declaration {
-                        name: #name,
+                        name: #name.to_string(),
                         type_definition: #type_definition
                     }
                 }
@@ -521,7 +521,7 @@ impl ToTokens for TraitDefinition {
         let functions = csv_vec(functions);
         tokens.extend(quote! {
             TraitDefinition {
-                name: #name,
+                name: #name.to_string(),
                 functions: #functions
             }
         })

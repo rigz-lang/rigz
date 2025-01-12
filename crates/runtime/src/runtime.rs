@@ -6,12 +6,12 @@ use std::error::Error;
 use std::fmt::{Display, Formatter};
 
 pub struct Runtime<'vm> {
-    parser: ProgramParser<'vm, VM<'vm>>,
+    parser: ProgramParser<'vm, VM>,
 }
 
-impl<'vm> From<ProgramParser<'vm, VM<'vm>>> for Runtime<'vm> {
+impl<'vm> From<ProgramParser<'vm, VM>> for Runtime<'vm> {
     #[inline]
-    fn from(value: ProgramParser<'vm, VM<'vm>>) -> Self {
+    fn from(value: ProgramParser<'vm, VM>) -> Self {
         Runtime { parser: value }
     }
 }
@@ -69,11 +69,11 @@ impl Default for Runtime<'_> {
 }
 
 impl<'vm> Runtime<'vm> {
-    pub fn vm(&self) -> &VM<'vm> {
+    pub fn vm(&self) -> &VM {
         &self.parser.builder
     }
 
-    pub fn vm_mut(&mut self) -> &mut VM<'vm> {
+    pub fn vm_mut(&mut self) -> &mut VM {
         &mut self.parser.builder
     }
 
@@ -83,7 +83,7 @@ impl<'vm> Runtime<'vm> {
         }
     }
 
-    pub fn create(input: &'vm str) -> Result<Self, RuntimeError> {
+    pub fn create(input: String) -> Result<Self, RuntimeError> {
         let mut parser = Parser::prepare(input).map_err(|e| e.into())?;
         let program = parser.parse().map_err(|e| e.into())?;
         program.validate().map_err(|e| e.into())?;
@@ -92,7 +92,7 @@ impl<'vm> Runtime<'vm> {
     }
 
     /// Use register_module to add modules
-    pub fn create_without_modules(input: &'vm str) -> Result<Self, RuntimeError> {
+    pub fn create_without_modules(input: String) -> Result<Self, RuntimeError> {
         let mut parser = Parser::prepare(input).map_err(|e| e.into())?;
         let program = parser.parse().map_err(|e| e.into())?;
         program.validate().map_err(|e| e.into())?;
@@ -101,14 +101,14 @@ impl<'vm> Runtime<'vm> {
     }
 
     /// Meant for REPL, skips requirement that programs must end in expression
-    pub fn create_unverified(input: &'vm str) -> Result<Self, RuntimeError> {
+    pub fn create_unverified(input: String) -> Result<Self, RuntimeError> {
         let mut parser = Parser::prepare(input).map_err(|e| e.into())?;
         let program: Program = parser.parse().map_err(|e| e.into())?.into();
         program.create_runtime()
     }
 
     /// Use register_module to add modules, meant for repl
-    pub fn create_unverified_without_modules(input: &'vm str) -> Result<Self, RuntimeError> {
+    pub fn create_unverified_without_modules(input: String) -> Result<Self, RuntimeError> {
         let mut parser = Parser::prepare(input).map_err(|e| e.into())?;
         let program: Program = parser.parse().map_err(|e| e.into())?.into();
         program.create_runtime_without_modules()
@@ -132,17 +132,17 @@ impl<'vm> Runtime<'vm> {
     }
 }
 
-pub fn eval(input: &str) -> Result<Value, RuntimeError> {
+pub fn eval(input: String) -> Result<Value, RuntimeError> {
     let mut runtime = Runtime::create(input)?;
     runtime.run()
 }
 
-pub fn test(input: &str) -> Result<TestResults, RuntimeError> {
+pub fn test(input: String) -> Result<TestResults, RuntimeError> {
     let mut runtime = Runtime::create(input)?;
     Ok(runtime.test())
 }
 
-pub fn eval_print_vm(input: &str) -> Result<Value, RuntimeError> {
+pub fn eval_print_vm(input: String) -> Result<Value, RuntimeError> {
     let mut runtime = Runtime::create(input)?;
     println!("VM (before) - {:#?}", runtime.vm());
     runtime.run()

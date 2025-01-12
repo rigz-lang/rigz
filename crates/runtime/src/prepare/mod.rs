@@ -7,17 +7,17 @@ use rigz_ast::*;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum CallSite<'vm> {
     Scope(usize, bool),
-    Module(&'vm str),
+    Module(Reference<String>),
     // todo only store used functions in VM
     // Parsed,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionCallSignature<'vm> {
-    pub name: &'vm str,
+    pub name: Reference<String>,
     pub arguments: Vec<FunctionArgument<'vm>>,
     pub return_type: FunctionType,
     pub self_type: Option<FunctionType>,
@@ -130,7 +130,7 @@ type FunctionCallSignatures<'vm> = Vec<CallSignature<'vm>>;
 
 pub(crate) enum ModuleDefinition {
     Imported,
-    Module(ModuleTraitDefinition<'static>),
+    Module(ModuleTraitDefinition),
 }
 
 pub(crate) struct ProgramParser<'vm, T: RigzBuilder<'vm>> {
@@ -139,7 +139,7 @@ pub(crate) struct ProgramParser<'vm, T: RigzBuilder<'vm>> {
     // todo nested functions are global, they should be removed if invalid
     pub(crate) function_scopes: IndexMap<&'vm str, FunctionCallSignatures<'vm>>,
     pub(crate) constants: IndexMap<Value, usize>,
-    pub(crate) identifiers: HashMap<&'vm str, FunctionType>,
+    pub(crate) identifiers: HashMap<Reference<String>, FunctionType>,
     pub(crate) types: HashMap<&'vm str, RigzType>,
 }
 
@@ -158,8 +158,8 @@ impl<'vm, T: RigzBuilder<'vm>> Default for ProgramParser<'vm, T> {
     }
 }
 
-impl<'vm> ProgramParser<'vm, VMBuilder<'vm>> {
-    pub(crate) fn create(self) -> ProgramParser<'vm, VM<'vm>> {
+impl<'vm> ProgramParser<'vm, VMBuilder> {
+    pub(crate) fn create(self) -> ProgramParser<'vm, VM> {
         let ProgramParser {
             builder,
             modules,
@@ -179,7 +179,7 @@ impl<'vm> ProgramParser<'vm, VMBuilder<'vm>> {
     }
 }
 
-impl<'vm> ProgramParser<'vm, VM<'vm>> {
+impl<'vm> ProgramParser<'vm, VM> {
     pub(crate) fn repl(&mut self, next_input: String) -> Result<&mut Self, RuntimeError> {
         let first = &mut self.builder.scopes[0];
         let last = first.instructions.len();
@@ -194,7 +194,7 @@ impl<'vm> ProgramParser<'vm, VM<'vm>> {
             }
         }
 
-        let p = parse(next_input.leak()).map_err(|e| e.into())?.into();
+        let p = parse(next_input.as_str(), false).map_err(|e| e.into())?.into();
         self.parse_program(p).map_err(|e| e.into())?;
         Ok(self)
     }
@@ -222,7 +222,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
 
     fn parse_module_trait_definition(
         &mut self,
-        module: ModuleTraitDefinition<'static>,
+        module: ModuleTraitDefinition,
     ) -> Result<(), ValidationError> {
         self.parse_trait_definition_for_module(module.definition.name, module.definition)
     }
@@ -618,7 +618,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
     pub(crate) fn parse_trait_definition_for_module(
         &mut self,
         module_name: &'vm str,
-        trait_definition: TraitDefinition<'vm>,
+        trait_definition: TraitDefinition,
     ) -> Result<(), ValidationError> {
         for func in trait_definition.functions {
             match func {
@@ -1129,7 +1129,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
     fn str_to_log_level(raw: &str) -> Result<Level, ValidationError> {
         let level = match raw.to_lowercase().as_str() {
             "info" => Level::Info,
-            "warn" => Level::Info,
+            "warn" => Level::Warn,
             "debug" => Level::Debug,
             "trace" => Level::Trace,
             "error" => Level::Error,
@@ -1182,8 +1182,8 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
                     for arg in arguments {
                         self.parse_expression(arg.clone())?;
                     }
-                    self.builder
-                        .add_log_instruction(level, template.leak(), len);
+
+                    self.builder.add_log_instruction(level, template, len);
                 } else {
                     return Err(ValidationError::InvalidFunction(format!(
                         "Invalid args to log, need at least 2 arguments - {arguments:?}"
@@ -1632,7 +1632,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
 
     fn process_extension_call(
         &mut self,
-        name: &'vm str,
+        name: Reference<String>,
         vm_module: bool,
         mutable: bool,
         args: usize,
@@ -1668,6 +1668,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
     ) -> Result<(), ValidationError> {
         match expression {
             Expression::Identifier(id) => {
+                let id = id.to_string().into();
                 if mutable {
                     self.builder.add_get_mutable_variable_instruction(id);
                 } else {
@@ -1738,7 +1739,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
     fn parse_scope(
         &mut self,
         scope: Scope<'vm>,
-        named: &'vm str,
+        named: Reference<String>,
     ) -> Result<usize, ValidationError> {
         let current_vars = self.identifiers.clone();
         let current = self.builder.current_scope();
@@ -1755,8 +1756,8 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
     fn parse_anon_lambda(
         &mut self,
         _fcs: &FunctionCallSignature<'vm>,
-        name: &'vm str,
-        fn_args: Vec<FunctionArgument<'vm>>,
+        name: Reference<String>,
+        fn_args: Vec<FunctionArgument>,
         var_args_start: Option<usize>,
         exp: Expression<'vm>,
     ) -> Result<(), ValidationError> {
@@ -1776,15 +1777,20 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         let current = self.builder.current_scope();
         let anon = self.builder.enter_scope(
             name,
-            fn_args.iter().map(|a| (a.name, false)).rev().collect(),
+            fn_args
+                .iter()
+                .map(|a| (a.name.clone(), false))
+                .rev()
+                .collect(),
             None,
         );
         let old: Vec<_> = fn_args
             .iter()
             .map(|a| {
                 (
-                    a.name,
-                    self.identifiers.insert(a.name, a.function_type.clone()),
+                    a.name.clone(),
+                    self.identifiers
+                        .insert(a.name.clone(), a.function_type.clone()),
                 )
             })
             .collect();
@@ -1793,7 +1799,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         }
         old.into_iter().for_each(|(name, rt)| match rt {
             None => {
-                self.identifiers.remove(name);
+                self.identifiers.remove(&name);
             }
             Some(s) => {
                 self.identifiers.insert(name, s);
