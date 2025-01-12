@@ -7,7 +7,7 @@ macro_rules! test_parse {
             #[wasm_bindgen_test(unsupported = test)]
             fn $name() {
                 let input = $input;
-                let v = parse(input);
+                let v = parse(input, false);
                 assert_eq!(v, Ok($expected), "Failed to parse input: {}", input)
             }
         )*
@@ -24,7 +24,7 @@ macro_rules! test_parse_equivalent {
                 #[wasm_bindgen_test(unsupported = test)]
                 fn $name() {
                     let input = $input;
-                    let v = parse(input);
+                    let v = parse(input, false);
                     assert_eq!(v, Ok($expected), "Failed to parse input: {}", input)
                 }
             )*
@@ -38,7 +38,7 @@ macro_rules! test_parse_valid {
             #[wasm_bindgen_test(unsupported = test)]
             fn $name() {
                 let input = $input;
-                let v = parse(input);
+                let v = parse(input, false);
                 assert_eq!(v.is_ok(), true, "Parse Failed {:?} - {}", v.unwrap_err(), input);
             }
         )*
@@ -51,7 +51,7 @@ macro_rules! test_parse_invalid {
             #[wasm_bindgen_test(unsupported = test)]
             fn $name() {
                 let input = $input;
-                let v = parse(input);
+                let v = parse(input, false);
                 assert_eq!(v.is_err(), true, "Successfully parsed invalid input {}", input);
             }
         )*
@@ -144,9 +144,10 @@ test_parse_equivalent! {
                 "hi there"
             end
             hello"# = Program {
+            input: None,
             elements: vec![
                 Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
-                    name: "hello",
+                    name: "hello".to_string().into(),
                     type_definition: FunctionSignature {
                         arguments: vec![],
                         arg_type: ArgType::Positional,
@@ -161,7 +162,7 @@ test_parse_equivalent! {
                     },
                 lifecycle: None
                 })),
-                Element::Expression(Expression::Identifier("hello"))
+                Element::Expression(Expression::Identifier("hello".to_string()))
             ]
         };
     define_function r#"
@@ -176,9 +177,10 @@ test_parse_equivalent! {
     define_function_oneline r#"
             fn hello = "hi there"
             hello"# = Program {
+            input: None,
             elements: vec![
                 Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
-                    name: "hello",
+                    name: "hello".to_string().into(),
                     type_definition: FunctionSignature {
                         arguments: vec![],
                         arg_type: ArgType::Positional,
@@ -193,7 +195,7 @@ test_parse_equivalent! {
                         },
                 lifecycle: None
                 })),
-                Element::Expression(Expression::Identifier("hello"))
+                Element::Expression(Expression::Identifier("hello".to_string()))
             ]
         };
     define_function_args r#"
@@ -206,28 +208,29 @@ test_parse_equivalent! {
               a + b + c
             end
             add(1, 2, 3)"#= Program {
+        input: None,
         elements: vec![
             Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
-                name: "add",
+                name: "add".to_string().into(),
                 type_definition: FunctionSignature {
                     arg_type: ArgType::Positional,
                     arguments: vec![
                         FunctionArgument {
-                            name: "a",
+                            name: "a".to_string().into(),
                             default: None,
                             function_type: RigzType::Any.into(),
                             var_arg: false,
                             rest: false
                         },
                         FunctionArgument {
-                            name: "b",
+                            name: "b".to_string().into(),
                             default: None,
                             function_type: RigzType::Any.into(),
                             var_arg: false,
                             rest: false
                         },
                         FunctionArgument {
-                            name: "c",
+                            name: "c".to_string().into(),
                             default: None,
                             function_type: RigzType::Any.into(),
                             var_arg: false,
@@ -249,15 +252,16 @@ test_parse_equivalent! {
                 },
                 lifecycle: None
             })),
-            Element::Expression(FunctionExpression::FunctionCall("add", vec![Expression::Value(Value::Number(1.into())), Expression::Value(Value::Number(2.into())), Expression::Value(Value::Number(3.into()))].into()).into())
+            Element::Expression(FunctionExpression::FunctionCall("add".to_string(), vec![Expression::Value(Value::Number(1.into())), Expression::Value(Value::Number(2.into())), Expression::Value(Value::Number(3.into()))].into()).into())
         ]
     };
 }
 
 test_parse! {
     symbols "foo :hello" = Program {
+        input: None,
         elements: vec![
-            Element::Expression(FunctionExpression::FunctionCall("foo", vec![Expression::Symbol("hello")].into()).into())
+            Element::Expression(FunctionExpression::FunctionCall("foo".to_string(), vec![Expression::Symbol("hello".to_string())].into()).into())
         ]
     },
     traits r#"trait Hello
@@ -269,12 +273,13 @@ test_parse! {
                 puts message
             end
         end"# = Program {
+        input: None,
         elements: vec![
             Element::Statement(Statement::Trait(TraitDefinition {
-                name: "Hello",
+                name: "Hello".to_string(),
                 functions: vec![
                     FunctionDeclaration::Declaration {
-                        name: "foo",
+                        name: "foo".to_string(),
                         type_definition: FunctionSignature {
                             arguments: vec![],
                             return_type: FunctionType::new(RigzType::default()),
@@ -284,7 +289,7 @@ test_parse! {
                         },
                     },
                     FunctionDeclaration::Declaration {
-                        name: "bar",
+                        name: "bar".to_string(),
                         type_definition: FunctionSignature {
                             arguments: vec![],
                             return_type: FunctionType::mutable(RigzType::This),
@@ -294,11 +299,11 @@ test_parse! {
                         },
                     },
                     FunctionDeclaration::Definition(FunctionDefinition {
-                        name: "say",
+                        name: "say".to_string().into(),
                         type_definition: FunctionSignature {
                             arguments: vec![
                                 FunctionArgument {
-                                    name: "message",
+                                    name: "message".to_string().into(),
                                     default: None,
                                     function_type: FunctionType::new(RigzType::String),
                                     var_arg: false,
@@ -312,7 +317,7 @@ test_parse! {
                         },
                         body: Scope {
                             elements: vec![
-                                Element::Expression(FunctionExpression::FunctionCall("puts", vec!["message".into()].into()).into())
+                                Element::Expression(FunctionExpression::FunctionCall("puts".to_string(), vec!["message".into()].into()).into())
                             ]
                         },
                         lifecycle: None
@@ -322,6 +327,7 @@ test_parse! {
         ]
     },
     basic "1 + 2" = Program {
+        input: None,
         elements: vec![
             Element::Expression(
                 Expression::BinExp(
@@ -333,6 +339,7 @@ test_parse! {
         ]
     },
     complex "1 + 2 * 3" = Program {
+        input: None,
         elements: vec![
             Element::Expression(
                 Expression::BinExp(
@@ -348,6 +355,7 @@ test_parse! {
         ]
     },
     complex_parens "1 + (2 * 3)" = Program {
+        input: None,
         elements: vec![
             Expression::binary(
                 Expression::Value(Value::Number(1.into())),
@@ -361,22 +369,24 @@ test_parse! {
         ]
     },
     list "[1, '2', {a = 3}]" = Program {
+        input: None,
         elements: vec![
             Element::Expression(
                 Expression::List(
                     vec![
                         Expression::Value(Value::Number(1.into())),
                         Expression::Value(Value::String("2".to_string())),
-                        Expression::Map(vec![(Expression::Identifier("a"), Expression::Value(Value::Number(3.into())))]),
+                        Expression::Map(vec![(Expression::Identifier("a".to_string()), Expression::Value(Value::Number(3.into())))]),
                     ]
                 )
             )
         ]
     },
     assign "a = 7 - 0" = Program {
+        input: None,
         elements: vec![
             Element::Statement(Statement::Assignment {
-                lhs: Assign::Identifier("a", false),
+                lhs: Assign::Identifier("a".to_string(), false),
                 expression: Expression::BinExp(
                     Box::new(Expression::Value(Value::Number(7.into()))),
                     BinaryOperation::Sub,
@@ -386,6 +396,7 @@ test_parse! {
         ]
     },
     multi_complex_parens "1 + (2 * (2 - 4)) / 4" = Program {
+        input: None,
         elements: vec![
             Element::Expression(
                 Expression::BinExp(
@@ -412,9 +423,10 @@ test_parse! {
         ]
     },
     union_type "a: String || Number || Bool = false" = Program {
+        input: None,
         elements: vec![
             Statement::Assignment {
-                lhs: Assign::TypedIdentifier("a", false, RigzType::Union(vec![RigzType::String, RigzType::Number, RigzType::Bool])),
+                lhs: Assign::TypedIdentifier("a".to_string(), false, RigzType::Union(vec![RigzType::String, RigzType::Number, RigzType::Bool])),
                 expression: Expression::Value(false.into()),
             }.into()
         ],
@@ -428,21 +440,22 @@ test_parse! {
         }
         a: Foo & Bar = { foo = 1, bar = 7}
     "# = Program {
+        input: None,
         elements: vec![
-            Statement::TypeDefinition("Foo", RigzType::Custom(CustomType {
+            Statement::TypeDefinition("Foo".to_string(), RigzType::Custom(CustomType {
                 name: "Foo".to_string(),
                 fields: vec![
                     ("foo".into(), RigzType::Number)
                 ],
             })).into(),
-            Statement::TypeDefinition("Bar", RigzType::Custom(CustomType {
+            Statement::TypeDefinition("Bar".to_string(), RigzType::Custom(CustomType {
                 name: "Bar".to_string(),
                 fields: vec![
                     ("bar".into(), RigzType::Number)
                 ],
             })).into(),
             Statement::Assignment {
-                lhs: Assign::TypedIdentifier("a", false, RigzType::Composite(vec![RigzType::Custom(CustomType {
+                lhs: Assign::TypedIdentifier("a".to_string(), false, RigzType::Composite(vec![RigzType::Custom(CustomType {
                     name: "Foo".to_string(),
                     fields: vec![],
                 }), RigzType::Custom(CustomType {
@@ -450,8 +463,8 @@ test_parse! {
                     fields: vec![],
                 })])),
                 expression: Expression::Map(vec![
-                    (Expression::Identifier("foo"), Expression::Value(1.into())),
-                    (Expression::Identifier("bar"), Expression::Value(7.into())),
+                    (Expression::Identifier("foo".to_string()), Expression::Value(1.into())),
+                    (Expression::Identifier("bar".to_string()), Expression::Value(7.into())),
                 ])
             }.into()
         ],
@@ -462,20 +475,21 @@ test_parse! {
         type Result = String || (Message & Id)
         mut s: Result = ""
     "# = Program {
+        input: None,
         elements: vec![
-            Statement::TypeDefinition("Message", RigzType::Custom(CustomType {
+            Statement::TypeDefinition("Message".to_string(), RigzType::Custom(CustomType {
                 name: "Message".to_string(),
                 fields: vec![
                     ("message".into(), RigzType::String)
                 ],
             })).into(),
-            Statement::TypeDefinition("Id", RigzType::Custom(CustomType {
+            Statement::TypeDefinition("Id".to_string(), RigzType::Custom(CustomType {
                 name: "Id".to_string(),
                 fields: vec![
                     ("id".into(), RigzType::Number)
                 ],
             })).into(),
-            Statement::TypeDefinition("Result", RigzType::Union(vec![
+            Statement::TypeDefinition("Result".to_string(), RigzType::Union(vec![
                 RigzType::String, RigzType::Composite(vec![RigzType::Custom(CustomType {
                     name: "Message".to_string(),
                     fields: vec![],
@@ -485,7 +499,7 @@ test_parse! {
                 })])
             ])).into(),
             Statement::Assignment {
-                lhs: Assign::TypedIdentifier("s", true, RigzType::Custom(CustomType {
+                lhs: Assign::TypedIdentifier("s".to_string(), true, RigzType::Custom(CustomType {
                     name: "Result".to_string(),
                     fields: vec![],
                 })),
@@ -498,9 +512,10 @@ test_parse! {
           a + b + c
         end
         add a: 1, b: 2, c: 3"# = Program {
+        input: None,
         elements: vec![
             Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
-                name: "add",
+                name: "add".to_string().into(),
                 lifecycle: None,
                 type_definition: FunctionSignature {
                     arg_type: ArgType::Map,
@@ -508,21 +523,21 @@ test_parse! {
                     var_args_start: None,
                     arguments: vec![
                         FunctionArgument {
-                            name: "a",
+                            name: "a".to_string().into(),
                             default: None,
                             function_type: FunctionType { rigz_type: RigzType::Any, mutable: false },
                             var_arg: false,
                             rest: false
                         },
                         FunctionArgument {
-                            name: "b",
+                            name: "b".to_string().into(),
                             default: None,
                             function_type: FunctionType { rigz_type: RigzType::Any, mutable: false },
                             var_arg: false,
                             rest: false
                         },
                         FunctionArgument {
-                            name: "c",
+                            name: "c".to_string().into(),
                             default: None,
                             function_type: FunctionType { rigz_type: RigzType::Any, mutable: false },
                             var_arg: false,
@@ -535,17 +550,17 @@ test_parse! {
                     elements: vec![
                     Element::Expression(Expression::binary(
                             Expression::binary(
-                                Expression::Identifier("a"),
+                                Expression::Identifier("a".to_string()),
                                 BinaryOperation::Add,
-                                Expression::Identifier("b")
+                                Expression::Identifier("b".to_string())
                             ),
                             BinaryOperation::Add,
-                            Expression::Identifier("c"))
+                            Expression::Identifier("c".to_string()))
                         )
                     ],
                 }
             })),
-            Element::Expression(FunctionExpression::FunctionCall("add", RigzArguments::Named(vec![("a", Expression::Value(1.into())), ("b", Expression::Value(2.into())), ("c", Expression::Value(3.into()))])).into())
+            Element::Expression(FunctionExpression::FunctionCall("add".to_string(), RigzArguments::Named(vec![("a".to_string(), Expression::Value(1.into())), ("b".to_string(), Expression::Value(2.into())), ("c".to_string(), Expression::Value(3.into()))])).into())
         ]
     },
     define_function_named_args_var r#"
@@ -554,9 +569,10 @@ test_parse! {
         end
         v = {a = 1, b = 2, c = 3}
         add v"# = Program {
+        input: None,
         elements: vec![
             Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
-                name: "add",
+                name: "add".to_string().into(),
                 lifecycle: None,
                 type_definition: FunctionSignature {
                     arg_type: ArgType::Map,
@@ -564,21 +580,21 @@ test_parse! {
                     var_args_start: None,
                     arguments: vec![
                         FunctionArgument {
-                            name: "a",
+                            name: "a".to_string().into(),
                             default: None,
                             function_type: FunctionType { rigz_type: RigzType::Any, mutable: false },
                             var_arg: false,
                             rest: false
                         },
                         FunctionArgument {
-                            name: "b",
+                            name: "b".to_string().into(),
                             default: None,
                             function_type: FunctionType { rigz_type: RigzType::Any, mutable: false },
                             var_arg: false,
                             rest: false
                         },
                         FunctionArgument {
-                            name: "c",
+                            name: "c".to_string().into(),
                             default: None,
                             function_type: FunctionType { rigz_type: RigzType::Any, mutable: false },
                             var_arg: false,
@@ -591,24 +607,25 @@ test_parse! {
                     elements: vec![
                     Element::Expression(Expression::binary(
                             Expression::binary(
-                                Expression::Identifier("a"),
+                                Expression::Identifier("a".to_string()),
                                 BinaryOperation::Add,
-                                Expression::Identifier("b")
+                                Expression::Identifier("b".to_string())
                             ),
                             BinaryOperation::Add,
-                            Expression::Identifier("c"))
+                            Expression::Identifier("c".to_string()))
                         )
                     ],
                 }
             })),
             Element::Statement(Statement::Assignment {
-                lhs: Assign::Identifier("v", false),
-                expression: Expression::Map(vec![(Expression::Identifier("a"), Expression::Value(Value::Number(1.into()))), (Expression::Identifier("b"), Expression::Value(Value::Number(2.into()))), (Expression::Identifier("c"), Expression::Value(Value::Number(3.into())))]),
+                lhs: Assign::Identifier("v".to_string(), false),
+                expression: Expression::Map(vec![(Expression::Identifier("a".to_string()), Expression::Value(Value::Number(1.into()))), (Expression::Identifier("b".to_string()), Expression::Value(Value::Number(2.into()))), (Expression::Identifier("c".to_string()), Expression::Value(Value::Number(3.into())))]),
             }),
-            Element::Expression(FunctionExpression::FunctionCall("add", vec![Expression::Identifier("v")].into()).into())
+            Element::Expression(FunctionExpression::FunctionCall("add".to_string(), vec![Expression::Identifier("v".to_string())].into()).into())
         ]
     },
     lambda_instance_call r#"[1, 2, 3, 'a', 'b'].filter { |v| v.is_num }.map(|v| v * v)"# = Program {
+        input: None,
         elements: vec![
             Element::Expression(
                 FunctionExpression::InstanceFunctionCall(
@@ -620,11 +637,11 @@ test_parse! {
                             Expression::Value("a".into()),
                             Expression::Value("b".into())
                         ]).into(),
-                        vec!["filter"],
+                        vec!["filter".to_string()],
                         RigzArguments::Positional(vec![
                             Expression::Lambda { arguments: vec![
                                 FunctionArgument {
-                                    name: "v",
+                                    name: "v".to_string().into(),
                                     default: None,
                                     function_type: FunctionType {
                                         rigz_type: RigzType::Any,
@@ -636,16 +653,16 @@ test_parse! {
                             ],
                             var_args_start: None,
                             body: FunctionExpression::InstanceFunctionCall(
-                                    Expression::Identifier("v").into(),
-                                    vec!["is_num"],
+                                    Expression::Identifier("v".to_string()).into(),
+                                    vec!["is_num".to_string()],
                                     RigzArguments::Positional(vec![])
                                 ).into()
                             }])
                 ).into(),
-                vec!["map"],
+                vec!["map".to_string()],
                 RigzArguments::Positional(vec![Expression::Lambda {
                     arguments: vec![FunctionArgument {
-                        name: "v",
+                        name: "v".to_string(),
                         default: None,
                         function_type: FunctionType {
                             rigz_type: RigzType::Any,
@@ -655,7 +672,7 @@ test_parse! {
                         rest: false
                     }],
                     var_args_start: None,
-                    body: Expression::BinExp(Expression::Identifier("v").into(), BinaryOperation::Mul, Expression::Identifier("v").into()).into()
+                    body: Expression::BinExp(Expression::Identifier("v".to_string()).into(), BinaryOperation::Mul, Expression::Identifier("v".to_string()).into()).into()
                 }]
                     )
                 ).into()

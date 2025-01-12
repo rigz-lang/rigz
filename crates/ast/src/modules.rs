@@ -1,9 +1,9 @@
 use crate::{ModuleTraitDefinition, Parser};
 use rigz_vm::Module;
 
-pub trait ParsedModule<'a>: Module<'a> + Send + Sync {
-    fn module_definition(&self) -> ModuleTraitDefinition<'static> {
-        let mut parser = match Parser::prepare(self.trait_definition()) {
+pub trait ParsedModule: Module + Send + Sync {
+    fn module_definition(&self) -> ModuleTraitDefinition {
+        let mut parser = match Parser::prepare(self.trait_definition(), false) {
             Ok(p) => p,
             Err(e) => panic!("Failed to setup parser {} - {e}", self.name()),
         };

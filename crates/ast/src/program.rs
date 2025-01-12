@@ -1,8 +1,9 @@
 use rigz_vm::{BinaryOperation, Lifecycle, RigzType, UnaryOperation, Value};
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Program<'lex> {
-    pub elements: Vec<Element<'lex>>,
+pub struct Program {
+    pub input: Option<String>,
+    pub elements: Vec<Element>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -13,8 +14,8 @@ pub enum ArgType {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct FunctionSignature<'vm> {
-    pub arguments: Vec<FunctionArgument<'vm>>,
+pub struct FunctionSignature {
+    pub arguments: Vec<FunctionArgument>,
     pub return_type: FunctionType,
     pub self_type: Option<FunctionType>,
     pub var_args_start: Option<usize>,
@@ -22,10 +23,10 @@ pub struct FunctionSignature<'vm> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct FunctionDefinition<'lex> {
-    pub name: &'lex str,
-    pub type_definition: FunctionSignature<'lex>,
-    pub body: Scope<'lex>,
+pub struct FunctionDefinition {
+    pub name: String,
+    pub type_definition: FunctionSignature,
+    pub body: Scope,
     pub lifecycle: Option<Lifecycle>,
 }
 
@@ -58,8 +59,8 @@ impl FunctionType {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct FunctionArgument<'vm> {
-    pub name: &'vm str,
+pub struct FunctionArgument {
+    pub name: String,
     pub default: Option<Value>,
     pub function_type: FunctionType,
     pub var_arg: bool,
@@ -67,79 +68,79 @@ pub struct FunctionArgument<'vm> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Scope<'lex> {
-    pub elements: Vec<Element<'lex>>,
+pub struct Scope {
+    pub elements: Vec<Element>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Element<'lex> {
-    Statement(Statement<'lex>),
-    Expression(Expression<'lex>),
+pub enum Element {
+    Statement(Statement),
+    Expression(Expression),
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum ImportValue<'lex> {
-    TypeValue(&'lex str),
-    FilePath(&'lex str),
-    UrlPath(&'lex str),
+pub enum ImportValue {
+    TypeValue(String),
+    FilePath(String),
+    UrlPath(String),
     // todo support tree shaking?
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Exposed<'lex> {
-    TypeValue(&'lex str),
-    Identifier(&'lex str),
+pub enum Exposed {
+    TypeValue(String),
+    Identifier(String),
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Statement<'lex> {
+pub enum Statement {
     Assignment {
-        lhs: Assign<'lex>,
-        expression: Expression<'lex>,
+        lhs: Assign,
+        expression: Expression,
     },
     BinaryAssignment {
-        lhs: Assign<'lex>,
+        lhs: Assign,
         op: BinaryOperation,
-        expression: Expression<'lex>,
+        expression: Expression,
     },
-    FunctionDefinition(FunctionDefinition<'lex>),
-    Trait(TraitDefinition<'lex>),
-    Import(ImportValue<'lex>),
-    Export(Exposed<'lex>),
-    TypeDefinition(&'lex str, RigzType),
+    FunctionDefinition(FunctionDefinition),
+    Trait(TraitDefinition),
+    Import(ImportValue),
+    Export(Exposed),
+    TypeDefinition(String, RigzType),
     TraitImpl {
         base_trait: RigzType,
         concrete: RigzType,
-        definitions: Vec<FunctionDefinition<'lex>>,
+        definitions: Vec<FunctionDefinition>,
     }, // todo support later
        // If {
-       //     condition: Expression<'lex>,
-       //     then: Scope<'lex>,
-       //     branch: Option<Scope<'lex>>,
+       //     condition: Expression,
+       //     then: Scope,
+       //     branch: Option<Scope>,
        // },
        // Unless {
-       //     condition: Expression<'lex>,
-       //     then: Scope<'lex>,
+       //     condition: Expression,
+       //     then: Scope,
        // },
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Assign<'lex> {
+pub enum Assign {
     This,
-    Identifier(&'lex str, bool),
-    TypedIdentifier(&'lex str, bool, RigzType),
-    Tuple(Vec<(&'lex str, bool)>),
+    Identifier(String, bool),
+    TypedIdentifier(String, bool, RigzType),
+    Tuple(Vec<(String, bool)>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum RigzArguments<'lex> {
-    Positional(Vec<Expression<'lex>>),
-    Mixed(Vec<Expression<'lex>>, Vec<(&'lex str, Expression<'lex>)>),
-    Named(Vec<(&'lex str, Expression<'lex>)>),
+pub enum RigzArguments {
+    Positional(Vec<Expression>),
+    Mixed(Vec<Expression>, Vec<(String, Expression)>),
+    Named(Vec<(String, Expression)>),
 }
 
-impl<'a> RigzArguments<'a> {
-    pub fn prepend(self, base: Expression<'a>) -> Self {
+impl RigzArguments {
+    pub fn prepend(self, base: Expression) -> Self {
         match self {
             RigzArguments::Positional(a) => {
                 let mut p = Vec::with_capacity(a.len() + 1);
@@ -174,21 +175,21 @@ impl<'a> RigzArguments<'a> {
     }
 }
 
-impl<'lex> From<Vec<Expression<'lex>>> for RigzArguments<'lex> {
-    fn from(value: Vec<Expression<'lex>>) -> Self {
+impl From<Vec<Expression>> for RigzArguments {
+    fn from(value: Vec<Expression>) -> Self {
         RigzArguments::Positional(value)
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum FunctionExpression<'lex> {
-    FunctionCall(&'lex str, RigzArguments<'lex>),
-    TypeFunctionCall(RigzType, &'lex str, RigzArguments<'lex>),
-    InstanceFunctionCall(Box<Expression<'lex>>, Vec<&'lex str>, RigzArguments<'lex>),
+pub enum FunctionExpression {
+    FunctionCall(String, RigzArguments),
+    TypeFunctionCall(RigzType, String, RigzArguments),
+    InstanceFunctionCall(Box<Expression>, Vec<String>, RigzArguments),
 }
 
-impl<'lex> FunctionExpression<'lex> {
-    pub fn prepend(self, expression: Expression<'lex>) -> Self {
+impl FunctionExpression {
+    pub fn prepend(self, expression: Expression) -> Self {
         match self {
             FunctionExpression::FunctionCall(n, args) => {
                 FunctionExpression::FunctionCall(n, args.prepend(expression))
@@ -203,106 +204,102 @@ impl<'lex> FunctionExpression<'lex> {
     }
 }
 
-impl<'lex> From<FunctionExpression<'lex>> for Expression<'lex> {
-    fn from(value: FunctionExpression<'lex>) -> Self {
+impl From<FunctionExpression> for Expression {
+    fn from(value: FunctionExpression) -> Self {
         Expression::Function(value)
     }
 }
 
-impl<'lex> From<FunctionExpression<'lex>> for Box<Expression<'lex>> {
-    fn from(value: FunctionExpression<'lex>) -> Self {
+impl From<FunctionExpression> for Box<Expression> {
+    fn from(value: FunctionExpression) -> Self {
         Box::new(value.into())
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Expression<'lex> {
+pub enum Expression {
     This,
     Value(Value),
-    List(Vec<Expression<'lex>>),
-    Map(Vec<(Expression<'lex>, Expression<'lex>)>),
-    Identifier(&'lex str),
-    BinExp(
-        Box<Expression<'lex>>,
-        BinaryOperation,
-        Box<Expression<'lex>>,
-    ),
-    UnaryExp(UnaryOperation, Box<Expression<'lex>>),
-    Function(FunctionExpression<'lex>),
-    Scope(Scope<'lex>),
-    Cast(Box<Expression<'lex>>, RigzType),
-    Symbol(&'lex str),
+    List(Vec<Expression>),
+    Map(Vec<(Expression, Expression)>),
+    Identifier(String),
+    BinExp(Box<Expression>, BinaryOperation, Box<Expression>),
+    UnaryExp(UnaryOperation, Box<Expression>),
+    Function(FunctionExpression),
+    Scope(Scope),
+    Cast(Box<Expression>, RigzType),
+    Symbol(String),
     If {
-        condition: Box<Expression<'lex>>,
-        then: Scope<'lex>,
-        branch: Option<Scope<'lex>>,
+        condition: Box<Expression>,
+        then: Scope,
+        branch: Option<Scope>,
     },
     Unless {
-        condition: Box<Expression<'lex>>,
-        then: Scope<'lex>,
+        condition: Box<Expression>,
+        then: Scope,
     },
-    Error(Box<Expression<'lex>>),
-    Return(Option<Box<Expression<'lex>>>),
-    Index(Box<Expression<'lex>>, Box<Expression<'lex>>),
-    Tuple(Vec<Expression<'lex>>),
+    Error(Box<Expression>),
+    Return(Option<Box<Expression>>),
+    Index(Box<Expression>, Box<Expression>),
+    Tuple(Vec<Expression>),
     Lambda {
-        arguments: Vec<FunctionArgument<'lex>>,
+        arguments: Vec<FunctionArgument>,
         var_args_start: Option<usize>,
-        body: Box<Expression<'lex>>,
+        body: Box<Expression>,
     },
     ForList {
-        var: &'lex str,
-        expression: Box<Expression<'lex>>,
-        body: Box<Expression<'lex>>,
+        var: String,
+        expression: Box<Expression>,
+        body: Box<Expression>,
     },
     ForMap {
-        k_var: &'lex str,
-        v_var: &'lex str,
-        expression: Box<Expression<'lex>>,
-        key: Box<Expression<'lex>>,
-        value: Option<Box<Expression<'lex>>>,
+        k_var: String,
+        v_var: String,
+        expression: Box<Expression>,
+        key: Box<Expression>,
+        value: Option<Box<Expression>>,
     },
     Into {
-        base: Box<Expression<'lex>>,
-        next: FunctionExpression<'lex>,
+        base: Box<Expression>,
+        next: FunctionExpression,
     },
 }
 
-impl<'lex> From<Vec<Expression<'lex>>> for Expression<'lex> {
+impl From<Vec<Expression>> for Expression {
     #[inline]
-    fn from(value: Vec<Expression<'lex>>) -> Self {
+    fn from(value: Vec<Expression>) -> Self {
         Expression::List(value)
     }
 }
 
-impl<'lex> Expression<'lex> {
+impl Expression {
     #[inline]
-    pub fn binary(lhs: Expression<'lex>, op: BinaryOperation, rhs: Expression<'lex>) -> Self {
+    pub fn binary(lhs: Expression, op: BinaryOperation, rhs: Expression) -> Self {
         Expression::BinExp(Box::new(lhs), op, Box::new(rhs))
     }
 
     #[inline]
-    pub(crate) fn unary(op: UnaryOperation, ex: Expression<'lex>) -> Self {
+    pub(crate) fn unary(op: UnaryOperation, ex: Expression) -> Self {
         Expression::UnaryExp(op, Box::new(ex))
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ModuleTraitDefinition<'lex> {
+pub struct ModuleTraitDefinition {
     pub auto_import: bool,
-    pub definition: TraitDefinition<'lex>,
+    pub definition: TraitDefinition,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum FunctionDeclaration<'lex> {
+pub enum FunctionDeclaration {
     Declaration {
-        name: &'lex str,
-        type_definition: FunctionSignature<'lex>,
+        name: String,
+        type_definition: FunctionSignature,
     },
-    Definition(FunctionDefinition<'lex>),
+    Definition(FunctionDefinition),
 }
 #[derive(Debug, PartialEq, Clone)]
-pub struct TraitDefinition<'lex> {
-    pub name: &'lex str,
-    pub functions: Vec<FunctionDeclaration<'lex>>,
+pub struct TraitDefinition {
+    pub name: String,
+    pub functions: Vec<FunctionDeclaration>,
 }

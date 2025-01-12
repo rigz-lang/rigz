@@ -8,7 +8,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use rigz_vm::derive::{boxed, csv_tuple_vec, csv_vec, option};
 
-impl ToTokens for Element<'_> {
+impl ToTokens for Element {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
             Element::Expression(e) => {
@@ -26,7 +26,7 @@ impl ToTokens for Element<'_> {
     }
 }
 
-impl ToTokens for FunctionExpression<'_> {
+impl ToTokens for FunctionExpression {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
             FunctionExpression::FunctionCall(name, args) => {
@@ -50,7 +50,7 @@ impl ToTokens for FunctionExpression<'_> {
     }
 }
 
-impl ToTokens for Expression<'_> {
+impl ToTokens for Expression {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
             Expression::This => quote! {
@@ -234,7 +234,7 @@ impl ToTokens for Expression<'_> {
     }
 }
 
-impl ToTokens for RigzArguments<'_> {
+impl ToTokens for RigzArguments {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
             RigzArguments::Positional(v) => {
@@ -245,13 +245,15 @@ impl ToTokens for RigzArguments<'_> {
             }
             RigzArguments::Mixed(a, n) => {
                 let a = csv_vec(a);
-                let n = csv_tuple_vec(n);
+                let values: Vec<_> = n.iter().map(|(a, v)| quote! { (#a.to_string(), #v), }).collect();
+                let n = quote! { vec![#(#values)*] };
                 quote! {
                     RigzArguments::Mixed(#a, #n)
                 }
             }
             RigzArguments::Named(n) => {
-                let n = csv_tuple_vec(n);
+                let values: Vec<_> = n.iter().map(|(a, v)| quote! { (#a.to_string(), #v), }).collect();
+                let n = quote! { vec![#(#values)*] };
                 quote! {
                     RigzArguments::Named(#n)
                 }
@@ -261,7 +263,7 @@ impl ToTokens for RigzArguments<'_> {
     }
 }
 
-impl ToTokens for Assign<'_> {
+impl ToTokens for Assign {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
             Assign::This => quote! { Assign::This },
@@ -281,7 +283,7 @@ impl ToTokens for Assign<'_> {
     }
 }
 
-impl ToTokens for ImportValue<'_> {
+impl ToTokens for ImportValue {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
             ImportValue::TypeValue(s) => quote! {ImportValue::TypeValue(#s)},
@@ -292,7 +294,7 @@ impl ToTokens for ImportValue<'_> {
     }
 }
 
-impl ToTokens for Exposed<'_> {
+impl ToTokens for Exposed {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
             Exposed::TypeValue(tv) => quote! { Exposed::TypeValue(#tv) },
@@ -302,7 +304,7 @@ impl ToTokens for Exposed<'_> {
     }
 }
 
-impl ToTokens for Scope<'_> {
+impl ToTokens for Scope {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let Scope { elements } = self;
         let elements = csv_vec(elements);
@@ -314,7 +316,7 @@ impl ToTokens for Scope<'_> {
     }
 }
 
-impl ToTokens for Statement<'_> {
+impl ToTokens for Statement {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
             Statement::Assignment { lhs, expression } => {
@@ -382,7 +384,7 @@ impl ToTokens for Statement<'_> {
     }
 }
 
-impl ToTokens for FunctionDefinition<'_> {
+impl ToTokens for FunctionDefinition {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let FunctionDefinition {
             name,
@@ -391,9 +393,10 @@ impl ToTokens for FunctionDefinition<'_> {
             lifecycle,
         } = self;
         let l = option(lifecycle);
+        let name = name.as_str();
         tokens.extend(quote! {
             FunctionDefinition {
-                name: #name,
+                name: #name.to_string().into(),
                 lifecycle: #l,
                 type_definition: #type_definition,
                 body: #body
@@ -415,7 +418,7 @@ impl ToTokens for FunctionType {
     }
 }
 
-impl ToTokens for FunctionArgument<'_> {
+impl ToTokens for FunctionArgument {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let FunctionArgument {
             name,
@@ -425,9 +428,10 @@ impl ToTokens for FunctionArgument<'_> {
             rest,
         } = self;
         let d = option(default);
+        let name = name.as_str();
         tokens.extend(quote! {
             FunctionArgument {
-                name: #name,
+                name: #name.to_string().into(),
                 default: #d,
                 function_type: #function_type,
                 var_arg: #var_arg,
@@ -448,7 +452,7 @@ impl ToTokens for ArgType {
     }
 }
 
-impl ToTokens for FunctionSignature<'_> {
+impl ToTokens for FunctionSignature {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let FunctionSignature {
             arguments,
@@ -472,7 +476,7 @@ impl ToTokens for FunctionSignature<'_> {
     }
 }
 
-impl ToTokens for FunctionDeclaration<'_> {
+impl ToTokens for FunctionDeclaration {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
             FunctionDeclaration::Declaration {
@@ -496,7 +500,7 @@ impl ToTokens for FunctionDeclaration<'_> {
     }
 }
 
-impl ToTokens for ModuleTraitDefinition<'_> {
+impl ToTokens for ModuleTraitDefinition {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let ModuleTraitDefinition {
             auto_import,
@@ -511,7 +515,7 @@ impl ToTokens for ModuleTraitDefinition<'_> {
     }
 }
 
-impl ToTokens for TraitDefinition<'_> {
+impl ToTokens for TraitDefinition {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let TraitDefinition { name, functions } = self;
         let functions = csv_vec(functions);

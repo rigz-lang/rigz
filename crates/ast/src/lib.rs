@@ -29,20 +29,21 @@ pub use validate::*;
 
 #[derive(Debug)]
 #[allow(dead_code)]
-pub struct Parser<'lex> {
-    tokens: VecDeque<Token<'lex>>,
+pub struct Parser<'t> {
+    pub input: Option<String>,
+    tokens: VecDeque<Token<'t>>,
     line: usize, // todo repl should set this
 }
 
 // TODO better error messages
-pub fn parse(input: &str) -> Result<Program, ParsingError> {
-    let mut parser = Parser::prepare(input)?;
+pub fn parse(input: &str, debug: bool) -> Result<Program, ParsingError> {
+    let mut parser = Parser::prepare(input, debug)?;
 
     parser.parse()
 }
 
-impl<'lex> Parser<'lex> {
-    pub fn prepare(input: &'lex str) -> Result<Self, ParsingError> {
+impl <'t> Parser<'t> {
+    pub fn prepare(input: &'t str, debug: bool) -> Result<Self, ParsingError> {
         let input = input.trim(); // ensure no trailing newlines to avoid issues in parse_element
         if input.is_empty() {
             return Err(ParsingError::ParseError(
@@ -83,20 +84,27 @@ impl<'lex> Parser<'lex> {
                 tokens.push_back(Token { kind, span, line })
             }
         }
-        Ok(Parser { tokens, line })
+        let input = if debug {
+            Some(input.to_string())
+        } else {
+            None
+        };
+        Ok(Parser {
+            input,
+            tokens,
+            line,
+        })
     }
 
-    pub fn parse(&mut self) -> Result<Program<'lex>, ParsingError> {
+    pub fn parse(mut self) -> Result<Program, ParsingError> {
         let mut elements = Vec::new();
         while self.has_tokens() {
             elements.push(self.parse_element()?)
         }
-        Ok(Program { elements })
+        Ok(Program { input: self.input, elements })
     }
 
-    pub fn parse_module_trait_definition(
-        &mut self,
-    ) -> Result<ModuleTraitDefinition<'lex>, ParsingError> {
+    pub fn parse_module_trait_definition(&mut self) -> Result<ModuleTraitDefinition, ParsingError> {
         let mut next = self.next_required_token("parse_module_trait_definition")?;
         let auto_import = if next.kind == TokenKind::Import {
             next = self.next_required_token("parse_module_trait_definition")?;
@@ -121,43 +129,43 @@ impl<'lex> Parser<'lex> {
     }
 }
 
-impl<'lex> From<TokenValue<'lex>> for Expression<'lex> {
+impl <'t> From<TokenValue<'t>> for Expression {
     #[inline]
-    fn from(value: TokenValue<'lex>) -> Self {
+    fn from(value: TokenValue) -> Self {
         Expression::Value(value.into())
     }
 }
 
-impl<'lex> From<&'lex str> for Expression<'lex> {
+impl From<&'_ str> for Expression {
     #[inline]
-    fn from(value: &'lex str) -> Self {
-        Expression::Identifier(value)
+    fn from(value: &str) -> Self {
+        Expression::Identifier(value.to_string())
     }
 }
 
-impl<'lex> From<Symbol<'lex>> for Expression<'lex> {
+impl From<Symbol<'_>> for Expression {
     #[inline]
-    fn from(value: Symbol<'lex>) -> Self {
-        Expression::Symbol(value.0)
+    fn from(value: Symbol) -> Self {
+        Expression::Symbol(value.0.to_string())
     }
 }
 
-impl<'lex, T: Into<Expression<'lex>>> From<T> for Element<'lex> {
+impl<T: Into<Expression>> From<T> for Element {
     #[inline]
     fn from(value: T) -> Self {
         Element::Expression(value.into())
     }
 }
 
-impl<'lex> From<Statement<'lex>> for Element<'lex> {
+impl From<Statement> for Element {
     #[inline]
-    fn from(value: Statement<'lex>) -> Self {
+    fn from(value: Statement) -> Self {
         Element::Statement(value)
     }
 }
 
-impl<'lex> Parser<'lex> {
-    fn peek_token(&self) -> Option<Token<'lex>> {
+impl <'t> Parser<'t> {
+    fn peek_token(&self) -> Option<Token<'t>> {
         self.tokens.front().cloned()
     }
 
@@ -165,7 +173,7 @@ impl<'lex> Parser<'lex> {
         !self.tokens.is_empty()
     }
 
-    fn peek_required_token(&self, location: &'static str) -> Result<Token<'lex>, ParsingError> {
+    fn peek_required_token(&self, location: &'static str) -> Result<Token<'t>, ParsingError> {
         match self.peek_token() {
             None => Err(Self::eoi_error("peek_required_token", location)),
             Some(t) => Ok(t),
@@ -175,7 +183,7 @@ impl<'lex> Parser<'lex> {
     fn peek_required_token_eat_newlines(
         &mut self,
         location: &'static str,
-    ) -> Result<Token<'lex>, ParsingError> {
+    ) -> Result<Token<'t>, ParsingError> {
         match self.peek_token() {
             None => Err(Self::eoi_error("peek_required_token", location)),
             Some(t) if t.kind == TokenKind::Newline => {
@@ -186,18 +194,18 @@ impl<'lex> Parser<'lex> {
         }
     }
 
-    fn next_token(&mut self) -> Option<Token<'lex>> {
+    fn next_token(&mut self) -> Option<Token<'t>> {
         self.tokens.pop_front()
     }
 
-    fn next_required_token(&mut self, caller: &'static str) -> Result<Token<'lex>, ParsingError> {
+    fn next_required_token(&mut self, caller: &'static str) -> Result<Token<'t>, ParsingError> {
         match self.next_token() {
             None => Err(Self::eoi_error("next_required_token", caller)),
             Some(t) => Ok(t),
         }
     }
 
-    fn consume_token(&mut self, kind: TokenKind<'lex>) -> Result<(), ParsingError> {
+    fn consume_token(&mut self, kind: TokenKind<'t>) -> Result<(), ParsingError> {
         match self.next_token() {
             None => Err(Self::eoi_error_string(format!("expected {}", kind))),
             Some(t) if t.kind != kind => Err(ParsingError::ParseError(format!(
@@ -208,7 +216,7 @@ impl<'lex> Parser<'lex> {
         }
     }
 
-    fn consume_token_eat_newlines(&mut self, kind: TokenKind<'lex>) -> Result<(), ParsingError> {
+    fn consume_token_eat_newlines(&mut self, kind: TokenKind<'t>) -> Result<(), ParsingError> {
         match self.next_token() {
             None => Err(Self::eoi_error_string(format!("expected {}", kind))),
             Some(t) if t.kind == TokenKind::Newline => self.consume_token_eat_newlines(kind),
@@ -228,7 +236,7 @@ impl<'lex> Parser<'lex> {
         ParsingError::Eoi(message)
     }
 
-    fn parse_element(&mut self) -> Result<Element<'lex>, ParsingError> {
+    fn parse_element(&mut self) -> Result<Element, ParsingError> {
         let token = match self.peek_token() {
             None => return Err(Self::eoi_error_string("parse_element".to_string())),
             Some(t) => t,
@@ -284,7 +292,7 @@ impl<'lex> Parser<'lex> {
                         TokenKind::Increment => {
                             self.consume_token(TokenKind::Increment)?;
                             Statement::BinaryAssignment {
-                                lhs: Assign::Identifier(id, false),
+                                lhs: Assign::Identifier(id.to_string().into(), false),
                                 op: BinaryOperation::Add,
                                 expression: Expression::Value(1.into()),
                             }
@@ -293,7 +301,7 @@ impl<'lex> Parser<'lex> {
                         TokenKind::Decrement => {
                             self.consume_token(TokenKind::Decrement)?;
                             Statement::BinaryAssignment {
-                                lhs: Assign::Identifier(id, false),
+                                lhs: Assign::Identifier(id.to_string().into(), false),
                                 op: BinaryOperation::Sub,
                                 expression: Expression::Value(1.into()),
                             }
@@ -302,7 +310,7 @@ impl<'lex> Parser<'lex> {
                         TokenKind::BinAssign(op) => {
                             self.consume_token(TokenKind::BinAssign(op))?;
                             Statement::BinaryAssignment {
-                                lhs: Assign::Identifier(id, false),
+                                lhs: Assign::Identifier(id.to_string().into(), false),
                                 op,
                                 expression: self.parse_expression()?,
                             }
@@ -317,7 +325,7 @@ impl<'lex> Parser<'lex> {
                 let next = self.next_required_token("parse_element - TypeDefinition")?;
                 if let TokenKind::TypeValue(name) = next.kind {
                     self.consume_token(TokenKind::Assign)?;
-                    Statement::TypeDefinition(name, self.parse_rigz_type(Some(name), false)?).into()
+                    Statement::TypeDefinition(name.to_string().into(), self.parse_rigz_type(Some(name), false)?).into()
                 } else {
                     return Err(ParsingError::ParseError(format!(
                         "Invalid type definition expected TypeValue, received {:?}",
@@ -388,10 +396,7 @@ impl<'lex> Parser<'lex> {
         self.parse_element_suffix(ele)
     }
 
-    fn parse_element_suffix(
-        &mut self,
-        element: Element<'lex>,
-    ) -> Result<Element<'lex>, ParsingError> {
+    fn parse_element_suffix(&mut self, element: Element) -> Result<Element, ParsingError> {
         let next = self.peek_token();
         match next {
             None => Ok(element),
@@ -511,7 +516,7 @@ impl<'lex> Parser<'lex> {
         }
     }
 
-    fn parse_lifecycle(&mut self, lifecycle: &'lex str) -> Result<Lifecycle, ParsingError> {
+    fn parse_lifecycle(&mut self, lifecycle: &'t str) -> Result<Lifecycle, ParsingError> {
         self.consume_token(TokenKind::Lifecycle(lifecycle))?;
         match lifecycle {
             // todo support @test.assert_eq, @test.assert_neq, @test.assert
@@ -537,8 +542,8 @@ impl<'lex> Parser<'lex> {
 
     fn parse_lifecycle_func(
         &mut self,
-        initial_lifecycle: &'lex str,
-    ) -> Result<Statement<'lex>, ParsingError> {
+        initial_lifecycle: &'t str,
+    ) -> Result<Statement, ParsingError> {
         let mut lifecycle = self.parse_lifecycle(initial_lifecycle)?;
         loop {
             let next = self.peek_required_token_eat_newlines("parse_lifecycle_func")?;
@@ -561,18 +566,18 @@ impl<'lex> Parser<'lex> {
         ))
     }
 
-    fn parse_import(&mut self) -> Result<Statement<'lex>, ParsingError> {
+    fn parse_import(&mut self) -> Result<Statement, ParsingError> {
         self.consume_token(TokenKind::Import)?;
         let next = self.next_required_token("parse_import")?;
         let import_value = match next.kind {
             TokenKind::TypeValue(tv) => {
-                ImportValue::TypeValue(tv)
+                ImportValue::TypeValue(tv.to_string())
             }
             TokenKind::Value(TokenValue::String(s)) => {
                 if s.starts_with("http") {
-                    ImportValue::UrlPath(s)
+                    ImportValue::UrlPath(s.to_string())
                 } else {
-                    ImportValue::FilePath(s)
+                    ImportValue::FilePath(s.to_string())
                 }
             }
             t => return Err(ParsingError::ParseError(format!(
@@ -582,7 +587,7 @@ impl<'lex> Parser<'lex> {
         Ok(Statement::Import(import_value))
     }
 
-    fn parse_expression(&mut self) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_expression(&mut self) -> Result<Expression, ParsingError> {
         let next = self
             .next_required_token("parse_expression")
             .map_err(|e| ParsingError::ParseError(format!("Invalid Expression {e}")))?;
@@ -660,7 +665,7 @@ impl<'lex> Parser<'lex> {
                         if let TokenKind::Identifier(func_name) = func_name.kind {
                             FunctionExpression::TypeFunctionCall(
                                 type_value,
-                                func_name,
+                                func_name.to_string(),
                                 self.parse_args()?,
                             )
                             .into()
@@ -701,7 +706,7 @@ impl<'lex> Parser<'lex> {
         self.parse_expression_suffix(exp)
     }
 
-    fn parse_lambda(&mut self, empty: bool) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_lambda(&mut self, empty: bool) -> Result<Expression, ParsingError> {
         let (arguments, var_args_start) = if empty {
             (vec![], None)
         } else {
@@ -715,10 +720,7 @@ impl<'lex> Parser<'lex> {
         })
     }
 
-    fn parse_expression_suffix(
-        &mut self,
-        exp: Expression<'lex>,
-    ) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_expression_suffix(&mut self, exp: Expression) -> Result<Expression, ParsingError> {
         // todo should other suffix tokens be allowed to have leading newlines?
         match self.peek_token() {
             None => Ok(exp),
@@ -782,7 +784,7 @@ impl<'lex> Parser<'lex> {
         }
     }
 
-    fn parse_assignment(&mut self, mutable: bool) -> Result<Statement<'lex>, ParsingError> {
+    fn parse_assignment(&mut self, mutable: bool) -> Result<Statement, ParsingError> {
         let next = self
             .next_required_token("parse_assignment")
             .map_err(|e| ParsingError::ParseError(format!("Expected token for assignment: {e}")))?;
@@ -797,7 +799,7 @@ impl<'lex> Parser<'lex> {
         }
     }
 
-    fn parse_tuple_assign(&mut self, mutable: bool) -> Result<Statement<'lex>, ParsingError> {
+    fn parse_tuple_assign(&mut self, mutable: bool) -> Result<Statement, ParsingError> {
         let mut tuple = vec![];
         let mut is_mut = mutable;
         let mut needs_id = false;
@@ -825,7 +827,7 @@ impl<'lex> Parser<'lex> {
                     needs_id = true;
                 }
                 TokenKind::Identifier(id) => {
-                    tuple.push((id, is_mut));
+                    tuple.push((id.to_string(), is_mut));
                     is_mut = mutable;
                     needs_id = false
                 }
@@ -846,8 +848,8 @@ impl<'lex> Parser<'lex> {
     fn parse_assignment_definition(
         &mut self,
         mutable: bool,
-        id: &'lex str,
-    ) -> Result<Statement<'lex>, ParsingError> {
+        id: &'t str,
+    ) -> Result<Statement, ParsingError> {
         let token = self.peek_required_token("parse_assignment_definition")?;
         let rigz_type = match token.kind {
             TokenKind::Colon => {
@@ -858,8 +860,8 @@ impl<'lex> Parser<'lex> {
         };
         self.consume_token(TokenKind::Assign)?;
         let lhs = match rigz_type {
-            None => Assign::Identifier(id, mutable),
-            Some(rigz_type) => Assign::TypedIdentifier(id, mutable, rigz_type),
+            None => Assign::Identifier(id.to_string(), mutable),
+            Some(rigz_type) => Assign::TypedIdentifier(id.to_string(), mutable, rigz_type),
         };
         Ok(Statement::Assignment {
             lhs,
@@ -867,7 +869,7 @@ impl<'lex> Parser<'lex> {
         })
     }
 
-    fn parse_this_assignment_definition(&mut self) -> Result<Statement<'lex>, ParsingError> {
+    fn parse_this_assignment_definition(&mut self) -> Result<Statement, ParsingError> {
         self.consume_token(TokenKind::Assign)?;
         Ok(Statement::Assignment {
             lhs: Assign::This,
@@ -875,10 +877,7 @@ impl<'lex> Parser<'lex> {
         })
     }
 
-    fn parse_identifier_expression(
-        &mut self,
-        id: &'lex str,
-    ) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_identifier_expression(&mut self, id: &'t str) -> Result<Expression, ParsingError> {
         let args = match self.peek_token() {
             None => return Ok(id.into()),
             Some(next) => match next.kind {
@@ -894,13 +893,13 @@ impl<'lex> Parser<'lex> {
                 _ => return self.parse_inline_expression(id),
             },
         };
-        Ok(FunctionExpression::FunctionCall(id, args).into())
+        Ok(FunctionExpression::FunctionCall(id.to_string(), args).into())
     }
 
     fn parse_identifier_expression_skip_inline(
         &mut self,
-        id: &'lex str,
-    ) -> Result<Expression<'lex>, ParsingError> {
+        id: &'t str,
+    ) -> Result<Expression, ParsingError> {
         let args = match self.peek_token() {
             None => return Ok(id.into()),
             Some(next) => match next.kind {
@@ -918,10 +917,10 @@ impl<'lex> Parser<'lex> {
                 _ => return Ok(id.into()),
             },
         };
-        Ok(FunctionExpression::FunctionCall(id, args).into())
+        Ok(FunctionExpression::FunctionCall(id.to_string(), args).into())
     }
 
-    fn parse_paren_expression(&mut self) -> Result<Element<'lex>, ParsingError> {
+    fn parse_paren_expression(&mut self) -> Result<Element, ParsingError> {
         let mut expr = self.parse_expression()?;
         let t = self.next_required_token("parse_paren_expression")?;
         match t.kind {
@@ -951,7 +950,7 @@ impl<'lex> Parser<'lex> {
         }
     }
 
-    fn parse_tuple(&mut self, first: Expression<'lex>) -> Result<Element<'lex>, ParsingError> {
+    fn parse_tuple(&mut self, first: Expression) -> Result<Element, ParsingError> {
         let mut tuple = vec![first];
         let mut assign = vec![];
         let mut is_assign = false;
@@ -987,7 +986,7 @@ impl<'lex> Parser<'lex> {
                 TokenKind::Identifier(id) => {
                     assign = convert_to_assign(&mut tuple)?;
                     needs_id = false;
-                    assign.push((id, is_mut));
+                    assign.push((id.to_string(), is_mut));
                     is_mut = false;
                 }
                 _ => {
@@ -1018,9 +1017,9 @@ impl<'lex> Parser<'lex> {
         }
     }
 
-    fn parse_inline_expression<LHS>(&mut self, lhs: LHS) -> Result<Expression<'lex>, ParsingError>
+    fn parse_inline_expression<LHS>(&mut self, lhs: LHS) -> Result<Expression, ParsingError>
     where
-        LHS: Into<Expression<'lex>>,
+        LHS: Into<Expression>,
     {
         let mut res = lhs.into();
         if matches!(res, Expression::Lambda { .. }) {
@@ -1077,9 +1076,9 @@ impl<'lex> Parser<'lex> {
 
     fn parse_binary_expression(
         &mut self,
-        lhs: Expression<'lex>,
+        lhs: Expression,
         op: BinaryOperation,
-    ) -> Result<Expression<'lex>, ParsingError> {
+    ) -> Result<Expression, ParsingError> {
         let next = self.next_required_token("parse_binary_expression")?;
         let rhs = match next.kind {
             // todo values & identifiers need some work, this doesn't handle function calls or instance calls
@@ -1123,15 +1122,12 @@ impl<'lex> Parser<'lex> {
         Ok(Expression::binary(lhs, op, rhs))
     }
 
-    fn parse_instance_call(
-        &mut self,
-        lhs: Expression<'lex>,
-    ) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_instance_call(&mut self, lhs: Expression) -> Result<Expression, ParsingError> {
         let next = self.next_required_token("parse_instance_call")?;
         let mut lhs = lhs;
         let mut calls = match next.kind {
             TokenKind::Identifier(id) => {
-                vec![id]
+                vec![id.to_string()]
             }
             TokenKind::Value(TokenValue::Number(Number::Int(n))) => {
                 lhs = Expression::Index(lhs.into(), Expression::Value(n.into()).into());
@@ -1170,7 +1166,7 @@ impl<'lex> Parser<'lex> {
                         match t.kind {
                             TokenKind::Identifier(n) => {
                                 self.consume_token(TokenKind::Identifier(n))?;
-                                calls.push(n);
+                                calls.push(n.to_string());
                                 needs_separator = true;
                                 continue;
                             }
@@ -1211,18 +1207,15 @@ impl<'lex> Parser<'lex> {
         }
     }
 
-    fn parse_value_expression(
-        &mut self,
-        value: TokenValue<'lex>,
-    ) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_value_expression(&mut self, value: TokenValue) -> Result<Expression, ParsingError> {
         self.parse_inline_expression(value)
     }
 
-    fn parse_this_expression(&mut self) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_this_expression(&mut self) -> Result<Expression, ParsingError> {
         self.parse_inline_expression(Expression::This)
     }
 
-    fn parse_this_expression_skip_inline(&mut self) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_this_expression_skip_inline(&mut self) -> Result<Expression, ParsingError> {
         match self.peek_token() {
             None => Ok(Expression::This),
             Some(t) => match t.kind {
@@ -1235,22 +1228,16 @@ impl<'lex> Parser<'lex> {
         }
     }
 
-    fn parse_symbol_expression(
-        &mut self,
-        symbol: Symbol<'lex>,
-    ) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_symbol_expression(&mut self, symbol: Symbol<'t>) -> Result<Expression, ParsingError> {
         self.parse_inline_expression(symbol)
     }
 
-    fn parse_unary_expression(
-        &mut self,
-        op: UnaryOperation,
-    ) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_unary_expression(&mut self, op: UnaryOperation) -> Result<Expression, ParsingError> {
         let exp = self.parse_expression()?;
         Ok(Expression::unary(op, exp))
     }
 
-    fn parse_args(&mut self) -> Result<RigzArguments<'lex>, ParsingError> {
+    fn parse_args(&mut self) -> Result<RigzArguments, ParsingError> {
         let mut args = Vec::new();
         let mut needs_comma = false;
         let mut named = None;
@@ -1284,10 +1271,10 @@ impl<'lex> Parser<'lex> {
                                     self.consume_token(TokenKind::Colon)?;
                                     match &mut named {
                                         None => {
-                                            named = Some(vec![(id, self.parse_expression()?)]);
+                                            named = Some(vec![(id.to_string(), self.parse_expression()?)]);
                                         }
                                         Some(v) => {
-                                            v.push((id, self.parse_expression()?));
+                                            v.push((id.to_string(), self.parse_expression()?));
                                             needs_comma = true
                                         }
                                     }
@@ -1346,7 +1333,7 @@ impl<'lex> Parser<'lex> {
         }
     }
 
-    fn parse_for_list(&mut self) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_for_list(&mut self) -> Result<Expression, ParsingError> {
         let var = self.required_identifier()?;
         self.consume_token(TokenKind::In)?;
         let expression = self.parse_expression()?;
@@ -1360,7 +1347,7 @@ impl<'lex> Parser<'lex> {
         })
     }
 
-    fn parse_list(&mut self) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_list(&mut self) -> Result<Expression, ParsingError> {
         let next = self.peek_required_token_eat_newlines("parse_list")?;
         if next.kind == TokenKind::For {
             self.consume_token(TokenKind::For)?;
@@ -1386,17 +1373,17 @@ impl<'lex> Parser<'lex> {
         Ok(args.into())
     }
 
-    fn required_identifier(&mut self) -> Result<&'lex str, ParsingError> {
+    fn required_identifier(&mut self) -> Result<String, ParsingError> {
         let t = self.next_required_token("required_identifier")?;
         match t.kind {
-            TokenKind::Identifier(id) => Ok(id),
+            TokenKind::Identifier(id) => Ok(id.to_string()),
             _ => Err(ParsingError::ParseError(format!(
                 "Expected identifier got {t:?}"
             ))),
         }
     }
 
-    fn parse_for_map(&mut self) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_for_map(&mut self) -> Result<Expression, ParsingError> {
         let k_var = self.required_identifier()?;
         self.consume_token(TokenKind::Comma)?;
         let v_var = self.required_identifier()?;
@@ -1428,7 +1415,7 @@ impl<'lex> Parser<'lex> {
         })
     }
 
-    fn parse_map(&mut self) -> Result<Expression<'lex>, ParsingError> {
+    fn parse_map(&mut self) -> Result<Expression, ParsingError> {
         let next = self.peek_required_token("parse_map")?;
         match next.kind {
             TokenKind::For => {
@@ -1471,8 +1458,8 @@ impl<'lex> Parser<'lex> {
                             args.push((key, value));
                         }
                         TokenKind::Comma => {
-                            if let Expression::Identifier(id) = key {
-                                args.push((Expression::Value(id.into()), key));
+                            if let Expression::Identifier(id) = &key {
+                                args.push((Expression::Value(id.as_str().into()), key));
                             } else {
                                 args.push((key.clone(), key));
                             }
@@ -1496,7 +1483,7 @@ impl<'lex> Parser<'lex> {
     fn parse_function_definition(
         &mut self,
         lifecycle: Option<Lifecycle>,
-    ) -> Result<FunctionDefinition<'lex>, ParsingError> {
+    ) -> Result<FunctionDefinition, ParsingError> {
         match self.parse_function_declaration()? {
             FunctionDeclaration::Declaration { name, .. } => Err(ParsingError::ParseError(
                 format!("Missing body for function definition {name}"),
@@ -1520,7 +1507,7 @@ impl<'lex> Parser<'lex> {
 
     fn parse_function_arguments(
         &mut self,
-    ) -> Result<(Vec<FunctionArgument<'lex>>, Option<usize>, ArgType), ParsingError> {
+    ) -> Result<(Vec<FunctionArgument>, Option<usize>, ArgType), ParsingError> {
         let mut args = Vec::new();
         let next = self.peek_required_token_eat_newlines("parse_function_arguments")?;
         if !(next.kind == TokenKind::Lparen
@@ -1545,8 +1532,8 @@ impl<'lex> Parser<'lex> {
 
     fn parse_function_arguments_inner(
         &mut self,
-        args: &mut Vec<FunctionArgument<'lex>>,
-        terminal: TokenKind<'lex>,
+        args: &mut Vec<FunctionArgument>,
+        terminal: TokenKind<'t>,
         var_arg_start: &mut Option<usize>,
     ) -> Result<(), ParsingError> {
         loop {
@@ -1574,7 +1561,7 @@ impl<'lex> Parser<'lex> {
 
     fn parse_lambda_arguments(
         &mut self,
-    ) -> Result<(Vec<FunctionArgument<'lex>>, Option<usize>), ParsingError> {
+    ) -> Result<(Vec<FunctionArgument>, Option<usize>), ParsingError> {
         let mut args = Vec::new();
 
         let mut var_arg_start = None;
@@ -1607,7 +1594,7 @@ impl<'lex> Parser<'lex> {
     fn parse_function_argument(
         &mut self,
         existing_var_arg: bool,
-    ) -> Result<FunctionArgument<'lex>, ParsingError> {
+    ) -> Result<FunctionArgument, ParsingError> {
         // todo support mut, vm changes required
         let var_arg = self.check_var_arg(existing_var_arg)?;
         let next = self.next_required_token("parse_function_argument")?;
@@ -1636,9 +1623,9 @@ impl<'lex> Parser<'lex> {
     fn parse_identifier_argument(
         &mut self,
         var_arg: bool,
-        name: &'lex str,
+        name: &'t str,
         rest: bool,
-    ) -> Result<FunctionArgument<'lex>, ParsingError> {
+    ) -> Result<FunctionArgument, ParsingError> {
         let mut default_type = true;
         let next = self.peek_required_token("parse_identifier_argument")?;
         let mut rigz_type = match next.kind {
@@ -1672,7 +1659,7 @@ impl<'lex> Parser<'lex> {
         };
 
         Ok(FunctionArgument {
-            name,
+            name: name.to_string().into(),
             default,
             function_type: rigz_type.into(),
             var_arg,
@@ -1705,7 +1692,7 @@ impl<'lex> Parser<'lex> {
 
     fn parse_rigz_type(
         &mut self,
-        name: Option<&'lex str>,
+        name: Option<&'t str>,
         paren: bool,
     ) -> Result<RigzType, ParsingError> {
         let next = self.next_required_token("parse_rigz_type")?;
@@ -1876,7 +1863,7 @@ impl<'lex> Parser<'lex> {
         Ok(rt)
     }
 
-    fn parse_custom_type(&mut self, name: &'lex str) -> Result<CustomType, ParsingError> {
+    fn parse_custom_type(&mut self, name: &'t str) -> Result<CustomType, ParsingError> {
         let mut fields = vec![];
         let mut needs_separator = false;
         loop {
@@ -1975,7 +1962,7 @@ impl<'lex> Parser<'lex> {
     fn parse_function_type_definition(
         &mut self,
         mut_self: bool,
-    ) -> Result<FunctionSignature<'lex>, ParsingError> {
+    ) -> Result<FunctionSignature, ParsingError> {
         let (arguments, var_args_start, arg_type) = self.parse_function_arguments()?;
         Ok(FunctionSignature {
             arguments,
@@ -1986,7 +1973,7 @@ impl<'lex> Parser<'lex> {
         })
     }
 
-    fn parse_scope(&mut self) -> Result<Scope<'lex>, ParsingError> {
+    fn parse_scope(&mut self) -> Result<Scope, ParsingError> {
         let mut elements = vec![];
         loop {
             let next = self.peek_required_token_eat_newlines("parse_scope")?;
@@ -2006,7 +1993,7 @@ impl<'lex> Parser<'lex> {
         Ok(Scope { elements })
     }
 
-    fn parse_if_scope(&mut self) -> Result<(Scope<'lex>, Option<Scope<'lex>>), ParsingError> {
+    fn parse_if_scope(&mut self) -> Result<(Scope, Option<Scope>), ParsingError> {
         let mut elements = vec![];
         let mut else_encountered = false;
         loop {
@@ -2046,10 +2033,10 @@ impl<'lex> Parser<'lex> {
         Ok((Scope { elements }, branch))
     }
 
-    fn parse_trait_definition(&mut self) -> Result<TraitDefinition<'lex>, ParsingError> {
+    fn parse_trait_definition(&mut self) -> Result<TraitDefinition, ParsingError> {
         let next = self.next_required_token("parse_trait_definition")?;
         let name = if let TokenKind::TypeValue(name) = next.kind {
-            name
+            name.to_string()
         } else {
             return Err(ParsingError::ParseError(format!(
                 "Invalid trait, expected trait name received {:?}",
@@ -2062,7 +2049,7 @@ impl<'lex> Parser<'lex> {
         Ok(TraitDefinition { name, functions })
     }
 
-    fn parse_trait_declarations(&mut self) -> Result<Vec<FunctionDeclaration<'lex>>, ParsingError> {
+    fn parse_trait_declarations(&mut self) -> Result<Vec<FunctionDeclaration>, ParsingError> {
         let mut all = Vec::new();
         loop {
             let next = self.peek_required_token_eat_newlines("parse_trait_declarations")?;
@@ -2092,7 +2079,7 @@ impl<'lex> Parser<'lex> {
         Ok(all)
     }
 
-    fn parse_function_declaration(&mut self) -> Result<FunctionDeclaration<'lex>, ParsingError> {
+    fn parse_function_declaration(&mut self) -> Result<FunctionDeclaration, ParsingError> {
         let next = self.peek_required_token("parse_function_declaration")?;
         match next.kind {
             TokenKind::Mut => {
@@ -2122,9 +2109,9 @@ impl<'lex> Parser<'lex> {
 
     fn parse_typed_function_declaration(
         &mut self,
-        rigz_type: Option<&'lex str>,
+        rigz_type: Option<&'t str>,
         mutable: bool,
-    ) -> Result<FunctionDeclaration<'lex>, ParsingError> {
+    ) -> Result<FunctionDeclaration, ParsingError> {
         let mut is_vm = false;
         let self_type = match rigz_type {
             Some(rt) => match rt.parse::<RigzType>() {
@@ -2190,11 +2177,11 @@ impl<'lex> Parser<'lex> {
         let next = self.peek_required_token_eat_newlines("parse_typed_function_declaration")?;
         let dec = match next.kind {
             TokenKind::FunctionDef | TokenKind::End => FunctionDeclaration::Declaration {
-                name,
+                name: name.to_string(),
                 type_definition,
             },
             _ => FunctionDeclaration::Definition(FunctionDefinition {
-                name,
+                name: name.to_string(),
                 type_definition,
                 body: self.parse_scope()?,
                 lifecycle: None,
@@ -2204,14 +2191,14 @@ impl<'lex> Parser<'lex> {
     }
 }
 
-fn convert_to_assign<'e>(
-    tuple: &mut Vec<Expression<'e>>,
-) -> Result<Vec<(&'e str, bool)>, ParsingError> {
+fn convert_to_assign(
+    tuple: &mut Vec<Expression>,
+) -> Result<Vec<(String, bool)>, ParsingError> {
     let mut results = Vec::with_capacity(tuple.len());
     for e in tuple.iter() {
         match e {
-            &Expression::Identifier(id) => {
-                results.push((id, false));
+            Expression::Identifier(id) => {
+                results.push((id.to_string(), false));
             }
             Expression::Tuple(_) => {
                 todo!("nested tuples not supported yet")
