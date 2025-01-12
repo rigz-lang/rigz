@@ -41,7 +41,9 @@ module.exports = grammar({
         _fn: _ => "fn",
         _end: _ => "end",
         self: _ => "self",
-        import: $ => seq("import", $.type),
+        import: $ => seq("import", choice($.type, $.file, $.url)),
+        file: $ => seq(),
+        url: $ => seq(),
         scope: $ => prec.right(choice(seq("=", $.expression), seq($.program, $._end))),
         assignment: $ => choice(prec.right(seq(
             choice(seq(optional($._let), $.identifier), seq($._mut, $.identifier)),

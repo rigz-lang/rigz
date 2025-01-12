@@ -22,9 +22,9 @@ pub(crate) fn run(args: RunArgs) {
     file.read_to_string(&mut contents)
         .expect("Failed to read main");
     let v = if args.print_vm {
-        eval_print_vm(contents.as_str())
+        eval_print_vm(contents)
     } else {
-        eval(contents.as_str())
+        eval(contents)
     };
     match v {
         Err(e) => {

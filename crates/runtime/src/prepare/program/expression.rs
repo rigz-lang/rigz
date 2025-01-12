@@ -4,8 +4,8 @@ use rigz_ast::{Element, Expression, FunctionExpression, Scope, ValidationError};
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
-impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
-    fn scope_type(&mut self, scope: &Scope<'vm>) -> Result<RigzType, ValidationError> {
+impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
+    fn scope_type(&mut self, scope: &Scope) -> Result<RigzType, ValidationError> {
         let e = scope.elements.last().expect("Invalid scope");
         match e {
             Element::Statement(_) => Ok(RigzType::None),
@@ -15,7 +15,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
 
     pub(crate) fn rigz_type(
         &mut self,
-        expression: &Expression<'vm>,
+        expression: &Expression,
     ) -> Result<RigzType, ValidationError> {
         // todo arguments should be checked for function calls here for best match
         let t = match expression {
@@ -154,14 +154,14 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
         Ok(t)
     }
 
-    fn function_type(&mut self, fe: &FunctionExpression<'vm>) -> Result<RigzType, ValidationError> {
+    fn function_type(&mut self, fe: &FunctionExpression) -> Result<RigzType, ValidationError> {
         let e = match fe {
             FunctionExpression::FunctionCall(name, _) => {
-                if matches!(*name, "puts" | "log" | "sleep") {
+                if matches!(name.as_str(), "puts" | "log" | "sleep") {
                     return Ok(RigzType::None);
                 }
 
-                if matches!(*name, "send" | "spawn") {
+                if matches!(name.as_str(), "send" | "spawn") {
                     return Ok(RigzType::Int);
                 }
 
@@ -282,7 +282,7 @@ impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
     }
 
     fn function_call_return_type(
-        name: &&str,
+        name: &str,
         f: &FunctionCallSignatures,
     ) -> Result<RigzType, ValidationError> {
         let matched: HashSet<_> = f

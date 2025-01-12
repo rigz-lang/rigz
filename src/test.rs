@@ -28,7 +28,7 @@ pub(crate) fn test(args: TestArgs) {
     for file in test_files {
         match read_to_string(&file) {
             Ok(s) => {
-                match Runtime::create_unverified(s.as_str()) {
+                match Runtime::create_unverified(s) {
                     Ok(mut r) => {
                         println!("Running {}", path_to_string(&file));
                         let results = r.test();

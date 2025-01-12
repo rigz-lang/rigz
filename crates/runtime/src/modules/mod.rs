@@ -3,6 +3,8 @@ mod assertions;
 mod collections;
 mod date;
 mod file;
+mod html;
+mod http;
 mod json;
 mod log;
 mod math;
@@ -29,7 +31,7 @@ pub use string::StringModule;
 pub use uuid::UUIDModule;
 pub use vm::VMModule;
 
-impl<'vm, T: RigzBuilder<'vm>> ProgramParser<'vm, T> {
+impl<T: RigzBuilder> ProgramParser<'_, T> {
     pub fn add_default_modules(&mut self) {
         self.register_module(VMModule);
         self.register_module(AnyModule);

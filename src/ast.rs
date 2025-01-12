@@ -17,8 +17,8 @@ pub(crate) fn ast(args: AstArgs) {
     let mut contents = String::new();
     file.read_to_string(&mut contents)
         .expect("Failed to read main");
-    let str = contents.as_str();
-    let program = rigz_runtime::parse(str).expect("Failed to read input");
+    let str = contents;
+    let program = rigz_runtime::parse(&str, false).expect("Failed to read input");
     println!("AST:\n{program:#?}");
     if args.vm {
         let vm = Runtime::create(str).expect("Failed to create VM");

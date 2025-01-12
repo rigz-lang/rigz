@@ -12,7 +12,7 @@ pub mod runtime {
                 fn $name() {
                     let input = $input.to_string();
                     let v = eval(input);
-                    assert_eq!(v, Ok($expected.into()), "VM eval failed {input}");
+                    assert_eq!(v, Ok($expected.into()), "VM eval failed {}", $input);
                 }
             )*
         };
@@ -27,7 +27,7 @@ pub mod runtime {
                     let _ = pretty_env_logger::try_init();
                     let input = $input.to_string();
                     let v = eval_print_vm(input);
-                    assert_eq!(v, Ok($expected.into()), "VM eval failed {input}");
+                    assert_eq!(v, Ok($expected.into()), "VM eval failed {}", $input);
                 }
             )*
         };
@@ -40,7 +40,7 @@ pub mod runtime {
                 fn $name() {
                     let input = $input.to_string();
                     let v = eval(input);
-                    assert_eq!(v, Err($expected.into()), "Failed to parse input {}", input)
+                    assert_eq!(v, Err($expected.into()), "Failed to parse input {}", $input)
                 }
             )*
         };
@@ -54,10 +54,10 @@ pub mod runtime {
                     let input = $input.to_string();
                     let v = eval(input);
                     let Err(RuntimeError::Run(VMError::RuntimeError(e))) = v else {
-                        assert!(false, "Unexpected result {v:?} for {input}");
+                        assert!(false, "Unexpected result {v:?} for {}", $input);
                         return
                     };
-                    assert!(e.starts_with($expected), "Unexpected result {e:?} for {input}")
+                    assert!(e.starts_with($expected), "Unexpected result {e:?} for {}", $input)
                 }
             )*
         };
@@ -70,7 +70,7 @@ pub mod runtime {
                 fn $name() {
                     let input = $input.to_string();
                     let v = eval(input);
-                    assert!(v.is_err(), "Successfully parsed invalid input: {}", input)
+                    assert!(v.is_err(), "Successfully parsed invalid input: {}", $input)
                 }
             )*
         };

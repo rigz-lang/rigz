@@ -84,7 +84,7 @@ impl<'vm> Runtime<'vm> {
     }
 
     pub fn create(input: String) -> Result<Self, RuntimeError> {
-        let mut parser = Parser::prepare(input).map_err(|e| e.into())?;
+        let parser = Parser::prepare(&input, false).map_err(|e| e.into())?;
         let program = parser.parse().map_err(|e| e.into())?;
         program.validate().map_err(|e| e.into())?;
         let program: Program = program.into();
@@ -93,7 +93,7 @@ impl<'vm> Runtime<'vm> {
 
     /// Use register_module to add modules
     pub fn create_without_modules(input: String) -> Result<Self, RuntimeError> {
-        let mut parser = Parser::prepare(input).map_err(|e| e.into())?;
+        let parser = Parser::prepare(&input, false).map_err(|e| e.into())?;
         let program = parser.parse().map_err(|e| e.into())?;
         program.validate().map_err(|e| e.into())?;
         let program: Program = program.into();
@@ -102,19 +102,19 @@ impl<'vm> Runtime<'vm> {
 
     /// Meant for REPL, skips requirement that programs must end in expression
     pub fn create_unverified(input: String) -> Result<Self, RuntimeError> {
-        let mut parser = Parser::prepare(input).map_err(|e| e.into())?;
+        let parser = Parser::prepare(&input, false).map_err(|e| e.into())?;
         let program: Program = parser.parse().map_err(|e| e.into())?.into();
         program.create_runtime()
     }
 
     /// Use register_module to add modules, meant for repl
     pub fn create_unverified_without_modules(input: String) -> Result<Self, RuntimeError> {
-        let mut parser = Parser::prepare(input).map_err(|e| e.into())?;
+        let parser = Parser::prepare(&input, false).map_err(|e| e.into())?;
         let program: Program = parser.parse().map_err(|e| e.into())?.into();
         program.create_runtime_without_modules()
     }
 
-    pub fn register_module(&mut self, module: impl ParsedModule<'vm> + 'static) {
+    pub fn register_module(&mut self, module: impl ParsedModule + 'static) {
         self.parser.register_module(module);
     }
 

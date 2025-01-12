@@ -9,12 +9,12 @@ derive_module! {
     end"#
 }
 
-impl<'vm> RigzVM<'vm> for VMModule {
-    fn mut_vm_push(&self, vm: &mut VM<'vm>, value: Value) {
+impl RigzVM for VMModule {
+    fn mut_vm_push(&self, vm: &mut VM, value: Value) {
         vm.stack.push(value.into());
     }
 
-    fn mut_vm_peek(&self, vm: &mut VM<'vm>) -> Option<Value> {
+    fn mut_vm_peek(&self, vm: &mut VM) -> Option<Value> {
         let v = match vm.stack.last() {
             None => return None,
             Some(v) => v.clone(),
@@ -22,7 +22,7 @@ impl<'vm> RigzVM<'vm> for VMModule {
         Some(v.resolve(vm).borrow().clone())
     }
 
-    fn mut_vm_pop(&self, vm: &mut VM<'vm>) -> Result<Value, VMError> {
+    fn mut_vm_pop(&self, vm: &mut VM) -> Result<Value, VMError> {
         let v = vm.next_resolved_value("vm_pop").borrow().clone();
         match v {
             Value::Error(e) => Err(e),

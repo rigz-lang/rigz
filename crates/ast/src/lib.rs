@@ -42,7 +42,7 @@ pub fn parse(input: &str, debug: bool) -> Result<Program, ParsingError> {
     parser.parse()
 }
 
-impl <'t> Parser<'t> {
+impl<'t> Parser<'t> {
     pub fn prepare(input: &'t str, debug: bool) -> Result<Self, ParsingError> {
         let input = input.trim(); // ensure no trailing newlines to avoid issues in parse_element
         if input.is_empty() {
@@ -84,11 +84,7 @@ impl <'t> Parser<'t> {
                 tokens.push_back(Token { kind, span, line })
             }
         }
-        let input = if debug {
-            Some(input.to_string())
-        } else {
-            None
-        };
+        let input = if debug { Some(input.to_string()) } else { None };
         Ok(Parser {
             input,
             tokens,
@@ -101,7 +97,10 @@ impl <'t> Parser<'t> {
         while self.has_tokens() {
             elements.push(self.parse_element()?)
         }
-        Ok(Program { input: self.input, elements })
+        Ok(Program {
+            input: self.input,
+            elements,
+        })
     }
 
     pub fn parse_module_trait_definition(&mut self) -> Result<ModuleTraitDefinition, ParsingError> {
@@ -129,7 +128,7 @@ impl <'t> Parser<'t> {
     }
 }
 
-impl <'t> From<TokenValue<'t>> for Expression {
+impl<'t> From<TokenValue<'t>> for Expression {
     #[inline]
     fn from(value: TokenValue) -> Self {
         Expression::Value(value.into())
@@ -164,7 +163,7 @@ impl From<Statement> for Element {
     }
 }
 
-impl <'t> Parser<'t> {
+impl<'t> Parser<'t> {
     fn peek_token(&self) -> Option<Token<'t>> {
         self.tokens.front().cloned()
     }
@@ -325,7 +324,11 @@ impl <'t> Parser<'t> {
                 let next = self.next_required_token("parse_element - TypeDefinition")?;
                 if let TokenKind::TypeValue(name) = next.kind {
                     self.consume_token(TokenKind::Assign)?;
-                    Statement::TypeDefinition(name.to_string().into(), self.parse_rigz_type(Some(name), false)?).into()
+                    Statement::TypeDefinition(
+                        name.to_string().into(),
+                        self.parse_rigz_type(Some(name), false)?,
+                    )
+                    .into()
                 } else {
                     return Err(ParsingError::ParseError(format!(
                         "Invalid type definition expected TypeValue, received {:?}",
@@ -2191,9 +2194,7 @@ impl <'t> Parser<'t> {
     }
 }
 
-fn convert_to_assign(
-    tuple: &mut Vec<Expression>,
-) -> Result<Vec<(String, bool)>, ParsingError> {
+fn convert_to_assign(tuple: &mut Vec<Expression>) -> Result<Vec<(String, bool)>, ParsingError> {
     let mut results = Vec::with_capacity(tuple.len());
     for e in tuple.iter() {
         match e {

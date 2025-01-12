@@ -5,19 +5,19 @@ use crate::{Runtime, RuntimeError};
 use rigz_ast::Element;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Program<'lex> {
-    pub elements: Vec<Element<'lex>>,
+pub struct Program {
+    pub elements: Vec<Element>,
 }
 
-impl<'l> From<rigz_ast::Program<'l>> for Program<'l> {
-    fn from(value: rigz_ast::Program<'l>) -> Self {
+impl From<rigz_ast::Program> for Program {
+    fn from(value: rigz_ast::Program) -> Self {
         Program {
             elements: value.elements,
         }
     }
 }
 
-impl<'lex> Program<'lex> {
+impl<'lex> Program {
     #[inline]
     pub fn create_runtime(self) -> Result<Runtime<'lex>, RuntimeError> {
         let mut builder = ProgramParser::new();

@@ -42,7 +42,7 @@ impl ToTokens for FunctionExpression {
             FunctionExpression::InstanceFunctionCall(ex, calls, args) => {
                 let ex = boxed(ex);
                 quote! {
-                    FunctionExpression::InstanceFunctionCall(#ex, vec![#(#calls)*], #args)
+                    FunctionExpression::InstanceFunctionCall(#ex, vec![#(#calls.to_string())*], #args)
                 }
             }
         };
@@ -175,7 +175,7 @@ impl ToTokens for Expression {
                 let b = boxed(body);
                 quote! {
                     Expression::ForList {
-                        var: #var,
+                        var: #var.to_string(),
                         expression: #e,
                         body: #b,
                     }
@@ -199,8 +199,8 @@ impl ToTokens for Expression {
                 };
                 quote! {
                     Expression::ForMap {
-                        k_var: #k_var,
-                        v_var: #v_var,
+                        k_var: #k_var.to_string(),
+                        v_var: #v_var.to_string(),
                         expression: #expression,
                         key: #key,
                         value: #value,
@@ -245,14 +245,20 @@ impl ToTokens for RigzArguments {
             }
             RigzArguments::Mixed(a, n) => {
                 let a = csv_vec(a);
-                let values: Vec<_> = n.iter().map(|(a, v)| quote! { (#a.to_string(), #v), }).collect();
+                let values: Vec<_> = n
+                    .iter()
+                    .map(|(a, v)| quote! { (#a.to_string(), #v), })
+                    .collect();
                 let n = quote! { vec![#(#values)*] };
                 quote! {
                     RigzArguments::Mixed(#a, #n)
                 }
             }
             RigzArguments::Named(n) => {
-                let values: Vec<_> = n.iter().map(|(a, v)| quote! { (#a.to_string(), #v), }).collect();
+                let values: Vec<_> = n
+                    .iter()
+                    .map(|(a, v)| quote! { (#a.to_string(), #v), })
+                    .collect();
                 let n = quote! { vec![#(#values)*] };
                 quote! {
                     RigzArguments::Named(#n)
@@ -267,7 +273,9 @@ impl ToTokens for Assign {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
             Assign::This => quote! { Assign::This },
-            Assign::Identifier(name, mutable) => quote! { Assign::Identifier(#name.to_string(), #mutable) },
+            Assign::Identifier(name, mutable) => {
+                quote! { Assign::Identifier(#name.to_string(), #mutable) }
+            }
             Assign::TypedIdentifier(n, mutable, rt) => {
                 quote! { Assign::TypedIdentifier(#n.to_string(), #mutable, #rt) }
             }
