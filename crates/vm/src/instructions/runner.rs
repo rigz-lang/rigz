@@ -1,7 +1,7 @@
 use crate::{
     err, errln, handle_js, out, outln, BinaryOperation, BroadcastArgs, CallFrame, Instruction,
-    Logical, Module, Number, ResolveValue, Reverse, Scope, StackValue, UnaryOperation, VMError,
-    VMOptions, VMState, Value,
+    Logical, Module, Number, Reference, ResolveValue, Reverse, Scope, StackValue, UnaryOperation,
+    VMError, VMOptions, VMState, Value,
 };
 use indexmap::IndexMap;
 use log::log;
@@ -9,6 +9,7 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
+use std::string::ToString;
 use std::thread;
 use std::time::Duration;
 
@@ -36,8 +37,8 @@ macro_rules! runner_common {
         }
 
         #[inline]
-        fn get_module_clone(&mut self, module: &'vm str) -> Option<ResolvedModule<'vm>> {
-            let e = match self.modules.get(module) {
+        fn get_module(&mut self, module: Reference<String>) -> Option<ResolvedModule> {
+            let e = match self.modules.get(module.as_str()) {
                 None => VMError::InvalidModule(module.to_string()),
                 Some(m) => {
                     #[cfg(feature = "threaded")]
@@ -58,8 +59,8 @@ macro_rules! runner_common {
         )]
         fn find_variable(
             &self,
-            name: &'vm str,
-            frame: &CallFrame<'vm>,
+            name: &Reference<String>,
+            frame: &CallFrame,
             parent: Option<usize>,
         ) -> Option<Option<usize>> {
             match frame.variables.contains_key(name) {
@@ -75,11 +76,11 @@ macro_rules! runner_common {
         }
 
         #[inline]
-        fn persist_scope(&mut self, var: &'vm str) -> Option<VMError> {
+        fn persist_scope(&mut self, var: Reference<String>) -> Option<VMError> {
             let next = self.next_resolved_value("persist_scope");
             self.store_value(next.clone().into());
             let current = self.frames.current.borrow();
-            let owner = self.find_variable(var, current.deref(), None);
+            let owner = self.find_variable(&var, current.deref(), None);
 
             let mut frame = match owner {
                 None => {
@@ -90,7 +91,7 @@ macro_rules! runner_common {
                 Some(None) => self.frames.current.borrow_mut(),
                 Some(Some(id)) => self.frames.frames[id].borrow_mut(),
             };
-            let old = match frame.variables.get_mut(var).unwrap() {
+            let old = match frame.variables.get_mut(&var).unwrap() {
                 Variable::Let(v) => v,
                 Variable::Mut(v) => v,
             };
@@ -99,19 +100,19 @@ macro_rules! runner_common {
         }
 
         #[inline]
-        fn load_mut(&mut self, name: &'vm str) -> Result<(), VMError> {
+        fn load_mut(&mut self, name: Reference<String>) -> Result<(), VMError> {
             let v = self.next_value(format!("load_mut - {name}"));
             self.frames.load_mut(name, v)
         }
 
         #[inline]
-        fn load_let(&mut self, name: &'vm str) -> Result<(), VMError> {
+        fn load_let(&mut self, name: Reference<String>) -> Result<(), VMError> {
             let v = self.next_value(format!("load_let - {name}"));
             self.frames.load_let(name, v)
         }
 
         #[inline]
-        fn get_variable(&mut self, name: &'vm str) {
+        fn get_variable(&mut self, name: &Reference<String>) {
             let r = self.frames.get_variable(name);
             let v = match r {
                 None => VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))
@@ -122,7 +123,7 @@ macro_rules! runner_common {
         }
 
         #[inline]
-        fn get_mutable_variable(&mut self, name: &'vm str) {
+        fn get_mutable_variable(&mut self, name: &Reference<String>) {
             let og = match self.frames.get_mutable_variable(name) {
                 Ok(None) => None,
                 Err(e) => Some(e.into()),
@@ -141,7 +142,7 @@ macro_rules! runner_common {
         }
 
         #[inline]
-        fn get_variable_reference(&mut self, name: &'vm str) {
+        fn get_variable_reference(&mut self, name: &Reference<String>) {
             let r = self.frames.get_variable(name);
             let v = match r {
                 None => VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))
@@ -154,8 +155,8 @@ macro_rules! runner_common {
         #[inline]
         fn call_extension(
             &mut self,
-            module: ResolvedModule<'vm>,
-            func: &'vm str,
+            module: ResolvedModule,
+            func: Reference<String>,
             args: usize,
         ) -> Result<Value, VMError> {
             let this = self.next_resolved_value("call_extension");
@@ -166,8 +167,8 @@ macro_rules! runner_common {
         #[inline]
         fn call_mutable_extension(
             &mut self,
-            module: ResolvedModule<'vm>,
-            func: &'vm str,
+            module: ResolvedModule,
+            func: Reference<String>,
             args: usize,
         ) -> Result<Option<Value>, VMError> {
             let this = self.next_resolved_value("call_extension");
@@ -229,12 +230,19 @@ pub fn eval_binary_operation(binary_operation: BinaryOperation, lhs: &Value, rhs
 }
 
 #[cfg(feature = "threaded")]
-pub type ResolvedModule<'vm> = std::sync::Arc<dyn Module<'vm> + Send + Sync>;
+pub type ResolvedModule = std::sync::Arc<dyn Module + Send + Sync>;
+
+#[cfg(feature = "threaded")]
+use once_cell::sync::Lazy;
 
 #[cfg(not(feature = "threaded"))]
-pub type ResolvedModule<'vm> = Box<dyn Module<'vm>>;
+use once_cell::unsync::Lazy;
+pub const THIS_VAR: Lazy<Reference<String>> = Lazy::new(|| "self".to_string().into());
 
-pub trait Runner<'vm>: ResolveValue {
+#[cfg(not(feature = "threaded"))]
+pub type ResolvedModule = Box<dyn Module>;
+
+pub trait Runner: ResolveValue {
     fn store_value(&mut self, value: StackValue);
 
     fn pop(&mut self) -> Option<StackValue>;
@@ -245,17 +253,17 @@ pub trait Runner<'vm>: ResolveValue {
 
     fn update_scope<F>(&mut self, index: usize, update: F) -> Result<(), VMError>
     where
-        F: FnMut(&mut Scope<'vm>) -> Result<(), VMError>;
+        F: FnMut(&mut Scope) -> Result<(), VMError>;
 
-    fn get_module_clone(&mut self, module: &'vm str) -> Option<ResolvedModule<'vm>>;
+    fn get_module(&mut self, module: Reference<String>) -> Option<ResolvedModule>;
 
-    fn load_mut(&mut self, name: &'vm str) -> Result<(), VMError>;
-    fn load_let(&mut self, name: &'vm str) -> Result<(), VMError>;
+    fn load_mut(&mut self, name: Reference<String>) -> Result<(), VMError>;
+    fn load_let(&mut self, name: Reference<String>) -> Result<(), VMError>;
 
     fn find_variable(
         &self,
-        name: &'vm str,
-        frame: &CallFrame<'vm>,
+        name: &Reference<String>,
+        frame: &CallFrame,
         parent: Option<usize>,
     ) -> Option<Option<usize>>;
 
@@ -263,9 +271,9 @@ pub trait Runner<'vm>: ResolveValue {
     #[inline]
     fn set_this(&mut self, mutable: bool) -> Result<(), VMError> {
         if mutable {
-            self.load_mut("self")
+            self.load_mut(THIS_VAR.clone())
         } else {
-            self.load_let("self")
+            self.load_let(THIS_VAR.clone())
         }
     }
 
@@ -323,7 +331,7 @@ pub trait Runner<'vm>: ResolveValue {
             .collect()
     }
 
-    fn persist_scope(&mut self, var: &'vm str) -> Option<VMError>;
+    fn persist_scope(&mut self, var: Reference<String>) -> Option<VMError>;
 
     fn goto(&mut self, scope_id: usize, pc: usize) -> Result<(), VMError>;
 
@@ -335,44 +343,44 @@ pub trait Runner<'vm>: ResolveValue {
 
     fn spawn(&mut self, scope_id: usize, timeout: Option<usize>) -> Result<(), VMError>;
 
-    fn get_variable(&mut self, name: &'vm str);
+    fn get_variable(&mut self, name: &Reference<String>);
 
-    fn get_mutable_variable(&mut self, name: &'vm str);
+    fn get_mutable_variable(&mut self, name: &Reference<String>);
 
-    fn get_variable_reference(&mut self, name: &'vm str);
+    fn get_variable_reference(&mut self, name: &Reference<String>);
 
     fn call(
         &mut self,
-        module: ResolvedModule<'vm>,
-        func: &'vm str,
+        module: ResolvedModule,
+        func: Reference<String>,
         args: usize,
     ) -> Result<Value, VMError>;
 
     fn call_extension(
         &mut self,
-        module: ResolvedModule<'vm>,
-        func: &'vm str,
+        module: ResolvedModule,
+        func: Reference<String>,
         args: usize,
     ) -> Result<Value, VMError>;
 
     fn call_mutable_extension(
         &mut self,
-        module: ResolvedModule<'vm>,
-        func: &'vm str,
+        module: ResolvedModule,
+        func: Reference<String>,
         args: usize,
     ) -> Result<Option<Value>, VMError>;
 
     fn vm_extension(
         &mut self,
-        module: ResolvedModule<'vm>,
-        func: &'vm str,
+        module: ResolvedModule,
+        func: Reference<String>,
         args: usize,
     ) -> Result<Value, VMError>;
 
     #[allow(unused_variables)]
     #[inline]
     #[log_derive::logfn_inputs(Debug, fmt = "process_instruction(vm={:#p}, instruction={:?})")]
-    fn process_core_instruction(&mut self, instruction: Instruction<'vm>) -> VMState {
+    fn process_core_instruction(&mut self, instruction: Instruction) -> VMState {
         match instruction {
             Instruction::Halt => return VMState::Done(self.next_resolved_value("halt")),
             Instruction::HaltIfError => {
@@ -404,13 +412,13 @@ pub trait Runner<'vm>: ResolveValue {
                 }
             }
             Instruction::CallModule { module, func, args } => {
-                if let Some(module) = self.get_module_clone(module) {
+                if let Some(module) = self.get_module(module) {
                     let v = self.call(module, func, args).unwrap_or_else(|e| e.into());
                     self.store_value(v.into());
                 };
             }
             Instruction::CallExtension { module, func, args } => {
-                if let Some(module) = self.get_module_clone(module) {
+                if let Some(module) = self.get_module(module) {
                     let v = self
                         .call_extension(module, func, args)
                         .unwrap_or_else(|e| e.into());
@@ -418,7 +426,7 @@ pub trait Runner<'vm>: ResolveValue {
                 };
             }
             Instruction::CallMutableExtension { module, func, args } => {
-                if let Some(module) = self.get_module_clone(module) {
+                if let Some(module) = self.get_module(module) {
                     match self.call_mutable_extension(module, func, args) {
                         Ok(Some(v)) => {
                             self.store_value(v.into());
@@ -431,7 +439,7 @@ pub trait Runner<'vm>: ResolveValue {
                 }
             }
             Instruction::CallVMExtension { module, func, args } => {
-                if let Some(module) = self.get_module_clone(module) {
+                if let Some(module) = self.get_module(module) {
                     let value = self
                         .vm_extension(module, func, args)
                         .unwrap_or_else(|e| e.into());
@@ -496,9 +504,9 @@ pub trait Runner<'vm>: ResolveValue {
                 };
                 self.store_value(v.into());
             }
-            Instruction::GetVariableReference(name) => self.get_variable_reference(name),
-            Instruction::GetVariable(name) => self.get_variable(name),
-            Instruction::GetMutableVariable(name) => self.get_mutable_variable(name),
+            Instruction::GetVariableReference(name) => self.get_variable_reference(&name),
+            Instruction::GetVariable(name) => self.get_variable(&name),
+            Instruction::GetMutableVariable(name) => self.get_mutable_variable(&name),
             Instruction::Log(level, tmpl, args) => {
                 if !self.options().enable_logging {
                     return VMState::Running;

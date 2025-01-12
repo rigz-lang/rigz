@@ -1,17 +1,28 @@
 mod add;
 
-use crate::{impl_from, Value};
+use crate::{impl_from, Snapshot, VMError, Value};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::ops::{Neg, Range};
+use std::vec::IntoIter;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ValueRange {
     Int(Range<i64>),
     Char(Range<char>),
+}
+
+impl Snapshot for ValueRange {
+    fn as_bytes(&self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        todo!()
+    }
 }
 
 fn range_compare<Idx: PartialOrd>(a: &Range<Idx>, b: &Range<Idx>) -> Ordering {

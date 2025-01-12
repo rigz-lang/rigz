@@ -57,7 +57,7 @@ Load value into register
 
 ### Arguments 
 Register - The register to fill
-Value<'vm> - The value to use
+Value - The value to use
 
 ## Copy
 Copy the value `from` register to `to` register
@@ -114,7 +114,7 @@ Load an immutable variable into the current frame
 
 ### Arguments 
 String - Name of the variable
-Value<'vm> - The value to use
+Value - The value to use
 
 ## LoadMut
 
@@ -122,7 +122,7 @@ Load a mutable variable into the current frame
 
 ### Arguments 
 String - Name of the variable
-Value<'vm> - The value to use
+Value - The value to use
 
 ## GetVariable
 

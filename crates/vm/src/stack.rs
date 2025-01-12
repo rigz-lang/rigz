@@ -1,8 +1,19 @@
-use crate::{StackValue, VMError};
+use crate::{Snapshot, StackValue, VMError};
 use std::fmt::Display;
+use std::vec::IntoIter;
 
 #[derive(Debug, Default)]
 pub struct VMStack(Vec<StackValue>);
+
+impl Snapshot for VMStack {
+    fn as_bytes(&self) -> Vec<u8> {
+        self.0.as_bytes()
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        Ok(VMStack(Snapshot::from_bytes(bytes, location)?))
+    }
+}
 
 impl VMStack {
     #[inline]

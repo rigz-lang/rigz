@@ -1,43 +1,47 @@
 mod options;
 mod runner;
+mod snapshot;
 mod values;
 
 use crate::call_frame::Frames;
 use crate::lifecycle::{Lifecycle, TestResults};
 use crate::process::{ModulesMap, Process, SpawnedProcess};
-use crate::{generate_builder, CallFrame, Instruction, Runner, Scope, VMStack, Variable};
-use crate::{handle_js, out, Module, RigzBuilder, VMError, Value};
+use crate::{
+    generate_builder, handle_js, out, CallFrame, Instruction, Module, Reference, RigzBuilder,
+    Runner, Scope, VMError, VMStack, Value, Variable,
+};
 use itertools::Itertools;
 pub use options::VMOptions;
+pub use snapshot::Snapshot;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::time::Duration;
 pub use values::*;
 
 #[derive(Debug)]
-pub struct VM<'vm> {
-    pub scopes: Vec<Scope<'vm>>,
-    pub frames: Frames<'vm>,
-    pub modules: ModulesMap<'vm>,
+pub struct VM {
+    pub scopes: Vec<Scope>,
+    pub frames: Frames,
+    pub modules: ModulesMap,
     pub stack: VMStack,
     pub sp: usize,
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
     pub constants: Vec<Value>,
-    pub(crate) processes: Vec<SpawnedProcess<'vm>>,
+    pub(crate) processes: Vec<SpawnedProcess>,
 }
 
-impl<'vm> RigzBuilder<'vm> for VM<'vm> {
+impl RigzBuilder for VM {
     generate_builder!();
 
     #[inline]
-    fn build(self) -> VM<'vm> {
+    fn build(self) -> VM {
         self
     }
 }
 
-impl Default for VM<'_> {
+impl Default for VM {
     #[inline]
     fn default() -> Self {
         Self {
@@ -54,14 +58,14 @@ impl Default for VM<'_> {
     }
 }
 
-impl<'vm> VM<'vm> {
+impl VM {
     #[inline]
     pub fn new() -> Self {
         Self::default()
     }
 
     #[inline]
-    pub fn from_scopes(scopes: Vec<Scope<'vm>>) -> Self {
+    pub fn from_scopes(scopes: Vec<Scope>) -> Self {
         Self {
             scopes,
             ..Default::default()
@@ -69,7 +73,7 @@ impl<'vm> VM<'vm> {
     }
 
     #[inline]
-    pub fn from_modules(modules: ModulesMap<'vm>) -> Self {
+    pub fn from_modules(modules: ModulesMap) -> Self {
         Self {
             modules,
             ..Default::default()
@@ -90,7 +94,8 @@ impl<'vm> VM<'vm> {
                     let sp = self.sp;
                     let scope = &self.scopes[sp];
                     let len = scope.instructions.len();
-                    let propagate = len != pc && matches!(scope.named, "if" | "unless" | "else");
+                    let propagate =
+                        len != pc && matches!(scope.named.as_str(), "if" | "unless" | "else");
                     if propagate {
                         match self.frames.pop() {
                             None => {
@@ -123,14 +128,14 @@ impl<'vm> VM<'vm> {
     }
 
     #[inline]
-    fn process_instruction(&mut self, instruction: Instruction<'vm>) -> VMState {
+    fn process_instruction(&mut self, instruction: Instruction) -> VMState {
         match instruction {
             Instruction::Ret => self.process_ret(false),
             instruction => self.process_core_instruction(instruction),
         }
     }
 
-    fn process_instruction_scope(&mut self, instruction: Instruction<'vm>) -> VMState {
+    fn process_instruction_scope(&mut self, instruction: Instruction) -> VMState {
         match instruction {
             Instruction::Ret => self.process_ret(true),
             ins => self.process_core_instruction(ins),
@@ -138,7 +143,7 @@ impl<'vm> VM<'vm> {
     }
 
     #[inline]
-    fn next_instruction(&self) -> Option<Instruction<'vm>> {
+    fn next_instruction(&self) -> Option<Instruction> {
         let scope = &self.scopes[self.sp];
         let pc = self.frames.current.borrow().pc;
         self.frames.current.borrow_mut().pc += 1;
@@ -160,7 +165,7 @@ impl<'vm> VM<'vm> {
         }
     }
 
-    pub fn add_bindings(&mut self, bindings: HashMap<&'vm str, (StackValue, bool)>) {
+    pub fn add_bindings(&mut self, bindings: HashMap<String, (StackValue, bool)>) {
         let mut current = self.frames.current.borrow_mut();
         for (k, (v, mutable)) in bindings {
             let v = if mutable {
@@ -168,7 +173,7 @@ impl<'vm> VM<'vm> {
             } else {
                 Variable::Let(v)
             };
-            current.variables.insert(k, v);
+            current.variables.insert(k.into(), v);
         }
     }
 
@@ -257,9 +262,8 @@ impl<'vm> VM<'vm> {
                 .into();
             }
 
-            match self.step() {
-                None => {}
-                Some(v) => return v,
+            if let Some(v) = self.step() {
+                return v;
             }
         };
         run()
@@ -282,7 +286,7 @@ impl<'vm> VM<'vm> {
                     else {
                         unreachable!("Invalid Scope")
                     };
-                    Some((index, s.named))
+                    Some((index, s.named.clone()))
                 }
                 Some(_) => None,
             })
@@ -356,29 +360,25 @@ impl<'vm> VM<'vm> {
     pub fn snapshot(&self) -> Result<Vec<u8>, VMError> {
         let mut bytes = Vec::new();
         bytes.extend(self.options.as_bytes());
-        bytes.extend((self.sp as u64).to_le_bytes());
-
-        // write registers
-        // write stack
-        // write scopes
-        // write current
-        // write call_frames
+        bytes.extend(self.sp.as_bytes());
+        bytes.extend(self.stack.as_bytes());
+        bytes.extend(self.scopes.as_bytes());
+        bytes.extend(self.frames.as_bytes());
+        bytes.extend(self.lifecycles.as_bytes());
+        bytes.extend(self.constants.as_bytes());
         Ok(bytes)
     }
 
     /// Snapshots can't include modules so VM must be created before loading snapshot, missing modules will fail at runtime
     pub fn load_snapshot(&mut self, bytes: Vec<u8>) -> Result<(), VMError> {
         let mut bytes = bytes.into_iter();
-        self.options = VMOptions::from_bytes(&mut bytes)?;
-        self.sp = match bytes.next_array() {
-            None => return Err(VMError::RuntimeError("Missing sp bytes".to_string())),
-            Some(d) => u64::from_le_bytes(d) as usize,
-        };
-        // load registers
-        // load stack
-        // load scopes
-        // load current
-        // load call_frames
+        self.options = VMOptions::from_bytes(&mut bytes, &"load snapshot: vm options")?;
+        self.sp = Snapshot::from_bytes(&mut bytes, &"load snapshot: sp")?;
+        self.stack = Snapshot::from_bytes(&mut bytes, &"load snapshot: stack")?;
+        self.scopes = Snapshot::from_bytes(&mut bytes, &"load snapshot: scopes")?;
+        self.frames = Snapshot::from_bytes(&mut bytes, &"load snapshot: frames")?;
+        self.lifecycles = Snapshot::from_bytes(&mut bytes, &"load snapshot: lifecycles")?;
+        self.constants = Snapshot::from_bytes(&mut bytes, &"load snapshot: constants")?;
         Ok(())
     }
 }

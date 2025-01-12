@@ -1,7 +1,8 @@
-use crate::{VMError, Value};
+use crate::{Snapshot, VMError, Value};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
+use std::vec::IntoIter;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Lifecycle {
@@ -10,6 +11,16 @@ pub enum Lifecycle {
     Memo(MemoizedLifecycle),
     Test(TestLifecycle),
     Composite(Vec<Lifecycle>),
+}
+
+impl Snapshot for Lifecycle {
+    fn as_bytes(&self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        todo!()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -1,5 +1,4 @@
-use crate::{VMError, Value, VM};
-use dyn_clone::DynClone;
+use crate::{Reference, VMError, Value, VM};
 use std::cell::RefCell;
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
@@ -223,10 +222,10 @@ pub mod rigz_args {
 }
 
 #[allow(unused_variables)]
-pub trait Module<'vm>: Debug + DynClone {
+pub trait Module: Debug {
     fn name(&self) -> &'static str;
 
-    fn call(&self, function: &'vm str, args: RigzArgs) -> Result<Value, VMError> {
+    fn call(&self, function: Reference<String>, args: RigzArgs) -> Result<Value, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "{} does not implement `call`",
             self.name()
@@ -236,7 +235,7 @@ pub trait Module<'vm>: Debug + DynClone {
     fn call_extension(
         &self,
         this: Rc<RefCell<Value>>,
-        function: &'vm str,
+        function: Reference<String>,
         args: RigzArgs,
     ) -> Result<Value, VMError> {
         Err(VMError::UnsupportedOperation(format!(
@@ -248,7 +247,7 @@ pub trait Module<'vm>: Debug + DynClone {
     fn call_mutable_extension(
         &self,
         this: Rc<RefCell<Value>>,
-        function: &'vm str,
+        function: Reference<String>,
         args: RigzArgs,
     ) -> Result<Option<Value>, VMError> {
         Ok(Some(
@@ -262,8 +261,8 @@ pub trait Module<'vm>: Debug + DynClone {
 
     fn vm_extension(
         &self,
-        vm: &mut VM<'vm>,
-        function: &'vm str,
+        vm: &mut VM,
+        function: Reference<String>,
         args: RigzArgs,
     ) -> Result<Value, VMError> {
         Err(VMError::UnsupportedOperation(format!(
@@ -275,5 +274,3 @@ pub trait Module<'vm>: Debug + DynClone {
     // todo create proc_macro that uses tree-sitter-rigz for syntax highlighting and compile time syntax validation
     fn trait_definition(&self) -> &'static str;
 }
-
-dyn_clone::clone_trait_object!(Module<'_>);

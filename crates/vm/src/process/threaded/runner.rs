@@ -1,8 +1,8 @@
 use crate::call_frame::{CallFrame, Frames};
 use crate::process::ModulesMap;
 use crate::{
-    runner_common, BroadcastArgs, Instruction, ResolveValue, ResolvedModule, Runner, Scope,
-    StackValue, VMError, VMOptions, VMStack, VMState, Value, Variable,
+    runner_common, BroadcastArgs, Instruction, Reference, ResolveValue, ResolvedModule, Runner,
+    Scope, StackValue, VMError, VMOptions, VMStack, VMState, Value, Variable,
 };
 use log_derive::{logfn, logfn_inputs};
 use std::cell::RefCell;
@@ -10,16 +10,16 @@ use std::fmt::Display;
 use std::ops::Deref;
 use std::rc::Rc;
 
-pub(crate) struct ProcessRunner<'s, 'vm> {
-    scope: &'s Scope<'vm>,
-    frames: Frames<'vm>,
+pub(crate) struct ProcessRunner<'s> {
+    scope: &'s Scope,
+    frames: Frames,
     stack: VMStack,
     options: &'s VMOptions,
-    modules: ModulesMap<'vm>,
+    modules: ModulesMap,
 }
 
 #[allow(unused_variables)]
-impl ResolveValue for ProcessRunner<'_, '_> {
+impl ResolveValue for ProcessRunner<'_> {
     fn location(&self) -> &'static str {
         "Process"
     }
@@ -33,12 +33,12 @@ impl ResolveValue for ProcessRunner<'_, '_> {
     }
 }
 
-impl<'s, 'vm> ProcessRunner<'s, 'vm> {
+impl<'s> ProcessRunner<'s> {
     pub(crate) fn new(
-        scope: &'s Scope<'vm>,
+        scope: &'s Scope,
         args: Vec<Value>,
         options: &'s VMOptions,
-        modules: ModulesMap<'vm>,
+        modules: ModulesMap,
     ) -> Self {
         Self {
             scope,
@@ -51,12 +51,12 @@ impl<'s, 'vm> ProcessRunner<'s, 'vm> {
 }
 
 #[allow(unused_variables, unused_mut)]
-impl<'vm> Runner<'vm> for ProcessRunner<'_, 'vm> {
+impl Runner for ProcessRunner<'_> {
     runner_common!();
 
     fn update_scope<F>(&mut self, index: usize, mut update: F) -> Result<(), VMError>
     where
-        F: FnMut(&mut Scope<'vm>) -> Result<(), VMError>,
+        F: FnMut(&mut Scope) -> Result<(), VMError>,
     {
         Err(VMError::todo("Process does not implement `update_scope`"))
     }
@@ -93,8 +93,8 @@ impl<'vm> Runner<'vm> for ProcessRunner<'_, 'vm> {
 
     fn call(
         &mut self,
-        module: ResolvedModule<'vm>,
-        func: &'vm str,
+        module: ResolvedModule,
+        func: Reference<String>,
         args: usize,
     ) -> Result<Value, VMError> {
         Err(VMError::todo("Process does not implement `call`"))
@@ -102,18 +102,18 @@ impl<'vm> Runner<'vm> for ProcessRunner<'_, 'vm> {
 
     fn vm_extension(
         &mut self,
-        module: ResolvedModule<'vm>,
-        func: &'vm str,
+        module: ResolvedModule,
+        func: Reference<String>,
         args: usize,
     ) -> Result<Value, VMError> {
         Err(VMError::todo("Process does not implement `vm_extension`"))
     }
 }
 
-impl ProcessRunner<'_, '_> {
+impl ProcessRunner<'_> {
     pub fn run(&mut self) -> Value {
-        for (arg, mutable) in &self.scope.args {
-            let v = if *mutable {
+        for (arg, mutable) in self.scope.args.clone() {
+            let v = if mutable {
                 self.load_mut(arg)
             } else {
                 self.load_let(arg)

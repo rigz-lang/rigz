@@ -1,7 +1,9 @@
 use crate::vm::VM;
-use crate::{Runner, VMError, Value};
+use crate::{Runner, Snapshot, VMError, Value};
 use std::cell::RefCell;
+use std::fmt::Display;
 use std::rc::Rc;
+use std::vec::IntoIter;
 
 pub enum VMState {
     Running,
@@ -23,6 +25,48 @@ pub enum StackValue {
     Constant(usize),
 }
 
+impl Snapshot for StackValue {
+    fn as_bytes(&self) -> Vec<u8> {
+        let mut results = Vec::new();
+        match self {
+            StackValue::ScopeId(s) => {
+                results.push(0);
+                results.extend(s.as_bytes());
+            }
+            StackValue::Value(v) => {
+                results.push(1);
+                results.extend(v.borrow().as_bytes());
+            }
+            StackValue::Constant(c) => {
+                results.push(2);
+                results.extend(c.as_bytes());
+            }
+        }
+        results
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        let tv = match bytes.next() {
+            None => return Err(VMError::RuntimeError(format!("{location} StackValue type"))),
+            Some(b) => b,
+        };
+        let l = match tv {
+            0 => StackValue::ScopeId(Snapshot::from_bytes(bytes, location)?),
+            1 => {
+                let v: Value = Snapshot::from_bytes(bytes, location)?;
+                StackValue::Value(v.into())
+            }
+            2 => StackValue::Constant(Snapshot::from_bytes(bytes, location)?),
+            _ => {
+                return Err(VMError::RuntimeError(format!(
+                    "{location} Invalid StackValue type {tv}"
+                )))
+            }
+        };
+        Ok(l)
+    }
+}
+
 impl From<Rc<RefCell<Value>>> for StackValue {
     #[inline]
     fn from(value: Rc<RefCell<Value>>) -> Self {
@@ -38,7 +82,7 @@ pub trait ResolveValue {
     fn get_constant(&self, constant_id: usize) -> Rc<RefCell<Value>>;
 }
 
-impl ResolveValue for VM<'_> {
+impl ResolveValue for VM {
     fn location(&self) -> &'static str {
         "VM"
     }

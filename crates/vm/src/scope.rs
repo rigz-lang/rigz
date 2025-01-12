@@ -1,5 +1,7 @@
 use crate::lifecycle::Lifecycle;
-use crate::Instruction;
+use crate::{Instruction, Reference, Snapshot, VMError};
+use std::fmt::Display;
+use std::vec::IntoIter;
 
 /**
 todo need to know whether scope is function, root, or expression for returns
@@ -9,18 +11,18 @@ otherwise inner scope returns should cascade to function call or root
 */
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Scope<'vm> {
-    pub instructions: Vec<Instruction<'vm>>,
+pub struct Scope {
+    pub instructions: Vec<Instruction>,
     pub lifecycle: Option<Lifecycle>,
-    pub named: &'vm str,
-    pub args: Vec<(&'vm str, bool)>,
+    pub named: Reference<String>,
+    pub args: Vec<(Reference<String>, bool)>,
     pub set_self: Option<bool>,
 }
 
-impl Default for Scope<'_> {
+impl Default for Scope {
     fn default() -> Self {
         Scope {
-            named: "main",
+            named: "main".to_string().into(),
             instructions: Default::default(),
             lifecycle: None,
             args: vec![],
@@ -29,9 +31,23 @@ impl Default for Scope<'_> {
     }
 }
 
-impl<'vm> Scope<'vm> {
+impl Snapshot for Scope {
+    fn as_bytes(&self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        todo!()
+    }
+}
+
+impl Scope {
     #[inline]
-    pub fn new(named: &'vm str, args: Vec<(&'vm str, bool)>, set_self: Option<bool>) -> Self {
+    pub fn new(
+        named: Reference<String>,
+        args: Vec<(Reference<String>, bool)>,
+        set_self: Option<bool>,
+    ) -> Self {
         Scope {
             named,
             args,
@@ -42,8 +58,8 @@ impl<'vm> Scope<'vm> {
 
     #[inline]
     pub fn lifecycle(
-        named: &'vm str,
-        args: Vec<(&'vm str, bool)>,
+        named: Reference<String>,
+        args: Vec<(Reference<String>, bool)>,
         lifecycle: Lifecycle,
         set_self: Option<bool>,
     ) -> Self {

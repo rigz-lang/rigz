@@ -17,13 +17,14 @@ mod sub;
 pub use error::VMError;
 use std::cell::RefCell;
 
-use crate::{impl_from, Number, RigzType, ValueRange};
+use crate::{impl_from, Number, RigzType, Snapshot, ValueRange};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use std::vec::IntoIter;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -41,6 +42,62 @@ pub enum Value {
     Tuple(Vec<Value>),
     // todo create dedicated object value to avoid map usage everywhere, might need to be a trait. Create to_o method for value
     Type(RigzType),
+}
+
+impl Snapshot for Value {
+    fn as_bytes(&self) -> Vec<u8> {
+        match self {
+            Value::None => vec![0],
+            Value::Bool(b) => vec![1, *b as u8],
+            Value::Number(n) => {
+                let mut res = match n {
+                    Number::Int(_) => vec![2],
+                    Number::Float(_) => vec![3],
+                };
+                res.extend(n.to_bytes());
+                res
+            }
+            Value::String(s) => {
+                let mut res = vec![4];
+                res.extend(s.as_bytes());
+                res
+            }
+            Value::List(v) => {
+                let mut res = vec![5];
+                res.extend(v.as_bytes());
+                res
+            }
+            Value::Map(m) => {
+                let mut res = vec![6];
+                res.extend(m.as_bytes());
+                res
+            }
+            Value::Range(r) => {
+                let mut res = vec![7];
+                res.extend(r.as_bytes());
+                res
+            }
+            Value::Error(e) => {
+                let mut res = vec![8];
+                res.extend(e.as_bytes());
+                res
+            }
+            Value::Tuple(v) => {
+                let mut res = vec![9];
+                res.extend(v.as_bytes());
+                res
+            }
+            Value::Type(t) => {
+                let mut res = vec![10];
+                res.extend(t.as_bytes());
+                res
+            }
+        }
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        todo!()
+    }
 }
 
 impl From<Value> for Rc<RefCell<Value>> {

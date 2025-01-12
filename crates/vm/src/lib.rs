@@ -29,7 +29,7 @@ pub use module::*;
 pub use number::*;
 pub use objects::*;
 pub use operations::*;
-pub use process::Process;
+pub use process::{Process, Reference};
 pub use scope::Scope;
 pub use stack::VMStack;
 pub use traits::*;

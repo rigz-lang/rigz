@@ -1,9 +1,10 @@
-use crate::VMError;
+use crate::{Snapshot, VMError};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 use std::str::FromStr;
+use std::vec::IntoIter;
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Serialize, Deserialize)]
 pub enum RigzType {
@@ -39,6 +40,16 @@ impl Default for RigzType {
             optional: true,
             can_return_error: true,
         }
+    }
+}
+
+impl Snapshot for RigzType {
+    fn as_bytes(&self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        todo!()
     }
 }
 

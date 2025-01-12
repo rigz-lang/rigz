@@ -1,5 +1,7 @@
+use crate::vm::Snapshot;
 use crate::VMError;
 use itertools::Itertools;
+use std::fmt::Display;
 use std::vec::IntoIter;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -21,9 +23,8 @@ impl Default for VMOptions {
     }
 }
 
-impl VMOptions {
-    // todo use bytes instead of byte
-    pub(crate) fn as_bytes(&self) -> Vec<u8> {
+impl Snapshot for VMOptions {
+    fn as_bytes(&self) -> Vec<u8> {
         let mut options = 0;
         options |= self.enable_logging as u8;
         options |= (self.disable_modules as u8) << 1;
@@ -33,15 +34,12 @@ impl VMOptions {
         result
     }
 
-    pub(crate) fn from_bytes(bytes: &mut IntoIter<u8>) -> Result<Self, VMError> {
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let byte = match bytes.next() {
             Some(b) => b,
-            None => return Err(VMError::RuntimeError("Missing options byte".to_string())),
+            None => return Err(VMError::RuntimeError(format!("Missing {location} byte"))),
         };
-        let max_depth = match bytes.next_array() {
-            None => return Err(VMError::RuntimeError("Missing max_depth bytes".to_string())),
-            Some(d) => u64::from_le_bytes(d) as usize,
-        };
+        let max_depth = Snapshot::from_bytes(bytes, &format!("{location} max_depth"))?;
         Ok(VMOptions {
             enable_logging: (byte & 1) == 1,
             disable_modules: (byte & 1 << 1) == 2,
@@ -54,6 +52,7 @@ impl VMOptions {
 #[cfg(test)]
 pub mod tests {
     use crate::vm::VMOptions;
+    use crate::Snapshot;
     use wasm_bindgen_test::*;
 
     #[wasm_bindgen_test(unsupported = test)]
@@ -65,6 +64,9 @@ pub mod tests {
             ..Default::default()
         };
         let byte = options.as_bytes();
-        assert_eq!(VMOptions::from_bytes(&mut byte.into_iter()), Ok(options))
+        assert_eq!(
+            VMOptions::from_bytes(&mut byte.into_iter(), &"options_snapshot_test"),
+            Ok(options)
+        )
     }
 }

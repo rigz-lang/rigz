@@ -1,16 +1,25 @@
 mod runner;
 
 use crate::objects::RigzType;
+use crate::process::Reference;
 use crate::vm::StackValue;
-use crate::{BinaryOperation, UnaryOperation, Value};
+use crate::{BinaryOperation, Snapshot, UnaryOperation, VMError, Value};
 use log::Level;
-pub use runner::{ResolvedModule, Runner};
+pub use runner::{ResolvedModule, Runner, THIS_VAR};
+use std::fmt::Display;
+use std::vec::IntoIter;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum VMCallSite<'vm> {
+pub enum VMCallSite {
     Scope(usize),
-    Module { module: &'vm str, func: &'vm str },
-    VMModule { module: &'vm str, func: &'vm str },
+    Module {
+        module: Reference<String>,
+        func: Reference<String>,
+    },
+    VMModule {
+        module: Reference<String>,
+        func: Reference<String>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -24,6 +33,45 @@ pub enum LoadValue {
     ScopeId(usize),
     Value(Value),
     Constant(usize),
+}
+
+impl Snapshot for LoadValue {
+    fn as_bytes(&self) -> Vec<u8> {
+        let mut results = Vec::new();
+        match self {
+            LoadValue::ScopeId(s) => {
+                results.push(0);
+                results.extend(s.as_bytes());
+            }
+            LoadValue::Value(v) => {
+                results.push(1);
+                results.extend(v.as_bytes());
+            }
+            LoadValue::Constant(c) => {
+                results.push(2);
+                results.extend(c.as_bytes());
+            }
+        }
+        results
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        let tv = match bytes.next() {
+            None => return Err(VMError::RuntimeError(format!("{location} LoadValue type"))),
+            Some(b) => b,
+        };
+        let l = match tv {
+            0 => LoadValue::ScopeId(Snapshot::from_bytes(bytes, location)?),
+            1 => LoadValue::Value(Snapshot::from_bytes(bytes, location)?),
+            2 => LoadValue::Constant(Snapshot::from_bytes(bytes, location)?),
+            _ => {
+                return Err(VMError::RuntimeError(format!(
+                    "{location} Invalid LoadValue type {tv}"
+                )))
+            }
+        };
+        Ok(l)
+    }
 }
 
 impl<T: Into<Value>> From<T> for LoadValue {
@@ -51,7 +99,7 @@ pub enum BroadcastArgs {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Instruction<'vm> {
+pub enum Instruction {
     Halt,
     HaltIfError,
     Unary(UnaryOperation),
@@ -63,11 +111,11 @@ pub enum Instruction<'vm> {
     InstanceSetMut,
     Call(usize),
     CallMemo(usize),
-    CallMatchingSelf(Vec<(VMArg, Vec<VMArg>, VMCallSite<'vm>)>),
-    CallMatchingSelfMemo(Vec<(VMArg, Vec<VMArg>, VMCallSite<'vm>)>),
-    CallMatching(Vec<(Vec<VMArg>, VMCallSite<'vm>)>),
-    CallMatchingMemo(Vec<(Vec<VMArg>, VMCallSite<'vm>)>),
-    Log(Level, &'vm str, usize),
+    CallMatchingSelf(Vec<(VMArg, Vec<VMArg>, VMCallSite)>),
+    CallMatchingSelfMemo(Vec<(VMArg, Vec<VMArg>, VMCallSite)>),
+    CallMatching(Vec<(Vec<VMArg>, VMCallSite)>),
+    CallMatchingMemo(Vec<(Vec<VMArg>, VMCallSite)>),
+    Log(Level, String, usize),
     Puts(usize),
     CallEq(usize),
     CallNeq(usize),
@@ -82,32 +130,32 @@ pub enum Instruction<'vm> {
         rigz_type: RigzType,
     },
     Ret,
-    GetVariable(&'vm str),
-    GetMutableVariable(&'vm str),
-    GetVariableReference(&'vm str),
-    LoadLet(&'vm str),
-    LoadMut(&'vm str),
-    PersistScope(&'vm str),
+    GetVariable(Reference<String>),
+    GetMutableVariable(Reference<String>),
+    GetVariableReference(Reference<String>),
+    LoadLet(Reference<String>),
+    LoadMut(Reference<String>),
+    PersistScope(Reference<String>),
     // requires modules, enabled by default
     /// Module instructions will clone your module, ideally modules implement Copy + Clone
     CallModule {
-        module: &'vm str,
-        func: &'vm str,
+        module: Reference<String>,
+        func: Reference<String>,
         args: usize,
     },
     CallExtension {
-        module: &'vm str,
-        func: &'vm str,
+        module: Reference<String>,
+        func: Reference<String>,
         args: usize,
     },
     CallMutableExtension {
-        module: &'vm str,
-        func: &'vm str,
+        module: Reference<String>,
+        func: Reference<String>,
         args: usize,
     },
     CallVMExtension {
-        module: &'vm str,
-        func: &'vm str,
+        module: Reference<String>,
+        func: Reference<String>,
         args: usize,
     },
     ForList {
@@ -125,8 +173,18 @@ pub enum Instruction<'vm> {
     /// in the right situations these will be fantastic, otherwise avoid them
     Pop(usize),
     Goto(usize, usize),
-    AddInstruction(usize, Box<Instruction<'vm>>),
-    InsertAtInstruction(usize, usize, Box<Instruction<'vm>>),
-    UpdateInstruction(usize, usize, Box<Instruction<'vm>>),
+    AddInstruction(usize, Box<Instruction>),
+    InsertAtInstruction(usize, usize, Box<Instruction>),
+    UpdateInstruction(usize, usize, Box<Instruction>),
     RemoveInstruction(usize, usize),
+}
+
+impl Snapshot for Instruction {
+    fn as_bytes(&self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        todo!()
+    }
 }

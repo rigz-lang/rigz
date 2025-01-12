@@ -5,15 +5,15 @@ use crate::{Lifecycle, Scope, VMError, VMOptions, Value};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use runner::ProcessRunner;
 use std::thread;
-use std::thread::JoinHandle;
+use std::thread::{JoinHandle, ScopedJoinHandle};
 use std::time::Duration;
 
 type FromChannel = (Sender<Option<Vec<Value>>>, Receiver<Option<Vec<Value>>>);
 
 #[derive(Debug)]
-pub struct SpawnedProcess<'vm>(Box<crate::Process<'vm>>, JoinHandle<Result<(), VMError>>);
+pub struct SpawnedProcess(Box<Process>, JoinHandle<Result<(), VMError>>);
 
-impl SpawnedProcess<'_> {
+impl SpawnedProcess {
     pub fn lifecycle(&self) -> Option<&Lifecycle> {
         self.0.scope.lifecycle.as_ref()
     }
@@ -41,20 +41,20 @@ impl SpawnedProcess<'_> {
 }
 
 #[derive(Debug)]
-pub struct Process<'vm> {
-    pub scope: Scope<'vm>,
+pub struct Process {
+    pub scope: Scope,
     from_vm: FromChannel,
     to_vm: (Sender<Option<Value>>, Receiver<Option<Value>>),
     options: VMOptions,
-    modules: ModulesMap<'vm>,
+    modules: ModulesMap,
     timeout: Option<usize>,
 }
 
-impl<'vm> Process<'vm> {
+impl Process {
     pub fn new(
-        scope: Scope<'vm>,
+        scope: Scope,
         options: VMOptions,
-        modules: ModulesMap<'vm>,
+        modules: ModulesMap,
         timeout: Option<usize>,
     ) -> Self {
         Self {
@@ -68,11 +68,11 @@ impl<'vm> Process<'vm> {
     }
 
     pub fn spawn(
-        scope: Scope<'vm>,
+        scope: Scope,
         options: VMOptions,
-        modules: ModulesMap<'vm>,
+        modules: ModulesMap,
         timeout: Option<usize>,
-    ) -> SpawnedProcess<'vm> {
+    ) -> SpawnedProcess {
         let p = Self::new(scope, options, modules, timeout);
         // ensure memory address doesn't move if Vec<Process> is re-allocated
         let p = Box::new(p);
@@ -92,8 +92,7 @@ impl<'vm> Process<'vm> {
     }
 
     pub fn start(&self) -> JoinHandle<Result<(), VMError>> {
-        let process: &Process<'static> = unsafe { std::mem::transmute(self) };
-
+        let process: &Process = unsafe { std::mem::transmute(self) };
         // todo switch to tokio for green threads
         thread::spawn(move || {
             loop {

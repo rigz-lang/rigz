@@ -1,9 +1,11 @@
-use crate::{StackValue, VMError};
+use crate::{Reference, Snapshot, StackValue, VMError};
 use indexmap::map::Entry;
 use indexmap::IndexMap;
 use log_derive::{logfn, logfn_inputs};
 use std::cell::RefCell;
+use std::fmt::Display;
 use std::ops::Index;
+use std::vec::IntoIter;
 
 #[derive(Clone, Debug)]
 pub enum Variable {
@@ -12,13 +14,25 @@ pub enum Variable {
 }
 
 #[derive(Clone, Debug)]
-pub struct Frames<'vm> {
-    pub current: RefCell<CallFrame<'vm>>,
-    pub frames: Vec<RefCell<CallFrame<'vm>>>,
+pub struct Frames {
+    pub current: RefCell<CallFrame>,
+    pub frames: Vec<RefCell<CallFrame>>,
 }
 
-impl<'vm> Index<usize> for Frames<'vm> {
-    type Output = RefCell<CallFrame<'vm>>;
+impl Snapshot for Frames {
+    fn as_bytes(&self) -> Vec<u8> {
+        let mut res = self.current.as_bytes();
+        res.extend(self.frames.as_bytes());
+        res
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        todo!()
+    }
+}
+
+impl Index<usize> for Frames {
+    type Output = RefCell<CallFrame>;
 
     #[inline]
     fn index(&self, index: usize) -> &Self::Output {
@@ -26,7 +40,7 @@ impl<'vm> Index<usize> for Frames<'vm> {
     }
 }
 
-impl<'vm> Frames<'vm> {
+impl Frames {
     #[inline]
     pub fn reset(&mut self) {
         self.current = RefCell::new(CallFrame::main());
@@ -34,7 +48,7 @@ impl<'vm> Frames<'vm> {
     }
 
     #[inline]
-    pub fn pop(&mut self) -> Option<RefCell<CallFrame<'vm>>> {
+    pub fn pop(&mut self) -> Option<RefCell<CallFrame>> {
         self.frames.pop()
     }
 
@@ -44,13 +58,13 @@ impl<'vm> Frames<'vm> {
     }
 
     #[inline]
-    pub fn push(&mut self, call_frame: CallFrame<'vm>) {
+    pub fn push(&mut self, call_frame: CallFrame) {
         self.frames.push(call_frame.into())
     }
 
     #[inline]
     #[logfn_inputs(Trace, fmt = "load_let(frames={:#?} name={}, value={:?})")]
-    pub fn load_let(&self, name: &'vm str, value: StackValue) -> Result<(), VMError> {
+    pub fn load_let(&self, name: Reference<String>, value: StackValue) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
             Entry::Occupied(v) => {
                 return Err(VMError::UnsupportedOperation(format!(
@@ -67,19 +81,22 @@ impl<'vm> Frames<'vm> {
 
     #[logfn(Trace)]
     #[logfn_inputs(Trace, fmt = "get_variable(frames={:#p} name={})")]
-    pub fn get_variable(&self, name: &'vm str) -> Option<StackValue> {
+    pub fn get_variable(&self, name: &Reference<String>) -> Option<StackValue> {
         self.current.borrow().get_variable(name, self)
     }
 
     #[logfn(Trace)]
     #[logfn_inputs(Trace, fmt = "get_mutable_variable(frames={:#p} name={})")]
-    pub fn get_mutable_variable(&self, name: &'vm str) -> Result<Option<StackValue>, VMError> {
+    pub fn get_mutable_variable(
+        &self,
+        name: &Reference<String>,
+    ) -> Result<Option<StackValue>, VMError> {
         self.current.borrow().get_mutable_variable(name, self)
     }
 
     #[inline]
     #[logfn_inputs(Trace, fmt = "load_mut(frames={:#?} name={}, value={:?})")]
-    pub fn load_mut(&self, name: &'vm str, value: StackValue) -> Result<(), VMError> {
+    pub fn load_mut(&self, name: Reference<String>, value: StackValue) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
             Entry::Occupied(mut var) => match var.get() {
                 Variable::Let(_) => {
@@ -100,7 +117,7 @@ impl<'vm> Frames<'vm> {
     }
 }
 
-impl Default for Frames<'_> {
+impl Default for Frames {
     #[inline]
     fn default() -> Self {
         Frames {
@@ -111,15 +128,25 @@ impl Default for Frames<'_> {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct CallFrame<'vm> {
+pub struct CallFrame {
     pub scope_id: usize,
     pub pc: usize,
-    pub variables: IndexMap<&'vm str, Variable>,
+    pub variables: IndexMap<Reference<String>, Variable>,
     pub parent: Option<usize>,
 }
 
-impl<'vm> CallFrame<'vm> {
-    fn get_variable(&self, name: &'vm str, frames: &Frames<'vm>) -> Option<StackValue> {
+impl Snapshot for CallFrame {
+    fn as_bytes(&self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        todo!()
+    }
+}
+
+impl CallFrame {
+    fn get_variable(&self, name: &Reference<String>, frames: &Frames) -> Option<StackValue> {
         match self.variables.get(name) {
             None => match self.parent {
                 None => None,
@@ -134,8 +161,8 @@ impl<'vm> CallFrame<'vm> {
 
     fn get_mutable_variable(
         &self,
-        name: &'vm str,
-        frames: &Frames<'vm>,
+        name: &Reference<String>,
+        frames: &Frames,
     ) -> Result<Option<StackValue>, VMError> {
         match self.variables.get(name) {
             None => match self.parent {
@@ -153,7 +180,7 @@ impl<'vm> CallFrame<'vm> {
     }
 }
 
-impl CallFrame<'_> {
+impl CallFrame {
     #[inline]
     pub fn main() -> Self {
         Self::default()

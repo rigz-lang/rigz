@@ -1,9 +1,10 @@
-use crate::Value;
+use crate::{Snapshot, Value};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
+use std::vec::IntoIter;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 // Tagged to avoid confusion with string deserialization
@@ -21,6 +22,16 @@ pub enum VMError {
 }
 
 impl Error for VMError {}
+
+impl Snapshot for VMError {
+    fn as_bytes(&self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        todo!()
+    }
+}
 
 #[cfg(feature = "threaded")]
 impl From<crossbeam::channel::RecvError> for VMError {

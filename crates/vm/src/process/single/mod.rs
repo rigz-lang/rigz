@@ -3,18 +3,18 @@ use crate::{Lifecycle, Scope, VMError, VMOptions, Value};
 use std::thread::JoinHandle;
 
 #[derive(Debug)]
-pub struct Process<'vm> {
-    pub scope: Scope<'vm>,
+pub struct Process {
+    pub scope: Scope,
     options: VMOptions,
-    modules: ModulesMap<'vm>,
+    modules: ModulesMap,
     timeout: Option<usize>,
 }
 
-impl<'vm> Process<'vm> {
+impl Process {
     pub fn new(
-        scope: Scope<'vm>,
+        scope: Scope,
         options: VMOptions,
-        modules: ModulesMap<'vm>,
+        modules: ModulesMap,
         timeout: Option<usize>,
     ) -> Self {
         Self {
@@ -26,9 +26,9 @@ impl<'vm> Process<'vm> {
     }
 
     pub fn spawn(
-        scope: Scope<'vm>,
+        scope: Scope,
         options: VMOptions,
-        modules: ModulesMap<'vm>,
+        modules: ModulesMap,
         timeout: Option<usize>,
     ) -> Self {
         Self::new(scope, options, modules, timeout)

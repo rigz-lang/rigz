@@ -1,23 +1,23 @@
-use crate::process::ModulesMap;
+use crate::process::{ModulesMap, Reference};
 use crate::vm::VMOptions;
 use crate::{
     BinaryOperation, BroadcastArgs, Instruction, Lifecycle, LoadValue, Module, RigzType, Scope,
-    UnaryOperation, Value, VM,
+    UnaryOperation, Value, THIS_VAR, VM,
 };
 use log::Level;
 use std::fmt::Debug;
 
 #[derive(Clone, Debug)]
-pub struct VMBuilder<'vm> {
+pub struct VMBuilder {
     pub sp: usize,
-    pub scopes: Vec<Scope<'vm>>,
-    pub modules: ModulesMap<'vm>,
+    pub scopes: Vec<Scope>,
+    pub modules: ModulesMap,
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
     pub constants: Vec<Value>,
 }
 
-impl Default for VMBuilder<'_> {
+impl Default for VMBuilder {
     #[inline]
     fn default() -> Self {
         Self {
@@ -55,41 +55,41 @@ macro_rules! generate_bin_op_methods {
     };
 }
 
-pub trait RigzBuilder<'vm>: Debug + Default {
+pub trait RigzBuilder: Debug + Default {
     fn add_constant(&mut self, value: Value) -> usize;
 
-    fn add_instruction(&mut self, instruction: Instruction<'vm>) -> &mut Self;
+    fn add_instruction(&mut self, instruction: Instruction) -> &mut Self;
 
-    fn build(self) -> VM<'vm>;
+    fn build(self) -> VM;
 
     fn current_scope(&self) -> usize;
 
     fn enter_scope(
         &mut self,
-        named: &'vm str,
-        args: Vec<(&'vm str, bool)>,
+        named: Reference<String>,
+        args: Vec<(Reference<String>, bool)>,
         set_self: Option<bool>,
     ) -> usize;
 
     fn enter_lifecycle_scope(
         &mut self,
-        named: &'vm str,
+        named: Reference<String>,
         lifecycle: Lifecycle,
-        args: Vec<(&'vm str, bool)>,
+        args: Vec<(Reference<String>, bool)>,
         set_self: Option<bool>,
     ) -> usize;
 
     fn exit_scope(&mut self, current: usize) -> &mut Self;
 
-    fn convert_to_lazy_scope(&mut self, scope_id: usize, var: &'vm str) -> &mut Self;
+    fn convert_to_lazy_scope(&mut self, scope_id: usize, var: Reference<String>) -> &mut Self;
 
-    fn module_exists(&mut self, module: &'vm str) -> bool;
+    fn module_exists(&mut self, module: Reference<String>) -> bool;
 
     #[cfg(feature = "threaded")]
-    fn register_module(&mut self, module: impl Module<'vm> + 'static + Send + Sync) -> &mut Self;
+    fn register_module(&mut self, module: impl Module + 'static + Send + Sync) -> &mut Self;
 
     #[cfg(not(feature = "threaded"))]
-    fn register_module(&mut self, module: impl Module<'vm> + 'static) -> &mut Self;
+    fn register_module(&mut self, module: impl Module + 'static) -> &mut Self;
 
     fn with_options(&mut self, options: VMOptions) -> &mut Self;
 
@@ -152,8 +152,8 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     #[inline]
     fn add_call_module_instruction(
         &mut self,
-        module: &'vm str,
-        func: &'vm str,
+        module: Reference<String>,
+        func: Reference<String>,
         args: usize,
     ) -> &mut Self {
         self.add_instruction(Instruction::CallModule { module, func, args });
@@ -163,8 +163,8 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     #[inline]
     fn add_call_extension_module_instruction(
         &mut self,
-        module: &'vm str,
-        func: &'vm str,
+        module: Reference<String>,
+        func: Reference<String>,
         args: usize,
     ) -> &mut Self {
         self.add_instruction(Instruction::CallExtension { module, func, args });
@@ -174,8 +174,8 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     #[inline]
     fn add_call_mutable_extension_module_instruction(
         &mut self,
-        module: &'vm str,
-        func: &'vm str,
+        module: Reference<String>,
+        func: Reference<String>,
         args: usize,
     ) -> &mut Self {
         self.add_instruction(Instruction::CallMutableExtension { module, func, args });
@@ -185,8 +185,8 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     #[inline]
     fn add_call_vm_extension_module_instruction(
         &mut self,
-        name: &'vm str,
-        func: &'vm str,
+        name: Reference<String>,
+        func: Reference<String>,
         args: usize,
     ) -> &mut Self {
         self.add_instruction(Instruction::CallVMExtension {
@@ -261,37 +261,37 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     }
 
     #[inline]
-    fn add_get_variable_reference_instruction(&mut self, name: &'vm str) -> &mut Self {
+    fn add_get_variable_reference_instruction(&mut self, name: Reference<String>) -> &mut Self {
         self.add_instruction(Instruction::GetVariableReference(name))
     }
 
     #[inline]
-    fn add_get_variable_instruction(&mut self, name: &'vm str) -> &mut Self {
+    fn add_get_variable_instruction(&mut self, name: Reference<String>) -> &mut Self {
         self.add_instruction(Instruction::GetVariable(name))
     }
 
     #[inline]
-    fn add_get_mutable_variable_instruction(&mut self, name: &'vm str) -> &mut Self {
+    fn add_get_mutable_variable_instruction(&mut self, name: Reference<String>) -> &mut Self {
         self.add_instruction(Instruction::GetMutableVariable(name))
     }
 
     #[inline]
     fn add_get_self_instruction(&mut self) -> &mut Self {
-        self.add_instruction(Instruction::GetVariable("self"))
+        self.add_instruction(Instruction::GetVariable(THIS_VAR.clone()))
     }
 
     #[inline]
     fn add_get_self_mut_instruction(&mut self) -> &mut Self {
-        self.add_instruction(Instruction::GetMutableVariable("self"))
+        self.add_instruction(Instruction::GetMutableVariable(THIS_VAR.clone()))
     }
 
     #[inline]
-    fn add_load_let_instruction(&mut self, name: &'vm str) -> &mut Self {
+    fn add_load_let_instruction(&mut self, name: Reference<String>) -> &mut Self {
         self.add_instruction(Instruction::LoadLet(name))
     }
 
     #[inline]
-    fn add_load_mut_instruction(&mut self, name: &'vm str) -> &mut Self {
+    fn add_load_mut_instruction(&mut self, name: Reference<String>) -> &mut Self {
         self.add_instruction(Instruction::LoadMut(name))
     }
 
@@ -301,12 +301,7 @@ pub trait RigzBuilder<'vm>: Debug + Default {
     }
 
     #[inline]
-    fn add_log_instruction(
-        &mut self,
-        level: Level,
-        template: &'vm str,
-        values: usize,
-    ) -> &mut Self {
+    fn add_log_instruction(&mut self, level: Level, template: String, values: usize) -> &mut Self {
         self.add_instruction(Instruction::Log(level, template, values))
     }
 
@@ -357,8 +352,8 @@ macro_rules! generate_builder {
         #[inline]
         fn enter_scope(
             &mut self,
-            named: &'vm str,
-            args: Vec<(&'vm str, bool)>,
+            named: Reference<String>,
+            args: Vec<(Reference<String>, bool)>,
             set_self: Option<bool>,
         ) -> usize {
             let next = self.scopes.len();
@@ -368,7 +363,11 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        fn convert_to_lazy_scope(&mut self, scope_id: usize, variable: &'vm str) -> &mut Self {
+        fn convert_to_lazy_scope(
+            &mut self,
+            scope_id: usize,
+            variable: Reference<String>,
+        ) -> &mut Self {
             let scope = &mut self.scopes[scope_id];
             let last = scope.instructions.len() - 1;
             scope
@@ -380,9 +379,9 @@ macro_rules! generate_builder {
         #[inline]
         fn enter_lifecycle_scope(
             &mut self,
-            named: &'vm str,
+            named: Reference<String>,
             lifecycle: Lifecycle,
-            args: Vec<(&'vm str, bool)>,
+            args: Vec<(Reference<String>, bool)>,
             set_self: Option<bool>,
         ) -> usize {
             let next = self.scopes.len();
@@ -401,10 +400,7 @@ macro_rules! generate_builder {
 
         #[inline]
         #[cfg(feature = "threaded")]
-        fn register_module(
-            &mut self,
-            module: impl Module<'vm> + 'static + Send + Sync,
-        ) -> &mut Self {
+        fn register_module(&mut self, module: impl Module + 'static + Send + Sync) -> &mut Self {
             self.modules
                 .insert(module.name(), std::sync::Arc::new(module));
             self
@@ -412,8 +408,8 @@ macro_rules! generate_builder {
 
         #[inline]
         #[cfg(not(feature = "threaded"))]
-        fn register_module(&mut self, module: impl Module<'vm> + 'static) -> &mut Self {
-            self.modules.insert(module.name(), Box::new(module));
+        fn register_module(&mut self, module: impl Module + 'static) -> &mut Self {
+            self.modules.insert(module.name(), Reference::new(module));
             self
         }
 
@@ -424,14 +420,14 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        fn add_instruction(&mut self, instruction: Instruction<'vm>) -> &mut Self {
+        fn add_instruction(&mut self, instruction: Instruction) -> &mut Self {
             self.scopes[self.sp].instructions.push(instruction);
             self
         }
 
         #[inline]
-        fn module_exists(&mut self, module: &'vm str) -> bool {
-            self.modules.contains_key(module)
+        fn module_exists(&mut self, module: Reference<String>) -> bool {
+            self.modules.contains_key(module.as_str())
         }
 
         #[inline]
@@ -443,11 +439,11 @@ macro_rules! generate_builder {
     };
 }
 
-impl<'vm> RigzBuilder<'vm> for VMBuilder<'vm> {
+impl RigzBuilder for VMBuilder {
     generate_builder!();
 
     #[inline]
-    fn build(self) -> VM<'vm> {
+    fn build(self) -> VM {
         VM {
             scopes: self.scopes,
             modules: self.modules,
@@ -459,7 +455,7 @@ impl<'vm> RigzBuilder<'vm> for VMBuilder<'vm> {
     }
 }
 
-impl VMBuilder<'_> {
+impl VMBuilder {
     #[inline]
     pub fn new() -> Self {
         Self::default()

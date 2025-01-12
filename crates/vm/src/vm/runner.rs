@@ -1,5 +1,5 @@
 use crate::{
-    runner_common, BroadcastArgs, CallFrame, Lifecycle, Number, Process, ResolveValue,
+    runner_common, BroadcastArgs, CallFrame, Lifecycle, Number, Process, Reference, ResolveValue,
     ResolvedModule, Runner, Scope, StackValue, VMError, VMOptions, Value, Variable, VM,
 };
 use itertools::Itertools;
@@ -30,12 +30,12 @@ macro_rules! broadcast {
 }
 
 #[allow(unused_variables)]
-impl<'vm> Runner<'vm> for VM<'vm> {
+impl Runner for VM {
     runner_common!();
 
     fn update_scope<F>(&mut self, index: usize, mut update: F) -> Result<(), VMError>
     where
-        F: FnMut(&mut Scope<'vm>) -> Result<(), VMError>,
+        F: FnMut(&mut Scope) -> Result<(), VMError>,
     {
         match self.scopes.get_mut(index) {
             None => Err(VMError::ScopeDoesNotExist(format!(
@@ -294,8 +294,8 @@ impl<'vm> Runner<'vm> for VM<'vm> {
 
     fn call(
         &mut self,
-        module: ResolvedModule<'vm>,
-        func: &'vm str,
+        module: ResolvedModule,
+        func: Reference<String>,
         args: usize,
     ) -> Result<Value, VMError> {
         let args = self.resolve_args(args).into();
@@ -304,8 +304,8 @@ impl<'vm> Runner<'vm> for VM<'vm> {
 
     fn vm_extension(
         &mut self,
-        module: ResolvedModule<'vm>,
-        func: &'vm str,
+        module: ResolvedModule,
+        func: Reference<String>,
         args: usize,
     ) -> Result<Value, VMError> {
         let args = self.resolve_args(args).into();
