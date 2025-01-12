@@ -7,12 +7,12 @@ use crate::lifecycle::{Lifecycle, TestResults};
 use crate::process::{ModulesMap, Process, SpawnedProcess};
 use crate::{generate_builder, CallFrame, Instruction, Runner, Scope, VMStack, Variable};
 use crate::{handle_js, out, Module, RigzBuilder, VMError, Value};
+use itertools::Itertools;
+pub use options::VMOptions;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::time::Duration;
-use itertools::Itertools;
-pub use options::VMOptions;
 pub use values::*;
 
 #[derive(Debug)]
@@ -178,7 +178,7 @@ impl<'vm> VM<'vm> {
 
         let mut run = || loop {
             if let Some(v) = self.step() {
-                return v
+                return v;
             }
         };
 
@@ -247,21 +247,19 @@ impl<'vm> VM<'vm> {
         let now = std::time::Instant::now();
         #[cfg(feature = "js")]
         let now = web_time::Instant::now();
-        let run = || {
-            loop {
-                let elapsed = now.elapsed();
-                if elapsed > duration {
-                    return VMError::TimeoutError(format!(
-                        "Exceeded runtime {duration:?} - {:?}",
-                        elapsed
-                    ))
-                        .into();
-                }
+        let run = || loop {
+            let elapsed = now.elapsed();
+            if elapsed > duration {
+                return VMError::TimeoutError(format!(
+                    "Exceeded runtime {duration:?} - {:?}",
+                    elapsed
+                ))
+                .into();
+            }
 
-                match self.step() {
-                    None => {}
-                    Some(v) => return v,
-                }
+            match self.step() {
+                None => {}
+                Some(v) => return v,
             }
         };
         let v = run();

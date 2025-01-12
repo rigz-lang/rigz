@@ -1,6 +1,6 @@
-use std::error::Error;
 use logos::{Logos, Span};
 use rigz_vm::{BinaryOperation, Number, Value};
+use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::ParseBoolError;
 
@@ -14,9 +14,7 @@ pub enum ParsingError {
     Eoi(String),
 }
 
-impl Error for ParsingError {
-
-}
+impl Error for ParsingError {}
 
 impl Display for ParsingError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

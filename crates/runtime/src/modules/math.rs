@@ -1,7 +1,7 @@
 use rigz_ast::*;
+use rigz_ast_derive::derive_module;
 use std::cell::RefCell;
 use std::rc::Rc;
-use rigz_ast_derive::derive_module;
 
 derive_module! {
     r#"import trait Math

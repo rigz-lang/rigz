@@ -20,9 +20,7 @@ pub enum VMError {
     LifecycleError(String),
 }
 
-impl Error for VMError {
-
-}
+impl Error for VMError {}
 
 #[cfg(feature = "threaded")]
 impl From<crossbeam::channel::RecvError> for VMError {

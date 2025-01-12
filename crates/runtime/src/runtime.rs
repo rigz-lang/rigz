@@ -1,8 +1,8 @@
-use std::error::Error;
 use crate::prepare::{Program, ProgramParser};
 use rigz_ast::{
     ParsedModule, Parser, ParsingError, TestResults, VMError, ValidationError, Value, VM,
 };
+use std::error::Error;
 use std::fmt::{Display, Formatter};
 
 pub struct Runtime<'vm> {
@@ -23,9 +23,7 @@ pub enum RuntimeError {
     Run(VMError),
 }
 
-impl Error for RuntimeError {
-
-}
+impl Error for RuntimeError {}
 
 impl Display for RuntimeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

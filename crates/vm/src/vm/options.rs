@@ -1,6 +1,6 @@
-use std::vec::IntoIter;
-use itertools::Itertools;
 use crate::VMError;
+use itertools::Itertools;
+use std::vec::IntoIter;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct VMOptions {
@@ -36,7 +36,7 @@ impl VMOptions {
     pub(crate) fn from_bytes(bytes: &mut IntoIter<u8>) -> Result<Self, VMError> {
         let byte = match bytes.next() {
             Some(b) => b,
-            None => return Err(VMError::RuntimeError("Missing options byte".to_string()))
+            None => return Err(VMError::RuntimeError("Missing options byte".to_string())),
         };
         let max_depth = match bytes.next_array() {
             None => return Err(VMError::RuntimeError("Missing max_depth bytes".to_string())),

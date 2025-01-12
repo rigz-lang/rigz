@@ -1,5 +1,5 @@
-use std::error::Error;
 use crate::program::{Element, Program};
+use std::error::Error;
 use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -14,9 +14,7 @@ pub enum ValidationError {
     InvalidType(String),
 }
 
-impl Error for ValidationError {
-
-}
+impl Error for ValidationError {}
 
 impl Display for ValidationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

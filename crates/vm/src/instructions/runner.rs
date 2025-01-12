@@ -174,7 +174,6 @@ macro_rules! runner_common {
             let args = self.resolve_args(args).into();
             module.call_mutable_extension(this, func, args)
         }
-
     };
 }
 
