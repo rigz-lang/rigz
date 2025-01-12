@@ -1,3 +1,4 @@
+use std::error::Error;
 use crate::program::{Element, Program};
 use std::fmt::{Display, Formatter};
 
@@ -11,6 +12,10 @@ pub enum ValidationError {
     InvalidExport(String),
     NotImplemented(String),
     InvalidType(String),
+}
+
+impl Error for ValidationError {
+
 }
 
 impl Display for ValidationError {

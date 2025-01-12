@@ -1,3 +1,4 @@
+use std::error::Error;
 use logos::{Logos, Span};
 use rigz_vm::{BinaryOperation, Number, Value};
 use std::fmt::{Debug, Display, Formatter};
@@ -11,6 +12,10 @@ pub enum ParsingError {
     BoolParseError,
     ParseError(String),
     Eoi(String),
+}
+
+impl Error for ParsingError {
+
 }
 
 impl Display for ParsingError {

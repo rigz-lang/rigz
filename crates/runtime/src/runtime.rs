@@ -1,3 +1,4 @@
+use std::error::Error;
 use crate::prepare::{Program, ProgramParser};
 use rigz_ast::{
     ParsedModule, Parser, ParsingError, TestResults, VMError, ValidationError, Value, VM,
@@ -20,6 +21,10 @@ pub enum RuntimeError {
     Parse(ParsingError),
     Validation(ValidationError),
     Run(VMError),
+}
+
+impl Error for RuntimeError {
+
 }
 
 impl Display for RuntimeError {

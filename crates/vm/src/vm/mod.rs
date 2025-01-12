@@ -11,7 +11,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::time::Duration;
-
+use itertools::Itertools;
 pub use options::VMOptions;
 pub use values::*;
 
@@ -64,6 +64,14 @@ impl<'vm> VM<'vm> {
     pub fn from_scopes(scopes: Vec<Scope<'vm>>) -> Self {
         Self {
             scopes,
+            ..Default::default()
+        }
+    }
+
+    #[inline]
+    pub fn from_modules(modules: ModulesMap<'vm>) -> Self {
+        Self {
+            modules,
             ..Default::default()
         }
     }
@@ -169,9 +177,8 @@ impl<'vm> VM<'vm> {
         self.start_processes();
 
         let mut run = || loop {
-            match self.step() {
-                None => {}
-                Some(v) => return v,
+            if let Some(v) = self.step() {
+                return v
             }
         };
 
@@ -182,7 +189,7 @@ impl<'vm> VM<'vm> {
     #[inline]
     fn step(&mut self) -> Option<Value> {
         let instruction = match self.next_instruction() {
-            // TODO this should probably be an error requiring explicit halt, result would be none
+            // TODO this should probably be an error requiring explicit halt, this might still be an error
             None => return self.stack.pop().map(|e| e.resolve(self).borrow().clone()),
             Some(s) => s,
         };
@@ -211,11 +218,8 @@ impl<'vm> VM<'vm> {
     fn close_processes(&mut self, result: Value) -> Value {
         let mut errors: Vec<VMError> = vec![];
         for p in self.processes.drain(..) {
-            match p.close() {
-                Ok(_) => {}
-                Err(r) => {
-                    errors.push(r);
-                }
+            if let Err(e) = p.close() {
+                errors.push(e);
             }
         }
 
@@ -243,21 +247,28 @@ impl<'vm> VM<'vm> {
         let now = std::time::Instant::now();
         #[cfg(feature = "js")]
         let now = web_time::Instant::now();
-        loop {
-            let elapsed = now.elapsed();
-            if elapsed > duration {
-                return VMError::TimeoutError(format!(
-                    "Exceeded runtime {duration:?} - {:?}",
-                    elapsed
-                ))
-                .into();
-            }
+        let run = || {
+            loop {
+                let elapsed = now.elapsed();
+                if elapsed > duration {
+                    return VMError::TimeoutError(format!(
+                        "Exceeded runtime {duration:?} - {:?}",
+                        elapsed
+                    ))
+                        .into();
+                }
 
-            match self.step() {
-                None => {}
-                Some(v) => return v,
+                match self.step() {
+                    None => {}
+                    Some(v) => return v,
+                }
             }
-        }
+        };
+        let v = run();
+        // todo need a way to capture in progress processes so they can be resumed
+        // close_processes removes all spawned processes
+        // self.close_processes(v)
+        v
     }
 
     pub fn test(&mut self) -> TestResults {
@@ -344,10 +355,10 @@ impl<'vm> VM<'vm> {
         self.frames.reset()
     }
 
-    /// Snapshots can't include modules or messages from in progress lifecycles
+    /// Snapshots won't include modules
     pub fn snapshot(&self) -> Result<Vec<u8>, VMError> {
         let mut bytes = Vec::new();
-        bytes.push(self.options.as_byte());
+        bytes.extend(self.options.as_bytes());
         bytes.extend((self.sp as u64).to_le_bytes());
 
         // write registers
@@ -358,15 +369,14 @@ impl<'vm> VM<'vm> {
         Ok(bytes)
     }
 
-    /// Snapshots can't include modules so VM must be created before loading snapshot
+    /// Snapshots can't include modules so VM must be created before loading snapshot, missing modules will fail at runtime
     pub fn load_snapshot(&mut self, bytes: Vec<u8>) -> Result<(), VMError> {
         let mut bytes = bytes.into_iter();
-        self.options = VMOptions::from_byte(bytes.next().unwrap());
-        let mut sp = [0; 8];
-        for (i, b) in bytes.take(8).enumerate() {
-            sp[i] = b;
-        }
-        self.sp = u64::from_le_bytes(sp) as usize;
+        self.options = VMOptions::from_bytes(&mut bytes)?;
+        self.sp = match bytes.next_array() {
+            None => return Err(VMError::RuntimeError("Missing sp bytes".to_string())),
+            Some(d) => u64::from_le_bytes(d) as usize,
+        };
         // load registers
         // load stack
         // load scopes

@@ -1,3 +1,7 @@
+use std::vec::IntoIter;
+use itertools::Itertools;
+use crate::VMError;
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct VMOptions {
     pub enable_logging: bool,
@@ -19,21 +23,31 @@ impl Default for VMOptions {
 
 impl VMOptions {
     // todo use bytes instead of byte
-    pub(crate) fn as_byte(&self) -> u8 {
-        let mut result = 0;
-        result |= self.enable_logging as u8;
-        result |= (self.disable_modules as u8) << 1;
-        result |= (self.disable_variable_cleanup as u8) << 2;
+    pub(crate) fn as_bytes(&self) -> Vec<u8> {
+        let mut options = 0;
+        options |= self.enable_logging as u8;
+        options |= (self.disable_modules as u8) << 1;
+        options |= (self.disable_variable_cleanup as u8) << 2;
+        let mut result = vec![options];
+        result.extend((self.max_depth as u64).to_le_bytes());
         result
     }
 
-    pub(crate) fn from_byte(byte: u8) -> Self {
-        VMOptions {
+    pub(crate) fn from_bytes(bytes: &mut IntoIter<u8>) -> Result<Self, VMError> {
+        let byte = match bytes.next() {
+            Some(b) => b,
+            None => return Err(VMError::RuntimeError("Missing options byte".to_string()))
+        };
+        let max_depth = match bytes.next_array() {
+            None => return Err(VMError::RuntimeError("Missing max_depth bytes".to_string())),
+            Some(d) => u64::from_le_bytes(d) as usize,
+        };
+        Ok(VMOptions {
             enable_logging: (byte & 1) == 1,
             disable_modules: (byte & 1 << 1) == 2,
             disable_variable_cleanup: (byte & 1 << 2) == 4,
-            max_depth: 1024,
-        }
+            max_depth,
+        })
     }
 }
 
@@ -50,7 +64,7 @@ pub mod tests {
             disable_variable_cleanup: true,
             ..Default::default()
         };
-        let byte = options.as_byte();
-        assert_eq!(VMOptions::from_byte(byte), options)
+        let byte = options.as_bytes();
+        assert_eq!(VMOptions::from_bytes(&mut byte.into_iter()), Ok(options))
     }
 }
