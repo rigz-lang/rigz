@@ -6,7 +6,7 @@ use crate::{
 };
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use rigz_vm::derive::{boxed, csv_tuple_vec, csv_vec, option};
+use rigz_vm::derive::{boxed, csv_vec, option};
 
 impl ToTokens for Element {
     fn to_tokens(&self, tokens: &mut TokenStream) {

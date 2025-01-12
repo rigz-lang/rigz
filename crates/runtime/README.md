@@ -1,7 +1,9 @@
 # rigz_runtime
 ## Rust Minimum Version: 1.84
 
-Handles parsing and converting rigz to its VM instructions.
+Handles parsing and converting rigz to its VM instructions. 
+
+**If `threaded` feature is enabled, a tokio runtime is required. Enabled by default**
 
 ## Parser
 This is an AST parser, but as soon as it has an element that would be in the AST that element is converted into VM 

@@ -42,7 +42,7 @@ pub enum Commands {
     Test(TestArgs),
 }
 
-fn main() {
+fn run_cli() {
     let cli = CLI::parse();
     match cli.verbose {
         0 => log::set_max_level(LevelFilter::Error),
@@ -76,4 +76,15 @@ fn main() {
             }
         }
     }
+}
+
+#[cfg(not(feature = "js"))]
+#[tokio::main]
+async fn main() {
+    run_cli()
+}
+
+#[cfg(feature = "js")]
+fn main() {
+    run_cli()
 }

@@ -17,10 +17,13 @@ pub type Process = threaded::Process;
 pub use threaded::SpawnedProcess;
 
 #[cfg(not(feature = "threaded"))]
-pub type ModulesMap = std::collections::HashMap<&'static str, Box<dyn Module>>;
+pub type ModulesMap = std::collections::HashMap<&'static str, std::rc::Rc<dyn Module>>;
 
+mod process_manager;
 #[cfg(not(feature = "threaded"))]
 mod single;
+
+pub(crate) use process_manager::ProcessManager;
 
 #[cfg(not(feature = "threaded"))]
 pub type Process = single::Process;

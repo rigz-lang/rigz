@@ -230,7 +230,7 @@ pub fn eval_binary_operation(binary_operation: BinaryOperation, lhs: &Value, rhs
 }
 
 #[cfg(feature = "threaded")]
-pub type ResolvedModule = std::sync::Arc<dyn Module + Send + Sync>;
+pub type ResolvedModule = Reference<dyn Module + Send + Sync>;
 
 #[cfg(feature = "threaded")]
 use once_cell::sync::Lazy;
@@ -240,7 +240,7 @@ use once_cell::unsync::Lazy;
 pub const THIS_VAR: Lazy<Reference<String>> = Lazy::new(|| "self".to_string().into());
 
 #[cfg(not(feature = "threaded"))]
-pub type ResolvedModule = Box<dyn Module>;
+pub type ResolvedModule = Reference<dyn Module>;
 
 pub trait Runner: ResolveValue {
     fn store_value(&mut self, value: StackValue);

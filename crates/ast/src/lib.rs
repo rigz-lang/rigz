@@ -37,9 +37,7 @@ pub struct Parser<'t> {
 
 // TODO better error messages
 pub fn parse(input: &str, debug: bool) -> Result<Program, ParsingError> {
-    let mut parser = Parser::prepare(input, debug)?;
-
-    parser.parse()
+    Parser::prepare(input, debug)?.parse()
 }
 
 impl<'t> Parser<'t> {
@@ -130,12 +128,12 @@ impl<'t> Parser<'t> {
 
 impl<'t> From<TokenValue<'t>> for Expression {
     #[inline]
-    fn from(value: TokenValue) -> Self {
+    fn from(value: TokenValue<'t>) -> Self {
         Expression::Value(value.into())
     }
 }
 
-impl From<&'_ str> for Expression {
+impl From<&str> for Expression {
     #[inline]
     fn from(value: &str) -> Self {
         Expression::Identifier(value.to_string())

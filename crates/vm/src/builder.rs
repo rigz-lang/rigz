@@ -7,6 +7,8 @@ use crate::{
 use log::Level;
 use std::fmt::Debug;
 
+// todo use Rodeo (single threaded here + runtime), use Reference<(Threaded or not)Resolver> in VM
+
 #[derive(Clone, Debug)]
 pub struct VMBuilder {
     pub sp: usize,

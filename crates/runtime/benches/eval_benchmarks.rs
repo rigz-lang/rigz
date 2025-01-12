@@ -4,7 +4,7 @@ use rigz_runtime::runtime::eval;
 fn expressions(c: &mut Criterion) {
     c.bench_function("2 + 2", |b| {
         b.iter(|| {
-            let _ = eval("2 + 2").expect("Run Failed");
+            let _ = eval("2 + 2".to_string()).expect("Run Failed");
         })
     });
 
@@ -20,7 +20,8 @@ fn expressions(c: &mut Criterion) {
                     end
                 end
                 factorial 10
-            "#,
+            "#
+                .to_string(),
             )
             .expect("Run Failed");
         })

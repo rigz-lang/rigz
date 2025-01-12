@@ -5,7 +5,7 @@ mod values;
 
 use crate::call_frame::Frames;
 use crate::lifecycle::{Lifecycle, TestResults};
-use crate::process::{ModulesMap, Process, SpawnedProcess};
+use crate::process::{ModulesMap, Process, ProcessManager, SpawnedProcess};
 use crate::{
     generate_builder, handle_js, out, CallFrame, Instruction, Module, Reference, RigzBuilder,
     Runner, Scope, VMError, VMStack, Value, Variable,
@@ -29,6 +29,7 @@ pub struct VM {
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
     pub constants: Vec<Value>,
+    pub(crate) process_manager: ProcessManager,
     pub(crate) processes: Vec<SpawnedProcess>,
 }
 
@@ -53,6 +54,10 @@ impl Default for VM {
             lifecycles: Default::default(),
             constants: Default::default(),
             stack: Default::default(),
+            #[cfg(feature = "threaded")]
+            process_manager: ProcessManager::create().expect("Failed to setup ProcessManager"),
+            #[cfg(not(feature = "threaded"))]
+            process_manager: ProcessManager::new(),
             processes: vec![],
         }
     }
