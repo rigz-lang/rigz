@@ -23,21 +23,19 @@ debug = true
 itertools = "0.14.0"
 log = { version = "0.4", features = [] }
 rand = { version = "0.8.5" }
-rigz_vm = {version = "0.37", path = "crates/vm" }
-rigz_ast = {version = "0.6", path = "crates/ast" }
-rigz_ast_derive = {version = "0.6", path = "crates/ast_derive"}
-rigz_runtime = {version = "0.6", path = "crates/runtime"}
-tokio = { version = "1", features = ["rt-multi-thread", "time"] }
+rigz_vm = {version = "0.37", path = "crates/vm", default-features = false }
+rigz_ast = {version = "0.6", path = "crates/ast", default-features = false }
+rigz_ast_derive = {version = "0.6", path = "crates/ast_derive", default-features = false}
+rigz_runtime = {version = "0.6", path = "crates/runtime", default-features = false}
 tree-sitter-rigz = { version = "0.6", path = "crates/tree-sitter" }
 web-sys = { version = "0.3.76" }
 
 [features]
-default = ["dep:tokio", "tokio/macros"]
-js = ["dep:getrandom", "rigz_vm/js", "rigz_ast/js", "rigz_runtime/js"]
+default = ["rigz_vm/default", "rigz_ast/default", "rigz_runtime/default", "dep:tokio"]
+js = ["rigz_vm/js", "rigz_ast/js", "rigz_runtime/js"]
 
 [dependencies]
 clap = {version = "4.5.15", features = ["env", "derive"]}
-getrandom = { version = "0.2.15", optional = true, features = ["js"]}
 pretty_env_logger = "0.5.0"
 log.workspace = true
 rigz_vm.workspace = true
@@ -49,4 +47,4 @@ rustyline = "14.0.0"
 chrono = "0.4"
 crossterm = "0.28.1"
 ratatui = "0.29.0"
-tokio = {workspace = true, optional = true }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"], optional = true }

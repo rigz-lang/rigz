@@ -12,10 +12,11 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["rigz_ast/threaded"]
-js = ["rigz_ast/js"]
+js = ["rigz_ast/js", "dep:getrandom"]
 
 [dependencies]
 chrono = "0.4"
+getrandom = { version = "0.2.15", optional = true, features = ["js"]}
 rigz_ast.workspace = true
 rigz_ast_derive.workspace = true
 itertools.workspace = true
