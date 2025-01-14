@@ -10,7 +10,6 @@ use std::fmt::Display;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Duration;
-use tokio::runtime::Handle;
 
 pub(crate) struct ProcessRunner<'s> {
     scope: &'s Scope,
@@ -18,7 +17,8 @@ pub(crate) struct ProcessRunner<'s> {
     stack: VMStack,
     options: &'s VMOptions,
     modules: ModulesMap,
-    handle: Handle,
+    #[cfg(feature = "threaded")]
+    handle: tokio::runtime::Handle,
 }
 
 #[allow(unused_variables)]
@@ -42,7 +42,7 @@ impl<'s> ProcessRunner<'s> {
         args: Vec<Value>,
         options: &'s VMOptions,
         modules: ModulesMap,
-        handle: Handle,
+        #[cfg(feature = "threaded")] handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             scope,
@@ -50,6 +50,7 @@ impl<'s> ProcessRunner<'s> {
             stack: VMStack::new(args.into_iter().map(|v| v.into()).collect()),
             options,
             modules,
+            #[cfg(feature = "threaded")]
             handle,
         }
     }
@@ -115,7 +116,11 @@ impl Runner for ProcessRunner<'_> {
     }
 
     fn sleep(&self, duration: Duration) {
+        #[cfg(feature = "threaded")]
         self.handle.block_on(tokio::time::sleep(duration));
+
+        #[cfg(not(feature = "threaded"))]
+        thread::sleep(duration)
     }
 }
 

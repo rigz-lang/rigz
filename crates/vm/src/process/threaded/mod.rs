@@ -5,7 +5,7 @@ use crate::{Scope, VMOptions, Value};
 use runner::ProcessRunner;
 use tokio::runtime::Handle;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Process {
     pub scope: Scope,
     options: VMOptions,

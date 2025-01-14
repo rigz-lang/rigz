@@ -17,11 +17,54 @@ pub enum VMCallSite {
 
 impl Snapshot for VMCallSite {
     fn as_bytes(&self) -> Vec<u8> {
-        todo!()
+        match self {
+            VMCallSite::Scope(i) => {
+                let mut res = vec![0];
+                res.extend(i.as_bytes());
+                res
+            }
+            VMCallSite::Module { module, func } => {
+                let mut res = vec![1];
+                res.extend(module.as_bytes());
+                res.extend(func.as_bytes());
+                res
+            }
+            VMCallSite::VMModule { module, func } => {
+                let mut res = vec![2];
+                res.extend(module.as_bytes());
+                res.extend(func.as_bytes());
+                res
+            }
+        }
     }
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
-        todo!()
+        let next = match bytes.next() {
+            Some(b) => b,
+            None => {
+                return Err(VMError::RuntimeError(format!(
+                    "Missing VMCallSite byte {location}"
+                )))
+            }
+        };
+
+        let v = match next {
+            0 => VMCallSite::Scope(Snapshot::from_bytes(bytes, location)?),
+            1 => VMCallSite::Module {
+                module: Snapshot::from_bytes(bytes, location)?,
+                func: Snapshot::from_bytes(bytes, location)?,
+            },
+            2 => VMCallSite::VMModule {
+                module: Snapshot::from_bytes(bytes, location)?,
+                func: Snapshot::from_bytes(bytes, location)?,
+            },
+            b => {
+                return Err(VMError::RuntimeError(format!(
+                    "Invalid VMCallSite byte {b} - {location}"
+                )))
+            }
+        };
+        Ok(v)
     }
 }
 
@@ -33,11 +76,40 @@ pub enum VMArg {
 
 impl Snapshot for VMArg {
     fn as_bytes(&self) -> Vec<u8> {
-        todo!()
+        match self {
+            VMArg::Type(rt) => {
+                let mut res = vec![0];
+                res.extend(rt.as_bytes());
+                res
+            }
+            VMArg::Value(v) => {
+                let mut res = vec![1];
+                res.extend(v.as_bytes());
+                res
+            }
+        }
     }
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
-        todo!()
+        let next = match bytes.next() {
+            Some(b) => b,
+            None => {
+                return Err(VMError::RuntimeError(format!(
+                    "Missing VMArg byte {location}"
+                )))
+            }
+        };
+
+        let v = match next {
+            0 => VMArg::Type(Snapshot::from_bytes(bytes, location)?),
+            1 => VMArg::Value(Snapshot::from_bytes(bytes, location)?),
+            b => {
+                return Err(VMError::RuntimeError(format!(
+                    "Invalid VMArg byte {b} - {location}"
+                )))
+            }
+        };
+        Ok(v)
     }
 }
 

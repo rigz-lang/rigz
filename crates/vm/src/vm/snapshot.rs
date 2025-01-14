@@ -3,6 +3,7 @@ use crate::VMError;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::hash::Hash;
 use std::vec::IntoIter;
@@ -58,6 +59,28 @@ impl<K: Snapshot + Hash + Eq, V: Snapshot> Snapshot for IndexMap<K, V> {
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let len = Snapshot::from_bytes(bytes, &format!("{location} len"))?;
         let mut results = IndexMap::with_capacity(len);
+        for _ in 0..len {
+            let k = K::from_bytes(bytes, location)?;
+            let v = V::from_bytes(bytes, location)?;
+            results.insert(k, v);
+        }
+        Ok(results)
+    }
+}
+
+impl<K: Snapshot + Hash + Eq, V: Snapshot> Snapshot for HashMap<K, V> {
+    fn as_bytes(&self) -> Vec<u8> {
+        let mut res = Snapshot::as_bytes(&self.len());
+        for (k, v) in self {
+            res.extend(k.as_bytes());
+            res.extend(v.as_bytes());
+        }
+        res
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        let len = Snapshot::from_bytes(bytes, &format!("{location} len"))?;
+        let mut results = HashMap::with_capacity(len);
         for _ in 0..len {
             let k = K::from_bytes(bytes, location)?;
             let v = V::from_bytes(bytes, location)?;
