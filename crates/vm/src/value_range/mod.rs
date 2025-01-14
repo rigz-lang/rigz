@@ -17,11 +17,40 @@ pub enum ValueRange {
 
 impl Snapshot for ValueRange {
     fn as_bytes(&self) -> Vec<u8> {
-        todo!()
+        match self {
+            ValueRange::Int(r) => {
+                let mut res = vec![0];
+                res.extend(r.as_bytes());
+                res
+            }
+            ValueRange::Char(r) => {
+                let mut res = vec![1];
+                res.extend(r.as_bytes());
+                res
+            }
+        }
     }
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
-        todo!()
+        let next = match bytes.next() {
+            Some(b) => b,
+            None => {
+                return Err(VMError::RuntimeError(format!(
+                    "Missing ValueRange byte {location}"
+                )))
+            }
+        };
+
+        let v = match next {
+            0 => ValueRange::Int(Snapshot::from_bytes(bytes, location)?),
+            1 => ValueRange::Char(Snapshot::from_bytes(bytes, location)?),
+            b => {
+                return Err(VMError::RuntimeError(format!(
+                    "Illegal ValueRange byte {b} - {location}"
+                )))
+            }
+        };
+        Ok(v)
     }
 }
 

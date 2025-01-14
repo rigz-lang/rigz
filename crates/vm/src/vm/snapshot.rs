@@ -6,6 +6,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::hash::Hash;
+use std::ops::Range;
 use std::vec::IntoIter;
 
 pub trait Snapshot: Sized {
@@ -171,6 +172,35 @@ impl<A: Snapshot, B: Snapshot, C: Snapshot> Snapshot for (A, B, C) {
         let b = B::from_bytes(bytes, location)?;
         let c = C::from_bytes(bytes, location)?;
         Ok((a, b, c))
+    }
+}
+
+impl<T: Snapshot> Snapshot for Range<T> {
+    fn as_bytes(&self) -> Vec<u8> {
+        let mut res = self.start.as_bytes();
+        res.extend(self.end.as_bytes());
+        res
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        let start = T::from_bytes(bytes, location)?;
+        let end = T::from_bytes(bytes, location)?;
+        Ok(start..end)
+    }
+}
+
+impl Snapshot for i64 {
+    fn as_bytes(&self) -> Vec<u8> {
+        self.to_be_bytes().to_vec()
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        match bytes.next_array() {
+            None => Err(VMError::RuntimeError(format!(
+                "Missing i64 byte {location}"
+            ))),
+            Some(n) => Ok(i64::from_be_bytes(n)),
+        }
     }
 }
 

@@ -1,3 +1,5 @@
+extern crate core;
+
 mod builder;
 mod call_frame;
 mod instructions;
