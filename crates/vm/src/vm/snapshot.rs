@@ -67,6 +67,90 @@ impl<K: Snapshot + Hash + Eq, V: Snapshot> Snapshot for IndexMap<K, V> {
     }
 }
 
+impl<T: Snapshot> Snapshot for Option<T> {
+    fn as_bytes(&self) -> Vec<u8> {
+        match self {
+            None => vec![0],
+            Some(v) => {
+                let mut res = vec![1];
+                res.extend(v.as_bytes());
+                res
+            }
+        }
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        let next = match bytes.next() {
+            None => {
+                return Err(VMError::RuntimeError(format!(
+                    "Missing Option byte {location}"
+                )))
+            }
+            Some(b) => b,
+        };
+
+        let v = match next {
+            0 => None,
+            1 => Some(T::from_bytes(bytes, location)?),
+            b => {
+                return Err(VMError::RuntimeError(format!(
+                    "Illegal Option byte {b} - {location}"
+                )))
+            }
+        };
+        Ok(v)
+    }
+}
+
+impl Snapshot for bool {
+    fn as_bytes(&self) -> Vec<u8> {
+        vec![*self as u8]
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        match bytes.next() {
+            None => Err(VMError::RuntimeError(format!(
+                "Missing bool byte {location}"
+            ))),
+            Some(0) => Ok(false),
+            Some(1) => Ok(true),
+            Some(b) => Err(VMError::RuntimeError(format!(
+                "Illegal bool byte {b} - {location}"
+            ))),
+        }
+    }
+}
+
+impl<A: Snapshot, B: Snapshot> Snapshot for (A, B) {
+    fn as_bytes(&self) -> Vec<u8> {
+        let mut res = self.0.as_bytes();
+        res.extend(self.1.as_bytes());
+        res
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        let a = A::from_bytes(bytes, location)?;
+        let b = B::from_bytes(bytes, location)?;
+        Ok((a, b))
+    }
+}
+
+impl<A: Snapshot, B: Snapshot, C: Snapshot> Snapshot for (A, B, C) {
+    fn as_bytes(&self) -> Vec<u8> {
+        let mut res = self.0.as_bytes();
+        res.extend(self.1.as_bytes());
+        res.extend(self.2.as_bytes());
+        res
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        let a = A::from_bytes(bytes, location)?;
+        let b = B::from_bytes(bytes, location)?;
+        let c = C::from_bytes(bytes, location)?;
+        Ok((a, b, c))
+    }
+}
+
 impl Snapshot for char {
     fn as_bytes(&self) -> Vec<u8> {
         (*self as u32).as_bytes()
@@ -95,6 +179,16 @@ impl Snapshot for u32 {
             ))),
             Some(v) => Ok(u32::from_le_bytes(v)),
         }
+    }
+}
+
+impl<T: Snapshot> Snapshot for Box<T> {
+    fn as_bytes(&self) -> Vec<u8> {
+        self.as_ref().as_bytes()
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        Ok(Box::new(T::from_bytes(bytes, location)?))
     }
 }
 

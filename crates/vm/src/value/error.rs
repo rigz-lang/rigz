@@ -25,11 +25,84 @@ impl Error for VMError {}
 
 impl Snapshot for VMError {
     fn as_bytes(&self) -> Vec<u8> {
-        todo!()
+        match self {
+            VMError::TimeoutError(m) => {
+                let mut res = vec![0];
+                res.extend(Snapshot::as_bytes(m));
+                res
+            }
+            VMError::RuntimeError(m) => {
+                let mut res = vec![1];
+                res.extend(Snapshot::as_bytes(m));
+                res
+            }
+            VMError::EmptyStack(m) => {
+                let mut res = vec![2];
+                res.extend(Snapshot::as_bytes(m));
+                res
+            }
+            VMError::ConversionError(m) => {
+                let mut res = vec![3];
+                res.extend(Snapshot::as_bytes(m));
+                res
+            }
+            VMError::ScopeDoesNotExist(m) => {
+                let mut res = vec![4];
+                res.extend(Snapshot::as_bytes(m));
+                res
+            }
+            VMError::UnsupportedOperation(m) => {
+                let mut res = vec![5];
+                res.extend(Snapshot::as_bytes(m));
+                res
+            }
+            VMError::VariableDoesNotExist(m) => {
+                let mut res = vec![6];
+                res.extend(Snapshot::as_bytes(m));
+                res
+            }
+            VMError::InvalidModule(m) => {
+                let mut res = vec![7];
+                res.extend(Snapshot::as_bytes(m));
+                res
+            }
+            VMError::InvalidModuleFunction(m) => {
+                let mut res = vec![8];
+                res.extend(Snapshot::as_bytes(m));
+                res
+            }
+            VMError::LifecycleError(m) => {
+                let mut res = vec![9];
+                res.extend(Snapshot::as_bytes(m));
+                res
+            }
+        }
     }
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
-        todo!()
+        let next = match bytes.next() {
+            Some(s) => s,
+            None => return Err(VMError::RuntimeError(format!("Missing VMError {location}"))),
+        };
+        let message = String::from_bytes(bytes, &format!("VMError - {location}"))?;
+        let e = match next {
+            0 => VMError::TimeoutError(message),
+            1 => VMError::RuntimeError(message),
+            2 => VMError::EmptyStack(message),
+            3 => VMError::ConversionError(message),
+            4 => VMError::ScopeDoesNotExist(message),
+            5 => VMError::UnsupportedOperation(message),
+            6 => VMError::VariableDoesNotExist(message),
+            7 => VMError::InvalidModule(message),
+            8 => VMError::InvalidModuleFunction(message),
+            9 => VMError::LifecycleError(message),
+            b => {
+                return Err(VMError::RuntimeError(format!(
+                    "Illegal VMError byte {b} {location}"
+                )))
+            }
+        };
+        Ok(e)
     }
 }
 

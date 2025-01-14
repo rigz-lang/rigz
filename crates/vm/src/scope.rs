@@ -26,11 +26,27 @@ impl Default for Scope {
 
 impl Snapshot for Scope {
     fn as_bytes(&self) -> Vec<u8> {
-        todo!()
+        let mut res = Snapshot::as_bytes(&self.named);
+        res.extend(self.instructions.as_bytes());
+        res.extend(self.lifecycle.as_bytes());
+        res.extend(self.args.as_bytes());
+        res.extend(self.set_self.as_bytes());
+        res
     }
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
-        todo!()
+        let named = String::from_bytes(bytes, location)?;
+        let instructions = Snapshot::from_bytes(bytes, location)?;
+        let lifecycle = Snapshot::from_bytes(bytes, location)?;
+        let args = Snapshot::from_bytes(bytes, location)?;
+        let set_self = Snapshot::from_bytes(bytes, location)?;
+        Ok(Scope {
+            instructions,
+            lifecycle,
+            named,
+            args,
+            set_self,
+        })
     }
 }
 

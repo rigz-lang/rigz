@@ -9,6 +9,8 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::time::Duration;
+use tokio::runtime::Handle;
 
 pub(crate) struct ProcessRunner<'s> {
     scope: &'s Scope,
@@ -16,6 +18,7 @@ pub(crate) struct ProcessRunner<'s> {
     stack: VMStack,
     options: &'s VMOptions,
     modules: ModulesMap,
+    handle: Handle,
 }
 
 #[allow(unused_variables)]
@@ -39,6 +42,7 @@ impl<'s> ProcessRunner<'s> {
         args: Vec<Value>,
         options: &'s VMOptions,
         modules: ModulesMap,
+        handle: Handle,
     ) -> Self {
         Self {
             scope,
@@ -46,6 +50,7 @@ impl<'s> ProcessRunner<'s> {
             stack: VMStack::new(args.into_iter().map(|v| v.into()).collect()),
             options,
             modules,
+            handle,
         }
     }
 }
@@ -107,6 +112,10 @@ impl Runner for ProcessRunner<'_> {
         args: usize,
     ) -> Result<Value, VMError> {
         Err(VMError::todo("Process does not implement `vm_extension`"))
+    }
+
+    fn sleep(&self, duration: Duration) {
+        self.handle.block_on(tokio::time::sleep(duration));
     }
 }
 

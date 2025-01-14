@@ -19,6 +19,7 @@ use std::cell::RefCell;
 
 use crate::{impl_from, Number, RigzType, Snapshot, ValueRange};
 use indexmap::IndexMap;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
@@ -48,7 +49,11 @@ impl Snapshot for Value {
     fn as_bytes(&self) -> Vec<u8> {
         match self {
             Value::None => vec![0],
-            Value::Bool(b) => vec![1, *b as u8],
+            Value::Bool(b) => {
+                let mut res = vec![1];
+                res.extend(b.as_bytes());
+                res
+            }
             Value::Number(n) => {
                 let mut res = match n {
                     Number::Int(_) => vec![2],
@@ -96,7 +101,53 @@ impl Snapshot for Value {
     }
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
-        todo!()
+        let next = match bytes.next() {
+            None => {
+                return Err(VMError::RuntimeError(format!(
+                    "Missing Value byte {location}"
+                )))
+            }
+            Some(s) => s,
+        };
+        let v = match next {
+            0 => Value::None,
+            1 => Value::Bool(bool::from_bytes(bytes, location)?),
+            2 => {
+                let b = match bytes.next_array() {
+                    None => {
+                        return Err(VMError::RuntimeError(format!(
+                            "Missing Number::Int bytes {location}"
+                        )))
+                    }
+                    Some(s) => s,
+                };
+                Value::Number(Number::Int(i64::from_be_bytes(b)))
+            }
+            3 => {
+                let b = match bytes.next_array() {
+                    None => {
+                        return Err(VMError::RuntimeError(format!(
+                            "Missing Number::Float bytes {location}"
+                        )))
+                    }
+                    Some(s) => s,
+                };
+                Value::Number(Number::Float(f64::from_be_bytes(b)))
+            }
+            4 => Value::String(Snapshot::from_bytes(bytes, location)?),
+            5 => Value::List(Snapshot::from_bytes(bytes, location)?),
+            6 => Value::Map(Snapshot::from_bytes(bytes, location)?),
+            7 => Value::Range(Snapshot::from_bytes(bytes, location)?),
+            8 => Value::Error(Snapshot::from_bytes(bytes, location)?),
+            9 => Value::Tuple(Snapshot::from_bytes(bytes, location)?),
+            10 => Value::Type(Snapshot::from_bytes(bytes, location)?),
+            b => {
+                return Err(VMError::RuntimeError(format!(
+                    "Illegal Value byte {b} - {location}"
+                )))
+            }
+        };
+        Ok(v)
     }
 }
 

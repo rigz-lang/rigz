@@ -370,6 +370,8 @@ pub mod vm_tests {
         vm2.load_snapshot(bytes).expect("load failed");
         assert_eq!(vm2.options, vm.options);
         assert_eq!(vm2.sp, vm.sp);
-        // assert_eq!(vm2.get_register(1), Value::Bool(true).into());
+        assert_eq!(vm2.scopes, vm.scopes);
+        assert_eq!(vm2.frames, vm.frames);
+        assert_eq!(vm2.lifecycles, vm.lifecycles);
     }
 }

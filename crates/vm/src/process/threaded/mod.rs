@@ -3,6 +3,7 @@ mod runner;
 use crate::process::ModulesMap;
 use crate::{Scope, VMOptions, Value};
 use runner::ProcessRunner;
+use tokio::runtime::Handle;
 
 #[derive(Clone, Debug)]
 pub struct Process {
@@ -27,8 +28,14 @@ impl Process {
         }
     }
 
-    pub fn run(&self, args: Vec<Value>) -> Value {
-        let mut runner = ProcessRunner::new(&self.scope, args, &self.options, self.modules.clone());
+    pub fn run(&self, args: Vec<Value>, handle: Handle) -> Value {
+        let mut runner = ProcessRunner::new(
+            &self.scope,
+            args,
+            &self.options,
+            self.modules.clone(),
+            handle,
+        );
         runner.run()
     }
 }

@@ -72,7 +72,10 @@ impl ProcessManager {
                 let current = running.take();
                 let args = args.clone();
                 let t = match current {
-                    None => self.handle.spawn_blocking(move || p.run(args)),
+                    None => {
+                        let handle = self.handle.clone();
+                        self.handle.spawn_blocking(move || p.run(args, handle))
+                    }
                     Some(_) => {
                         return VMError::todo(format!(
                             "Broadcast does not support overwriting running tasks - Process {id}"
@@ -97,7 +100,8 @@ impl ProcessManager {
         let pid = self.processes.len();
         let p: Reference<Process> = Process::new(scope, options, modules, timeout).into();
         let arc = p.clone();
-        let t = self.handle.spawn_blocking(move || arc.run(args));
+        let handle = self.handle.clone();
+        let t = self.handle.spawn_blocking(move || arc.run(args, handle));
         self.processes.push((p, Some(t)));
         Ok(pid)
     }
@@ -120,7 +124,10 @@ impl ProcessManager {
                 let current = running.take();
                 let args = args.clone();
                 let t = match current {
-                    None => self.handle.spawn_blocking(move || p.run(args)),
+                    None => {
+                        let handle = self.handle.clone();
+                        self.handle.spawn_blocking(move || p.run(args, handle))
+                    }
                     Some(_) => {
                         return VMError::todo(format!(
                             "Send does not support overwriting running tasks - Process {id}"

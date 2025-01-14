@@ -18,7 +18,7 @@ macro_rules! outln {
     };
     ($($arg:tt)*) => {{
         handle_js! {
-            web_sys::console::log_1(&format_args!($($arg)*).to_string()),
+            web_sys::console::log_1(&format_args!($($arg)*).to_string().into()),
             println!($($arg)*)
         }
     }};
@@ -34,7 +34,7 @@ macro_rules! out {
     };
     ($($arg:tt)*) => {{
         handle_js! {
-            web_sys::console::log_1(&format_args!($($arg)*).to_string()),
+            web_sys::console::log_1(&format_args!($($arg)*).to_string().into()),
             print!($($arg)*)
         }
     }};
@@ -50,7 +50,7 @@ macro_rules! err {
     };
     ($($arg:tt)*) => {{
         handle_js! {
-           web_sys::console::error_1(&format_args!($($arg)*).to_string()),
+           web_sys::console::error_1(&format_args!($($arg)*).to_string().into()),
            eprint!($($arg)*)
         }
     }};
@@ -66,7 +66,7 @@ macro_rules! errln {
     };
     ($($arg:tt)*) => {{
         handle_js! {
-           web_sys::console::error_1(&format_args!($($arg)*).to_string()),
+           web_sys::console::error_1(&format_args!($($arg)*).to_string().into()),
            eprintln!($($arg)*)
         }
     }};

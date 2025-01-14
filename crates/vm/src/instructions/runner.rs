@@ -375,6 +375,8 @@ pub trait Runner: ResolveValue {
         args: usize,
     ) -> Result<Value, VMError>;
 
+    fn sleep(&self, duration: Duration);
+
     #[allow(unused_variables)]
     #[inline]
     #[log_derive::logfn_inputs(Debug, fmt = "process_instruction(vm={:#p}, instruction={:?})")]
@@ -698,7 +700,7 @@ pub trait Runner: ResolveValue {
                     Ok(v) => Duration::from_millis(v as u64),
                     Err(e) => return e.into(),
                 };
-                thread::sleep(duration);
+                self.sleep(duration);
                 self.store_value(Value::None.into());
             }
             ins => {

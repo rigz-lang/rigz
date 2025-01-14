@@ -7,13 +7,37 @@ use std::fmt::Display;
 use std::ops::Index;
 use std::vec::IntoIter;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Variable {
     Let(StackValue),
     Mut(StackValue),
 }
 
-#[derive(Clone, Debug)]
+impl Snapshot for Variable {
+    fn as_bytes(&self) -> Vec<u8> {
+        let (mut res, v) = match self {
+            Variable::Let(v) => (vec![0], v),
+            Variable::Mut(v) => (vec![1], v),
+        };
+        res.extend(v.as_bytes());
+        res
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        match bytes.next() {
+            None => Err(VMError::RuntimeError(format!(
+                "Missing Variable byte - {location}"
+            ))),
+            Some(0) => Ok(Variable::Let(Snapshot::from_bytes(bytes, location)?)),
+            Some(1) => Ok(Variable::Mut(Snapshot::from_bytes(bytes, location)?)),
+            Some(b) => Err(VMError::RuntimeError(format!(
+                "Illegal Variable byte {b} - {location}"
+            ))),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Frames {
     pub current: RefCell<CallFrame>,
     pub frames: Vec<RefCell<CallFrame>>,
@@ -27,7 +51,9 @@ impl Snapshot for Frames {
     }
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
-        todo!()
+        let current = Snapshot::from_bytes(bytes, location)?;
+        let frames = Snapshot::from_bytes(bytes, location)?;
+        Ok(Frames { current, frames })
     }
 }
 
@@ -124,7 +150,7 @@ impl Default for Frames {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct CallFrame {
     pub scope_id: usize,
     pub pc: usize,
@@ -134,11 +160,24 @@ pub struct CallFrame {
 
 impl Snapshot for CallFrame {
     fn as_bytes(&self) -> Vec<u8> {
-        todo!()
+        let mut res = self.scope_id.as_bytes();
+        res.extend(self.pc.as_bytes());
+        res.extend(self.variables.as_bytes());
+        res.extend(self.parent.as_bytes());
+        res
     }
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
-        todo!()
+        let scope_id = Snapshot::from_bytes(bytes, location)?;
+        let pc = Snapshot::from_bytes(bytes, location)?;
+        let variables = Snapshot::from_bytes(bytes, location)?;
+        let parent = Snapshot::from_bytes(bytes, location)?;
+        Ok(CallFrame {
+            scope_id,
+            pc,
+            variables,
+            parent,
+        })
     }
 }
 

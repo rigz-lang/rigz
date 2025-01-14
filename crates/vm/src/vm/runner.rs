@@ -7,6 +7,8 @@ use itertools::Itertools;
 use log_derive::{logfn, logfn_inputs};
 use std::fmt::Display;
 use std::ops::Deref;
+use std::thread;
+use std::time::Duration;
 
 #[allow(unused_variables)]
 impl Runner for VM {
@@ -216,5 +218,9 @@ impl Runner for VM {
     ) -> Result<Value, VMError> {
         let args = self.resolve_args(args).into();
         module.vm_extension(self, func, args)
+    }
+
+    fn sleep(&self, duration: Duration) {
+        thread::sleep(duration);
     }
 }
