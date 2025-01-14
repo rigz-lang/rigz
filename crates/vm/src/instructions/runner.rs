@@ -340,8 +340,6 @@ pub trait Runner: ResolveValue {
 
     fn receive(&mut self, args: usize) -> Result<(), VMError>;
 
-    fn broadcast(&mut self, args: usize) -> Result<(), VMError>;
-
     fn spawn(&mut self, scope_id: usize, timeout: Option<usize>) -> Result<(), VMError>;
 
     fn get_variable(&mut self, name: &str);
@@ -665,11 +663,6 @@ pub trait Runner: ResolveValue {
             }
             Instruction::Send(args) => {
                 if let Err(o) = self.send(args) {
-                    return o.into();
-                }
-            }
-            Instruction::Broadcast(args) => {
-                if let Err(o) = self.broadcast(args) {
                     return o.into();
                 }
             }

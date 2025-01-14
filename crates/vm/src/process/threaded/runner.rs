@@ -87,10 +87,6 @@ impl Runner for ProcessRunner<'_> {
         Err(VMError::todo("Process does not implement `receive`"))
     }
 
-    fn broadcast(&mut self, args: usize) -> Result<(), VMError> {
-        Err(VMError::todo("Process does not implement `broadcast`"))
-    }
-
     fn spawn(&mut self, scope_id: usize, timeout: Option<usize>) -> Result<(), VMError> {
         Err(VMError::todo("Process does not implement `spawn`"))
     }

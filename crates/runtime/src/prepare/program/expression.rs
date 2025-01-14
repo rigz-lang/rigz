@@ -157,20 +157,12 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
     fn function_type(&mut self, fe: &FunctionExpression) -> Result<RigzType, ValidationError> {
         let e = match fe {
             FunctionExpression::FunctionCall(name, _) => {
-                if matches!(name.as_str(), "puts" | "log" | "sleep") {
-                    return Ok(RigzType::None);
-                }
-
-                if matches!(name.as_str(), "send" | "spawn") {
-                    return Ok(RigzType::Int);
-                }
-
-                if name == "broadcast" {
-                    return Ok(RigzType::List(RigzType::Int.into()));
-                }
-
-                if name == "receive" {
-                    return Ok(RigzType::Any);
+                match name.as_str() {
+                    "puts" | "log" | "sleep" => return Ok(RigzType::None),
+                    "spawn" => return Ok(RigzType::Int),
+                    "receive" => return Ok(RigzType::Any),
+                    "send" => return Ok(RigzType::List(Box::new(RigzType::Int))),
+                    _ => {}
                 }
 
                 self.check_module_exists(name)?;

@@ -245,7 +245,6 @@ pub enum Instruction {
     },
     Sleep,
     Send(usize),
-    Broadcast(usize),
     Spawn(usize, bool),
     Receive(usize),
     /// Danger Zone, use these instructions at your own risk (sorted by risk)
@@ -478,55 +477,50 @@ impl Snapshot for Instruction {
                 res.extend(v.as_bytes());
                 res
             }
-            Instruction::Broadcast(v) => {
-                let mut res = vec![38];
-                res.extend(v.as_bytes());
-                res
-            }
             Instruction::Spawn(a, b) => {
-                let mut res = vec![39];
+                let mut res = vec![38];
                 res.extend(a.as_bytes());
                 res.extend(b.as_bytes());
                 res
             }
             Instruction::Receive(v) => {
-                let mut res = vec![40];
+                let mut res = vec![39];
                 res.extend(v.as_bytes());
                 res
             }
             Instruction::Pop(v) => {
-                let mut res = vec![41];
+                let mut res = vec![40];
                 res.extend(v.as_bytes());
                 res
             }
             Instruction::Goto(s, v) => {
-                let mut res = vec![42];
+                let mut res = vec![41];
                 res.extend(s.as_bytes());
                 res.extend(v.as_bytes());
                 res
             }
             Instruction::AddInstruction(s, i) => {
-                let mut res = vec![43];
+                let mut res = vec![42];
                 res.extend(s.as_bytes());
                 res.extend(i.as_bytes());
                 res
             }
             Instruction::InsertAtInstruction(s, v, i) => {
-                let mut res = vec![44];
+                let mut res = vec![43];
                 res.extend(s.as_bytes());
                 res.extend(v.as_bytes());
                 res.extend(i.as_bytes());
                 res
             }
             Instruction::UpdateInstruction(s, v, i) => {
-                let mut res = vec![45];
+                let mut res = vec![44];
                 res.extend(s.as_bytes());
                 res.extend(v.as_bytes());
                 res.extend(i.as_bytes());
                 res
             }
             Instruction::RemoveInstruction(s, v) => {
-                let mut res = vec![46];
+                let mut res = vec![45];
                 res.extend(s.as_bytes());
                 res.extend(v.as_bytes());
                 res
@@ -611,32 +605,31 @@ impl Snapshot for Instruction {
             },
             36 => Instruction::Sleep,
             37 => Instruction::Send(Snapshot::from_bytes(bytes, location)?),
-            38 => Instruction::Broadcast(Snapshot::from_bytes(bytes, location)?),
-            39 => Instruction::Spawn(
+            38 => Instruction::Spawn(
                 Snapshot::from_bytes(bytes, location)?,
                 Snapshot::from_bytes(bytes, location)?,
             ),
-            40 => Instruction::Receive(Snapshot::from_bytes(bytes, location)?),
-            41 => Instruction::Pop(Snapshot::from_bytes(bytes, location)?),
-            42 => Instruction::Goto(
+            39 => Instruction::Receive(Snapshot::from_bytes(bytes, location)?),
+            40 => Instruction::Pop(Snapshot::from_bytes(bytes, location)?),
+            41 => Instruction::Goto(
                 Snapshot::from_bytes(bytes, location)?,
                 Snapshot::from_bytes(bytes, location)?,
             ),
-            43 => Instruction::AddInstruction(
+            42 => Instruction::AddInstruction(
                 Snapshot::from_bytes(bytes, location)?,
                 Snapshot::from_bytes(bytes, location)?,
             ),
-            44 => Instruction::InsertAtInstruction(
-                Snapshot::from_bytes(bytes, location)?,
-                Snapshot::from_bytes(bytes, location)?,
-                Snapshot::from_bytes(bytes, location)?,
-            ),
-            45 => Instruction::UpdateInstruction(
+            43 => Instruction::InsertAtInstruction(
                 Snapshot::from_bytes(bytes, location)?,
                 Snapshot::from_bytes(bytes, location)?,
                 Snapshot::from_bytes(bytes, location)?,
             ),
-            46 => Instruction::RemoveInstruction(
+            44 => Instruction::UpdateInstruction(
+                Snapshot::from_bytes(bytes, location)?,
+                Snapshot::from_bytes(bytes, location)?,
+                Snapshot::from_bytes(bytes, location)?,
+            ),
+            45 => Instruction::RemoveInstruction(
                 Snapshot::from_bytes(bytes, location)?,
                 Snapshot::from_bytes(bytes, location)?,
             ),

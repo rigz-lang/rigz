@@ -105,8 +105,8 @@ pub mod runtime {
                 a * 2
             end
 
-            pid = send 'message', 21
-            receive pid, 0
+            pids = send 'message', 21
+            receive pids.0, 0
             "# = "`receive` timed out after 0ms")
         }
     }
@@ -509,17 +509,17 @@ pub mod runtime {
             @on("message")
             fn foo(a) = a * 2
 
-            pid = send 'message', 21
-            receive pid
+            pids = send 'message', 21
+            receive pids.0
             "# = 42)
-            on_works_broadcast(r#"
+            on_works_multi_message(r#"
             @on("message")
             fn foo(a, b) = a * b
 
             @on("message")
             fn bar(a, b) = a - b
 
-            pids = broadcast 'message', 21, 12
+            pids = send 'message', 21, 12
             receive pids
             "# = vec![252, 9])
             to_bits(

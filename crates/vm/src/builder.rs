@@ -331,11 +331,6 @@ pub trait RigzBuilder: Debug + Default {
     }
 
     #[inline]
-    fn add_broadcast_instruction(&mut self, args: usize) -> &mut Self {
-        self.add_instruction(Instruction::Broadcast(args))
-    }
-
-    #[inline]
     fn add_sleep_instruction(&mut self) -> &mut Self {
         self.add_instruction(Instruction::Sleep)
     }

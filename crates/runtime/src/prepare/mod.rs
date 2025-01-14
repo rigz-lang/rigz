@@ -1205,17 +1205,6 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 }
                 self.builder.add_send_instruction(args);
             }
-            "broadcast" => {
-                if arguments.is_empty() {
-                    return Err(ValidationError::InvalidFunction("`broadcast` requires at least one argument that includes the event being triggered, or :all".to_string()));
-                }
-
-                let args = arguments.len();
-                for e in arguments.into_iter().rev() {
-                    self.parse_expression(e)?;
-                }
-                self.builder.add_broadcast_instruction(args);
-            }
             "receive" => {
                 let args = arguments.len();
                 if matches!(args, 1 | 2) {

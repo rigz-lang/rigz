@@ -175,13 +175,6 @@ impl Runner for VM {
         Ok(())
     }
 
-    fn broadcast(&mut self, args: usize) -> Result<(), VMError> {
-        let args = self.resolve_args(args);
-        let values = self.process_manager.update(move |p| p.broadcast(args));
-        self.store_value(values.into());
-        Ok(())
-    }
-
     fn spawn(&mut self, scope_id: usize, timeout: Option<usize>) -> Result<(), VMError> {
         let scope = match self.scopes.get(scope_id) {
             None => {

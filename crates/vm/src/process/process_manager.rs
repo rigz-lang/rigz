@@ -90,17 +90,6 @@ impl ProcessManager {
         self.processes.extend(processes);
     }
 
-    pub(crate) fn broadcast(&mut self, args: Vec<Rc<RefCell<Value>>>) -> Vec<Value> {
-        let args: Vec<_> = args.into_iter().map(|a| a.borrow().clone()).collect();
-
-        self.processes
-            .iter_mut()
-            .enumerate()
-            .filter(|(_, (p, _))| matches!(p.scope.lifecycle.as_ref(), Some(Lifecycle::On(_))))
-            .map(|(id, running)| run_process(&self.handle, id, running, args.clone()))
-            .collect()
-    }
-
     pub(crate) fn spawn(
         &mut self,
         scope: Scope,
@@ -143,16 +132,13 @@ impl ProcessManager {
             .map(|(id, running)| run_process(&self.handle, id, running, args.clone()))
             .collect();
 
-        match res.len() {
-            0 => Err(VMError::RuntimeError(format!(
+        if res.is_empty() {
+            return Err(VMError::RuntimeError(format!(
                 "No process found matching '{message}'"
-            ))),
-            1 => {
-                let mut v = res.into_iter();
-                Ok(v.next().unwrap())
-            }
-            _ => Ok(res.into()),
+            )));
         }
+
+        Ok(res.into())
     }
 
     pub(crate) fn receive(&mut self, args: Vec<Rc<RefCell<Value>>>) -> Result<Value, VMError> {
