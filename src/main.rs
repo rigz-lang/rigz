@@ -4,6 +4,7 @@ mod format;
 mod repl;
 mod run;
 mod test;
+mod utils;
 
 use crate::ast::{ast, AstArgs};
 use crate::format::{format, FormatArgs};

@@ -112,16 +112,7 @@ pub enum Statement {
         base_trait: RigzType,
         concrete: RigzType,
         definitions: Vec<FunctionDefinition>,
-    }, // todo support later
-       // If {
-       //     condition: Expression,
-       //     then: Scope,
-       //     branch: Option<Scope>,
-       // },
-       // Unless {
-       //     condition: Expression,
-       //     then: Scope,
-       // },
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]

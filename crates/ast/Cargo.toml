@@ -11,6 +11,7 @@ keywords = ["rigz", "ast"]
 [features]
 default = ["rigz_vm/threaded"]
 derive = ["dep:proc-macro2", "dep:quote", "rigz_vm/derive"]
+format = []
 js = ["rigz_vm/js"]
 threaded = ["rigz_vm/threaded"]
 

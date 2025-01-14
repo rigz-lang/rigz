@@ -1,6 +1,7 @@
 use crate::{Snapshot, VMError, Value};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+use std::ops::AddAssign;
 use std::time::Duration;
 use std::vec::IntoIter;
 
@@ -167,7 +168,7 @@ impl Snapshot for MemoizedLifecycle {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TestLifecycle;
 
-#[derive(Clone, Debug, Eq)]
+#[derive(Clone, Debug, Eq, Default)]
 pub struct TestResults {
     pub passed: usize,
     pub failed: usize,
@@ -175,6 +176,14 @@ pub struct TestResults {
     pub duration: Duration,
 }
 
+impl AddAssign for TestResults {
+    fn add_assign(&mut self, rhs: Self) {
+        self.passed += rhs.passed;
+        self.failed += rhs.failed;
+        self.failure_messages.extend(rhs.failure_messages);
+        self.duration += rhs.duration;
+    }
+}
 impl PartialEq for TestResults {
     fn eq(&self, other: &Self) -> bool {
         self.passed == other.passed

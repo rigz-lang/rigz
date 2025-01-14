@@ -6,6 +6,12 @@ mod validate;
 #[cfg(feature = "derive")]
 mod ast_derive;
 
+#[cfg(feature = "format")]
+mod format;
+
+#[cfg(feature = "format")]
+pub use format::format;
+
 #[cfg(feature = "derive")]
 pub use rigz_vm::derive::*;
 

@@ -1,30 +1,21 @@
+use crate::utils::{current_dir, path_to_string, read_rigz_files};
 use clap::Args;
 use rigz_runtime::Runtime;
+use rigz_vm::TestResults;
 use std::fs::read_to_string;
-use std::io;
 use std::path::PathBuf;
 
 #[derive(Args)]
 pub struct TestArgs {
-    #[arg(help = "Test Entrypoint")]
-    input: PathBuf,
-}
-
-fn read_files(input: PathBuf) -> io::Result<Vec<PathBuf>> {
-    let mut files = Vec::with_capacity(1);
-    if input.is_dir() {
-        for f in input.read_dir()? {
-            files.extend(read_files(f?.path())?);
-        }
-    } else {
-        files.push(input);
-    }
-    Ok(files)
+    #[arg(help = "Test Entrypoint, defaults to current directory")]
+    input: Option<PathBuf>,
 }
 
 pub(crate) fn test(args: TestArgs) {
-    let test_files = read_files(args.input).expect("Failed to open test files");
+    let input = args.input.unwrap_or_else(current_dir);
+    let test_files = read_rigz_files(input).expect("Failed to open test files");
     // # of tests
+    let mut total = TestResults::default();
     for file in test_files {
         match read_to_string(&file) {
             Ok(s) => {
@@ -32,6 +23,7 @@ pub(crate) fn test(args: TestArgs) {
                     Ok(mut r) => {
                         println!("Running {}", path_to_string(&file));
                         let results = r.test();
+                        total += results.clone();
                         println!("{results}")
                     }
                     Err(e) => eprintln!("Failed to parse tests {} - {e}", path_to_string(&file)),
@@ -40,12 +32,5 @@ pub(crate) fn test(args: TestArgs) {
             Err(e) => eprintln!("Failed to open {} - {e}", path_to_string(&file)),
         }
     }
-    // final result, passed, failed, ignored, finished in 0.0s
-}
-
-fn path_to_string(path_buf: &PathBuf) -> String {
-    match path_buf.to_str() {
-        None => format!("Invalid Path {path_buf:?}"),
-        Some(s) => s.to_string(),
-    }
+    println!("{total}")
 }
