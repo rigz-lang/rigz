@@ -1,6 +1,5 @@
 use crate::utils::{current_dir, path_to_string, read_rigz_files};
 use clap::Args;
-use rigz_ast::Parser;
 use std::fs::read_to_string;
 use std::fs::File;
 use std::io::Write;

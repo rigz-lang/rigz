@@ -87,23 +87,18 @@ pub fn format(input: String) -> String {
                 result.push_str(" ".repeat(indent * 2).as_str());
             }
             TokenKind::Rcurly | TokenKind::Rparen | TokenKind::Rbracket => {
-                if indent > 0 {
-                    indent -= 1;
-                }
                 result.push_str(token.to_string().as_str());
             }
             TokenKind::Lcurly | TokenKind::Lparen | TokenKind::Lbracket => {
                 result.push_str(token.to_string().as_str());
             }
             TokenKind::Comment => {
-                result.push_str("\n");
+                result.push('\n');
                 result.push_str(" ".repeat(indent * 2).as_str());
                 result.push_str(tokens.slice());
             }
             TokenKind::End => {
-                if indent > 0 {
-                    indent -= 1;
-                }
+                indent = indent.saturating_sub(1);
                 if last != TokenKind::Newline {
                     result.push('\n');
                     result.push_str("  ".repeat(indent).as_str());
