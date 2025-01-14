@@ -116,6 +116,7 @@ impl ProcessManager {
         Ok(pid)
     }
 
+    #[cfg(feature = "threaded")]
     pub(crate) fn send(&mut self, args: Vec<Rc<RefCell<Value>>>) -> Result<Value, VMError> {
         let mut args = args.into_iter().map(|v| v.borrow().clone());
         // todo message or pid
@@ -139,6 +140,11 @@ impl ProcessManager {
         }
 
         Ok(res.into())
+    }
+
+    #[cfg(not(feature = "threaded"))]
+    pub(crate) fn send(&mut self, args: Vec<Rc<RefCell<Value>>>) -> Result<Value, VMError> {
+        todo!()
     }
 
     pub(crate) fn receive(&mut self, args: Vec<Rc<RefCell<Value>>>) -> Result<Value, VMError> {
@@ -171,6 +177,7 @@ impl ProcessManager {
         Ok(v)
     }
 
+    #[cfg(feature = "threaded")]
     fn handle_receive(&mut self, pid: usize, timeout: Option<usize>) -> Value {
         match self.processes.get_mut(pid) {
             None => VMError::RuntimeError(format!("Process {pid} does not exist")).into(),
@@ -211,6 +218,12 @@ impl ProcessManager {
         }
     }
 
+    #[cfg(not(feature = "threaded"))]
+    fn handle_receive(&mut self, pid: usize, timeout: Option<usize>) -> Value {
+        todo!()
+    }
+
+    #[cfg(feature = "threaded")]
     pub(crate) fn close(&mut self, result: Value) -> Value {
         let mut errors: Vec<VMError> = vec![];
         for (id, (_, handle)) in self.processes.drain(..).enumerate() {
@@ -246,6 +259,11 @@ impl ProcessManager {
         }
     }
 
+    #[cfg(not(feature = "threaded"))]
+    pub(crate) fn close(&mut self, result: Value) -> Value {
+        result
+    }
+
     // todo return channel
     pub(crate) fn create_on_processes(vm: &VM) -> SpawnedProcesses {
         let scopes = vm
@@ -270,7 +288,7 @@ impl ProcessManager {
 
         #[cfg(not(feature = "threaded"))]
         {
-            scopes.map(|p| (p, None)).collect()
+            scopes.collect()
         }
     }
 }

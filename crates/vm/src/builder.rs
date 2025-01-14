@@ -400,7 +400,7 @@ macro_rules! generate_builder {
         #[inline]
         #[cfg(not(feature = "threaded"))]
         fn register_module(&mut self, module: impl Module + 'static) -> &mut Self {
-            self.modules.insert(module.name(), Reference::new(module));
+            self.modules.insert(module.name(), std::rc::Rc::new(module));
             self
         }
 

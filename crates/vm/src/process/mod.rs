@@ -56,25 +56,56 @@ impl<T: Debug> From<T> for MutableReference<T> {
 }
 
 impl<T: Debug> MutableReference<T> {
+    #[cfg(feature = "threaded")]
     pub fn apply<F, R>(&self, f: F) -> R
     where
         F: FnOnce(&T) -> R,
     {
-        f(self.0.read().unwrap().deref())
+        f(self.0.read().expect("failed to obtain RwLock").deref())
     }
 
+    #[cfg(feature = "threaded")]
     pub fn update<F, R>(&self, f: F) -> R
     where
         F: FnOnce(&mut T) -> R,
     {
-        f(self.0.write().unwrap().deref_mut())
+        f(self.0.write().expect("failed to obtain RwLock").deref_mut())
     }
 
+    #[cfg(feature = "threaded")]
     pub fn update_with_ref<F, R>(&self, f: F) -> R
     where
         F: FnOnce(&mut T, MutableReference<T>) -> R,
     {
         let s = self.clone();
-        f(self.0.write().unwrap().deref_mut(), s)
+        f(
+            self.0.write().expect("failed to obtain RwLock").deref_mut(),
+            s,
+        )
+    }
+
+    #[cfg(not(feature = "threaded"))]
+    pub fn apply<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&T) -> R,
+    {
+        f(self.0.borrow().deref())
+    }
+
+    #[cfg(not(feature = "threaded"))]
+    pub fn update<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&mut T) -> R,
+    {
+        f(self.0.borrow_mut().deref_mut())
+    }
+
+    #[cfg(not(feature = "threaded"))]
+    pub fn update_with_ref<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&mut T, MutableReference<T>) -> R,
+    {
+        let s = self.clone();
+        f(self.0.borrow_mut().deref_mut(), s)
     }
 }

@@ -2,9 +2,13 @@
 macro_rules! handle_js {
     ($enabled: expr, $default: expr) => {
         #[cfg(feature = "js")]
-        $enabled;
+        {
+            $enabled;
+        }
         #[cfg(not(feature = "js"))]
-        $default;
+        {
+            $default;
+        }
     };
 }
 

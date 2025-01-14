@@ -1641,6 +1641,7 @@ dependencies = [
  "serde_json",
  "uuid",
  "wasm-bindgen-test",
+ "web-sys",
 ]
 
 [[package]]

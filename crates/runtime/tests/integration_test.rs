@@ -528,12 +528,6 @@ pub mod runtime {
             from_bits(
                 "int_from_bits [true, false]" = 2
             )
-        }
-    }
-
-    pub mod debug {
-        use super::*;
-        run_debug_vm! {
             spawn_works(r#"
             pid = spawn do
                 42
@@ -542,5 +536,10 @@ pub mod runtime {
             receive pid
             "# = 42)
         }
+    }
+
+    pub mod debug {
+        use super::*;
+        run_debug_vm! {}
     }
 }

@@ -57,7 +57,7 @@ impl Default for VM {
                 .expect("Failed to setup ProcessManager")
                 .into(),
             #[cfg(not(feature = "threaded"))]
-            process_manager: ProcessManager::new(),
+            process_manager: ProcessManager::new().into(),
         }
     }
 }
