@@ -31,7 +31,7 @@ pub use module::*;
 pub use number::*;
 pub use objects::*;
 pub use operations::*;
-pub use process::{ModulesMap, Process, Reference};
+pub use process::{ModulesMap, Reference};
 pub use scope::Scope;
 pub use stack::VMStack;
 pub use traits::*;

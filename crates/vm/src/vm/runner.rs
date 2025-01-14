@@ -163,21 +163,21 @@ impl Runner for VM {
 
     fn send(&mut self, args: usize) -> Result<(), VMError> {
         let args = self.resolve_args(args);
-        let v = self.process_manager.send(args)?;
+        let v = self.process_manager.update(|p| p.send(args))?;
         self.store_value(v.into());
         Ok(())
     }
 
     fn receive(&mut self, args: usize) -> Result<(), VMError> {
         let args = self.resolve_args(args);
-        let res = self.process_manager.receive(args);
+        let res = self.process_manager.update(move |p| p.receive(args));
         self.store_value(res.into());
         Ok(())
     }
 
     fn broadcast(&mut self, args: usize) -> Result<(), VMError> {
         let args = self.resolve_args(args);
-        let values = self.process_manager.broadcast(args);
+        let values = self.process_manager.update(move |p| p.broadcast(args));
         self.store_value(values.into());
         Ok(())
     }
@@ -195,7 +195,7 @@ impl Runner for VM {
         let m = self.modules();
         let pid = self
             .process_manager
-            .spawn(scope, vec![], options, m, timeout)?;
+            .update_with_ref(move |p, pm| p.spawn(scope, vec![], options, m, timeout, pm))?;
         self.store_value(Number::Int(pid as i64).into());
         Ok(())
     }

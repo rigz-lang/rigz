@@ -1,4 +1,5 @@
-use crate::{Lifecycle, ModulesMap, Process, Reference, Scope, VMError, VMOptions, Value, VM};
+use crate::process::{MutableReference, Process};
+use crate::{Lifecycle, ModulesMap, Reference, Scope, VMError, VMOptions, Value, VM};
 use log::warn;
 use std::cell::RefCell;
 use std::fmt::Debug;
@@ -17,7 +18,7 @@ pub(crate) struct VMMessenger {}
 #[derive(Debug)]
 pub(crate) struct ProcessManager {
     #[cfg(feature = "threaded")]
-    handle: tokio::runtime::Handle,
+    pub(crate) handle: tokio::runtime::Handle,
     #[cfg(feature = "threaded")]
     runtime: Option<tokio::runtime::Runtime>,
     processes: SpawnedProcesses,
@@ -25,10 +26,11 @@ pub(crate) struct ProcessManager {
 }
 
 #[cfg(feature = "threaded")]
-pub type SpawnedProcesses = Vec<(Reference<Process>, Option<tokio::task::JoinHandle<Value>>)>;
+pub(crate) type SpawnedProcesses =
+    Vec<(Reference<Process>, Option<tokio::task::JoinHandle<Value>>)>;
 
 #[cfg(not(feature = "threaded"))]
-pub type SpawnedProcesses = Vec<Reference<Process>>;
+pub(crate) type SpawnedProcesses = Vec<Reference<Process>>;
 
 #[cfg(feature = "threaded")]
 fn run_process(
@@ -41,10 +43,7 @@ fn run_process(
     let p = p.clone();
     let current = running.take();
     let t = match current {
-        None => {
-            let h = handle.clone();
-            handle.spawn_blocking(move || p.run(args, h))
-        }
+        None => handle.spawn_blocking(move || p.run(args)),
         Some(_) => {
             return VMError::todo(format!(
                 "overwriting running tasks is not supported - Process {id}"
@@ -58,7 +57,7 @@ fn run_process(
 
 impl ProcessManager {
     #[cfg(not(feature = "threaded"))]
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             processes: Vec::new(),
             vm_messenger: None,
@@ -109,14 +108,15 @@ impl ProcessManager {
         options: VMOptions,
         modules: ModulesMap,
         timeout: Option<usize>,
+        process_manager: MutableReference<ProcessManager>,
     ) -> Result<usize, VMError> {
         let pid = self.processes.len();
-        let p: Reference<Process> = Process::new(scope, options, modules, timeout).into();
+        let p: Reference<Process> =
+            Process::new(scope, options, modules, timeout, process_manager).into();
         #[cfg(feature = "threaded")]
         {
             let arc = p.clone();
-            let handle = self.handle.clone();
-            let t = self.handle.spawn_blocking(move || arc.run(args, handle));
+            let t = self.handle.spawn_blocking(move || arc.run(args));
             self.processes.push((p, Some(t)));
         }
 
@@ -266,7 +266,16 @@ impl ProcessManager {
             .scopes
             .iter()
             .filter(|s| matches!(s.lifecycle, Some(Lifecycle::On(_))))
-            .map(|s| Process::new(s.clone(), vm.options, vm.modules.clone(), None).into());
+            .map(|s| {
+                Process::new(
+                    s.clone(),
+                    vm.options,
+                    vm.modules.clone(),
+                    None,
+                    vm.process_manager.clone(),
+                )
+                .into()
+            });
 
         #[cfg(feature = "threaded")]
         {

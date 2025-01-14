@@ -1,6 +1,5 @@
-use crate::process::ModulesMap;
+use crate::process::{ModulesMap, MutableReference, ProcessManager};
 use crate::{Lifecycle, Scope, VMError, VMOptions, Value};
-use std::thread::JoinHandle;
 
 #[derive(Debug)]
 pub struct Process {
@@ -8,6 +7,7 @@ pub struct Process {
     options: VMOptions,
     modules: ModulesMap,
     timeout: Option<usize>,
+    process_manager: MutableReference<ProcessManager>,
 }
 
 impl Process {
@@ -16,12 +16,14 @@ impl Process {
         options: VMOptions,
         modules: ModulesMap,
         timeout: Option<usize>,
+        process_manager: MutableReference<ProcessManager>,
     ) -> Self {
         Self {
             scope,
             options,
             modules,
             timeout,
+            process_manager,
         }
     }
 
@@ -30,8 +32,9 @@ impl Process {
         options: VMOptions,
         modules: ModulesMap,
         timeout: Option<usize>,
+        process_manager: MutableReference<ProcessManager>,
     ) -> Self {
-        Self::new(scope, options, modules, timeout)
+        Self::new(scope, options, modules, timeout, process_manager)
     }
 
     pub fn lifecycle(&self) -> Option<&Lifecycle> {

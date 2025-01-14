@@ -5,7 +5,7 @@ mod values;
 
 use crate::call_frame::Frames;
 use crate::lifecycle::{Lifecycle, TestResults};
-use crate::process::{ModulesMap, ProcessManager};
+use crate::process::{ModulesMap, MutableReference, ProcessManager};
 use crate::{
     generate_builder, handle_js, out, CallFrame, Instruction, Module, RigzBuilder, Runner, Scope,
     VMError, VMStack, Value, Variable,
@@ -28,7 +28,7 @@ pub struct VM {
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
     pub constants: Vec<Value>,
-    pub(crate) process_manager: ProcessManager,
+    pub(crate) process_manager: MutableReference<ProcessManager>,
 }
 
 impl RigzBuilder for VM {
@@ -53,7 +53,9 @@ impl Default for VM {
             constants: Default::default(),
             stack: Default::default(),
             #[cfg(feature = "threaded")]
-            process_manager: ProcessManager::create().expect("Failed to setup ProcessManager"),
+            process_manager: ProcessManager::create()
+                .expect("Failed to setup ProcessManager")
+                .into(),
             #[cfg(not(feature = "threaded"))]
             process_manager: ProcessManager::new(),
         }
@@ -190,7 +192,7 @@ impl VM {
         };
 
         let res = run();
-        self.process_manager.close(res)
+        self.process_manager.update(move |r| r.close(res))
     }
 
     #[inline]
@@ -234,12 +236,12 @@ impl VM {
             }
         };
         let res = run();
-        self.process_manager.close(res)
+        self.process_manager.update(move |p| p.close(res))
     }
 
     fn start_processes(&mut self) {
         let processes = ProcessManager::create_on_processes(self);
-        self.process_manager.add(processes);
+        self.process_manager.update(move |p| p.add(processes));
     }
 
     pub fn test(&mut self) -> TestResults {

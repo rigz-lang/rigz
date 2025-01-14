@@ -1,40 +1,42 @@
 mod runner;
 
-use crate::process::ModulesMap;
+use crate::process::{ModulesMap, MutableReference, ProcessManager};
 use crate::{Scope, VMOptions, Value};
 use runner::ProcessRunner;
-use tokio::runtime::Handle;
 
 #[derive(Debug)]
-pub struct Process {
+pub(crate) struct Process {
     pub scope: Scope,
     options: VMOptions,
     modules: ModulesMap,
-    pub timeout: Option<usize>,
+    pub(crate) timeout: Option<usize>,
+    process_manager: MutableReference<ProcessManager>,
 }
 
 impl Process {
-    pub fn new(
+    pub(crate) fn new(
         scope: Scope,
         options: VMOptions,
         modules: ModulesMap,
         timeout: Option<usize>,
+        process_manager: MutableReference<ProcessManager>,
     ) -> Self {
         Self {
             scope,
             options,
             modules,
             timeout,
+            process_manager,
         }
     }
 
-    pub fn run(&self, args: Vec<Value>, handle: Handle) -> Value {
+    pub(crate) fn run(&self, args: Vec<Value>) -> Value {
         let mut runner = ProcessRunner::new(
             &self.scope,
             args,
             &self.options,
             self.modules.clone(),
-            handle,
+            self.process_manager.clone(),
         );
         runner.run()
     }

@@ -1,5 +1,5 @@
 use crate::call_frame::{CallFrame, Frames};
-use crate::process::ModulesMap;
+use crate::process::{ModulesMap, MutableReference, ProcessManager};
 use crate::{
     runner_common, Instruction, ResolveValue, ResolvedModule, Runner, Scope, StackValue, VMError,
     VMOptions, VMStack, VMState, Value, Variable,
@@ -17,8 +17,7 @@ pub(crate) struct ProcessRunner<'s> {
     stack: VMStack,
     options: &'s VMOptions,
     modules: ModulesMap,
-    #[cfg(feature = "threaded")]
-    handle: tokio::runtime::Handle,
+    process_manager: MutableReference<ProcessManager>,
 }
 
 #[allow(unused_variables)]
@@ -42,7 +41,7 @@ impl<'s> ProcessRunner<'s> {
         args: Vec<Value>,
         options: &'s VMOptions,
         modules: ModulesMap,
-        #[cfg(feature = "threaded")] handle: tokio::runtime::Handle,
+        process_manager: MutableReference<ProcessManager>,
     ) -> Self {
         Self {
             scope,
@@ -50,8 +49,7 @@ impl<'s> ProcessRunner<'s> {
             stack: VMStack::new(args.into_iter().map(|v| v.into()).collect()),
             options,
             modules,
-            #[cfg(feature = "threaded")]
-            handle,
+            process_manager,
         }
     }
 }
@@ -117,7 +115,8 @@ impl Runner for ProcessRunner<'_> {
 
     fn sleep(&self, duration: Duration) {
         #[cfg(feature = "threaded")]
-        self.handle.block_on(tokio::time::sleep(duration));
+        self.process_manager
+            .apply(move |pm| pm.handle.block_on(tokio::time::sleep(duration)));
 
         #[cfg(not(feature = "threaded"))]
         thread::sleep(duration)
