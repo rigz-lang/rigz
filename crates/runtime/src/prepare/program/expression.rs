@@ -4,7 +4,7 @@ use rigz_ast::{Element, Expression, FunctionExpression, Scope, ValidationError};
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
-impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
+impl<T: RigzBuilder> ProgramParser<'_, T> {
     fn scope_type(&mut self, scope: &Scope) -> Result<RigzType, ValidationError> {
         let e = scope.elements.last().expect("Invalid scope");
         match e {
@@ -165,11 +165,11 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                     return Ok(RigzType::Int);
                 }
 
-                if name == &"broadcast" {
+                if name == "broadcast" {
                     return Ok(RigzType::List(RigzType::Int.into()));
                 }
 
-                if name == &"receive" {
+                if name == "receive" {
                     return Ok(RigzType::Any);
                 }
 

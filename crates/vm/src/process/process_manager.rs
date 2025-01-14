@@ -1,34 +1,10 @@
-use crate::{
-    Lifecycle, ModulesMap, Process, Reference, Runner, Scope, VMError, VMOptions, Value, VM,
-};
+use crate::{Lifecycle, ModulesMap, Process, Reference, Scope, VMError, VMOptions, Value, VM};
 use log::warn;
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::time::Duration;
 use tokio::task::JoinHandle;
-
-macro_rules! broadcast {
-    ($args:expr, $ex: expr) => {
-        let args: Vec<Value> = $args.collect();
-        $ex.map(|(id, (p, _))| (id, p.send(args.clone())))
-            .map(|(id, r)| match r {
-                Ok(_) => Value::Number((id as i64).into()),
-                Err(e) => e.into(),
-            })
-            .collect::<Vec<_>>()
-    };
-    (message: $args:expr, $ex: expr) => {
-        let message = $args.next().unwrap().to_string();
-        broadcast! {
-            $args,
-            $ex.filter(|(_, (p, _))| match p.scope.lifecycle.as_ref() {
-                    Some(Lifecycle::On(e)) => e.event == message,
-                    _ => false,
-                })
-        }
-    };
-}
 
 #[derive(Debug)]
 pub(crate) enum VMMessage {}
@@ -93,16 +69,17 @@ impl ProcessManager {
             .filter(|(_, (p, _))| matches!(p.scope.lifecycle.as_ref(), Some(Lifecycle::On(_))))
             .map(|(id, (p, running))| {
                 let p = p.clone();
-                let current = std::mem::replace(running, None);
+                let current = running.take();
                 let args = args.clone();
-                let t =
-                    match current {
-                        None => self.handle.spawn_blocking(move || p.run(args)),
-                        Some(_) => return VMError::todo(format!(
+                let t = match current {
+                    None => self.handle.spawn_blocking(move || p.run(args)),
+                    Some(_) => {
+                        return VMError::todo(format!(
                             "Broadcast does not support overwriting running tasks - Process {id}"
                         ))
-                        .into(),
-                    };
+                        .into()
+                    }
+                };
                 *running = Some(t);
                 Value::Number((id as i64).into())
             })
@@ -130,30 +107,31 @@ impl ProcessManager {
         // todo message or pid
         let message = args.next().unwrap().to_string();
         let args = Vec::from_iter(args);
-        let res: Vec<_> =
-            self.processes
-                .iter_mut()
-                .enumerate()
-                .filter(|(_, (p, _))| match p.scope.lifecycle.as_ref() {
-                    Some(Lifecycle::On(e)) => e.event == message,
-                    _ => false,
-                })
-                .map(|(id, (p, running))| {
-                    let p = p.clone();
-                    let current = std::mem::replace(running, None);
-                    let args = args.clone();
-                    let t =
-                        match current {
-                            None => self.handle.spawn_blocking(move || p.run(args)),
-                            Some(_) => return VMError::todo(format!(
-                                "Send does not support overwriting running tasks - Process {id}"
-                            ))
-                            .into(),
-                        };
-                    *running = Some(t);
-                    Value::Number((id as i64).into())
-                })
-                .collect();
+        let res: Vec<_> = self
+            .processes
+            .iter_mut()
+            .enumerate()
+            .filter(|(_, (p, _))| match p.scope.lifecycle.as_ref() {
+                Some(Lifecycle::On(e)) => e.event == message,
+                _ => false,
+            })
+            .map(|(id, (p, running))| {
+                let p = p.clone();
+                let current = running.take();
+                let args = args.clone();
+                let t = match current {
+                    None => self.handle.spawn_blocking(move || p.run(args)),
+                    Some(_) => {
+                        return VMError::todo(format!(
+                            "Send does not support overwriting running tasks - Process {id}"
+                        ))
+                        .into()
+                    }
+                };
+                *running = Some(t);
+                Value::Number((id as i64).into())
+            })
+            .collect();
 
         match res.len() {
             0 => Err(VMError::RuntimeError(format!(
@@ -161,7 +139,7 @@ impl ProcessManager {
             ))),
             1 => {
                 let mut v = res.into_iter();
-                Ok(v.next().unwrap().into())
+                Ok(v.next().unwrap())
             }
             _ => Ok(res.into()),
         }
@@ -203,7 +181,9 @@ impl ProcessManager {
 
     fn handle_receive(&mut self, pid: usize, timeout: Option<usize>) -> Result<Value, VMError> {
         match self.processes.get_mut(pid) {
-            None => Err(VMError::RuntimeError(format!("Process {pid} does not exist")).into()),
+            None => Err(VMError::RuntimeError(format!(
+                "Process {pid} does not exist"
+            ))),
             Some((p, t)) => {
                 let running = match t {
                     None => {

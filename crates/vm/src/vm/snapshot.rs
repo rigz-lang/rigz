@@ -4,6 +4,7 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 use std::cell::RefCell;
 use std::fmt::Display;
+use std::hash::Hash;
 use std::vec::IntoIter;
 
 pub trait Snapshot: Sized {
@@ -44,13 +45,25 @@ impl<T: Snapshot> Snapshot for Vec<T> {
     }
 }
 
-impl<K: Snapshot, V: Snapshot> Snapshot for IndexMap<K, V> {
+impl<K: Snapshot + Hash + Eq, V: Snapshot> Snapshot for IndexMap<K, V> {
     fn as_bytes(&self) -> Vec<u8> {
-        todo!()
+        let mut res = Snapshot::as_bytes(&self.len());
+        for (k, v) in self {
+            res.extend(k.as_bytes());
+            res.extend(v.as_bytes());
+        }
+        res
     }
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
-        todo!()
+        let len = Snapshot::from_bytes(bytes, &format!("{location} len"))?;
+        let mut results = IndexMap::with_capacity(len);
+        for _ in 0..len {
+            let k = K::from_bytes(bytes, location)?;
+            let v = V::from_bytes(bytes, location)?;
+            results.insert(k, v);
+        }
+        Ok(results)
     }
 }
 

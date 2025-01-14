@@ -32,7 +32,7 @@ tree-sitter-rigz = { version = "0.6", path = "crates/tree-sitter" }
 web-sys = { version = "0.3.76" }
 
 [features]
-default = ["dep:tokio"]
+default = ["dep:tokio", "tokio/macros"]
 js = ["dep:getrandom", "rigz_vm/js", "rigz_ast/js", "rigz_runtime/js"]
 
 [dependencies]

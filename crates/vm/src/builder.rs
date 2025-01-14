@@ -1,8 +1,8 @@
-use crate::process::{ModulesMap, Reference};
+use crate::process::ModulesMap;
 use crate::vm::VMOptions;
 use crate::{
     BinaryOperation, Instruction, Lifecycle, LoadValue, Module, RigzType, Scope, UnaryOperation,
-    Value, THIS_VAR, VM,
+    Value, VM,
 };
 use log::Level;
 use std::fmt::Debug;
@@ -68,24 +68,22 @@ pub trait RigzBuilder: Debug + Default {
 
     fn enter_scope(
         &mut self,
-        named: Reference<String>,
-        args: Vec<(Reference<String>, bool)>,
+        named: String,
+        args: Vec<(String, bool)>,
         set_self: Option<bool>,
     ) -> usize;
 
     fn enter_lifecycle_scope(
         &mut self,
-        named: Reference<String>,
+        named: String,
         lifecycle: Lifecycle,
-        args: Vec<(Reference<String>, bool)>,
+        args: Vec<(String, bool)>,
         set_self: Option<bool>,
     ) -> usize;
 
     fn exit_scope(&mut self, current: usize) -> &mut Self;
 
-    fn convert_to_lazy_scope(&mut self, scope_id: usize, var: Reference<String>) -> &mut Self;
-
-    fn module_exists(&mut self, module: Reference<String>) -> bool;
+    fn convert_to_lazy_scope(&mut self, scope_id: usize, var: String) -> &mut Self;
 
     #[cfg(feature = "threaded")]
     fn register_module(&mut self, module: impl Module + 'static + Send + Sync) -> &mut Self;
@@ -154,8 +152,8 @@ pub trait RigzBuilder: Debug + Default {
     #[inline]
     fn add_call_module_instruction(
         &mut self,
-        module: Reference<String>,
-        func: Reference<String>,
+        module: String,
+        func: String,
         args: usize,
     ) -> &mut Self {
         self.add_instruction(Instruction::CallModule { module, func, args });
@@ -165,8 +163,8 @@ pub trait RigzBuilder: Debug + Default {
     #[inline]
     fn add_call_extension_module_instruction(
         &mut self,
-        module: Reference<String>,
-        func: Reference<String>,
+        module: String,
+        func: String,
         args: usize,
     ) -> &mut Self {
         self.add_instruction(Instruction::CallExtension { module, func, args });
@@ -176,8 +174,8 @@ pub trait RigzBuilder: Debug + Default {
     #[inline]
     fn add_call_mutable_extension_module_instruction(
         &mut self,
-        module: Reference<String>,
-        func: Reference<String>,
+        module: String,
+        func: String,
         args: usize,
     ) -> &mut Self {
         self.add_instruction(Instruction::CallMutableExtension { module, func, args });
@@ -187,8 +185,8 @@ pub trait RigzBuilder: Debug + Default {
     #[inline]
     fn add_call_vm_extension_module_instruction(
         &mut self,
-        name: Reference<String>,
-        func: Reference<String>,
+        name: String,
+        func: String,
         args: usize,
     ) -> &mut Self {
         self.add_instruction(Instruction::CallVMExtension {
@@ -263,37 +261,37 @@ pub trait RigzBuilder: Debug + Default {
     }
 
     #[inline]
-    fn add_get_variable_reference_instruction(&mut self, name: Reference<String>) -> &mut Self {
+    fn add_get_variable_reference_instruction(&mut self, name: String) -> &mut Self {
         self.add_instruction(Instruction::GetVariableReference(name))
     }
 
     #[inline]
-    fn add_get_variable_instruction(&mut self, name: Reference<String>) -> &mut Self {
+    fn add_get_variable_instruction(&mut self, name: String) -> &mut Self {
         self.add_instruction(Instruction::GetVariable(name))
     }
 
     #[inline]
-    fn add_get_mutable_variable_instruction(&mut self, name: Reference<String>) -> &mut Self {
+    fn add_get_mutable_variable_instruction(&mut self, name: String) -> &mut Self {
         self.add_instruction(Instruction::GetMutableVariable(name))
     }
 
     #[inline]
     fn add_get_self_instruction(&mut self) -> &mut Self {
-        self.add_instruction(Instruction::GetVariable(THIS_VAR.clone()))
+        self.add_instruction(Instruction::GetVariable("self".to_string()))
     }
 
     #[inline]
     fn add_get_self_mut_instruction(&mut self) -> &mut Self {
-        self.add_instruction(Instruction::GetMutableVariable(THIS_VAR.clone()))
+        self.add_instruction(Instruction::GetMutableVariable("self".to_string()))
     }
 
     #[inline]
-    fn add_load_let_instruction(&mut self, name: Reference<String>) -> &mut Self {
+    fn add_load_let_instruction(&mut self, name: String) -> &mut Self {
         self.add_instruction(Instruction::LoadLet(name))
     }
 
     #[inline]
-    fn add_load_mut_instruction(&mut self, name: Reference<String>) -> &mut Self {
+    fn add_load_mut_instruction(&mut self, name: String) -> &mut Self {
         self.add_instruction(Instruction::LoadMut(name))
     }
 
@@ -354,8 +352,8 @@ macro_rules! generate_builder {
         #[inline]
         fn enter_scope(
             &mut self,
-            named: Reference<String>,
-            args: Vec<(Reference<String>, bool)>,
+            named: String,
+            args: Vec<(String, bool)>,
             set_self: Option<bool>,
         ) -> usize {
             let next = self.scopes.len();
@@ -365,11 +363,7 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        fn convert_to_lazy_scope(
-            &mut self,
-            scope_id: usize,
-            variable: Reference<String>,
-        ) -> &mut Self {
+        fn convert_to_lazy_scope(&mut self, scope_id: usize, variable: String) -> &mut Self {
             let scope = &mut self.scopes[scope_id];
             let last = scope.instructions.len() - 1;
             scope
@@ -381,9 +375,9 @@ macro_rules! generate_builder {
         #[inline]
         fn enter_lifecycle_scope(
             &mut self,
-            named: Reference<String>,
+            named: String,
             lifecycle: Lifecycle,
-            args: Vec<(Reference<String>, bool)>,
+            args: Vec<(String, bool)>,
             set_self: Option<bool>,
         ) -> usize {
             let next = self.scopes.len();
@@ -425,11 +419,6 @@ macro_rules! generate_builder {
         fn add_instruction(&mut self, instruction: Instruction) -> &mut Self {
             self.scopes[self.sp].instructions.push(instruction);
             self
-        }
-
-        #[inline]
-        fn module_exists(&mut self, module: Reference<String>) -> bool {
-            self.modules.contains_key(module.as_str())
         }
 
         #[inline]

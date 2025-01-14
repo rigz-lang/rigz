@@ -1,6 +1,5 @@
 use crate::vm::Snapshot;
 use crate::VMError;
-use itertools::Itertools;
 use std::fmt::Display;
 use std::vec::IntoIter;
 

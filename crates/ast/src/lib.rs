@@ -289,7 +289,7 @@ impl<'t> Parser<'t> {
                         TokenKind::Increment => {
                             self.consume_token(TokenKind::Increment)?;
                             Statement::BinaryAssignment {
-                                lhs: Assign::Identifier(id.to_string().into(), false),
+                                lhs: Assign::Identifier(id.to_string(), false),
                                 op: BinaryOperation::Add,
                                 expression: Expression::Value(1.into()),
                             }
@@ -298,7 +298,7 @@ impl<'t> Parser<'t> {
                         TokenKind::Decrement => {
                             self.consume_token(TokenKind::Decrement)?;
                             Statement::BinaryAssignment {
-                                lhs: Assign::Identifier(id.to_string().into(), false),
+                                lhs: Assign::Identifier(id.to_string(), false),
                                 op: BinaryOperation::Sub,
                                 expression: Expression::Value(1.into()),
                             }
@@ -307,7 +307,7 @@ impl<'t> Parser<'t> {
                         TokenKind::BinAssign(op) => {
                             self.consume_token(TokenKind::BinAssign(op))?;
                             Statement::BinaryAssignment {
-                                lhs: Assign::Identifier(id.to_string().into(), false),
+                                lhs: Assign::Identifier(id.to_string(), false),
                                 op,
                                 expression: self.parse_expression()?,
                             }
@@ -323,7 +323,7 @@ impl<'t> Parser<'t> {
                 if let TokenKind::TypeValue(name) = next.kind {
                     self.consume_token(TokenKind::Assign)?;
                     Statement::TypeDefinition(
-                        name.to_string().into(),
+                        name.to_string(),
                         self.parse_rigz_type(Some(name), false)?,
                     )
                     .into()
@@ -1660,7 +1660,7 @@ impl<'t> Parser<'t> {
         };
 
         Ok(FunctionArgument {
-            name: name.to_string().into(),
+            name: name.to_string(),
             default,
             function_type: rigz_type.into(),
             var_arg,

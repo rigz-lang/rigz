@@ -1,8 +1,8 @@
 use crate::call_frame::{CallFrame, Frames};
 use crate::process::ModulesMap;
 use crate::{
-    runner_common, Instruction, Reference, ResolveValue, ResolvedModule, Runner, Scope, StackValue,
-    VMError, VMOptions, VMStack, VMState, Value, Variable,
+    runner_common, Instruction, ResolveValue, ResolvedModule, Runner, Scope, StackValue, VMError,
+    VMOptions, VMStack, VMState, Value, Variable,
 };
 use log_derive::{logfn, logfn_inputs};
 use std::cell::RefCell;
@@ -94,7 +94,7 @@ impl Runner for ProcessRunner<'_> {
     fn call(
         &mut self,
         module: ResolvedModule,
-        func: Reference<String>,
+        func: String,
         args: usize,
     ) -> Result<Value, VMError> {
         Err(VMError::todo("Process does not implement `call`"))
@@ -103,7 +103,7 @@ impl Runner for ProcessRunner<'_> {
     fn vm_extension(
         &mut self,
         module: ResolvedModule,
-        func: Reference<String>,
+        func: String,
         args: usize,
     ) -> Result<Value, VMError> {
         Err(VMError::todo("Process does not implement `vm_extension`"))

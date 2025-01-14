@@ -1,8 +1,7 @@
 mod vm_test {
     use rigz_vm::{
-        BinaryOperation, Instruction, Lifecycle, LoadValue, Module, Number, Reference, RigzArgs,
-        RigzBuilder, RigzType, Scope, TestLifecycle, TestResults, VMBuilder, VMError, Value,
-        THIS_VAR, VM,
+        BinaryOperation, Instruction, Lifecycle, LoadValue, Module, Number, RigzArgs, RigzBuilder,
+        RigzType, Scope, TestLifecycle, TestResults, VMBuilder, VMError, Value, VM,
     };
     use wasm_bindgen_test::*;
 
@@ -66,7 +65,7 @@ mod vm_test {
     fn call_works() {
         let mut builder = VMBuilder::new();
         let scope = builder.add_load_instruction("abc".into()).enter_scope(
-            "test".to_string().into(),
+            "test".to_string(),
             vec![],
             None,
         );
@@ -85,7 +84,7 @@ mod vm_test {
             "test"
         }
 
-        fn call(&self, function: Reference<String>, args: RigzArgs) -> Result<Value, VMError> {
+        fn call(&self, function: String, args: RigzArgs) -> Result<Value, VMError> {
             match function.as_str() {
                 "hello" => {
                     println!("{}", Value::List(args.into()));
@@ -111,7 +110,7 @@ mod vm_test {
         builder
             .register_module(module)
             .add_load_instruction("abc".into())
-            .add_call_module_instruction("test".to_string().into(), "hello".to_string().into(), 1);
+            .add_call_module_instruction("test".to_string(), "hello".to_string(), 1);
         let mut vm = builder.build();
         let v = vm.eval().unwrap();
         assert_eq!(v, Value::None.into());
@@ -121,8 +120,8 @@ mod vm_test {
     fn assignment_scopes_work() {
         let mut builder = VMBuilder::new();
         // a = 1 + 2; a + 2
-        let scope = builder.enter_scope("test".to_string().into(), vec![], None);
-        let a: Reference<String> = "a".to_string().into();
+        let scope = builder.enter_scope("test".to_string(), vec![], None);
+        let a: String = "a".to_string();
         builder
             .add_load_instruction(1.into())
             .add_load_instruction(2.into())
@@ -143,7 +142,7 @@ mod vm_test {
     #[wasm_bindgen_test(unsupported = test)]
     fn simple_scope() {
         let mut builder = VMBuilder::new();
-        let scope = builder.enter_scope("test".to_string().into(), vec![], None);
+        let scope = builder.enter_scope("test".to_string(), vec![], None);
         builder
             .add_load_instruction("hello".into())
             .exit_scope(0)
@@ -156,7 +155,7 @@ mod vm_test {
     #[wasm_bindgen_test(unsupported = test)]
     fn function_scope() {
         let mut builder = VMBuilder::new();
-        let scope = builder.enter_scope("test".to_string().into(), vec![], None);
+        let scope = builder.enter_scope("test".to_string(), vec![], None);
         builder
             .add_binary_instruction(BinaryOperation::Add)
             .exit_scope(0)
@@ -175,7 +174,7 @@ mod vm_test {
     #[wasm_bindgen_test(unsupported = test)]
     fn mutable_bin_assign() {
         let mut builder = VMBuilder::new();
-        let a: Reference<String> = "a".to_string().into();
+        let a: String = "a".to_string();
         builder
             .add_load_instruction(3.into())
             .add_load_mut_instruction(a.clone())
@@ -190,7 +189,7 @@ mod vm_test {
 
     #[wasm_bindgen_test(unsupported = test)]
     fn multi_mut_scope() {
-        let a: Reference<String> = "a".to_string().into();
+        let a: String = "a".to_string();
         let mut vm = VM::from_scopes(vec![
             Scope {
                 instructions: vec![
@@ -207,10 +206,10 @@ mod vm_test {
             },
             Scope {
                 instructions: vec![
-                    Instruction::GetMutableVariable(THIS_VAR.clone()),
+                    Instruction::GetMutableVariable("self".to_string()),
                     Instruction::Load(3.into()),
                     Instruction::BinaryAssign(BinaryOperation::Mul),
-                    Instruction::GetMutableVariable(THIS_VAR.clone()),
+                    Instruction::GetMutableVariable("self".to_string()),
                     Instruction::Ret,
                 ],
                 set_self: Some(true),
@@ -222,7 +221,7 @@ mod vm_test {
 
     #[wasm_bindgen_test(unsupported = test)]
     fn multi_mut_scope_get_var_between() {
-        let f: Reference<String> = "f".to_string().into();
+        let f: String = "f".to_string();
         let mut vm = VM::from_scopes(vec![
             Scope {
                 instructions: vec![
@@ -241,10 +240,10 @@ mod vm_test {
             },
             Scope {
                 instructions: vec![
-                    Instruction::GetMutableVariable(THIS_VAR.clone()),
+                    Instruction::GetMutableVariable("self".to_string()),
                     Instruction::Load(3.into()),
                     Instruction::BinaryAssign(BinaryOperation::Mul),
-                    Instruction::GetMutableVariable(THIS_VAR.clone()),
+                    Instruction::GetMutableVariable("self".to_string()),
                     Instruction::Ret,
                 ],
                 set_self: Some(true),
@@ -271,13 +270,13 @@ mod vm_test {
                     Instruction::Call(1),
                     Instruction::Load("".into()),
                     Instruction::CallModule {
-                        module: "Std".to_string().into(),
-                        func: "assert_eq".to_string().into(),
+                        module: "Std".to_string(),
+                        func: "assert_eq".to_string(),
                         args: 3,
                     },
                     Instruction::Ret,
                 ],
-                named: "test".to_string().into(),
+                named: "test".to_string(),
                 lifecycle: Some(Lifecycle::Test(TestLifecycle)),
                 args: Vec::new(),
                 set_self: None,
@@ -300,14 +299,10 @@ mod vm_test {
         // [for v in [1, 2, 3]: v * v]
         let scope = builder
             .add_load_instruction(vec![1, 2, 3].into())
-            .enter_scope(
-                "for-list".to_string().into(),
-                vec![("v".to_string().into(), false)],
-                None,
-            );
+            .enter_scope("for-list".to_string(), vec![("v".to_string(), false)], None);
         builder
-            .add_get_variable_instruction("v".to_string().into())
-            .add_get_variable_instruction("v".to_string().into())
+            .add_get_variable_instruction("v".to_string())
+            .add_get_variable_instruction("v".to_string())
             .add_mul_instruction()
             .exit_scope(0)
             .add_for_list_instruction(scope)

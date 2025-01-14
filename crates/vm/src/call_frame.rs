@@ -1,4 +1,4 @@
-use crate::{Reference, Snapshot, StackValue, VMError};
+use crate::{Snapshot, StackValue, VMError};
 use indexmap::map::Entry;
 use indexmap::IndexMap;
 use log_derive::{logfn, logfn_inputs};
@@ -64,7 +64,7 @@ impl Frames {
 
     #[inline]
     #[logfn_inputs(Trace, fmt = "load_let(frames={:#?} name={}, value={:?})")]
-    pub fn load_let(&self, name: Reference<String>, value: StackValue) -> Result<(), VMError> {
+    pub fn load_let(&self, name: String, value: StackValue) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
             Entry::Occupied(v) => {
                 return Err(VMError::UnsupportedOperation(format!(
@@ -81,22 +81,19 @@ impl Frames {
 
     #[logfn(Trace)]
     #[logfn_inputs(Trace, fmt = "get_variable(frames={:#p} name={})")]
-    pub fn get_variable(&self, name: &Reference<String>) -> Option<StackValue> {
+    pub fn get_variable(&self, name: &str) -> Option<StackValue> {
         self.current.borrow().get_variable(name, self)
     }
 
     #[logfn(Trace)]
     #[logfn_inputs(Trace, fmt = "get_mutable_variable(frames={:#p} name={})")]
-    pub fn get_mutable_variable(
-        &self,
-        name: &Reference<String>,
-    ) -> Result<Option<StackValue>, VMError> {
+    pub fn get_mutable_variable(&self, name: &str) -> Result<Option<StackValue>, VMError> {
         self.current.borrow().get_mutable_variable(name, self)
     }
 
     #[inline]
     #[logfn_inputs(Trace, fmt = "load_mut(frames={:#?} name={}, value={:?})")]
-    pub fn load_mut(&self, name: Reference<String>, value: StackValue) -> Result<(), VMError> {
+    pub fn load_mut(&self, name: String, value: StackValue) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
             Entry::Occupied(mut var) => match var.get() {
                 Variable::Let(_) => {
@@ -131,7 +128,7 @@ impl Default for Frames {
 pub struct CallFrame {
     pub scope_id: usize,
     pub pc: usize,
-    pub variables: IndexMap<Reference<String>, Variable>,
+    pub variables: IndexMap<String, Variable>,
     pub parent: Option<usize>,
 }
 
@@ -146,7 +143,7 @@ impl Snapshot for CallFrame {
 }
 
 impl CallFrame {
-    fn get_variable(&self, name: &Reference<String>, frames: &Frames) -> Option<StackValue> {
+    fn get_variable(&self, name: &str, frames: &Frames) -> Option<StackValue> {
         match self.variables.get(name) {
             None => match self.parent {
                 None => None,
@@ -161,7 +158,7 @@ impl CallFrame {
 
     fn get_mutable_variable(
         &self,
-        name: &Reference<String>,
+        name: &str,
         frames: &Frames,
     ) -> Result<Option<StackValue>, VMError> {
         match self.variables.get(name) {

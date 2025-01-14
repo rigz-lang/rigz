@@ -68,7 +68,7 @@ impl Default for Runtime<'_> {
     }
 }
 
-impl<'vm> Runtime<'vm> {
+impl Runtime<'_> {
     pub fn vm(&self) -> &VM {
         &self.parser.builder
     }

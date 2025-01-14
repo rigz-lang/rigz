@@ -147,7 +147,7 @@ test_parse_equivalent! {
             input: None,
             elements: vec![
                 Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
-                    name: "hello".to_string().into(),
+                    name: "hello".to_string(),
                     type_definition: FunctionSignature {
                         arguments: vec![],
                         arg_type: ArgType::Positional,
@@ -180,7 +180,7 @@ test_parse_equivalent! {
             input: None,
             elements: vec![
                 Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
-                    name: "hello".to_string().into(),
+                    name: "hello".to_string(),
                     type_definition: FunctionSignature {
                         arguments: vec![],
                         arg_type: ArgType::Positional,
@@ -211,26 +211,26 @@ test_parse_equivalent! {
         input: None,
         elements: vec![
             Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
-                name: "add".to_string().into(),
+                name: "add".to_string(),
                 type_definition: FunctionSignature {
                     arg_type: ArgType::Positional,
                     arguments: vec![
                         FunctionArgument {
-                            name: "a".to_string().into(),
+                            name: "a".to_string(),
                             default: None,
                             function_type: RigzType::Any.into(),
                             var_arg: false,
                             rest: false
                         },
                         FunctionArgument {
-                            name: "b".to_string().into(),
+                            name: "b".to_string(),
                             default: None,
                             function_type: RigzType::Any.into(),
                             var_arg: false,
                             rest: false
                         },
                         FunctionArgument {
-                            name: "c".to_string().into(),
+                            name: "c".to_string(),
                             default: None,
                             function_type: RigzType::Any.into(),
                             var_arg: false,
@@ -299,11 +299,11 @@ test_parse! {
                         },
                     },
                     FunctionDeclaration::Definition(FunctionDefinition {
-                        name: "say".to_string().into(),
+                        name: "say".to_string(),
                         type_definition: FunctionSignature {
                             arguments: vec![
                                 FunctionArgument {
-                                    name: "message".to_string().into(),
+                                    name: "message".to_string(),
                                     default: None,
                                     function_type: FunctionType::new(RigzType::String),
                                     var_arg: false,
@@ -515,7 +515,7 @@ test_parse! {
         input: None,
         elements: vec![
             Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
-                name: "add".to_string().into(),
+                name: "add".to_string(),
                 lifecycle: None,
                 type_definition: FunctionSignature {
                     arg_type: ArgType::Map,
@@ -523,21 +523,21 @@ test_parse! {
                     var_args_start: None,
                     arguments: vec![
                         FunctionArgument {
-                            name: "a".to_string().into(),
+                            name: "a".to_string(),
                             default: None,
                             function_type: FunctionType { rigz_type: RigzType::Any, mutable: false },
                             var_arg: false,
                             rest: false
                         },
                         FunctionArgument {
-                            name: "b".to_string().into(),
+                            name: "b".to_string(),
                             default: None,
                             function_type: FunctionType { rigz_type: RigzType::Any, mutable: false },
                             var_arg: false,
                             rest: false
                         },
                         FunctionArgument {
-                            name: "c".to_string().into(),
+                            name: "c".to_string(),
                             default: None,
                             function_type: FunctionType { rigz_type: RigzType::Any, mutable: false },
                             var_arg: false,
@@ -572,7 +572,7 @@ test_parse! {
         input: None,
         elements: vec![
             Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
-                name: "add".to_string().into(),
+                name: "add".to_string(),
                 lifecycle: None,
                 type_definition: FunctionSignature {
                     arg_type: ArgType::Map,
@@ -580,21 +580,21 @@ test_parse! {
                     var_args_start: None,
                     arguments: vec![
                         FunctionArgument {
-                            name: "a".to_string().into(),
+                            name: "a".to_string(),
                             default: None,
                             function_type: FunctionType { rigz_type: RigzType::Any, mutable: false },
                             var_arg: false,
                             rest: false
                         },
                         FunctionArgument {
-                            name: "b".to_string().into(),
+                            name: "b".to_string(),
                             default: None,
                             function_type: FunctionType { rigz_type: RigzType::Any, mutable: false },
                             var_arg: false,
                             rest: false
                         },
                         FunctionArgument {
-                            name: "c".to_string().into(),
+                            name: "c".to_string(),
                             default: None,
                             function_type: FunctionType { rigz_type: RigzType::Any, mutable: false },
                             var_arg: false,
@@ -641,7 +641,7 @@ test_parse! {
                         RigzArguments::Positional(vec![
                             Expression::Lambda { arguments: vec![
                                 FunctionArgument {
-                                    name: "v".to_string().into(),
+                                    name: "v".to_string(),
                                     default: None,
                                     function_type: FunctionType {
                                         rigz_type: RigzType::Any,

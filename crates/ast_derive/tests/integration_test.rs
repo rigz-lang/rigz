@@ -279,7 +279,7 @@ fn blah() {
     assert_eq!(
         "5",
         json.call(
-            "parse".to_string().into(),
+            "parse".to_string(),
             vec![Rc::new(RefCell::new(5.into()))].into()
         )
         .expect("json parse failed")

@@ -1,7 +1,7 @@
 use crate::process::ModulesMap;
 use crate::{
-    runner_common, CallFrame, Lifecycle, Number, Process, Reference, ResolveValue, ResolvedModule,
-    Runner, Scope, StackValue, VMError, VMOptions, Value, Variable, VM,
+    runner_common, CallFrame, Lifecycle, Number, ResolveValue, ResolvedModule, Runner, Scope,
+    StackValue, VMError, VMOptions, Value, Variable, VM,
 };
 use itertools::Itertools;
 use log_derive::{logfn, logfn_inputs};
@@ -189,7 +189,7 @@ impl Runner for VM {
             }
             Some(s) => s.clone(),
         };
-        let options = self.options.clone();
+        let options = self.options;
         let m = self.modules();
         let pid = self
             .process_manager
@@ -201,7 +201,7 @@ impl Runner for VM {
     fn call(
         &mut self,
         module: ResolvedModule,
-        func: Reference<String>,
+        func: String,
         args: usize,
     ) -> Result<Value, VMError> {
         let args = self.resolve_args(args).into();
@@ -211,7 +211,7 @@ impl Runner for VM {
     fn vm_extension(
         &mut self,
         module: ResolvedModule,
-        func: Reference<String>,
+        func: String,
         args: usize,
     ) -> Result<Value, VMError> {
         let args = self.resolve_args(args).into();

@@ -1,25 +1,18 @@
 mod runner;
 
 use crate::objects::RigzType;
-use crate::process::Reference;
 use crate::vm::StackValue;
 use crate::{BinaryOperation, Snapshot, UnaryOperation, VMError, Value};
 use log::Level;
-pub use runner::{ResolvedModule, Runner, THIS_VAR};
+pub use runner::{ResolvedModule, Runner};
 use std::fmt::Display;
 use std::vec::IntoIter;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum VMCallSite {
     Scope(usize),
-    Module {
-        module: Reference<String>,
-        func: Reference<String>,
-    },
-    VMModule {
-        module: Reference<String>,
-        func: Reference<String>,
-    },
+    Module { module: String, func: String },
+    VMModule { module: String, func: String },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -124,32 +117,32 @@ pub enum Instruction {
         rigz_type: RigzType,
     },
     Ret,
-    GetVariable(Reference<String>),
-    GetMutableVariable(Reference<String>),
-    GetVariableReference(Reference<String>),
-    LoadLet(Reference<String>),
-    LoadMut(Reference<String>),
-    PersistScope(Reference<String>),
+    GetVariable(String),
+    GetMutableVariable(String),
+    GetVariableReference(String),
+    LoadLet(String),
+    LoadMut(String),
+    PersistScope(String),
     // requires modules, enabled by default
     /// Module instructions will clone your module, ideally modules implement Copy + Clone
     CallModule {
-        module: Reference<String>,
-        func: Reference<String>,
+        module: String,
+        func: String,
         args: usize,
     },
     CallExtension {
-        module: Reference<String>,
-        func: Reference<String>,
+        module: String,
+        func: String,
         args: usize,
     },
     CallMutableExtension {
-        module: Reference<String>,
-        func: Reference<String>,
+        module: String,
+        func: String,
         args: usize,
     },
     CallVMExtension {
-        module: Reference<String>,
-        func: Reference<String>,
+        module: String,
+        func: String,
         args: usize,
     },
     ForList {

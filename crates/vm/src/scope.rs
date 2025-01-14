@@ -1,5 +1,5 @@
 use crate::lifecycle::Lifecycle;
-use crate::{Instruction, Reference, Snapshot, VMError};
+use crate::{Instruction, Snapshot, VMError};
 use std::fmt::Display;
 use std::vec::IntoIter;
 
@@ -7,15 +7,15 @@ use std::vec::IntoIter;
 pub struct Scope {
     pub instructions: Vec<Instruction>,
     pub lifecycle: Option<Lifecycle>,
-    pub named: Reference<String>,
-    pub args: Vec<(Reference<String>, bool)>,
+    pub named: String,
+    pub args: Vec<(String, bool)>,
     pub set_self: Option<bool>,
 }
 
 impl Default for Scope {
     fn default() -> Self {
         Scope {
-            named: "main".to_string().into(),
+            named: "main".to_string(),
             instructions: Default::default(),
             lifecycle: None,
             args: vec![],
@@ -36,11 +36,7 @@ impl Snapshot for Scope {
 
 impl Scope {
     #[inline]
-    pub fn new(
-        named: Reference<String>,
-        args: Vec<(Reference<String>, bool)>,
-        set_self: Option<bool>,
-    ) -> Self {
+    pub fn new(named: String, args: Vec<(String, bool)>, set_self: Option<bool>) -> Self {
         Scope {
             named,
             args,
@@ -51,8 +47,8 @@ impl Scope {
 
     #[inline]
     pub fn lifecycle(
-        named: Reference<String>,
-        args: Vec<(Reference<String>, bool)>,
+        named: String,
+        args: Vec<(String, bool)>,
         lifecycle: Lifecycle,
         set_self: Option<bool>,
     ) -> Self {

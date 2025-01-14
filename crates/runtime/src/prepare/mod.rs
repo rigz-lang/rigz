@@ -1,7 +1,7 @@
 mod program;
 
 use crate::RuntimeError;
-use log::{warn, Level};
+use log::Level;
 pub use program::Program;
 use rigz_ast::*;
 use std::collections::hash_map::Entry;
@@ -10,14 +10,14 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum CallSite {
     Scope(usize, bool),
-    Module(Reference<String>),
+    Module(String),
     // todo only store used functions in VM
     // Parsed,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionCallSignature {
-    pub name: Reference<String>,
+    pub name: String,
     pub arguments: Vec<FunctionArgument>,
     pub return_type: FunctionType,
     pub self_type: Option<FunctionType>,
@@ -140,7 +140,7 @@ pub(crate) struct ProgramParser<'vm, T: RigzBuilder> {
     pub(crate) types: HashMap<String, RigzType>,
 }
 
-impl<'vm, T: RigzBuilder> Default for ProgramParser<'vm, T> {
+impl<T: RigzBuilder> Default for ProgramParser<'_, T> {
     fn default() -> Self {
         let mut builder = T::default();
         let none = builder.add_constant(Value::None);
@@ -205,7 +205,7 @@ struct BestMatch {
     vm_module: bool,
 }
 
-impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
+impl<T: RigzBuilder> ProgramParser<'_, T> {
     pub(crate) fn new() -> Self {
         let mut p = ProgramParser::default();
         p.add_default_modules();
@@ -307,7 +307,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                 exp => {
                     let ext = self.rigz_type(&exp)?;
                     self.parse_lazy_expression(exp, &name)?;
-                    let var = name.to_string().into();
+                    let var = name.to_string();
                     let mutable = match self.identifiers.entry(name) {
                         Entry::Occupied(mut t) => {
                             let v = t.get();
@@ -354,7 +354,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                             )));
                         }
                         self.parse_lazy_expression(exp, &name)?;
-                        let var = name.to_string().into();
+                        let var = name.to_string();
                         let mutable = match self.identifiers.entry(name) {
                             Entry::Occupied(mut t) => {
                                 let v = t.get();
@@ -418,7 +418,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                         rigz_type: expt[index].clone(),
                         mutable,
                     };
-                    let var = name.to_string().into();
+                    let var = name.to_string();
                     self.identifiers.insert(name, ft);
                     self.builder.add_load_instruction((index as i64).into());
                     self.builder.add_instance_get_instruction(index != 0);
@@ -442,7 +442,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                 expression,
             } => {
                 self.builder
-                    .add_get_mutable_variable_instruction(name.to_string().into());
+                    .add_get_mutable_variable_instruction(name.to_string());
                 self.parse_expression(expression)?;
                 self.builder.add_binary_assign_instruction(op);
             }
@@ -452,7 +452,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                 expression,
             } => {
                 self.builder
-                    .add_get_mutable_variable_instruction(name.to_string().into());
+                    .add_get_mutable_variable_instruction(name.to_string());
                 // todo validate expression is rigz_type
                 self.parse_expression(expression)?;
                 self.builder.add_binary_assign_instruction(op);
@@ -507,10 +507,9 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
     ) -> Result<(), ValidationError> {
         match expression {
             Expression::Scope(s) => {
-                let scope = self.parse_scope(s, "do".to_string().into())?;
+                let scope = self.parse_scope(s, "do".to_string())?;
                 self.builder.add_load_instruction(LoadValue::ScopeId(scope));
-                self.builder
-                    .convert_to_lazy_scope(scope, var.to_string().into());
+                self.builder.convert_to_lazy_scope(scope, var.to_string());
                 Ok(())
             }
             _ => self.parse_expression(expression),
@@ -541,14 +540,13 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
         let args = type_definition
             .arguments
             .iter()
-            .map(|a| (a.name.to_string().into(), a.function_type.mutable))
+            .map(|a| (a.name.to_string(), a.function_type.mutable))
             .rev()
             .collect();
         let set_self = type_definition.self_type.as_ref().map(|t| t.mutable);
         let memoized = match lifecycle {
             None => {
-                self.builder
-                    .enter_scope(name.to_string().into(), args, set_self);
+                self.builder.enter_scope(name.to_string(), args, set_self);
                 false
             }
             Some(l) => {
@@ -560,7 +558,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                     _ => false,
                 };
                 self.builder
-                    .enter_lifecycle_scope(name.to_string().into(), l, args, set_self);
+                    .enter_lifecycle_scope(name.to_string(), l, args, set_self);
                 memoized
             }
         };
@@ -637,13 +635,13 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                         IndexMapEntry::Occupied(mut entry) => {
                             entry.get_mut().push(CallSignature::Function(
                                 type_definition,
-                                CallSite::Module(module_name.to_string().into()),
+                                CallSite::Module(module_name.to_string()),
                             ));
                         }
                         IndexMapEntry::Vacant(e) => {
                             e.insert(vec![CallSignature::Function(
                                 type_definition,
-                                CallSite::Module(module_name.to_string().into()),
+                                CallSite::Module(module_name.to_string()),
                             )]);
                         }
                     }
@@ -673,7 +671,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
         };
 
         Ok(FunctionCallSignature {
-            name: name.to_string().into(),
+            name: name.to_string(),
             arguments,
             return_type,
             self_type,
@@ -759,8 +757,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                 if self.function_scopes.contains_key(&id) {
                     self.call_function(None, &id, vec![].into())?;
                 } else {
-                    self.builder
-                        .add_get_variable_instruction(id.to_string().into());
+                    self.builder.add_get_variable_instruction(id.to_string());
                 }
             }
             Expression::If {
@@ -769,20 +766,20 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                 branch,
             } => {
                 self.parse_expression(*condition)?;
-                let if_output = self.parse_scope(then, "if".to_string().into())?;
+                let if_output = self.parse_scope(then, "if".to_string())?;
                 match branch {
                     None => {
                         self.builder.add_if_instruction(if_output);
                     }
                     Some(p) => {
-                        let else_output = self.parse_scope(p, "else".to_string().into())?;
+                        let else_output = self.parse_scope(p, "else".to_string())?;
                         self.builder.add_if_else_instruction(if_output, else_output);
                     }
                 }
             }
             Expression::Unless { condition, then } => {
                 self.parse_expression(*condition)?;
-                let unless = self.parse_scope(then, "unless".to_string().into())?;
+                let unless = self.parse_scope(then, "unless".to_string())?;
                 self.builder.add_unless_instruction(unless);
             }
             Expression::List(list) => {
@@ -810,8 +807,8 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                     .identifiers
                     .insert(var.clone(), FunctionType::new(RigzType::Any));
                 let inner_scope = self.builder.enter_scope(
-                    "for-list".to_string().into(),
-                    vec![(var.to_string().into(), false)],
+                    "for-list".to_string(),
+                    vec![(var.to_string(), false)],
                     None,
                 );
                 self.parse_expression(*body)?;
@@ -848,11 +845,8 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                     .identifiers
                     .insert(v_var.clone(), FunctionType::new(RigzType::Any));
                 let inner_scope = self.builder.enter_scope(
-                    "for-map".to_string().into(),
-                    vec![
-                        (k_var.to_string().into(), false),
-                        (v_var.to_string().into(), false),
-                    ],
+                    "for-map".to_string(),
+                    vec![(k_var.to_string(), false), (v_var.to_string(), false)],
                     None,
                 );
                 match value {
@@ -884,7 +878,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                 self.builder.add_for_map_instruction(inner_scope);
             }
             Expression::Scope(s) => {
-                let s = self.parse_scope(s, "do".to_string().into())?;
+                let s = self.parse_scope(s, "do".to_string())?;
                 self.builder.add_load_instruction(LoadValue::ScopeId(s));
             }
             Expression::Cast(e, t) => {
@@ -1004,13 +998,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                         }
                     };
                     let len = self.setup_call_args(args, fcs)?;
-                    self.process_extension_call(
-                        name.to_string().into(),
-                        vm_module,
-                        mutable,
-                        len,
-                        call,
-                    );
+                    self.process_extension_call(name.to_string(), vm_module, mutable, len, call);
                 }
                 CallSignature::Lambda(..) => {
                     return Err(ValidationError::InvalidFunction(format!(
@@ -1246,9 +1234,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                     1 => {
                         let scope = args.next().unwrap();
                         let id = match scope {
-                            Expression::Scope(s) => {
-                                self.parse_scope(s, "spawn".to_string().into())?
-                            }
+                            Expression::Scope(s) => self.parse_scope(s, "spawn".to_string())?,
                             _ => {
                                 return Err(ValidationError::NotImplemented(format!(
                                     "Only scopes are supported for `spawn` - receieved {scope:?}"
@@ -1262,9 +1248,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                         self.parse_expression(timeout)?;
                         let scope = args.next().unwrap();
                         let id = match scope {
-                            Expression::Scope(s) => {
-                                self.parse_scope(s, "spawn".to_string().into())?
-                            }
+                            Expression::Scope(s) => self.parse_scope(s, "spawn".to_string())?,
                             _ => {
                                 return Err(ValidationError::NotImplemented(format!(
                                     "Only scopes are supported for `spawn` - receieved {scope:?}"
@@ -1308,10 +1292,9 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
             if let Some(v) = self.identifiers.get(name) {
                 if v.mutable {
                     self.builder
-                        .add_get_mutable_variable_instruction(name.to_string().into());
+                        .add_get_mutable_variable_instruction(name.to_string());
                 } else {
-                    self.builder
-                        .add_get_variable_instruction(name.to_string().into());
+                    self.builder.add_get_variable_instruction(name.to_string());
                 }
                 return Ok(());
             }
@@ -1340,15 +1323,12 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                         if vm_module {
                             self.builder.add_call_vm_extension_module_instruction(
                                 m,
-                                name.to_string().into(),
+                                name.to_string(),
                                 len,
                             );
                         } else {
-                            self.builder.add_call_module_instruction(
-                                m,
-                                name.to_string().into(),
-                                len,
-                            );
+                            self.builder
+                                .add_call_module_instruction(m, name.to_string(), len);
                         }
                     }
                 }
@@ -1365,8 +1345,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                     // todo ensure arg matches actual
                     self.parse_expression(actual)?;
                 }
-                self.builder
-                    .add_get_variable_instruction(name.to_string().into());
+                self.builder.add_get_variable_instruction(name.to_string());
             }
         };
         Ok(())
@@ -1563,9 +1542,8 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                         };
                         match self.function_scopes.get(&id) {
                             None => {
-                                self.builder.add_get_variable_reference_instruction(
-                                    arg.name.to_string().into(),
-                                );
+                                self.builder
+                                    .add_get_variable_reference_instruction(arg.name.to_string());
                             }
                             Some(fcs) => {
                                 let func = fcs.iter()
@@ -1585,7 +1563,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                                     .collect::<Vec<_>>();
                                 if func.is_empty() {
                                     self.builder.add_get_variable_reference_instruction(
-                                        arg.name.to_string().into(),
+                                        arg.name.to_string(),
                                     );
                                     continue;
                                 }
@@ -1596,11 +1574,9 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                                 }
                                 let func = func[0];
                                 self.builder.add_load_instruction(LoadValue::ScopeId(func));
+                                self.builder.add_load_let_instruction(arg.name.to_string());
                                 self.builder
-                                    .add_load_let_instruction(arg.name.to_string().into());
-                                self.builder.add_get_variable_reference_instruction(
-                                    arg.name.to_string().into(),
-                                );
+                                    .add_get_variable_reference_instruction(arg.name.to_string());
                             }
                         }
                     } else {
@@ -1640,7 +1616,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                     }
                 }
 
-                self.process_extension_call(name.to_string().into(), vm_module, mutable, len, call);
+                self.process_extension_call(name.to_string(), vm_module, mutable, len, call);
             }
             CallSignature::Lambda(..) => {
                 return Err(ValidationError::InvalidFunction(format!(
@@ -1653,7 +1629,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
 
     fn process_extension_call(
         &mut self,
-        name: Reference<String>,
+        name: String,
         vm_module: bool,
         mutable: bool,
         args: usize,
@@ -1689,7 +1665,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
     ) -> Result<(), ValidationError> {
         match expression {
             Expression::Identifier(id) => {
-                let id = id.to_string().into();
+                let id = id.to_string();
                 if mutable {
                     self.builder.add_get_mutable_variable_instruction(id);
                 } else {
@@ -1753,11 +1729,7 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
     }
 
     // dont use this for function scopes!
-    fn parse_scope(
-        &mut self,
-        scope: Scope,
-        named: Reference<String>,
-    ) -> Result<usize, ValidationError> {
+    fn parse_scope(&mut self, scope: Scope, named: String) -> Result<usize, ValidationError> {
         let current_vars = self.identifiers.clone();
         let current = self.builder.current_scope();
         self.builder.enter_scope(named, vec![], None);
@@ -1793,10 +1765,10 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
 
         let current = self.builder.current_scope();
         let anon = self.builder.enter_scope(
-            name.to_string().into(),
+            name.to_string(),
             fn_args
                 .iter()
-                .map(|a| (a.name.to_string().into(), false))
+                .map(|a| (a.name.to_string(), false))
                 .rev()
                 .collect(),
             None,

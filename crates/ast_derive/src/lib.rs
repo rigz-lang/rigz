@@ -162,7 +162,7 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
 
     if !calls.is_empty() {
         module_methods.push(quote! {
-            fn call(&self, function: Reference<String>, args: RigzArgs) -> Result<Value, VMError> {
+            fn call(&self, function: String, args: RigzArgs) -> Result<Value, VMError> {
                 match function.as_str() {
                     #(#calls)*
                     _ => Err(VMError::InvalidModuleFunction(format!(
@@ -196,7 +196,7 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
             fn call_extension(
                 &self,
                 this: Rc<RefCell<Value>>,
-                function: Reference<String>,
+                function: String,
                 args: RigzArgs,
             ) -> Result<Value, VMError> {
                 match function.as_str() {
@@ -232,7 +232,7 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
             fn call_mutable_extension(
                 &self,
                 this: Rc<RefCell<Value>>,
-                function: Reference<String>,
+                function: String,
                 args: RigzArgs,
             ) -> Result<Option<Value>, VMError> {
                 match function.as_str() {
@@ -269,7 +269,7 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
             fn vm_extension(
                 &self,
                 vm: &mut VM,
-                function:Reference<String>,
+                function:String,
                 args: RigzArgs,
             ) -> Result<Value, VMError> {
                 match function.as_str() {

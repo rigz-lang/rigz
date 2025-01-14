@@ -1,4 +1,4 @@
-use crate::{Reference, VMError, Value, VM};
+use crate::{VMError, Value, VM};
 use std::cell::RefCell;
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
@@ -225,7 +225,7 @@ pub mod rigz_args {
 pub trait Module: Debug {
     fn name(&self) -> &'static str;
 
-    fn call(&self, function: Reference<String>, args: RigzArgs) -> Result<Value, VMError> {
+    fn call(&self, function: String, args: RigzArgs) -> Result<Value, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "{} does not implement `call`",
             self.name()
@@ -235,7 +235,7 @@ pub trait Module: Debug {
     fn call_extension(
         &self,
         this: Rc<RefCell<Value>>,
-        function: Reference<String>,
+        function: String,
         args: RigzArgs,
     ) -> Result<Value, VMError> {
         Err(VMError::UnsupportedOperation(format!(
@@ -247,7 +247,7 @@ pub trait Module: Debug {
     fn call_mutable_extension(
         &self,
         this: Rc<RefCell<Value>>,
-        function: Reference<String>,
+        function: String,
         args: RigzArgs,
     ) -> Result<Option<Value>, VMError> {
         Ok(Some(
@@ -262,7 +262,7 @@ pub trait Module: Debug {
     fn vm_extension(
         &self,
         vm: &mut VM,
-        function: Reference<String>,
+        function: String,
         args: RigzArgs,
     ) -> Result<Value, VMError> {
         Err(VMError::UnsupportedOperation(format!(

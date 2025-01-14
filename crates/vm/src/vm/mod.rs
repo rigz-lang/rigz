@@ -5,17 +5,16 @@ mod values;
 
 use crate::call_frame::Frames;
 use crate::lifecycle::{Lifecycle, TestResults};
-use crate::process::{ModulesMap, Process, ProcessManager};
+use crate::process::{ModulesMap, ProcessManager};
 use crate::{
-    generate_builder, handle_js, out, CallFrame, Instruction, Module, Reference, RigzBuilder,
-    Runner, Scope, VMError, VMStack, Value, Variable,
+    generate_builder, handle_js, out, CallFrame, Instruction, Module, RigzBuilder, Runner, Scope,
+    VMError, VMStack, Value, Variable,
 };
-use itertools::Itertools;
 pub use options::VMOptions;
 pub use snapshot::Snapshot;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use std::time::Duration;
 pub use values::*;
 
@@ -176,7 +175,7 @@ impl VM {
             } else {
                 Variable::Let(v)
             };
-            current.variables.insert(k.into(), v);
+            current.variables.insert(k, v);
         }
     }
 
