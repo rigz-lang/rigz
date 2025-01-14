@@ -1,33 +1,12 @@
+use crate::process::ModulesMap;
 use crate::{
-    runner_common, BroadcastArgs, CallFrame, Lifecycle, Number, Process, Reference, ResolveValue,
-    ResolvedModule, Runner, Scope, StackValue, VMError, VMOptions, Value, Variable, VM,
+    runner_common, CallFrame, Lifecycle, Number, Process, Reference, ResolveValue, ResolvedModule,
+    Runner, Scope, StackValue, VMError, VMOptions, Value, Variable, VM,
 };
 use itertools::Itertools;
 use log_derive::{logfn, logfn_inputs};
 use std::fmt::Display;
 use std::ops::Deref;
-
-macro_rules! broadcast {
-    ($args:expr, $ex: expr) => {
-        let args: Vec<Value> = $args.collect();
-        $ex.map(|(id, p)| (id, p.send(args.clone())))
-            .map(|(id, r)| match r {
-                Ok(_) => Value::Number((id as i64).into()),
-                Err(e) => e.into(),
-            })
-            .collect::<Vec<_>>()
-    };
-    (message: $args:expr, $ex: expr) => {
-        let message = $args.next().unwrap().to_string();
-        broadcast! {
-            $args,
-            $ex.filter(|(_, p)| match p.lifecycle() {
-                    Some(Lifecycle::On(e)) => e.event == message,
-                    _ => false,
-                })
-        }
-    };
-}
 
 #[allow(unused_variables)]
 impl Runner for VM {
@@ -181,94 +160,22 @@ impl Runner for VM {
     }
 
     fn send(&mut self, args: usize) -> Result<(), VMError> {
-        let mut args = self
-            .resolve_args(args)
-            .into_iter()
-            .map(|v| v.borrow().clone());
-        let message = args.next().unwrap().to_string();
-        let process = self
-            .processes
-            .iter()
-            .find_position(|p| match p.lifecycle() {
-                Some(Lifecycle::On(e)) => e.event == message,
-                _ => false,
-            });
-
-        let v = match process {
-            None => {
-                return Err(VMError::RuntimeError(format!(
-                    "No process found matching '{message}'"
-                )))
-            }
-            Some((id, p)) => match p.send(Vec::from_iter(args)) {
-                Ok(_) => Value::Number((id as i64).into()),
-                Err(e) => e.into(),
-            },
-        };
+        let args = self.resolve_args(args);
+        let v = self.process_manager.send(args)?;
         self.store_value(v.into());
         Ok(())
     }
 
     fn receive(&mut self, args: usize) -> Result<(), VMError> {
-        let mut args = self
-            .resolve_args(args)
-            .into_iter()
-            .map(|v| v.borrow().clone());
-        let v = args.next().unwrap();
-
-        let timeout = match args.next().map(|v| v.to_usize()) {
-            Some(Ok(u)) => Some(u),
-            Some(Err(e)) => return Err(e),
-            None => None,
-        };
-
-        let res = match v {
-            Value::List(val) => {
-                let mut res = Vec::with_capacity(val.len());
-                for v in val {
-                    let pid = v.to_usize()?;
-                    let r = match self.processes.get(pid) {
-                        None => {
-                            VMError::RuntimeError(format!("Process {pid} does not exist")).into()
-                        }
-                        Some(p) => p.receive(timeout),
-                    };
-                    res.push(r);
-                }
-                res.into()
-            }
-            _ => {
-                let pid = v.to_usize()?;
-                match self.processes.get(pid) {
-                    None => VMError::RuntimeError(format!("Process {pid} does not exist")).into(),
-                    Some(p) => p.receive(timeout),
-                }
-            }
-        };
-
+        let args = self.resolve_args(args);
+        let res = self.process_manager.receive(args);
         self.store_value(res.into());
         Ok(())
     }
 
-    fn broadcast(&mut self, args: BroadcastArgs) -> Result<(), VMError> {
-        let (all, args) = match args {
-            BroadcastArgs::Args(a) => (false, a),
-            BroadcastArgs::All(a) => (true, a),
-        };
-
-        let mut args = self
-            .resolve_args(args)
-            .into_iter()
-            .map(|v| v.borrow().clone());
-
-        let values = if all {
-            broadcast! { args, self.processes.iter().enumerate() }
-        } else {
-            broadcast! { message: args, self
-            .processes
-            .iter()
-            .enumerate() }
-        };
+    fn broadcast(&mut self, args: usize) -> Result<(), VMError> {
+        let args = self.resolve_args(args);
+        let values = self.process_manager.broadcast(args);
         self.store_value(values.into());
         Ok(())
     }
@@ -282,12 +189,11 @@ impl Runner for VM {
             }
             Some(s) => s.clone(),
         };
-        let options = self.options;
-        let m = self.modules.clone();
-        let pid = self.processes.len();
-        let p = Process::spawn(scope, options, m, timeout);
-        p.send(vec![])?;
-        self.processes.push(p);
+        let options = self.options.clone();
+        let m = self.modules();
+        let pid = self
+            .process_manager
+            .spawn(scope, vec![], options, m, timeout)?;
         self.store_value(Number::Int(pid as i64).into());
         Ok(())
     }

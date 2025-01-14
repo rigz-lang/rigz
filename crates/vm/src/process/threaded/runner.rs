@@ -1,8 +1,8 @@
 use crate::call_frame::{CallFrame, Frames};
 use crate::process::ModulesMap;
 use crate::{
-    runner_common, BroadcastArgs, Instruction, Reference, ResolveValue, ResolvedModule, Runner,
-    Scope, StackValue, VMError, VMOptions, VMStack, VMState, Value, Variable,
+    runner_common, Instruction, Reference, ResolveValue, ResolvedModule, Runner, Scope, StackValue,
+    VMError, VMOptions, VMStack, VMState, Value, Variable,
 };
 use log_derive::{logfn, logfn_inputs};
 use std::cell::RefCell;
@@ -83,7 +83,7 @@ impl Runner for ProcessRunner<'_> {
         Err(VMError::todo("Process does not implement `receive`"))
     }
 
-    fn broadcast(&mut self, args: BroadcastArgs) -> Result<(), VMError> {
+    fn broadcast(&mut self, args: usize) -> Result<(), VMError> {
         Err(VMError::todo("Process does not implement `broadcast`"))
     }
 

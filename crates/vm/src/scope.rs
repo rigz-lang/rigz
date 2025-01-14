@@ -3,13 +3,6 @@ use crate::{Instruction, Reference, Snapshot, VMError};
 use std::fmt::Display;
 use std::vec::IntoIter;
 
-/**
-todo need to know whether scope is function, root, or expression for returns
-for functions, return value
-for root, this is a halt
-otherwise inner scope returns should cascade to function call or root
-*/
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Scope {
     pub instructions: Vec<Instruction>,

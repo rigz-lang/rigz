@@ -1,7 +1,7 @@
 use crate::{
-    err, errln, handle_js, out, outln, BinaryOperation, BroadcastArgs, CallFrame, Instruction,
-    Logical, Module, Number, Reference, ResolveValue, Reverse, Scope, StackValue, UnaryOperation,
-    VMError, VMOptions, VMState, Value,
+    err, errln, handle_js, out, outln, BinaryOperation, CallFrame, Instruction, Logical, Module,
+    Number, Reference, ResolveValue, Reverse, Scope, StackValue, UnaryOperation, VMError,
+    VMOptions, VMState, Value,
 };
 use indexmap::IndexMap;
 use log::log;
@@ -34,6 +34,11 @@ macro_rules! runner_common {
         #[inline]
         fn options(&self) -> &VMOptions {
             &self.options
+        }
+
+        #[inline]
+        fn modules(&self) -> ModulesMap {
+            self.modules.clone()
         }
 
         #[inline]
@@ -235,8 +240,10 @@ pub type ResolvedModule = Reference<dyn Module + Send + Sync>;
 #[cfg(feature = "threaded")]
 use once_cell::sync::Lazy;
 
+use crate::process::ModulesMap;
 #[cfg(not(feature = "threaded"))]
 use once_cell::unsync::Lazy;
+
 pub const THIS_VAR: Lazy<Reference<String>> = Lazy::new(|| "self".to_string().into());
 
 #[cfg(not(feature = "threaded"))]
@@ -254,6 +261,8 @@ pub trait Runner: ResolveValue {
     fn update_scope<F>(&mut self, index: usize, update: F) -> Result<(), VMError>
     where
         F: FnMut(&mut Scope) -> Result<(), VMError>;
+
+    fn modules(&self) -> ModulesMap;
 
     fn get_module(&mut self, module: Reference<String>) -> Option<ResolvedModule>;
 
@@ -339,7 +348,7 @@ pub trait Runner: ResolveValue {
 
     fn receive(&mut self, args: usize) -> Result<(), VMError>;
 
-    fn broadcast(&mut self, args: BroadcastArgs) -> Result<(), VMError>;
+    fn broadcast(&mut self, args: usize) -> Result<(), VMError>;
 
     fn spawn(&mut self, scope_id: usize, timeout: Option<usize>) -> Result<(), VMError>;
 

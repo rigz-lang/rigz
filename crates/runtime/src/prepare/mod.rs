@@ -1223,27 +1223,10 @@ impl<'vm, T: RigzBuilder> ProgramParser<'vm, T> {
                 }
 
                 let args = arguments.len();
-                if let Some(index) = arguments
-                    .iter()
-                    .position(|e| e == &Expression::Symbol("all".to_string().into()))
-                {
-                    if index != 0 {
-                        warn!(":all is not first argument, passing arguments unchanged");
-                    } else {
-                        for e in arguments.into_iter().skip(1).rev() {
-                            self.parse_expression(e)?;
-                        }
-                        self.builder
-                            .add_broadcast_instruction(BroadcastArgs::All(args - 1));
-                        return Ok(None);
-                    }
-                };
-
                 for e in arguments.into_iter().rev() {
                     self.parse_expression(e)?;
                 }
-                self.builder
-                    .add_broadcast_instruction(BroadcastArgs::Args(args));
+                self.builder.add_broadcast_instruction(args);
             }
             "receive" => {
                 let args = arguments.len();

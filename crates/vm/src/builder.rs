@@ -1,8 +1,8 @@
 use crate::process::{ModulesMap, Reference};
 use crate::vm::VMOptions;
 use crate::{
-    BinaryOperation, BroadcastArgs, Instruction, Lifecycle, LoadValue, Module, RigzType, Scope,
-    UnaryOperation, Value, THIS_VAR, VM,
+    BinaryOperation, Instruction, Lifecycle, LoadValue, Module, RigzType, Scope, UnaryOperation,
+    Value, THIS_VAR, VM,
 };
 use log::Level;
 use std::fmt::Debug;
@@ -333,7 +333,7 @@ pub trait RigzBuilder: Debug + Default {
     }
 
     #[inline]
-    fn add_broadcast_instruction(&mut self, args: BroadcastArgs) -> &mut Self {
+    fn add_broadcast_instruction(&mut self, args: usize) -> &mut Self {
         self.add_instruction(Instruction::Broadcast(args))
     }
 

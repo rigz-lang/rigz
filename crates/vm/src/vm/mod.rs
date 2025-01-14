@@ -5,7 +5,7 @@ mod values;
 
 use crate::call_frame::Frames;
 use crate::lifecycle::{Lifecycle, TestResults};
-use crate::process::{ModulesMap, Process, ProcessManager, SpawnedProcess};
+use crate::process::{ModulesMap, Process, ProcessManager};
 use crate::{
     generate_builder, handle_js, out, CallFrame, Instruction, Module, Reference, RigzBuilder,
     Runner, Scope, VMError, VMStack, Value, Variable,
@@ -30,7 +30,6 @@ pub struct VM {
     pub lifecycles: Vec<Lifecycle>,
     pub constants: Vec<Value>,
     pub(crate) process_manager: ProcessManager,
-    pub(crate) processes: Vec<SpawnedProcess>,
 }
 
 impl RigzBuilder for VM {
@@ -58,7 +57,6 @@ impl Default for VM {
             process_manager: ProcessManager::create().expect("Failed to setup ProcessManager"),
             #[cfg(not(feature = "threaded"))]
             process_manager: ProcessManager::new(),
-            processes: vec![],
         }
     }
 }
@@ -193,7 +191,7 @@ impl VM {
         };
 
         let res = run();
-        self.close_processes(res)
+        self.process_manager.close(res)
     }
 
     #[inline]
@@ -216,43 +214,8 @@ impl VM {
         None
     }
 
-    fn start_processes(&mut self) {
-        self.processes = self
-            .scopes
-            .iter()
-            .filter(|s| matches!(s.lifecycle, Some(Lifecycle::On(_))))
-            .map(|s| Process::spawn(s.clone(), self.options, self.modules.clone(), None))
-            .collect();
-    }
-
-    fn close_processes(&mut self, result: Value) -> Value {
-        let mut errors: Vec<VMError> = vec![];
-        for p in self.processes.drain(..) {
-            if let Err(e) = p.close() {
-                errors.push(e);
-            }
-        }
-
-        if errors.is_empty() {
-            result
-        } else {
-            let len = errors.len() - 1;
-            let messages =
-                errors
-                    .iter()
-                    .enumerate()
-                    .fold(String::new(), |mut res, (index, next)| {
-                        res.push_str(next.to_string().as_str());
-                        if index != len {
-                            res.push_str(", ");
-                        }
-                        res
-                    });
-            VMError::RuntimeError(format!("Process Failures: {messages}")).into()
-        }
-    }
-
     pub fn run_within(&mut self, duration: Duration) -> Value {
+        self.start_processes();
         #[cfg(not(feature = "js"))]
         let now = std::time::Instant::now();
         #[cfg(feature = "js")]
@@ -271,10 +234,13 @@ impl VM {
                 return v;
             }
         };
-        run()
-        // todo need a way to capture in progress processes so they can be resumed
-        // close_processes removes all spawned processes
-        // self.close_processes(v)
+        let res = run();
+        self.process_manager.close(res)
+    }
+
+    fn start_processes(&mut self) {
+        let processes = ProcessManager::create_on_processes(self);
+        self.process_manager.add(processes);
     }
 
     pub fn test(&mut self) -> TestResults {

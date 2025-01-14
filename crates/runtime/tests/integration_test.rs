@@ -522,13 +522,6 @@ pub mod runtime {
             pids = broadcast 'message', 21, 12
             receive pids
             "# = vec![252, 9])
-            spawn_works(r#"
-            pid = spawn do
-                42
-            end
-
-            receive pid
-            "# = 42)
             to_bits(
                 "2.to_bits" = vec![true, false]
             )
@@ -540,6 +533,14 @@ pub mod runtime {
 
     pub mod debug {
         use super::*;
-        run_debug_vm! {}
+        run_debug_vm! {
+            spawn_works(r#"
+            pid = spawn do
+                42
+            end
+
+            receive pid
+            "# = 42)
+        }
     }
 }

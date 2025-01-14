@@ -13,9 +13,6 @@ pub type Reference<T> = std::sync::Arc<T>;
 #[cfg(feature = "threaded")]
 pub type Process = threaded::Process;
 
-#[cfg(feature = "threaded")]
-pub use threaded::SpawnedProcess;
-
 #[cfg(not(feature = "threaded"))]
 pub type ModulesMap = std::collections::HashMap<&'static str, std::rc::Rc<dyn Module>>;
 
@@ -27,9 +24,6 @@ pub(crate) use process_manager::ProcessManager;
 
 #[cfg(not(feature = "threaded"))]
 pub type Process = single::Process;
-
-#[cfg(not(feature = "threaded"))]
-pub type SpawnedProcess = single::Process;
 
 #[cfg(not(feature = "threaded"))]
 pub type Reference<T> = std::rc::Rc<T>;

@@ -92,12 +92,6 @@ impl From<LoadValue> for StackValue {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum BroadcastArgs {
-    Args(usize),
-    All(usize),
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Instruction {
     Halt,
@@ -166,7 +160,7 @@ pub enum Instruction {
     },
     Sleep,
     Send(usize),
-    Broadcast(BroadcastArgs),
+    Broadcast(usize),
     Spawn(usize, bool),
     Receive(usize),
     /// Danger Zone, use these instructions at your own risk (sorted by risk)
