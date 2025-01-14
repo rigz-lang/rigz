@@ -1,5 +1,4 @@
 use crate::token::TokenKind;
-use crate::ParsingError;
 use logos::Logos;
 
 pub fn format(input: String) -> String {

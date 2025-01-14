@@ -8,5 +8,7 @@ repository = "https://gitlab.com/inapinch/rigz/crates/lsp"
 keywords = ["rigz", "lsp"]
 
 [dependencies]
+rigz_ast = {workspace = true, features = ["format"]}
+rigz_runtime.workspace = true
 tower-lsp = "0.20.0"
 tokio = { version = "1.43.0", features = ["io-std", "rt-multi-thread", "rt", "macros"] }

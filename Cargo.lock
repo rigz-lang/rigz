@@ -1621,6 +1621,8 @@ dependencies = [
 name = "rigz_lsp"
 version = "0.1.0"
 dependencies = [
+ "rigz_ast",
+ "rigz_runtime",
  "tokio",
  "tower-lsp",
 ]
