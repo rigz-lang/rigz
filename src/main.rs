@@ -41,6 +41,8 @@ pub enum Commands {
     Fmt(FormatArgs),
     // Debug(DebugArgs),
     Test(TestArgs),
+    // todo add a Lock command that verifies or writes a checksum of all URLs (and eventually packages)
+    // todo add an Update command that gets latest checksum of all URLs (and eventually packages)
 }
 
 fn main() {

@@ -8,16 +8,39 @@ use rigz_ast::{
 };
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use syn::{parse_macro_input, parse_str, LitStr, Type};
+use syn::parse::{Parse, ParseStream};
+use syn::{parse_macro_input, parse_str, LitStr, Token, Type};
 
-// todo create derive_macro for ParsedModule that doesn't require implementing a custom trait, i.e. Module is implemented manually
+struct DeriveInput {
+    ident: Option<Ident>,
+    literal: LitStr,
+}
+
+impl Parse for DeriveInput {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(LitStr) {
+            Ok(DeriveInput {
+                ident: None,
+                literal: input.parse()?,
+            })
+        } else {
+            let ident = Some(input.parse()?);
+            input.parse::<Token![,]>()?;
+            Ok(DeriveInput {
+                ident,
+                literal: input.parse()?,
+            })
+        }
+    }
+}
 
 /// Generate Module & ParsedModule implementations
 /// Requires Rigz Trait Definition as input, `trait <Name> ... end`, creates struct <Name>Module and trait Rigz<Name>.
 /// Rigz<Name> must be implemented manually
 #[proc_macro]
 pub fn derive_module(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as LitStr).value();
+    let full = parse_macro_input!(input as DeriveInput);
+    let input = full.literal.value();
 
     let input = &input;
     let mut parser = Parser::prepare(input, false).expect("Failed to setup parser");
@@ -27,7 +50,6 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
 
     let name = module.definition.name.as_str();
 
-    let module_name = Ident::new(format!("{name}Module").as_str(), Span::call_site());
     let module_trait = Ident::new(format!("Rigz{name}").as_str(), Span::call_site());
 
     let mut methods = Vec::new();
@@ -288,21 +310,25 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
         }
     };
 
-    final_definition(input, module, module_name, module_methods, module_def)
+    final_definition(full, module, module_methods, module_def)
 }
 
 fn final_definition(
-    input: &str,
+    full: DeriveInput,
     module: ModuleTraitDefinition,
-    module_name: Ident,
     module_methods: Vec<Tokens>,
     module_def: Tokens,
 ) -> TokenStream {
     let name = &module.definition.name;
-    let tokens = quote! {
-        #[derive(Copy, Clone, Debug)]
-        pub struct #module_name;
+    let module_name = match &full.ident {
+        Some(id) => id.clone(),
+        None => Ident::new(format!("{name}Module").as_str(), Span::call_site()),
+    };
 
+    let input = full.literal.value();
+    let input = input.as_str();
+
+    let base = quote! {
         #module_def
 
         impl Module for #module_name {
@@ -326,7 +352,19 @@ fn final_definition(
             }
         }
     };
-    tokens.into()
+
+    match full.ident {
+        None => {
+            quote! {
+                #[derive(Copy, Clone, Debug)]
+                pub struct #module_name;
+
+                #base
+            }
+        }
+        Some(_) => base,
+    }
+    .into()
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]

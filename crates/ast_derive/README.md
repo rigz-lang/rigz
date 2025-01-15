@@ -39,6 +39,21 @@ impl RigzJSON for JSONModule {
 }
 ```
 
+If you already have a struct or enum that you'd like to use for the Module you can pass that as the first argument:
+
+```rust
+pub struct HttpModule {
+  // ...
+}
+
+derive_module! {
+    HttpModule,
+    r#"trait Http
+        fn get(path, content_type = "") -> String
+    end"#
+}
+```
+
 ## Todo
 - Rc<RefCell<Value>> are cloned into Values before calling generated module call, however these should be references leaving it up to the function whether to clone or not. The problem here revolves around mutable extension functions, if the mutable arg and another arg are the same refcell the second borrow will panic.
   - There are three options here:

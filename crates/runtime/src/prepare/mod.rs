@@ -1681,17 +1681,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         Ok(())
     }
 
-    fn parse_file(&self, path: &str) -> Result<VMBuilder, ValidationError> {
-        let raw = match std::fs::read_to_string(path) {
-            Ok(s) => s,
-            Err(e) => {
-                return Err(ValidationError::InvalidImport(format!(
-                    "Failed to read {path} - {e}"
-                )))
-            }
-        };
-
-        let input = raw.as_str();
+    fn parse_contents(&self, contents: String, path: &str) -> Result<VMBuilder, ValidationError> {
+        let input = contents.as_str();
         let parser = match Parser::prepare(input, false) {
             Ok(p) => p,
             Err(e) => {
@@ -1722,28 +1713,31 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         Ok(builder.builder)
     }
 
-    fn download(&self, url: &str) -> Result<String, ValidationError> {
-        let results = match reqwest::blocking::get(url).and_then(|r| r.text()) {
+    fn parse_file(&self, path: &str) -> Result<VMBuilder, ValidationError> {
+        let raw = match std::fs::read_to_string(path) {
             Ok(s) => s,
-            Err(o) => {
-                return Err(ValidationError::DownloadFailed(format!(
-                    "Failed to download {url} - {o}"
+            Err(e) => {
+                return Err(ValidationError::InvalidImport(format!(
+                    "Failed to read {path} - {e}"
                 )))
             }
         };
+        self.parse_contents(raw, path)
+    }
 
-        let path = format!("{}.download", Uuid::new_v4());
-        if let Err(e) = std::fs::write(&path, results) {
-            return Err(ValidationError::DownloadFailed(format!(
-                "Failed to write {url} to {path} - {e}"
-            )));
+    fn download(&self, url: &str) -> Result<String, ValidationError> {
+        // todo add a client and use tokio to support js version
+        match reqwest::blocking::get(url).and_then(|r| r.text()) {
+            Ok(s) => Ok(s),
+            Err(o) => Err(ValidationError::DownloadFailed(format!(
+                "Failed to download {url} - {o}"
+            ))),
         }
-        Ok(path)
     }
 
     fn parse_url(&self, url: &str) -> Result<VMBuilder, ValidationError> {
-        let path = self.download(url)?;
-        self.parse_file(&path)
+        let contents = self.download(url)?;
+        self.parse_contents(contents, url)
     }
 
     fn parse_import(&mut self, import: ImportValue) -> Result<(), ValidationError> {
