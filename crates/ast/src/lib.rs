@@ -29,9 +29,18 @@ pub use program::{
 pub use rigz_vm::*;
 use std::collections::VecDeque;
 use std::fmt::Debug;
+use std::path::PathBuf;
 pub use token::ParsingError;
 use token::{Symbol, Token, TokenKind, TokenValue};
 pub use validate::*;
+
+#[derive(Default, Debug, Clone)]
+pub struct ParserOptions {
+    current_directory: Option<PathBuf>,
+    debug: bool,
+    disable_file_imports: bool,
+    disable_url_imports: bool,
+}
 
 #[derive(Debug)]
 #[allow(dead_code)]

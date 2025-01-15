@@ -6,7 +6,6 @@ pub use program::Program;
 use rigz_ast::*;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum CallSite {

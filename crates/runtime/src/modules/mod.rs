@@ -17,6 +17,7 @@ mod vm;
 use crate::prepare::ProgramParser;
 use crate::RigzBuilder;
 
+use crate::modules::html::HtmlModule;
 use crate::modules::http::HttpModule;
 pub use any::AnyModule;
 pub use assertions::AssertionsModule;
@@ -31,7 +32,6 @@ pub use random::RandomModule;
 pub use string::StringModule;
 pub use uuid::UUIDModule;
 pub use vm::VMModule;
-use crate::modules::html::HtmlModule;
 
 impl<T: RigzBuilder> ProgramParser<'_, T> {
     pub fn add_default_modules(&mut self) {

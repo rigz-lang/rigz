@@ -23,7 +23,7 @@ impl RigzHtml for HtmlModule {
             .map(|(id, selector)| {
                 let v = match Selector::parse(&selector) {
                     Ok(s) => {
-                        let mut select = html.select(&s);
+                        let select = html.select(&s);
                         let mut res: Vec<_> = select.map(|s| s.inner_html()).collect();
                         match res.len() {
                             0 => Value::None,

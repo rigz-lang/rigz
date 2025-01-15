@@ -413,7 +413,7 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
             None => panic!("Matched call only supported for extension functions currently"),
             Some(ft) => {
                 let v = if is_mut {
-                    match convert_type_for_arg(quote! { this }, &ft.rigz_type, true) {
+                    match convert_type_for_borrowed_arg(quote! { this }, &ft.rigz_type, true) {
                         None => Some(quote! { this.borrow_mut().deref_mut() }),
                         Some(s) => Some(s),
                     }
@@ -613,7 +613,7 @@ fn base_call(
             }
             Some(ft) if !matched => {
                 let f = first_arg.clone();
-                match convert_type_for_arg(first_arg.clone(), &ft.rigz_type, ft.mutable) {
+                match convert_type_for_borrowed_arg(first_arg.clone(), &ft.rigz_type, ft.mutable) {
                     None => {
                         quote! {
                             self.#method_name(#f, #fn_args)
@@ -757,8 +757,27 @@ fn base_call(
             }
             Some(start) => {
                 let (args, var) = args.split_at(start);
+                let (_, var_args) = function_signature.arguments.split_at(start);
+                let mut call_var = quote! {};
+                for v in var_args {
+                    if v.function_type.rigz_type == RigzType::default() {
+                        continue;
+                    }
+                    let name = Ident::new(v.name.as_str(), Span::call_site());
+                    if let Some(v) = convert_type_for_arg(
+                        quote! { n },
+                        &v.function_type.rigz_type,
+                        v.function_type.mutable,
+                    ) {
+                        call_var = quote! {
+                            #call_var
+                            let #name = #name.into_iter().map(|n| #v).collect();
+                        };
+                    }
+                }
                 quote! {
                     let ([#(#args)*], [#(#var)*]) = args.var_args()?;
+                    #call_var
                     #(#call_args)*
                 }
             }
@@ -905,7 +924,7 @@ fn setup_call_args(
 
         let name = Ident::new(&arg.name, Span::call_site());
         let name = quote! { #name };
-        match convert_type_for_arg(
+        match convert_type_for_borrowed_arg(
             name.clone(),
             &arg.function_type.rigz_type,
             arg.function_type.mutable,
@@ -920,6 +939,85 @@ fn setup_call_args(
     }
 
     (args, call_args, var_args)
+}
+
+fn convert_type_for_borrowed_arg(
+    name: Tokens,
+    rigz_type: &RigzType,
+    mutable: bool,
+) -> Option<Tokens> {
+    if rigz_type.is_vm() {
+        return None;
+    }
+
+    if let RigzType::Tuple(tu) = rigz_type {
+        let tuple = tu
+            .iter()
+            .enumerate()
+            .map(
+                |(i, r)| match convert_type_for_borrowed_arg(quote! { #name.#i }, r, mutable) {
+                    None => quote! { #name.#i },
+                    Some(t) => t,
+                },
+            )
+            .collect::<Vec<_>>();
+        return Some(quote! { (#(#tuple)*) });
+    }
+
+    let t = if mutable {
+        match &rigz_type {
+            RigzType::Any => return None,
+            RigzType::Wrapper {
+                base_type,
+                optional: false,
+                can_return_error: false,
+            } => return convert_type_for_arg(name, base_type, mutable),
+            RigzType::Wrapper {
+                base_type,
+                optional: true,
+                can_return_error: false,
+            } => match convert_type_for_arg(name.clone(), base_type, true) {
+                None => return None,
+                Some(t) => quote! { #name.borrow_mut().deref_mut().map_mut(|#name| #t) },
+            },
+            RigzType::String => quote! { #name.borrow_mut().as_string() },
+            RigzType::Number => quote! { #name.borrow_mut().as_number()? },
+            RigzType::Int => quote! { #name.borrow_mut().as_int()? },
+            RigzType::Float => quote! { #name.borrow_mut().as_float()? },
+            RigzType::Bool => quote! { #name.borrow_mut().as_bool() },
+            RigzType::List(_) => quote! { #name.borrow_mut().as_list() },
+            RigzType::Map(_, _) => quote! { #name.borrow_mut().as_map() },
+            RigzType::Type => quote! { #name.borrow_mut().rigz_type() },
+            r => todo!("call arg {r:?} is not supported"),
+        }
+    } else {
+        match &rigz_type {
+            RigzType::Any => return None,
+            RigzType::Wrapper {
+                base_type,
+                optional: false,
+                can_return_error: false,
+            } => return convert_type_for_arg(name, base_type, false),
+            RigzType::Wrapper {
+                base_type,
+                optional: true,
+                can_return_error: false,
+            } => match convert_type_for_arg(name.clone(), base_type, mutable) {
+                None => return None,
+                Some(t) => quote! { #name.borrow().deref().map(|#name| #t) },
+            },
+            RigzType::String => quote! { #name.borrow().to_string() },
+            RigzType::Number => quote! { #name.borrow().to_number()? },
+            RigzType::Int => quote! { #name.borrow().to_int()? },
+            RigzType::Float => quote! { #name.borrow().to_float()? },
+            RigzType::Bool => quote! { #name.borrow().to_bool() },
+            RigzType::List(_) => quote! { #name.borrow().to_list() },
+            RigzType::Map(_, _) => quote! { #name.borrow().to_map() },
+            RigzType::Type => quote! { #name.borrow().rigz_type() },
+            r => todo!("call arg {r:?} is not supported"),
+        }
+    };
+    Some(t)
 }
 
 fn convert_type_for_arg(name: Tokens, rigz_type: &RigzType, mutable: bool) -> Option<Tokens> {
@@ -944,27 +1042,53 @@ fn convert_type_for_arg(name: Tokens, rigz_type: &RigzType, mutable: bool) -> Op
     let t = if mutable {
         match &rigz_type {
             RigzType::Any => return None,
-            RigzType::String => quote! { #name.borrow_mut().as_string() },
-            RigzType::Number => quote! { #name.borrow_mut().as_number()? },
-            RigzType::Int => quote! { #name.borrow_mut().as_int()? },
-            RigzType::Float => quote! { #name.borrow_mut().as_float()? },
-            RigzType::Bool => quote! { #name.borrow_mut().as_bool() },
-            RigzType::List(_) => quote! { #name.borrow_mut().as_list() },
-            RigzType::Map(_, _) => quote! { #name.borrow_mut().as_map() },
-            RigzType::Type => quote! { #name.borrow_mut().rigz_type() },
+            RigzType::Wrapper {
+                base_type,
+                optional: false,
+                can_return_error: false,
+            } => return convert_type_for_arg(name, base_type, mutable),
+            RigzType::Wrapper {
+                base_type,
+                optional: true,
+                can_return_error: false,
+            } => match convert_type_for_arg(name.clone(), base_type, true) {
+                None => return None,
+                Some(t) => quote! { #name.map_mut(|#name| #t) },
+            },
+            RigzType::String => quote! { #name.as_string() },
+            RigzType::Number => quote! { #name.as_number()? },
+            RigzType::Int => quote! { #name.as_int()? },
+            RigzType::Float => quote! { #name.as_float()? },
+            RigzType::Bool => quote! { #name.as_bool() },
+            RigzType::List(_) => quote! { #name.as_list() },
+            RigzType::Map(_, _) => quote! { #name.as_map() },
+            RigzType::Type => quote! { #name.rigz_type() },
             r => todo!("call arg {r:?} is not supported"),
         }
     } else {
         match &rigz_type {
             RigzType::Any => return None,
-            RigzType::String => quote! { #name.borrow().to_string() },
-            RigzType::Number => quote! { #name.borrow().to_number()? },
-            RigzType::Int => quote! { #name.borrow().to_int()? },
-            RigzType::Float => quote! { #name.borrow().to_float()? },
-            RigzType::Bool => quote! { #name.borrow().to_bool() },
-            RigzType::List(_) => quote! { #name.borrow().to_list() },
-            RigzType::Map(_, _) => quote! { #name.borrow().to_map() },
-            RigzType::Type => quote! { #name.borrow().rigz_type() },
+            RigzType::Wrapper {
+                base_type,
+                optional: false,
+                can_return_error: false,
+            } => return convert_type_for_arg(name, base_type, false),
+            RigzType::Wrapper {
+                base_type,
+                optional: true,
+                can_return_error: false,
+            } => match convert_type_for_arg(name.clone(), base_type, mutable) {
+                None => return None,
+                Some(t) => quote! { #name.map(|#name| #t) },
+            },
+            RigzType::String => quote! { #name.to_string() },
+            RigzType::Number => quote! { #name.to_number()? },
+            RigzType::Int => quote! { #name.to_int()? },
+            RigzType::Float => quote! { #name.to_float()? },
+            RigzType::Bool => quote! { #name.to_bool() },
+            RigzType::List(_) => quote! { #name.to_list() },
+            RigzType::Map(_, _) => quote! { #name.to_map() },
+            RigzType::Type => quote! { #name.rigz_type() },
             r => todo!("call arg {r:?} is not supported"),
         }
     };

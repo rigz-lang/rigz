@@ -1,18 +1,30 @@
 use crate::prepare::{Program, ProgramParser};
+use crate::VMOptions;
 use rigz_ast::{
-    ParsedModule, Parser, ParsingError, TestResults, VMError, ValidationError, Value, VM,
+    ParsedModule, Parser, ParserOptions, ParsingError, TestResults, VMError, ValidationError,
+    Value, VM,
 };
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
+#[derive(Default, Debug, Clone)]
+pub struct RuntimeOptions {
+    vm: VMOptions,
+    parser: ParserOptions,
+}
+
 pub struct Runtime<'vm> {
     parser: ProgramParser<'vm, VM>,
+    runtime_options: RuntimeOptions,
 }
 
 impl<'vm> From<ProgramParser<'vm, VM>> for Runtime<'vm> {
     #[inline]
     fn from(value: ProgramParser<'vm, VM>) -> Self {
-        Runtime { parser: value }
+        Runtime {
+            parser: value,
+            runtime_options: Default::default(),
+        }
     }
 }
 
@@ -64,6 +76,7 @@ impl Default for Runtime<'_> {
     fn default() -> Self {
         Runtime {
             parser: ProgramParser::default(),
+            runtime_options: Default::default(),
         }
     }
 }
@@ -80,7 +93,12 @@ impl Runtime<'_> {
     pub fn new() -> Self {
         Runtime {
             parser: ProgramParser::new(),
+            runtime_options: Default::default(),
         }
+    }
+
+    pub fn with_options(&mut self, options: RuntimeOptions) {
+        self.runtime_options = options;
     }
 
     pub fn create(input: String) -> Result<Self, RuntimeError> {
@@ -89,6 +107,19 @@ impl Runtime<'_> {
         program.validate().map_err(|e| e.into())?;
         let program: Program = program.into();
         program.create_runtime()
+    }
+
+    pub fn create_with_options(
+        input: String,
+        runtime_options: RuntimeOptions,
+    ) -> Result<Self, RuntimeError> {
+        let parser = Parser::prepare(&input, false).map_err(|e| e.into())?;
+        let program = parser.parse().map_err(|e| e.into())?;
+        program.validate().map_err(|e| e.into())?;
+        let program: Program = program.into();
+        let mut runtime = program.create_runtime()?;
+        runtime.runtime_options = runtime_options;
+        Ok(runtime)
     }
 
     /// Use register_module to add modules

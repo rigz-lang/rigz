@@ -330,6 +330,30 @@ impl Value {
     }
 
     #[inline]
+    pub fn map<F, T>(&self, map: F) -> Option<T>
+    where
+        F: FnOnce(&Self) -> T,
+    {
+        if let Value::None = self {
+            None
+        } else {
+            Some(map(self))
+        }
+    }
+
+    #[inline]
+    pub fn map_mut<F, T>(&mut self, map: F) -> Option<T>
+    where
+        F: FnOnce(&mut Self) -> T,
+    {
+        if let Value::None = self {
+            None
+        } else {
+            Some(map(self))
+        }
+    }
+
+    #[inline]
     pub fn to_float(&self) -> Result<f64, VMError> {
         Ok(self.to_number()?.to_float())
     }

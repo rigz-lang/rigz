@@ -1,22 +1,32 @@
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::ops::Deref;
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct HttpModule {
-    client: reqwest::Client,
+    client: reqwest::blocking::Client,
 }
 
 derive_module! {
     HttpModule,
     r#"trait Http
-        fn get(path, content_type: String? = none) -> String
+        fn get(path: String, content_type: String? = none) -> String!
     end"#
 }
 
 impl RigzHttp for HttpModule {
-    fn get(&self, path: Value, content_type: Option<String>) -> String {
-        todo!()
+    fn get(&self, path: String, content_type: Option<String>) -> Result<String, VMError> {
+        let mut req = self.client.get(path);
+        if let Some(content_type) = content_type {
+            req = req.header(reqwest::header::CONTENT_TYPE, content_type);
+        }
+
+        match req.send().map(|r| r.text()) {
+            Ok(Ok(t)) => Ok(t),
+            Ok(Err(t)) => Err(VMError::RuntimeError(format!(
+                "Failed to convert response to text - {t}"
+            ))),
+            Err(e) => Err(VMError::RuntimeError(format!("Request Failed: {e}"))),
+        }
     }
 }
