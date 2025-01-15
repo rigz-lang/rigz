@@ -20,8 +20,7 @@ impl Mul for &Value {
             (b, Value::Bool(a)) => Value::Bool(a | b.to_bool()),
             (Value::Number(a), Value::Number(b)) => Value::Number(a * b),
             (Value::Number(a), Value::String(b)) | (Value::String(b), Value::Number(a)) => {
-                let s = Value::String(b.clone());
-                match s.to_number() {
+                match b.parse() {
                     Err(_) => {
                         if a.is_negative() {
                             return VMError::RuntimeError(format!(
