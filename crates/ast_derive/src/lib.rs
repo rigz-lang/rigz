@@ -977,7 +977,7 @@ fn convert_type_for_borrowed_arg(
                 optional: true,
                 can_return_error: false,
             } => match convert_type_for_arg(name.clone(), base_type, true) {
-                None => return None,
+                None => quote! { #name.borrow_mut().deref_mut().map_mut(|t| t) },
                 Some(t) => quote! { #name.borrow_mut().deref_mut().map_mut(|#name| #t) },
             },
             RigzType::String => quote! { #name.borrow_mut().as_string() },
@@ -1003,7 +1003,7 @@ fn convert_type_for_borrowed_arg(
                 optional: true,
                 can_return_error: false,
             } => match convert_type_for_arg(name.clone(), base_type, mutable) {
-                None => return None,
+                None => quote! { #name.borrow().deref().map(|t| t).cloned() },
                 Some(t) => quote! { #name.borrow().deref().map(|#name| #t) },
             },
             RigzType::String => quote! { #name.borrow().to_string() },
