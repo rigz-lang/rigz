@@ -19,8 +19,7 @@ impl BitAnd for &Value {
             (b, Value::Bool(a)) => Value::Bool(a & b.to_bool()),
             (Value::Number(a), Value::Number(b)) => Value::Number(a & b),
             (Value::Number(a), Value::String(b)) => {
-                let s = Value::String(b.clone());
-                match s.to_number() {
+                match b.parse() {
                     Err(_) => VMError::UnsupportedOperation(format!("{} & {}", a, b)).into(),
                     Ok(r) => Value::Number(a & &r),
                 }

@@ -31,8 +31,7 @@ impl Shr for &Value {
             }
             (Value::Number(lhs), Value::Number(rhs)) => Value::Number(lhs >> rhs),
             (Value::Number(a), Value::String(b)) => {
-                let s = Value::String(b.clone());
-                match s.to_number() {
+                match b.parse() {
                     Err(_) => VMError::UnsupportedOperation(format!("{} >> {}", a, b)).to_value(),
                     Ok(r) => Value::Number(a >> &r),
                 }

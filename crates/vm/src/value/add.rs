@@ -16,8 +16,7 @@ impl Add for &Value {
             (Value::Bool(a), Value::Bool(b)) => Value::Bool(a | b),
             (Value::Number(a), Value::Number(b)) => Value::Number(a + b),
             (Value::Number(a), Value::String(b)) => {
-                let s = Value::String(b.clone());
-                match s.to_number() {
+                match b.parse() {
                     Err(_) => {
                         let mut res = a.to_string();
                         res.push_str(b.as_str());
@@ -27,8 +26,7 @@ impl Add for &Value {
                 }
             }
             (Value::String(a), Value::Number(b)) => {
-                let s = Value::String(a.clone());
-                match s.to_number() {
+                match a.parse() {
                     Err(_) => {
                         let mut res = a.to_string();
                         res.push_str(b.to_string().as_str());
