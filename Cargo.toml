@@ -31,7 +31,7 @@ tree-sitter-rigz = { version = "0.6", path = "crates/tree-sitter" }
 web-sys = { version = "0.3.76", features = ["console"] }
 
 [features]
-default = ["rigz_vm/default", "rigz_ast/default", "rigz_runtime/default", "dep:tokio"]
+default = ["rigz_vm/default", "rigz_ast/default", "rigz_runtime/default"]
 js = ["rigz_vm/js", "rigz_ast/js", "rigz_runtime/js"]
 
 [dependencies]
@@ -47,4 +47,3 @@ rustyline = "14.0.0"
 chrono = "0.4"
 crossterm = "0.28.1"
 ratatui = "0.29.0"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"], optional = true }

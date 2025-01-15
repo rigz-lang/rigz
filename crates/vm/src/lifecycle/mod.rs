@@ -194,7 +194,7 @@ impl PartialEq for TestResults {
 
 impl Display for TestResults {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let success = self.failed == 0;
+        let success = self.failed == 0 && self.failure_messages.is_empty();
 
         let preamble = if success {
             if cfg!(feature = "js") {

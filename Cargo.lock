@@ -1589,7 +1589,6 @@ dependencies = [
  "rigz_runtime",
  "rigz_vm",
  "rustyline",
- "tokio",
  "tree-sitter-highlight",
  "tree-sitter-rigz",
 ]
