@@ -47,7 +47,8 @@ impl Div for &Value {
             }
             (Value::Range(a), Value::Range(b)) => match a / b {
                 None => {
-                    VMError::UnsupportedOperation(format!("Unable to divide ranges: {a} / {b}")).into()
+                    VMError::UnsupportedOperation(format!("Unable to divide ranges: {a} / {b}"))
+                        .into()
                 }
                 Some(r) => Value::Range(r),
             },
