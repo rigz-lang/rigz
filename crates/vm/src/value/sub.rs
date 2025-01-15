@@ -25,6 +25,22 @@ impl Sub for &Value {
                     Ok(r) => Value::Number(a / &r),
                 }
             }
+            (Value::Number(a), Value::Range(r)) | (Value::Range(r), Value::Number(a)) => {
+                match r - a {
+                    None => VMError::UnsupportedOperation(format!(
+                        "Unable to subtract {a} from range {r}"
+                    ))
+                    .into(),
+                    Some(r) => Value::Range(r),
+                }
+            }
+            (Value::Range(a), Value::Range(b)) => match a - b {
+                None => {
+                    VMError::UnsupportedOperation(format!("Unable to subtract ranges: {a} - {b}"))
+                        .into()
+                }
+                Some(r) => Value::Range(r),
+            },
             (Value::String(a), Value::String(b)) => {
                 let result = a.replace(b.as_str(), "");
                 Value::String(result)

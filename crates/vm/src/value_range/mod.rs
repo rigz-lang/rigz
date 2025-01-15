@@ -1,4 +1,5 @@
 mod add;
+mod sub;
 
 use crate::{impl_from, Snapshot, VMError, Value};
 use indexmap::IndexMap;

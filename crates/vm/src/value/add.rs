@@ -40,15 +40,14 @@ impl Add for &Value {
             (Value::Number(a), Value::Range(r)) | (Value::Range(r), Value::Number(a)) => {
                 match r + a {
                     None => {
-                        VMError::UnsupportedOperation(format!("Unable to perform add {a} to range"))
-                            .into()
+                        VMError::UnsupportedOperation(format!("Unable to add {a} to {r}")).into()
                     }
                     Some(r) => Value::Range(r),
                 }
             }
             (Value::Range(a), Value::Range(b)) => match a + b {
                 None => {
-                    VMError::UnsupportedOperation("Unable to perform add ranges".to_string()).into()
+                    VMError::UnsupportedOperation(format!("Unable to add ranges: {a} + {b}")).into()
                 }
                 Some(r) => Value::Range(r),
             },
