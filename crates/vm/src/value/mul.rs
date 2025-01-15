@@ -19,31 +19,30 @@ impl Mul for &Value {
             (Value::Bool(a), b) => Value::Bool(a | b.to_bool()),
             (b, Value::Bool(a)) => Value::Bool(a | b.to_bool()),
             (Value::Number(a), Value::Number(b)) => Value::Number(a * b),
-            (Value::Number(a), Value::String(b)) => {
+            (Value::Number(a), Value::String(b)) | (Value::String(b), Value::Number(a)) => {
                 let s = Value::String(b.clone());
                 match s.to_number() {
-                    Err(_) => VMError::UnsupportedOperation(format!("{} * {}", a, b)).into(),
+                    Err(_) => {
+                        if a.is_negative() {
+                            return VMError::RuntimeError(format!(
+                                "Cannot multiply {} by negatives: {}",
+                                b, a
+                            ))
+                                .to_value();
+                        }
+
+                        let s = match a {
+                            Number::Int(_) => b.repeat(a.to_usize().unwrap()),
+                            Number::Float(f) => {
+                                let mut result = b.repeat(a.to_usize().unwrap());
+                                result.push_str(&b[..(f.fract() * b.len() as f64) as usize]);
+                                result
+                            }
+                        };
+                        Value::String(s)
+                    },
                     Ok(r) => Value::Number(a * &r),
                 }
-            }
-            (Value::String(a), Value::Number(n)) => {
-                if n.is_negative() {
-                    return VMError::RuntimeError(format!(
-                        "Cannot multiply {} by negatives: {}",
-                        a, n
-                    ))
-                    .to_value();
-                }
-
-                let s = match n {
-                    Number::Int(_) => a.repeat(n.to_usize().unwrap()),
-                    Number::Float(f) => {
-                        let mut result = a.repeat(n.to_usize().unwrap());
-                        result.push_str(&a[..(f.fract() * a.len() as f64) as usize]);
-                        result
-                    }
-                };
-                Value::String(s)
             }
             (Value::Number(a), Value::Range(r)) | (Value::Range(r), Value::Number(a)) => {
                 match r * a {
