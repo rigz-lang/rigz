@@ -1,11 +1,12 @@
 mod program;
 
-use crate::{Runtime, RuntimeError};
+use crate::RuntimeError;
 use log::Level;
 pub use program::Program;
 use rigz_ast::*;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum CallSite {
@@ -119,16 +120,19 @@ impl CallSignature {
 
 type FunctionCallSignatures = Vec<CallSignature>;
 
+#[derive(Debug)]
 pub(crate) enum ModuleDefinition {
     Imported,
     Module(ModuleTraitDefinition),
 }
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 struct Imports {
     root: usize,
 }
 
+#[derive(Debug)]
 pub(crate) struct ProgramParser<'vm, T: RigzBuilder> {
     pub(crate) builder: T,
     pub(crate) modules: IndexMap<&'vm str, ModuleDefinition>,
@@ -1688,7 +1692,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         };
 
         let input = raw.as_str();
-        let mut parser = match Parser::prepare(input, false) {
+        let parser = match Parser::prepare(input, false) {
             Ok(p) => p,
             Err(e) => {
                 return Err(ValidationError::InvalidImport(format!(
@@ -1708,6 +1712,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         let mut builder = ProgramParser::new();
         // todo need a better way to ensure we aren't parsing the same file repeatedly
         builder.imports = self.imports.clone();
+        builder.constants = self.constants.clone();
         // skip validation, imports don't need to end with an expression
         if let Err(e) = builder.parse_program(program) {
             return Err(ValidationError::InvalidImport(format!(
@@ -1718,7 +1723,22 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
     }
 
     fn download(&self, url: &str) -> Result<String, ValidationError> {
-        todo!()
+        let results = match reqwest::blocking::get(url).and_then(|r| r.text()) {
+            Ok(s) => s,
+            Err(o) => {
+                return Err(ValidationError::DownloadFailed(format!(
+                    "Failed to download {url} - {o}"
+                )))
+            }
+        };
+
+        let path = format!("{}.download", Uuid::new_v4());
+        if let Err(e) = std::fs::write(&path, results) {
+            return Err(ValidationError::DownloadFailed(format!(
+                "Failed to write {url} to {path} - {e}"
+            )));
+        }
+        Ok(path)
     }
 
     fn parse_url(&self, url: &str) -> Result<VMBuilder, ValidationError> {

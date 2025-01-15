@@ -426,11 +426,12 @@ macro_rules! generate_builder {
         }
 
         #[inline]
+        /// all constants must be contained in other.constants!
         fn merge(&mut self, other: crate::VMBuilder) -> usize {
             let first = self.scopes.len();
             self.scopes.extend(other.scopes);
             self.lifecycles.extend(other.lifecycles);
-            self.constants.extend(other.constants);
+            self.constants = other.constants;
             first
         }
     };

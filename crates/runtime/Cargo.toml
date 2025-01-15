@@ -21,6 +21,7 @@ rigz_ast.workspace = true
 rigz_ast_derive.workspace = true
 itertools.workspace = true
 log.workspace = true
+reqwest = {version = "0.12", features = ["blocking"]}
 serde_json = "1.0"
 uuid = { version = "1.11.0", features = ["v1", "v3", "v4", "v5", "v6", "v7", "v8"] }
 rand.workspace = true
