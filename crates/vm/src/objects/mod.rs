@@ -6,7 +6,7 @@ use std::hash::Hash;
 use std::str::FromStr;
 use std::vec::IntoIter;
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub enum RigzType {
     None,
     Any,
@@ -271,7 +271,7 @@ impl Display for RigzType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub struct CustomType {
     pub name: String,
     pub fields: Vec<(String, RigzType)>,

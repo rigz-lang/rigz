@@ -140,6 +140,7 @@ pub(crate) struct ProgramParser<'vm, T: RigzBuilder> {
     pub(crate) constants: IndexMap<Value, usize>,
     pub(crate) identifiers: HashMap<String, FunctionType>,
     pub(crate) types: HashMap<String, RigzType>,
+    // todo imports should be fully resolved path
     imports: HashMap<String, Imports>,
 }
 
@@ -735,6 +736,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         match expression {
             Expression::DoubleBang(e) => {
                 self.parse_expression(*e)?;
+                // todo should this be a return if error instead?
                 self.builder.add_halt_if_error_instruction();
             }
             Expression::This => {

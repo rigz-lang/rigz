@@ -66,15 +66,21 @@ fn range_compare<Idx: PartialOrd>(a: &Range<Idx>, b: &Range<Idx>) -> Ordering {
 
 impl PartialOrd for ValueRange {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ValueRange {
+    fn cmp(&self, other: &Self) -> Ordering {
         if self == other {
-            return Some(Ordering::Equal);
+            return Ordering::Equal;
         }
 
         match (self, other) {
-            (ValueRange::Int(a), ValueRange::Int(b)) => Some(range_compare(a, b)),
-            (ValueRange::Char(a), ValueRange::Char(b)) => Some(range_compare(a, b)),
-            (ValueRange::Int(_), ValueRange::Char(_)) => Some(Ordering::Less),
-            (ValueRange::Char(_), ValueRange::Int(_)) => Some(Ordering::Greater),
+            (ValueRange::Int(a), ValueRange::Int(b)) => range_compare(a, b),
+            (ValueRange::Char(a), ValueRange::Char(b)) => range_compare(a, b),
+            (ValueRange::Int(_), ValueRange::Char(_)) => Ordering::Less,
+            (ValueRange::Char(_), ValueRange::Int(_)) => Ordering::Greater,
         }
     }
 }

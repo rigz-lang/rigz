@@ -77,11 +77,17 @@ impl PartialEq for Number {
 
 impl PartialOrd for Number {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Number {
+    fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
-            (Number::Int(a), Number::Int(b)) => a.partial_cmp(b),
-            (Number::Float(a), Number::Float(b)) => a.partial_cmp(b),
-            (Number::Int(a), Number::Float(b)) => (*a as f64).partial_cmp(b),
-            (Number::Float(a), Number::Int(b)) => a.partial_cmp(&(*b as f64)),
+            (Number::Int(a), Number::Int(b)) => a.cmp(b),
+            (Number::Float(a), Number::Float(b)) => a.total_cmp(b),
+            (Number::Int(a), Number::Float(b)) => (*a as f64).total_cmp(b),
+            (Number::Float(a), Number::Int(b)) => a.total_cmp(&(*b as f64)),
         }
     }
 }

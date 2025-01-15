@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
 use std::cell::RefCell;
@@ -23,6 +24,9 @@ derive_module! {
 
         fn mut List.extend(value: List)
         fn mut List.clear -> None
+
+        fn mut List.sort
+        fn mut Map.sort
 
         fn List.split_first -> (Any?, List)
         fn List.split_last -> (Any?, List)
@@ -91,6 +95,18 @@ impl RigzCollections for CollectionsModule {
 
     fn mut_list_clear(&self, this: &mut Vec<Value>) {
         this.clear()
+    }
+
+    fn mut_list_sort(&self, this: &mut Vec<Value>) {
+        this.sort()
+    }
+
+    fn mut_map_sort(&self, this: &mut IndexMap<Value, Value>) {
+        *this = this
+            .into_iter()
+            .sorted()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
     }
 
     fn list_split_first(&self, this: Vec<Value>) -> (Option<Value>, Vec<Value>) {

@@ -271,38 +271,43 @@ impl Eq for Value {}
 
 impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Value {
+    fn cmp(&self, other: &Self) -> Ordering {
         if self.eq(other) {
-            return Some(Ordering::Equal);
+            return Ordering::Equal;
         }
 
         match (self, other) {
-            // todo some of these should probably use None?
-            (Value::Error(_), _) => Some(Ordering::Less),
-            (_, Value::Error(_)) => Some(Ordering::Greater),
-            (Value::Type(a), Value::Type(b)) => a.partial_cmp(b),
-            (Value::Type(_), _) => Some(Ordering::Less),
-            (_, Value::Type(_)) => Some(Ordering::Greater),
-            (Value::None, _) => Some(Ordering::Less),
-            (_, Value::None) => Some(Ordering::Greater),
-            (Value::Bool(a), Value::Bool(b)) => a.partial_cmp(b),
-            (Value::Bool(_), _) => Some(Ordering::Less),
-            (_, Value::Bool(_)) => Some(Ordering::Greater),
-            (Value::Number(a), Value::Number(b)) => a.partial_cmp(b),
-            (Value::Number(_), _) => Some(Ordering::Less),
-            (_, Value::Number(_)) => Some(Ordering::Greater),
-            (Value::Range(a), Value::Range(b)) => a.partial_cmp(b),
-            (Value::Range(_), _) => Some(Ordering::Less),
-            (_, Value::Range(_)) => Some(Ordering::Greater),
-            (Value::String(a), Value::String(b)) => a.partial_cmp(b),
-            (Value::String(_), _) => Some(Ordering::Less),
-            (_, Value::String(_)) => Some(Ordering::Greater),
-            (Value::Tuple(a), Value::Tuple(b)) => a.partial_cmp(b),
-            (Value::Tuple(_), _) => Some(Ordering::Less),
-            (_, Value::Tuple(_)) => Some(Ordering::Greater),
-            (Value::List(a), Value::List(b)) => a.partial_cmp(b),
-            (Value::List(_), _) => Some(Ordering::Less),
-            (_, Value::List(_)) => Some(Ordering::Greater),
-            (Value::Map(a), Value::Map(b)) => a.into_iter().partial_cmp(b),
+            (Value::Error(_), _) => Ordering::Less,
+            (_, Value::Error(_)) => Ordering::Greater,
+            (Value::Type(a), Value::Type(b)) => a.cmp(b),
+            (Value::Type(_), _) => Ordering::Less,
+            (_, Value::Type(_)) => Ordering::Greater,
+            (Value::None, _) => Ordering::Less,
+            (_, Value::None) => Ordering::Greater,
+            (Value::Bool(a), Value::Bool(b)) => a.cmp(b),
+            (Value::Bool(_), _) => Ordering::Less,
+            (_, Value::Bool(_)) => Ordering::Greater,
+            (Value::Number(a), Value::Number(b)) => a.cmp(b),
+            (Value::Number(_), _) => Ordering::Less,
+            (_, Value::Number(_)) => Ordering::Greater,
+            (Value::Range(a), Value::Range(b)) => a.cmp(b),
+            (Value::Range(_), _) => Ordering::Less,
+            (_, Value::Range(_)) => Ordering::Greater,
+            (Value::String(a), Value::String(b)) => a.cmp(b),
+            (Value::String(_), _) => Ordering::Less,
+            (_, Value::String(_)) => Ordering::Greater,
+            (Value::Tuple(a), Value::Tuple(b)) => a.cmp(b),
+            (Value::Tuple(_), _) => Ordering::Less,
+            (_, Value::Tuple(_)) => Ordering::Greater,
+            (Value::List(a), Value::List(b)) => a.cmp(b),
+            (Value::List(_), _) => Ordering::Less,
+            (_, Value::List(_)) => Ordering::Greater,
+            (Value::Map(a), Value::Map(b)) => a.into_iter().cmp(b),
         }
     }
 }
