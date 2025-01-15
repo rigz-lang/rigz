@@ -37,6 +37,20 @@ impl Div for &Value {
                     Ok(r) => Value::Number(a / &r),
                 }
             }
+            (Value::Number(a), Value::Range(r)) | (Value::Range(r), Value::Number(a)) => {
+                match r / a {
+                    None => {
+                        VMError::UnsupportedOperation(format!("Unable to div {a} from {r}")).into()
+                    }
+                    Some(r) => Value::Range(r),
+                }
+            }
+            (Value::Range(a), Value::Range(b)) => match a / b {
+                None => {
+                    VMError::UnsupportedOperation(format!("Unable to divide ranges: {a} / {b}")).into()
+                }
+                Some(r) => Value::Range(r),
+            },
             (Value::String(a), Value::String(b)) => {
                 let result = a.split(b.as_str());
                 Value::List(result.map(|s| Value::String(s.to_string())).collect())

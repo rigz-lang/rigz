@@ -1,4 +1,6 @@
 mod add;
+mod div;
+mod mul;
 mod sub;
 
 use crate::{impl_from, Snapshot, VMError, Value};
