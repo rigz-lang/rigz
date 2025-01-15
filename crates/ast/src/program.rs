@@ -254,6 +254,7 @@ pub enum Expression {
         base: Box<Expression>,
         next: FunctionExpression,
     },
+    DoubleBang(Box<Expression>),
 }
 
 impl From<Vec<Expression>> for Expression {

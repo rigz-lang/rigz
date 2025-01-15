@@ -229,6 +229,12 @@ impl ToTokens for Expression {
                     }
                 }
             }
+            Expression::DoubleBang(b) => {
+                let b = boxed(b);
+                quote! {
+                    Expression::DoubleBang(#b)
+                }
+            }
         };
         tokens.extend(t)
     }

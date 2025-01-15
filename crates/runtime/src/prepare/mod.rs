@@ -733,6 +733,10 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         expression: Expression,
     ) -> Result<(), ValidationError> {
         match expression {
+            Expression::DoubleBang(e) => {
+                self.parse_expression(*e)?;
+                self.builder.add_halt_if_error_instruction();
+            }
             Expression::This => {
                 self.this();
             }

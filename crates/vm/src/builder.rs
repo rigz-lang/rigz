@@ -203,6 +203,11 @@ pub trait RigzBuilder: Debug + Default {
     }
 
     #[inline]
+    fn add_halt_if_error_instruction(&mut self) -> &mut Self {
+        self.add_instruction(Instruction::HaltIfError)
+    }
+
+    #[inline]
     fn add_ret_instruction(&mut self) -> &mut Self {
         self.add_instruction(Instruction::Ret)
     }

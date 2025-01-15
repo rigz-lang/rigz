@@ -19,6 +19,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
     ) -> Result<RigzType, ValidationError> {
         // todo arguments should be checked for function calls here for best match
         let t = match expression {
+            Expression::DoubleBang(e) => return self.rigz_type(e),
             Expression::This => self.identifiers["self"].clone().rigz_type,
             Expression::Value(v) => v.rigz_type(),
             Expression::Error(_) => RigzType::Error,
