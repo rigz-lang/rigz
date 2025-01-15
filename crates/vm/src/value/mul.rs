@@ -28,7 +28,7 @@ impl Mul for &Value {
                                 "Cannot multiply {} by negatives: {}",
                                 b, a
                             ))
-                                .to_value();
+                            .to_value();
                         }
 
                         let s = match a {
@@ -40,7 +40,7 @@ impl Mul for &Value {
                             }
                         };
                         Value::String(s)
-                    },
+                    }
                     Ok(r) => Value::Number(a * &r),
                 }
             }
