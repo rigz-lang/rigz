@@ -124,6 +124,7 @@ pub(crate) enum ModuleDefinition {
     Module(ModuleTraitDefinition),
 }
 
+#[derive(Clone, Debug)]
 struct Imports {
     root: usize,
 }
@@ -509,7 +510,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
     ) -> Result<(), ValidationError> {
         match expression {
             Expression::Scope(s) => {
-                let scope = self.parse_scope(s, "do".to_string())?;
+                let scope = self.parse_scope(s, "do")?;
                 self.builder.add_load_instruction(LoadValue::ScopeId(scope));
                 self.builder.convert_to_lazy_scope(scope, var.to_string());
                 Ok(())
@@ -768,20 +769,20 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 branch,
             } => {
                 self.parse_expression(*condition)?;
-                let if_output = self.parse_scope(then, "if".to_string())?;
+                let if_output = self.parse_scope(then, "if")?;
                 match branch {
                     None => {
                         self.builder.add_if_instruction(if_output);
                     }
                     Some(p) => {
-                        let else_output = self.parse_scope(p, "else".to_string())?;
+                        let else_output = self.parse_scope(p, "else")?;
                         self.builder.add_if_else_instruction(if_output, else_output);
                     }
                 }
             }
             Expression::Unless { condition, then } => {
                 self.parse_expression(*condition)?;
-                let unless = self.parse_scope(then, "unless".to_string())?;
+                let unless = self.parse_scope(then, "unless")?;
                 self.builder.add_unless_instruction(unless);
             }
             Expression::List(list) => {
@@ -880,7 +881,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 self.builder.add_for_map_instruction(inner_scope);
             }
             Expression::Scope(s) => {
-                let s = self.parse_scope(s, "do".to_string())?;
+                let s = self.parse_scope(s, "do")?;
                 self.builder.add_load_instruction(LoadValue::ScopeId(s));
             }
             Expression::Cast(e, t) => {
@@ -1225,7 +1226,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     1 => {
                         let scope = args.next().unwrap();
                         let id = match scope {
-                            Expression::Scope(s) => self.parse_scope(s, "spawn".to_string())?,
+                            Expression::Scope(s) => self.parse_scope(s, "spawn")?,
                             _ => {
                                 return Err(ValidationError::NotImplemented(format!(
                                     "Only scopes are supported for `spawn` - receieved {scope:?}"
@@ -1239,7 +1240,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                         self.parse_expression(timeout)?;
                         let scope = args.next().unwrap();
                         let id = match scope {
-                            Expression::Scope(s) => self.parse_scope(s, "spawn".to_string())?,
+                            Expression::Scope(s) => self.parse_scope(s, "spawn")?,
                             _ => {
                                 return Err(ValidationError::NotImplemented(format!(
                                     "Only scopes are supported for `spawn` - receieved {scope:?}"
@@ -1790,10 +1791,10 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
     }
 
     // dont use this for function scopes!
-    fn parse_scope(&mut self, scope: Scope, named: String) -> Result<usize, ValidationError> {
+    fn parse_scope(&mut self, scope: Scope, named: &'static str) -> Result<usize, ValidationError> {
         let current_vars = self.identifiers.clone();
         let current = self.builder.current_scope();
-        self.builder.enter_scope(named, vec![], None);
+        self.builder.enter_scope(named.to_string(), vec![], None);
         let res = self.builder.current_scope();
         for e in scope.elements {
             self.parse_element(e)?;
