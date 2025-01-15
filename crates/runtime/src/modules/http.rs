@@ -35,7 +35,12 @@ impl RigzHttp for HttpModule {
         }
     }
 
-    fn post(&self, path: String, body: Option<String>, content_type: Option<String>) -> (Result<String, VMError>, Result<Option<String>, VMError>) {
+    fn post(
+        &self,
+        path: String,
+        body: Option<String>,
+        content_type: Option<String>,
+    ) -> (Result<String, VMError>, Result<Option<String>, VMError>) {
         let mut req = self.client.post(path);
         if let Some(content_type) = content_type {
             req = req.header("Content-Type", content_type);
@@ -45,22 +50,31 @@ impl RigzHttp for HttpModule {
         }
         match req.send() {
             Ok(t) => {
-                let l = match t.headers().get(reqwest::header::LOCATION).map(|n| n.to_str().map(|s| s.to_string())) {
+                let l = match t
+                    .headers()
+                    .get(reqwest::header::LOCATION)
+                    .map(|n| n.to_str().map(|s| s.to_string()))
+                {
                     Some(Ok(l)) => Ok(Some(l)),
                     None => Ok(None),
-                    Some(Err(e)) => Err(VMError::RuntimeError(format!("Failed to convert Location Header to string: {e}"))),
+                    Some(Err(e)) => Err(VMError::RuntimeError(format!(
+                        "Failed to convert Location Header to string: {e}"
+                    ))),
                 };
                 match t.text() {
                     Ok(t) => (Ok(t), l),
-                    Err(e) => (Err(VMError::RuntimeError(format!(
-                        "Failed to convert response to text - {e}"
-                    ))), l)
+                    Err(e) => (
+                        Err(VMError::RuntimeError(format!(
+                            "Failed to convert response to text - {e}"
+                        ))),
+                        l,
+                    ),
                 }
-            },
+            }
             Err(e) => {
                 let err = VMError::RuntimeError(format!("Request Failed: {e}"));
                 (Err(err.clone()), Err(err))
-            },
+            }
         }
     }
 }
