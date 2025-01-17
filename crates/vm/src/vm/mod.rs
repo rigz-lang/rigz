@@ -221,6 +221,7 @@ impl VM {
         let mut run = || loop {
             let elapsed = now.elapsed();
             if elapsed > duration {
+                // todo this should be a dedicated error type so it's not misused
                 return VMError::TimeoutError(format!(
                     "Exceeded runtime {duration:?} - {:?}",
                     elapsed
