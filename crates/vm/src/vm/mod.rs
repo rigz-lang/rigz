@@ -163,10 +163,7 @@ impl VM {
     }
 
     pub fn eval_within(&mut self, duration: Duration) -> Result<ObjectValue, VMError> {
-        match self.run_within(duration) {
-            ObjectValue::Primitive(PrimitiveValue::Error(e)) => Err(e),
-            v => Ok(v),
-        }
+        self.run_within(duration).map_err(|e| e.into())
     }
 
     pub fn add_bindings(&mut self, bindings: HashMap<String, (StackValue, bool)>) {
@@ -215,7 +212,7 @@ impl VM {
         None
     }
 
-    pub fn run_within(&mut self, duration: Duration) -> ObjectValue {
+    pub fn run_within(&mut self, duration: Duration) -> Result<ObjectValue, VMError> {
         self.start_processes();
         #[cfg(not(feature = "js"))]
         let now = std::time::Instant::now();
@@ -236,7 +233,11 @@ impl VM {
             }
         };
         let res = run();
-        self.process_manager.update(move |p| p.close(res))
+        // todo this needs to be pause processes if timeout error was hit
+        match self.process_manager.update(move |p| p.close(res)) {
+            ObjectValue::Primitive(PrimitiveValue::Error(e)) => Err(e),
+            o => Ok(o),
+        }
     }
 
     fn start_processes(&mut self) {

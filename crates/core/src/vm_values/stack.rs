@@ -1,8 +1,7 @@
-use crate::{ObjectValue, VMError};
+use crate::ObjectValue;
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::rc::Rc;
-use std::vec::IntoIter;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum StackValue {

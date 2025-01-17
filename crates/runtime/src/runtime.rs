@@ -1,9 +1,10 @@
 use crate::prepare::{Program, ProgramParser};
 use rigz_ast::{ParsedModule, Parser, ParserOptions, ParsingError, ValidationError};
-use rigz_core::{ObjectValue, TestResults, VMError};
+use rigz_core::{ObjectValue, PrimitiveValue, TestResults, VMError};
 use rigz_vm::{VMOptions, VM};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+use std::time::Duration;
 
 #[derive(Default, Debug, Clone)]
 pub struct RuntimeOptions {
@@ -88,6 +89,19 @@ impl Runtime<'_> {
         &mut self.parser.builder
     }
 
+    pub fn snapshot(&self) -> Result<Vec<u8>, RuntimeError> {
+        self.vm().snapshot().map_err(|e| e.into())
+    }
+
+    pub fn from_snapshot(bytes: Vec<u8>) -> Result<Runtime<'static>, RuntimeError> {
+        let mut runtime = Runtime::new();
+        runtime
+            .vm_mut()
+            .load_snapshot(bytes)
+            .map_err(|e| e.into())?;
+        Ok(runtime)
+    }
+
     pub fn new() -> Self {
         Runtime {
             parser: ProgramParser::new(),
@@ -151,6 +165,13 @@ impl Runtime<'_> {
         self.parser.builder.eval().map_err(|e| e.into())
     }
 
+    pub fn run_within(&mut self, duration: Duration) -> Result<ObjectValue, RuntimeError> {
+        self.parser
+            .builder
+            .run_within(duration)
+            .map_err(|e| e.into())
+    }
+
     pub fn test(&mut self) -> TestResults {
         self.parser.builder.test()
     }
@@ -158,6 +179,15 @@ impl Runtime<'_> {
     pub fn eval(&mut self, input: String) -> Result<ObjectValue, RuntimeError> {
         self.parser.repl(input)?;
         self.run()
+    }
+
+    pub fn eval_within(
+        &mut self,
+        input: String,
+        duration: Duration,
+    ) -> Result<ObjectValue, RuntimeError> {
+        self.parser.repl(input)?;
+        self.run_within(duration)
     }
 }
 
