@@ -1,4 +1,4 @@
-use crate::{PrimitiveValue, VMError};
+use crate::{AsPrimitive, PrimitiveValue, VMError};
 use std::ops::BitOr;
 
 impl BitOr for &PrimitiveValue {

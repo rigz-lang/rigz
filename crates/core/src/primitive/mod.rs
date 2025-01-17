@@ -71,7 +71,15 @@ impl From<()> for PrimitiveValue {
 
 impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
     fn rigz_type(&self) -> RigzType {
-        self.rigz_type()
+        match self {
+            PrimitiveValue::None => RigzType::None,
+            PrimitiveValue::Bool(_) => RigzType::Bool,
+            PrimitiveValue::Number(_) => RigzType::Number,
+            PrimitiveValue::String(_) => RigzType::String,
+            PrimitiveValue::Range(_) => RigzType::Range,
+            PrimitiveValue::Error(_) => RigzType::Error,
+            PrimitiveValue::Type(r) => r.clone(),
+        }
     }
 
     fn to_list(&self) -> Result<Vec<PrimitiveValue>, VMError> {
@@ -94,6 +102,36 @@ impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
         }
     }
 
+    #[inline]
+    fn to_number(&self) -> Result<Number, VMError> {
+        match self {
+            PrimitiveValue::None => Ok(Number::zero()),
+            PrimitiveValue::Bool(b) => {
+                let n = if *b { Number::one() } else { Number::zero() };
+                Ok(n)
+            }
+            PrimitiveValue::Number(n) => Ok(*n),
+            PrimitiveValue::String(s) => match s.parse() {
+                Ok(n) => Ok(n),
+                Err(e) => Err(VMError::ConversionError(format!(
+                    "Cannot convert {s} to Number: {e}"
+                ))),
+            },
+            v => Err(VMError::ConversionError(format!(
+                "Cannot convert {v} to Number"
+            ))),
+        }
+    }
+
+    fn as_number(&mut self) -> Result<&mut Number, VMError> {
+        if let PrimitiveValue::Number(m) = self {
+            return Ok(m);
+        }
+
+        *self = PrimitiveValue::Number(self.to_number()?);
+        self.as_number()
+    }
+
     fn to_bool(&self) -> bool {
         match self {
             PrimitiveValue::None => false,
@@ -113,7 +151,70 @@ impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
         }
     }
 
+    fn as_bool(&mut self) -> Result<&mut bool, VMError> {
+        if let PrimitiveValue::Bool(m) = self {
+            return Ok(m);
+        }
 
+        *self = PrimitiveValue::Bool(self.to_bool());
+        self.as_bool()
+    }
+
+    fn as_string(&mut self) -> Result<&mut String, VMError> {
+        if let PrimitiveValue::String(m) = self {
+            return Ok(m);
+        }
+
+        *self = PrimitiveValue::String(self.to_string());
+        self.as_string()
+    }
+
+    #[inline]
+    fn to_float(&self) -> Result<f64, VMError> {
+        Ok(self.to_number()?.to_float())
+    }
+
+    #[inline]
+    fn to_usize(&self) -> Result<usize, VMError> {
+        self.to_number()?.to_usize()
+    }
+
+    #[inline]
+    fn to_int(&self) -> Result<i64, VMError> {
+        Ok(self.to_number()?.to_int())
+    }
+
+    fn as_float(&mut self) -> Result<&mut f64, VMError> {
+        if let PrimitiveValue::Number(m) = self {
+            return match m {
+                Number::Int(_) => {
+                    *m = Number::Float(m.to_float());
+                    let Number::Float(f) = m else { unreachable!() };
+                    Ok(f)
+                }
+                Number::Float(f) => Ok(f),
+            };
+        }
+
+        *self = PrimitiveValue::Number(Number::Float(self.to_float()?));
+        self.as_float()
+    }
+
+    fn as_int(&mut self) -> Result<&mut i64, VMError> {
+        if let PrimitiveValue::Number(m) = self {
+            return match m {
+                Number::Int(i) => Ok(i),
+                Number::Float(_) => {
+                    *m = Number::Int(m.to_int());
+                    let Number::Int(i) = m else { unreachable!() };
+                    Ok(i)
+                }
+            };
+        }
+
+        *self = PrimitiveValue::Number(Number::Int(self.to_int()?));
+        self.as_int()
+    }
 }
 
 impl Eq for PrimitiveValue {}
@@ -154,27 +255,6 @@ impl Ord for PrimitiveValue {
 
 impl PrimitiveValue {
     #[inline]
-    pub fn to_number(&self) -> Result<Number, VMError> {
-        match self {
-            PrimitiveValue::None => Ok(Number::zero()),
-            PrimitiveValue::Bool(b) => {
-                let n = if *b { Number::one() } else { Number::zero() };
-                Ok(n)
-            }
-            PrimitiveValue::Number(n) => Ok(*n),
-            PrimitiveValue::String(s) => match s.parse() {
-                Ok(n) => Ok(n),
-                Err(e) => Err(VMError::ConversionError(format!(
-                    "Cannot convert {s} to Number: {e}"
-                ))),
-            },
-            v => Err(VMError::ConversionError(format!(
-                "Cannot convert {v} to Number"
-            ))),
-        }
-    }
-
-    #[inline]
     pub fn map<F, T>(&self, map: F) -> Option<T>
     where
         F: FnOnce(&Self) -> T,
@@ -195,113 +275,6 @@ impl PrimitiveValue {
             None
         } else {
             Some(map(self))
-        }
-    }
-
-    #[inline]
-    pub fn to_float(&self) -> Result<f64, VMError> {
-        Ok(self.to_number()?.to_float())
-    }
-
-    #[inline]
-    pub fn to_int(&self) -> Result<i64, VMError> {
-        Ok(self.to_number()?.to_int())
-    }
-
-    #[inline]
-    pub fn to_usize(&self) -> Result<usize, VMError> {
-        self.to_number()?.to_usize()
-    }
-
-    pub fn as_bool(&mut self) -> &mut bool {
-        if let PrimitiveValue::Bool(m) = self {
-            return m;
-        }
-
-        *self = PrimitiveValue::Bool(self.to_bool());
-        self.as_bool()
-    }
-
-    pub fn as_float(&mut self) -> Result<&mut f64, VMError> {
-        if let PrimitiveValue::Number(m) = self {
-            return match m {
-                Number::Int(_) => {
-                    *m = Number::Float(m.to_float());
-                    let Number::Float(f) = m else { unreachable!() };
-                    Ok(f)
-                }
-                Number::Float(f) => Ok(f),
-            };
-        }
-
-        *self = PrimitiveValue::Number(Number::Float(self.to_float()?));
-        self.as_float()
-    }
-
-    pub fn as_number(&mut self) -> Result<&mut Number, VMError> {
-        if let PrimitiveValue::Number(m) = self {
-            return Ok(m);
-        }
-
-        *self = PrimitiveValue::Number(self.to_number()?);
-        self.as_number()
-    }
-
-    pub fn as_int(&mut self) -> Result<&mut i64, VMError> {
-        if let PrimitiveValue::Number(m) = self {
-            return match m {
-                Number::Int(i) => Ok(i),
-                Number::Float(_) => {
-                    *m = Number::Int(m.to_int());
-                    let Number::Int(i) = m else { unreachable!() };
-                    Ok(i)
-                }
-            };
-        }
-
-        *self = PrimitiveValue::Number(Number::Int(self.to_int()?));
-        self.as_int()
-    }
-
-    pub fn as_string(&mut self) -> &mut String {
-        if let PrimitiveValue::String(m) = self {
-            return m;
-        }
-
-        *self = PrimitiveValue::String(self.to_string());
-        self.as_string()
-    }
-
-    #[inline]
-    pub fn to_bool(&self) -> bool {
-        match self {
-            PrimitiveValue::None => false,
-            PrimitiveValue::Error(_) => false,
-            PrimitiveValue::Type(_) => false,
-            PrimitiveValue::Bool(b) => *b,
-            PrimitiveValue::Number(n) => !n.is_zero(),
-            PrimitiveValue::String(s) => {
-                let empty = s.is_empty();
-                if empty {
-                    return false;
-                }
-
-                s.parse().unwrap_or(true)
-            }
-            PrimitiveValue::Range(r) => !r.is_empty(),
-        }
-    }
-
-    #[inline]
-    pub fn rigz_type(&self) -> RigzType {
-        match self {
-            PrimitiveValue::None => RigzType::None,
-            PrimitiveValue::Bool(_) => RigzType::Bool,
-            PrimitiveValue::Number(_) => RigzType::Number,
-            PrimitiveValue::String(_) => RigzType::String,
-            PrimitiveValue::Range(_) => RigzType::Range,
-            PrimitiveValue::Error(_) => RigzType::Error,
-            PrimitiveValue::Type(r) => r.clone(),
         }
     }
 }

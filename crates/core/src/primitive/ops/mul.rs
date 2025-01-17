@@ -1,4 +1,4 @@
-use crate::{Number, PrimitiveValue, VMError};
+use crate::{AsPrimitive, Number, PrimitiveValue, VMError};
 use std::ops::Mul;
 
 impl Mul for &PrimitiveValue {

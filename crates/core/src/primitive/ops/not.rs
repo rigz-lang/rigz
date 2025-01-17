@@ -1,4 +1,4 @@
-use crate::PrimitiveValue;
+use crate::{AsPrimitive, PrimitiveValue};
 use std::ops::Not;
 
 impl Not for &PrimitiveValue {
@@ -10,7 +10,7 @@ impl Not for &PrimitiveValue {
             PrimitiveValue::None => PrimitiveValue::Bool(true),
             PrimitiveValue::Bool(b) => PrimitiveValue::Bool(!b),
             PrimitiveValue::Error(e) => PrimitiveValue::Error(e.clone()),
-            v => PrimitiveValue::Bool(!v.to_bool()),
+            v => PrimitiveValue::Bool(v.to_bool().not()),
         }
     }
 }

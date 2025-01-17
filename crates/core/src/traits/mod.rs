@@ -171,7 +171,7 @@ pub trait AsPrimitive<T: Clone + AsPrimitive<T> + Default + Sized>: Display + De
         )))
     }
 
-    fn as_number(&self) -> Result<&mut Number, VMError> {
+    fn as_number(&mut self) -> Result<&mut Number, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "Cannot convert {self:?} to mut Number"
         )))
