@@ -2,7 +2,7 @@ pub mod from;
 mod ops;
 mod snapshot;
 
-use crate::{AsPrimitive, IndexMap, Object, PrimitiveValue, RigzType, VMError};
+use crate::{AsPrimitive, IndexMap, Number, Object, PrimitiveValue, RigzType, VMError};
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
@@ -316,6 +316,29 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
             ObjectValue::Map(m) => Ok(m.values().cloned().collect()),
             _ => Err(VMError::UnsupportedOperation(format!(
                 "Cannot convert {self} to List"
+            ))),
+        }
+    }
+
+    fn to_map(&self) -> Result<indexmap::IndexMap<ObjectValue, ObjectValue>, VMError> {
+        match self {
+            ObjectValue::Primitive(m) => Ok(m
+                .to_map()?
+                .into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect()),
+            ObjectValue::Map(m) => Ok(m.clone()),
+            ObjectValue::List(_) | ObjectValue::Tuple(_) => todo!(),
+            ObjectValue::Object(m) => m.to_map(),
+        }
+    }
+
+    fn to_number(&self) -> Result<Number, VMError> {
+        match self {
+            ObjectValue::Primitive(p) => p.to_number(),
+            ObjectValue::Object(m) => m.to_number(),
+            _ => Err(VMError::RuntimeError(format!(
+                "Cannot convert {self} to number"
             ))),
         }
     }
