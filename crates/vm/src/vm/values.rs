@@ -1,10 +1,8 @@
 use crate::vm::VM;
 use crate::Runner;
-use rigz_core::{ObjectValue, ResolveValue, Snapshot, VMError};
+use rigz_core::{ObjectValue, ResolveValue, VMError};
 use std::cell::RefCell;
-use std::fmt::Display;
 use std::rc::Rc;
-use std::vec::IntoIter;
 
 pub enum VMState {
     Running,

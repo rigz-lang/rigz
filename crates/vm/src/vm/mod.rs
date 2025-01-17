@@ -3,14 +3,14 @@ mod runner;
 mod values;
 
 use crate::call_frame::Frames;
-use crate::process::{ModulesMap, MutableReference, ProcessManager};
+use crate::process::{ModulesMap, ProcessManager};
 use crate::{
-    generate_builder, handle_js, out, CallFrame, Instruction, RigzBuilder, Runner, Scope, VMStack,
-    Variable,
+    generate_builder, out, CallFrame, Instruction, RigzBuilder, Runner, Scope, VMStack, Variable,
 };
 pub use options::VMOptions;
 use rigz_core::{
-    Lifecycle, Module, ObjectValue, PrimitiveValue, Snapshot, StackValue, TestResults, VMError,
+    Lifecycle, Module, MutableReference, ObjectValue, PrimitiveValue, Snapshot, StackValue,
+    TestResults, VMError,
 };
 use std::cell::RefCell;
 use std::collections::HashMap;

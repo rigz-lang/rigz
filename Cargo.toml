@@ -43,6 +43,7 @@ js = ["rigz_vm/js", "rigz_runtime/js"]
 clap = {version = "4.5", features = ["env", "derive"]}
 pretty_env_logger = "0.5.0"
 log.workspace = true
+rigz_core.workspace = true
 rigz_vm.workspace = true
 rigz_ast = {workspace = true, features = ["format"]}
 rigz_runtime.workspace = true

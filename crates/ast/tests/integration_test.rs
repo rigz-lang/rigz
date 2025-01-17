@@ -1,4 +1,5 @@
 use rigz_ast::*;
+use rigz_core::{BinaryOperation, CustomType, PrimitiveValue, RigzType};
 use wasm_bindgen_test::*;
 
 macro_rules! test_parse {

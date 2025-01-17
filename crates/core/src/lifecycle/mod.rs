@@ -1,4 +1,4 @@
-use crate::{ObjectValue, PrimitiveValue, Snapshot, VMError};
+use crate::{ObjectValue, Snapshot, VMError};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::ops::AddAssign;

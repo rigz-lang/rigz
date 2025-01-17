@@ -1,7 +1,5 @@
-use indexmap::map::Entry;
-use indexmap::IndexMap;
 use log_derive::{logfn, logfn_inputs};
-use rigz_core::{Snapshot, StackValue, VMError};
+use rigz_core::{IndexMap, IndexMapEntry, Snapshot, StackValue, VMError};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Index;
@@ -92,13 +90,13 @@ impl Frames {
     #[logfn_inputs(Trace, fmt = "load_let(frames={:#?} name={}, value={:?})")]
     pub fn load_let(&self, name: String, value: StackValue) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
-            Entry::Occupied(v) => {
+            IndexMapEntry::Occupied(v) => {
                 return Err(VMError::UnsupportedOperation(format!(
                     "Cannot overwrite let variable: {}",
                     *v.key()
                 )))
             }
-            Entry::Vacant(e) => {
+            IndexMapEntry::Vacant(e) => {
                 e.insert(Variable::Let(value));
             }
         }
@@ -121,7 +119,7 @@ impl Frames {
     #[logfn_inputs(Trace, fmt = "load_mut(frames={:#?} name={}, value={:?})")]
     pub fn load_mut(&self, name: String, value: StackValue) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
-            Entry::Occupied(mut var) => match var.get() {
+            IndexMapEntry::Occupied(mut var) => match var.get() {
                 Variable::Let(_) => {
                     return Err(VMError::UnsupportedOperation(format!(
                         "Cannot overwrite let variable: {}",
@@ -132,7 +130,7 @@ impl Frames {
                     var.insert(Variable::Mut(value));
                 }
             },
-            Entry::Vacant(e) => {
+            IndexMapEntry::Vacant(e) => {
                 e.insert(Variable::Mut(value));
             }
         }

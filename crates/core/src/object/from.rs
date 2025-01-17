@@ -1,4 +1,4 @@
-use crate::{IndexMap, Number, ObjectValue, PrimitiveValue, VMError};
+use crate::{IndexMap, ObjectValue, PrimitiveValue, VMError};
 use std::cell::RefCell;
 use std::rc::Rc;
 

@@ -4,6 +4,9 @@ use crate::RuntimeError;
 use log::Level;
 pub use program::Program;
 use rigz_ast::*;
+use rigz_core::{
+    IndexMap, IndexMapEntry, Lifecycle, Number, ObjectValue, PrimitiveValue, RigzType,
+};
 use rigz_vm::{Instruction, LoadValue, RigzBuilder, VMBuilder, VM};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;

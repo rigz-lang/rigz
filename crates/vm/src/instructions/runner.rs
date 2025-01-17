@@ -1,11 +1,8 @@
-use crate::{
-    err, errln, handle_js, out, outln, CallFrame, Instruction, Reference, Scope, VMOptions, VMState,
-};
-use indexmap::IndexMap;
+use crate::{err, errln, out, outln, CallFrame, Instruction, Scope, VMOptions, VMState};
 use log::log;
 use rigz_core::{
-    AsPrimitive, BinaryOperation, Logical, Module, Number, ObjectValue, PrimitiveValue,
-    ResolveValue, Reverse, StackValue, UnaryOperation, VMError,
+    AsPrimitive, BinaryOperation, IndexMap, Logical, Module, Number, ObjectValue, PrimitiveValue,
+    Reference, ResolveValue, Reverse, StackValue, UnaryOperation, VMError,
 };
 use std::cell::RefCell;
 use std::fmt::Display;

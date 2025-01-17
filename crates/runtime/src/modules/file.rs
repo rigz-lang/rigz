@@ -1,5 +1,6 @@
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
+use rigz_core::*;
 
 derive_module! {
     r#"trait File

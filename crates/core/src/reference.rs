@@ -1,6 +1,12 @@
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
+#[cfg(feature = "threaded")]
+pub type Reference<T> = std::sync::Arc<T>;
+
+#[cfg(not(feature = "threaded"))]
+pub type Reference<T> = std::rc::Rc<T>;
+
 #[derive(Debug)]
 pub struct MutableReference<T: Debug>(
     #[cfg(feature = "threaded")] std::sync::Arc<std::sync::RwLock<T>>,

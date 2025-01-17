@@ -1,7 +1,6 @@
 use crate::prepare::{CallSignature, FunctionCallSignatures, ProgramParser};
-use crate::{RigzType, UnaryOperation};
 use rigz_ast::{Element, Expression, FunctionExpression, Scope, ValidationError};
-use rigz_core::AsPrimitive;
+use rigz_core::{AsPrimitive, RigzType, UnaryOperation};
 use rigz_vm::RigzBuilder;
 use std::cmp::Ordering;
 use std::collections::HashSet;

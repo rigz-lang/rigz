@@ -1,6 +1,7 @@
 use itertools::Itertools;
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
+use rigz_core::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 

@@ -2,8 +2,6 @@ use rigz_ast::*;
 use rigz_ast_derive::derive_module;
 use rigz_core::*;
 use std::cell::RefCell;
-use std::fmt::Display;
-use std::hash::Hash;
 use std::rc::Rc;
 
 // todo figure this out later
@@ -289,7 +287,6 @@ impl RigzJSON for JSONModule {
     }
 }
 
-use serde::{Deserialize, Serialize};
 use wasm_bindgen_test::*;
 
 #[wasm_bindgen_test(unsupported = test)]

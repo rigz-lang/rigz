@@ -1,6 +1,6 @@
 use crate::utils::{current_dir, path_to_string, read_rigz_files};
 use clap::Args;
-use rigz_ast::{Lifecycle, TestResults, VMError};
+use rigz_core::{Lifecycle, TestResults, VMError};
 use rigz_runtime::Runtime;
 use std::fs::read_to_string;
 use std::path::PathBuf;

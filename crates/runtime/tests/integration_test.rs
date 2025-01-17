@@ -1,5 +1,5 @@
 pub mod runtime {
-    use rigz_ast::{PrimitiveValue, VMError};
+    use rigz_core::{PrimitiveValue, VMError};
     #[allow(unused_imports)] // used by macro
     use rigz_runtime::runtime::{eval, eval_print_vm};
     use rigz_runtime::RuntimeError;
@@ -89,6 +89,7 @@ pub mod runtime {
 
     pub mod invalid {
         use super::*;
+        use rigz_core::VMError;
 
         run_invalid! {
             // last statement must be an expression
@@ -124,8 +125,7 @@ pub mod runtime {
 
     pub mod valid {
         use super::*;
-        use rigz_ast::IndexMap;
-        use rigz_core::ObjectValue;
+        use rigz_core::{IndexMap, ObjectValue};
 
         run_expected! {
             raw_value("'Hello World'" = "Hello World")
@@ -513,7 +513,6 @@ pub mod runtime {
         run_debug_vm! {}
     }
 
-    #[ignore]
     pub mod recursive {
         use super::*;
         run_expected! {

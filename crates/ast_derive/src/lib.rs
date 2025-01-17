@@ -3,8 +3,9 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use rigz_ast::{FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser, RigzType};
+use rigz_ast::{FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser};
 use rigz_core::derive::{rigz_type_to_rust_str, Tokens};
+use rigz_core::RigzType;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use syn::parse::{Parse, ParseStream};
@@ -298,6 +299,8 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
 
     final_definition(full, module, module_methods, module_def, has_vm)
 }
+
+struct DeriveObject {}
 
 #[proc_macro]
 pub fn derive_object(input: TokenStream) -> TokenStream {

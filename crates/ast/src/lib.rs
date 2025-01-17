@@ -22,7 +22,7 @@ pub use program::{
     ModuleTraitDefinition, Program, RigzArguments, Scope, Statement, TraitDefinition,
 };
 
-pub use rigz_core::*;
+use rigz_core::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::VecDeque;
 use std::fmt::Debug;

@@ -1,8 +1,8 @@
 mod runner;
 
-use crate::process::{ModulesMap, MutableReference, ProcessManager};
+use crate::process::{ModulesMap, ProcessManager};
 use crate::{Scope, VMOptions};
-use rigz_core::ObjectValue;
+use rigz_core::{MutableReference, ObjectValue};
 use runner::ProcessRunner;
 
 #[derive(Debug)]

@@ -1,6 +1,6 @@
 use clap::Args;
-use rigz_ast::ObjectValue;
-use rigz_runtime::{PrimitiveValue, Runtime, RuntimeError, VMError};
+use rigz_core::{ObjectValue, VMError};
+use rigz_runtime::{Runtime, RuntimeError};
 use rustyline::completion::Completer;
 use rustyline::hint::Hinter;
 use rustyline::validate::Validator;

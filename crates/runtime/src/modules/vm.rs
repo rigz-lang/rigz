@@ -1,4 +1,5 @@
 use rigz_ast::*;
+use rigz_core::*;
 use rigz_ast_derive::derive_module;
 
 derive_module! {

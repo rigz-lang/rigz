@@ -1,11 +1,11 @@
 use crate::call_frame::{CallFrame, Frames};
-use crate::process::{ModulesMap, MutableReference, ProcessManager};
+use crate::process::{ModulesMap, ProcessManager};
 use crate::{
     runner_common, Instruction, ResolvedModule, Runner, Scope, VMOptions, VMStack, VMState,
     Variable,
 };
 use log_derive::{logfn, logfn_inputs};
-use rigz_core::{ObjectValue, ResolveValue, StackValue, VMError};
+use rigz_core::{MutableReference, ObjectValue, ResolveValue, StackValue, VMError};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Deref;
