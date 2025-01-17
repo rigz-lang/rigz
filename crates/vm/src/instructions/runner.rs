@@ -379,6 +379,7 @@ pub trait Runner: ResolveValue {
     //     args: usize,
     // ) -> Result<ObjectValue, VMError>;
 
+    // todo this should always be interruptible (if called by run_within, amount of time slept should be removed)
     fn sleep(&self, duration: Duration);
 
     #[allow(unused_variables)]
