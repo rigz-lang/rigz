@@ -1,5 +1,7 @@
 pub mod from;
 mod ops;
+
+#[cfg(feature = "snapshot")]
 mod snapshot;
 
 use crate::{AsPrimitive, IndexMap, Number, Object, PrimitiveValue, RigzType, VMError};

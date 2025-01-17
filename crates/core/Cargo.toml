@@ -8,6 +8,7 @@ default = []
 colors = []
 derive = ["dep:proc-macro2", "dep:quote"]
 serde = ["dep:serde", "indexmap/serde", "dep:typetag"]
+snapshot = []
 threaded = []
 
 [dependencies]

@@ -1,10 +1,10 @@
 mod dyn_traits;
+#[cfg(feature = "snapshot")]
 mod snapshot;
 
 use crate::{Number, ObjectValue, RigzArgs, RigzType, VMError};
 use dyn_clone::DynClone;
 use indexmap::IndexMap;
-pub use snapshot::Snapshot;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
@@ -13,6 +13,9 @@ use std::rc::Rc;
 use std::vec::IntoIter;
 
 pub use dyn_traits::*;
+
+#[cfg(feature = "snapshot")]
+pub use snapshot::Snapshot;
 
 pub trait Definition {
     fn name(&self) -> &'static str;
@@ -121,7 +124,8 @@ impl PartialOrd<&Self> for Box<dyn Object> {
     }
 }
 
-// first pass will use serde to read/write from bytes
+// todo first pass will use serde to read/write from bytes
+#[cfg(feature = "snapshot")]
 impl Snapshot for Box<dyn Object + '_> {
     fn as_bytes(&self) -> Vec<u8> {
         todo!()

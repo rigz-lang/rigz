@@ -1,6 +1,7 @@
 mod error;
 
 mod ops;
+#[cfg(feature = "snapshot")]
 mod snapshot;
 mod value_range;
 
