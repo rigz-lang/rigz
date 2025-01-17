@@ -1,5 +1,4 @@
-use crate::vm::Snapshot;
-use crate::VMError;
+use rigz_core::{Snapshot, VMError};
 use std::fmt::Display;
 use std::vec::IntoIter;
 
@@ -51,7 +50,7 @@ impl Snapshot for VMOptions {
 #[cfg(test)]
 pub mod tests {
     use crate::vm::VMOptions;
-    use crate::Snapshot;
+    use rigz_core::Snapshot;
     use wasm_bindgen_test::*;
 
     #[wasm_bindgen_test(unsupported = test)]

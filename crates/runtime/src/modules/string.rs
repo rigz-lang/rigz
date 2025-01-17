@@ -15,7 +15,7 @@ end"#
 }
 
 impl RigzString for StringModule {
-    fn mut_string_push(&self, this: &mut String, value: Value) {
+    fn mut_string_push(&self, this: &mut String, value: ObjectValue) {
         this.push_str(value.to_string().as_str())
     }
 
@@ -25,7 +25,7 @@ impl RigzString for StringModule {
         this
     }
 
-    fn string_with(&self, this: String, value: Vec<Value>) -> String {
+    fn string_with(&self, this: String, value: Vec<ObjectValue>) -> String {
         let mut this = this;
         for v in value {
             this.push_str(v.to_string().as_str())

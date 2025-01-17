@@ -1,9 +1,9 @@
 mod runner;
 
-use crate::objects::RigzType;
-use crate::vm::StackValue;
-use crate::{BinaryOperation, Snapshot, UnaryOperation, VMError, Value};
 use log::Level;
+use rigz_core::{
+    BinaryOperation, ObjectValue, RigzType, Snapshot, StackValue, UnaryOperation, VMError,
+};
 pub use runner::{ResolvedModule, Runner};
 use std::fmt::Display;
 use std::vec::IntoIter;
@@ -71,7 +71,7 @@ impl Snapshot for VMCallSite {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum VMArg {
     Type(RigzType),
-    Value(Value),
+    Value(ObjectValue),
 }
 
 impl Snapshot for VMArg {
@@ -116,7 +116,7 @@ impl Snapshot for VMArg {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LoadValue {
     ScopeId(usize),
-    Value(Value),
+    Value(ObjectValue),
     Constant(usize),
 }
 
@@ -159,7 +159,7 @@ impl Snapshot for LoadValue {
     }
 }
 
-impl<T: Into<Value>> From<T> for LoadValue {
+impl<T: Into<ObjectValue>> From<T> for LoadValue {
     #[inline]
     fn from(value: T) -> Self {
         LoadValue::Value(value.into())
@@ -232,11 +232,11 @@ pub enum Instruction {
         func: String,
         args: usize,
     },
-    CallVMExtension {
-        module: String,
-        func: String,
-        args: usize,
-    },
+    // CallVMExtension {
+    //     module: String,
+    //     func: String,
+    //     args: usize,
+    // },
     ForList {
         scope: usize,
     },
@@ -255,43 +255,6 @@ pub enum Instruction {
     InsertAtInstruction(usize, usize, Box<Instruction>),
     UpdateInstruction(usize, usize, Box<Instruction>),
     RemoveInstruction(usize, usize),
-}
-
-impl Snapshot for Level {
-    fn as_bytes(&self) -> Vec<u8> {
-        match self {
-            Level::Error => vec![0],
-            Level::Warn => vec![1],
-            Level::Info => vec![2],
-            Level::Debug => vec![3],
-            Level::Trace => vec![4],
-        }
-    }
-
-    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
-        let next = match bytes.next() {
-            None => {
-                return Err(VMError::RuntimeError(format!(
-                    "Missing Level byte {location}"
-                )))
-            }
-            Some(b) => b,
-        };
-
-        let l = match next {
-            0 => Level::Error,
-            1 => Level::Warn,
-            2 => Level::Info,
-            3 => Level::Debug,
-            4 => Level::Trace,
-            b => {
-                return Err(VMError::RuntimeError(format!(
-                    "Illegal Level byte {b} {location}"
-                )))
-            }
-        };
-        Ok(l)
-    }
 }
 
 impl Snapshot for Instruction {
@@ -454,13 +417,13 @@ impl Snapshot for Instruction {
                 res.extend(args.as_bytes());
                 res
             }
-            Instruction::CallVMExtension { module, func, args } => {
-                let mut res = vec![33];
-                res.extend(Snapshot::as_bytes(module));
-                res.extend(Snapshot::as_bytes(func));
-                res.extend(args.as_bytes());
-                res
-            }
+            // Instruction::CallVMExtension { module, func, args } => {
+            //     let mut res = vec![33];
+            //     res.extend(Snapshot::as_bytes(module));
+            //     res.extend(Snapshot::as_bytes(func));
+            //     res.extend(args.as_bytes());
+            //     res
+            // }
             Instruction::ForList { scope } => {
                 let mut res = vec![34];
                 res.extend(scope.as_bytes());
@@ -592,11 +555,11 @@ impl Snapshot for Instruction {
                 func: Snapshot::from_bytes(bytes, location)?,
                 args: Snapshot::from_bytes(bytes, location)?,
             },
-            33 => Instruction::CallVMExtension {
-                module: Snapshot::from_bytes(bytes, location)?,
-                func: Snapshot::from_bytes(bytes, location)?,
-                args: Snapshot::from_bytes(bytes, location)?,
-            },
+            // 33 => Instruction::CallVMExtension {
+            //     module: Snapshot::from_bytes(bytes, location)?,
+            //     func: Snapshot::from_bytes(bytes, location)?,
+            //     args: Snapshot::from_bytes(bytes, location)?,
+            // },
             34 => Instruction::ForList {
                 scope: Snapshot::from_bytes(bytes, location)?,
             },

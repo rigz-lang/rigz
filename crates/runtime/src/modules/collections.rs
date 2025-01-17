@@ -89,19 +89,19 @@ derive_module! {
 }
 
 impl RigzCollections for CollectionsModule {
-    fn mut_list_extend(&self, this: &mut Vec<Value>, value: Vec<Value>) {
+    fn mut_list_extend(&self, this: &mut Vec<ObjectValue>, value: Vec<ObjectValue>) {
         this.extend(value)
     }
 
-    fn mut_list_clear(&self, this: &mut Vec<Value>) {
+    fn mut_list_clear(&self, this: &mut Vec<ObjectValue>) {
         this.clear()
     }
 
-    fn mut_list_sort(&self, this: &mut Vec<Value>) {
+    fn mut_list_sort(&self, this: &mut Vec<ObjectValue>) {
         this.sort()
     }
 
-    fn mut_map_sort(&self, this: &mut IndexMap<Value, Value>) {
+    fn mut_map_sort(&self, this: &mut IndexMap<ObjectValue, ObjectValue>) {
         *this = this
             .into_iter()
             .sorted()
@@ -109,28 +109,35 @@ impl RigzCollections for CollectionsModule {
             .collect();
     }
 
-    fn list_split_first(&self, this: Vec<Value>) -> (Option<Value>, Vec<Value>) {
+    fn list_split_first(&self, this: Vec<ObjectValue>) -> (Option<ObjectValue>, Vec<ObjectValue>) {
         match this.split_first() {
             None => (None, vec![]),
             Some((s, rest)) => (Some(s.clone()), rest.to_vec()),
         }
     }
 
-    fn list_split_last(&self, this: Vec<Value>) -> (Option<Value>, Vec<Value>) {
+    fn list_split_last(&self, this: Vec<ObjectValue>) -> (Option<ObjectValue>, Vec<ObjectValue>) {
         match this.split_last() {
             None => (None, vec![]),
             Some((s, rest)) => (Some(s.clone()), rest.to_vec()),
         }
     }
 
-    fn list_zip(&self, this: Vec<Value>, other: Vec<Value>) -> IndexMap<Value, Value> {
+    fn list_zip(
+        &self,
+        this: Vec<ObjectValue>,
+        other: Vec<ObjectValue>,
+    ) -> IndexMap<ObjectValue, ObjectValue> {
         this.into_iter().zip(other).collect()
     }
 
     fn map_split_first(
         &self,
-        this: IndexMap<Value, Value>,
-    ) -> (Option<(Value, Value)>, IndexMap<Value, Value>) {
+        this: IndexMap<ObjectValue, ObjectValue>,
+    ) -> (
+        Option<(ObjectValue, ObjectValue)>,
+        IndexMap<ObjectValue, ObjectValue>,
+    ) {
         if this.is_empty() {
             (None, IndexMap::new())
         } else {
@@ -147,8 +154,11 @@ impl RigzCollections for CollectionsModule {
 
     fn map_split_last(
         &self,
-        this: IndexMap<Value, Value>,
-    ) -> (Option<(Value, Value)>, IndexMap<Value, Value>) {
+        this: IndexMap<ObjectValue, ObjectValue>,
+    ) -> (
+        Option<(ObjectValue, ObjectValue)>,
+        IndexMap<ObjectValue, ObjectValue>,
+    ) {
         if this.is_empty() {
             (None, IndexMap::new())
         } else {
@@ -165,69 +175,78 @@ impl RigzCollections for CollectionsModule {
         }
     }
 
-    fn list_to_tuple(&self, this: Vec<Value>) -> Value {
-        Value::Tuple(this)
+    fn list_to_tuple(&self, this: Vec<ObjectValue>) -> ObjectValue {
+        ObjectValue::Tuple(this)
     }
 
-    fn list_first(&self, this: Vec<Value>) -> Option<Value> {
+    fn list_first(&self, this: Vec<ObjectValue>) -> Option<ObjectValue> {
         this.first().cloned()
     }
 
-    fn list_last(&self, this: Vec<Value>) -> Option<Value> {
+    fn list_last(&self, this: Vec<ObjectValue>) -> Option<ObjectValue> {
         this.last().cloned()
     }
 
-    fn mut_list_push(&self, this: &mut Vec<Value>, value: Vec<Value>) {
+    fn mut_list_push(&self, this: &mut Vec<ObjectValue>, value: Vec<ObjectValue>) {
         this.extend(value)
     }
 
-    fn list_concat(&self, this: Vec<Value>, value: Vec<Value>) -> Vec<Value> {
+    fn list_concat(&self, this: Vec<ObjectValue>, value: Vec<ObjectValue>) -> Vec<ObjectValue> {
         let mut this = this;
         this.extend(value);
         this
     }
 
-    fn list_with(&self, this: Vec<Value>, value: Vec<Value>) -> Vec<Value> {
+    fn list_with(&self, this: Vec<ObjectValue>, value: Vec<ObjectValue>) -> Vec<ObjectValue> {
         let mut this = this;
         this.extend(value);
         this
     }
 
-    fn mut_map_extend(&self, this: &mut IndexMap<Value, Value>, value: IndexMap<Value, Value>) {
+    fn mut_map_extend(
+        &self,
+        this: &mut IndexMap<ObjectValue, ObjectValue>,
+        value: IndexMap<ObjectValue, ObjectValue>,
+    ) {
         this.extend(value)
     }
 
-    fn mut_map_clear(&self, this: &mut IndexMap<Value, Value>) {
+    fn mut_map_clear(&self, this: &mut IndexMap<ObjectValue, ObjectValue>) {
         this.clear()
     }
 
-    fn map_first(&self, this: IndexMap<Value, Value>) -> Option<Value> {
+    fn map_first(&self, this: IndexMap<ObjectValue, ObjectValue>) -> Option<ObjectValue> {
         this.first().map(|(_, v)| v.clone())
     }
 
-    fn map_last(&self, this: IndexMap<Value, Value>) -> Option<Value> {
+    fn map_last(&self, this: IndexMap<ObjectValue, ObjectValue>) -> Option<ObjectValue> {
         this.last().map(|(_, v)| v.clone())
     }
 
     fn map_get_index(
         &self,
-        this: IndexMap<Value, Value>,
+        this: IndexMap<ObjectValue, ObjectValue>,
         number: Number,
-    ) -> Result<Option<(Value, Value)>, VMError> {
+    ) -> Result<Option<(ObjectValue, ObjectValue)>, VMError> {
         let index = number.to_usize()?;
         Ok(this.get_index(index).map(|(k, v)| (k.clone(), v.clone())))
     }
 
-    fn mut_map_insert(&self, this: &mut IndexMap<Value, Value>, key: Value, value: Value) {
+    fn mut_map_insert(
+        &self,
+        this: &mut IndexMap<ObjectValue, ObjectValue>,
+        key: ObjectValue,
+        value: ObjectValue,
+    ) {
         this.insert(key, value);
     }
 
     fn map_with(
         &self,
-        this: IndexMap<Value, Value>,
-        key: Vec<Value>,
-        value: Vec<Value>,
-    ) -> IndexMap<Value, Value> {
+        this: IndexMap<ObjectValue, ObjectValue>,
+        key: Vec<ObjectValue>,
+        value: Vec<ObjectValue>,
+    ) -> IndexMap<ObjectValue, ObjectValue> {
         let mut this = this;
         for (k, v) in key.into_iter().zip(value.into_iter()) {
             this.insert(k, v);
@@ -237,25 +256,25 @@ impl RigzCollections for CollectionsModule {
 
     fn map_concat(
         &self,
-        this: IndexMap<Value, Value>,
-        value: IndexMap<Value, Value>,
-    ) -> IndexMap<Value, Value> {
+        this: IndexMap<ObjectValue, ObjectValue>,
+        value: IndexMap<ObjectValue, ObjectValue>,
+    ) -> IndexMap<ObjectValue, ObjectValue> {
         let mut this = this;
         this.extend(value);
         this
     }
 
-    fn map_entries(&self, this: IndexMap<Value, Value>) -> Vec<Value> {
+    fn map_entries(&self, this: IndexMap<ObjectValue, ObjectValue>) -> Vec<ObjectValue> {
         this.into_iter()
-            .map(|(k, v)| Value::Tuple(vec![k, v]))
+            .map(|(k, v)| ObjectValue::Tuple(vec![k, v]))
             .collect()
     }
 
-    fn map_keys(&self, this: IndexMap<Value, Value>) -> Vec<Value> {
+    fn map_keys(&self, this: IndexMap<ObjectValue, ObjectValue>) -> Vec<ObjectValue> {
         this.keys().cloned().collect()
     }
 
-    fn map_values(&self, this: IndexMap<Value, Value>) -> Vec<Value> {
+    fn map_values(&self, this: IndexMap<ObjectValue, ObjectValue>) -> Vec<ObjectValue> {
         this.values().cloned().collect()
     }
 }

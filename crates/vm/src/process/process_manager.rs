@@ -1,6 +1,7 @@
 use crate::process::{MutableReference, Process};
-use crate::{Lifecycle, ModulesMap, Reference, Scope, VMError, VMOptions, Value, VM};
+use crate::{ModulesMap, Reference, Scope, VMOptions, VM};
 use log::warn;
+use rigz_core::{AsPrimitive, Lifecycle, ObjectValue, VMError};
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
@@ -26,8 +27,10 @@ pub(crate) struct ProcessManager {
 }
 
 #[cfg(feature = "threaded")]
-pub(crate) type SpawnedProcesses =
-    Vec<(Reference<Process>, Option<tokio::task::JoinHandle<Value>>)>;
+pub(crate) type SpawnedProcesses = Vec<(
+    Reference<Process>,
+    Option<tokio::task::JoinHandle<ObjectValue>>,
+)>;
 
 #[cfg(not(feature = "threaded"))]
 pub(crate) type SpawnedProcesses = Vec<Reference<Process>>;
@@ -36,9 +39,12 @@ pub(crate) type SpawnedProcesses = Vec<Reference<Process>>;
 fn run_process(
     handle: &tokio::runtime::Handle,
     id: usize,
-    running: &mut (Reference<Process>, Option<tokio::task::JoinHandle<Value>>),
-    args: Vec<Value>,
-) -> Value {
+    running: &mut (
+        Reference<Process>,
+        Option<tokio::task::JoinHandle<ObjectValue>>,
+    ),
+    args: Vec<ObjectValue>,
+) -> ObjectValue {
     let (p, running) = running;
     let p = p.clone();
     let current = running.take();
@@ -52,7 +58,7 @@ fn run_process(
         }
     };
     *running = Some(t);
-    Value::Number((id as i64).into())
+    (id as i64).into()
 }
 
 impl ProcessManager {
@@ -93,7 +99,7 @@ impl ProcessManager {
     pub(crate) fn spawn(
         &mut self,
         scope: Scope,
-        args: Vec<Value>,
+        args: Vec<ObjectValue>,
         options: VMOptions,
         modules: ModulesMap,
         timeout: Option<usize>,
@@ -117,7 +123,10 @@ impl ProcessManager {
     }
 
     #[cfg(feature = "threaded")]
-    pub(crate) fn send(&mut self, args: Vec<Rc<RefCell<Value>>>) -> Result<Value, VMError> {
+    pub(crate) fn send(
+        &mut self,
+        args: Vec<Rc<RefCell<ObjectValue>>>,
+    ) -> Result<ObjectValue, VMError> {
         let mut args = args.into_iter().map(|v| v.borrow().clone());
         // todo message or pid
         let message = args.next().unwrap().to_string();
@@ -143,11 +152,17 @@ impl ProcessManager {
     }
 
     #[cfg(not(feature = "threaded"))]
-    pub(crate) fn send(&mut self, args: Vec<Rc<RefCell<Value>>>) -> Result<Value, VMError> {
+    pub(crate) fn send(
+        &mut self,
+        args: Vec<Rc<RefCell<ObjectValue>>>,
+    ) -> Result<ObjectValue, VMError> {
         todo!()
     }
 
-    pub(crate) fn receive(&mut self, args: Vec<Rc<RefCell<Value>>>) -> Result<Value, VMError> {
+    pub(crate) fn receive(
+        &mut self,
+        args: Vec<Rc<RefCell<ObjectValue>>>,
+    ) -> Result<ObjectValue, VMError> {
         let mut args = args.into_iter().map(|v| v.borrow().clone());
         let v = args.next().unwrap();
 
@@ -158,7 +173,7 @@ impl ProcessManager {
         };
 
         let v = match v {
-            Value::List(val) => {
+            ObjectValue::List(val) => {
                 let mut res = Vec::with_capacity(val.len());
                 for v in val {
                     let r = match v.to_usize() {
@@ -178,7 +193,7 @@ impl ProcessManager {
     }
 
     #[cfg(feature = "threaded")]
-    fn handle_receive(&mut self, pid: usize, timeout: Option<usize>) -> Value {
+    fn handle_receive(&mut self, pid: usize, timeout: Option<usize>) -> ObjectValue {
         match self.processes.get_mut(pid) {
             None => VMError::RuntimeError(format!("Process {pid} does not exist")).into(),
             Some((p, t)) => {
@@ -219,12 +234,12 @@ impl ProcessManager {
     }
 
     #[cfg(not(feature = "threaded"))]
-    fn handle_receive(&mut self, pid: usize, timeout: Option<usize>) -> Value {
+    fn handle_receive(&mut self, pid: usize, timeout: Option<usize>) -> ObjectValue {
         todo!()
     }
 
     #[cfg(feature = "threaded")]
-    pub(crate) fn close(&mut self, result: Value) -> Value {
+    pub(crate) fn close(&mut self, result: ObjectValue) -> ObjectValue {
         let mut errors: Vec<VMError> = vec![];
         for (id, (_, handle)) in self.processes.drain(..).enumerate() {
             match handle {
@@ -260,7 +275,7 @@ impl ProcessManager {
     }
 
     #[cfg(not(feature = "threaded"))]
-    pub(crate) fn close(&mut self, result: Value) -> Value {
+    pub(crate) fn close(&mut self, result: ObjectValue) -> ObjectValue {
         result
     }
 

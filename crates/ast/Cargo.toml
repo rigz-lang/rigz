@@ -9,17 +9,16 @@ repository = "https://gitlab.com/inapinch/rigz/crates/ast"
 keywords = ["rigz", "ast"]
 
 [features]
-default = ["rigz_vm/threaded"]
-derive = ["dep:proc-macro2", "dep:quote", "rigz_vm/derive"]
+default = []
+derive = ["dep:proc-macro2", "dep:quote", "rigz_core/derive"]
 format = []
-js = ["rigz_vm/js"]
-threaded = ["rigz_vm/threaded"]
 
 [dependencies]
+rustc-hash = "2.1.0"
 logos = "0.15"
 quote = { version = "1", optional = true }
 proc-macro2 = { version = "1.0", optional = true }
-rigz_vm.workspace = true
+rigz_core.workspace = true
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

@@ -1,10 +1,11 @@
 use crate::call_frame::{CallFrame, Frames};
 use crate::process::{ModulesMap, MutableReference, ProcessManager};
 use crate::{
-    runner_common, Instruction, ResolveValue, ResolvedModule, Runner, Scope, StackValue, VMError,
-    VMOptions, VMStack, VMState, Value, Variable,
+    runner_common, Instruction, ResolvedModule, Runner, Scope, VMOptions, VMStack, VMState,
+    Variable,
 };
 use log_derive::{logfn, logfn_inputs};
+use rigz_core::{ObjectValue, ResolveValue, StackValue, VMError};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Deref;
@@ -26,19 +27,21 @@ impl ResolveValue for ProcessRunner<'_> {
         "Process"
     }
 
-    fn handle_scope(&mut self, scope: usize) -> Rc<RefCell<Value>> {
-        VMError::todo("Process does not implement `handle_scope`").into()
+    fn handle_scope(&mut self, scope: usize) -> Rc<RefCell<ObjectValue>> {
+        let o: ObjectValue = VMError::todo("Process does not implement `handle_scope`").into();
+        o.into()
     }
 
-    fn get_constant(&self, constant_id: usize) -> Rc<RefCell<Value>> {
-        VMError::todo("Process does not implement `get_constant`").into()
+    fn get_constant(&self, constant_id: usize) -> Rc<RefCell<ObjectValue>> {
+        let o: ObjectValue = VMError::todo("Process does not implement `get_constant`").into();
+        o.into()
     }
 }
 
 impl<'s> ProcessRunner<'s> {
     pub(crate) fn new(
         scope: &'s Scope,
-        args: Vec<Value>,
+        args: Vec<ObjectValue>,
         options: &'s VMOptions,
         modules: ModulesMap,
         process_manager: MutableReference<ProcessManager>,
@@ -96,18 +99,18 @@ impl Runner for ProcessRunner<'_> {
         module: ResolvedModule,
         func: String,
         args: usize,
-    ) -> Result<Value, VMError> {
+    ) -> Result<ObjectValue, VMError> {
         Err(VMError::todo("Process does not implement `call`"))
     }
 
-    fn vm_extension(
-        &mut self,
-        module: ResolvedModule,
-        func: String,
-        args: usize,
-    ) -> Result<Value, VMError> {
-        Err(VMError::todo("Process does not implement `vm_extension`"))
-    }
+    // fn vm_extension(
+    //     &mut self,
+    //     module: ResolvedModule,
+    //     func: String,
+    //     args: usize,
+    // ) -> Result<ObjectValue, VMError> {
+    //     Err(VMError::todo("Process does not implement `vm_extension`"))
+    // }
 
     fn sleep(&self, duration: Duration) {
         #[cfg(feature = "threaded")]
@@ -120,7 +123,7 @@ impl Runner for ProcessRunner<'_> {
 }
 
 impl ProcessRunner<'_> {
-    pub fn run(&mut self) -> Value {
+    pub fn run(&mut self) -> ObjectValue {
         for (arg, mutable) in self.scope.args.clone() {
             let v = if mutable {
                 self.load_mut(arg)
@@ -150,8 +153,6 @@ impl ProcessRunner<'_> {
                 VMState::Done(v) | VMState::Ran(v) => return v.borrow().clone(),
             }
         }
-        Value::Error(VMError::RuntimeError(
-            "No return found in scope".to_string(),
-        ))
+        VMError::RuntimeError("No return found in scope".to_string()).into()
     }
 }

@@ -1,6 +1,8 @@
 # rigz_ast_derive
 
-Generate a trait, Module impl, and ParsedModule impl for static rigz input at compile time, otherwise modules are parsed and validated at runtime.
+**AST Derive is built under the assumption that ObjectValue from [rigz_value](https://crates.io/crates/rigz_value) will be used.**
+
+Generate a trait, Object impl, and ParsedObject impl for static rigz input at compile time, otherwise modules are parsed and validated at runtime.
 
 ## Example
 

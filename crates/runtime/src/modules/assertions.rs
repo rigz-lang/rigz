@@ -25,7 +25,12 @@ impl RigzAssertions for AssertionsModule {
         Ok(())
     }
 
-    fn assert_eq(&self, lhs: Value, rhs: Value, message: String) -> Result<(), VMError> {
+    fn assert_eq(
+        &self,
+        lhs: ObjectValue,
+        rhs: ObjectValue,
+        message: String,
+    ) -> Result<(), VMError> {
         if lhs == rhs {
             return Ok(());
         }
@@ -40,7 +45,12 @@ impl RigzAssertions for AssertionsModule {
         Err(VMError::RuntimeError(message))
     }
 
-    fn assert_neq(&self, lhs: Value, rhs: Value, message: String) -> Result<(), VMError> {
+    fn assert_neq(
+        &self,
+        lhs: ObjectValue,
+        rhs: ObjectValue,
+        message: String,
+    ) -> Result<(), VMError> {
         if lhs != rhs {
             return Ok(());
         }

@@ -7,7 +7,7 @@ macro_rules! test_parse {
             #[wasm_bindgen_test(unsupported = test)]
             fn $name() {
                 let input = $input;
-                let v = parse(input, false);
+                let v = parse(input, false).and_then(|p| Ok(p.elements));
                 assert_eq!(v, Ok($expected), "Failed to parse input: {}", input)
             }
         )*
@@ -24,7 +24,7 @@ macro_rules! test_parse_equivalent {
                 #[wasm_bindgen_test(unsupported = test)]
                 fn $name() {
                     let input = $input;
-                    let v = parse(input, false);
+                    let v = parse(input, false).and_then(|p| Ok(p.elements));
                     assert_eq!(v, Ok($expected), "Failed to parse input: {}", input)
                 }
             )*
@@ -143,9 +143,7 @@ test_parse_equivalent! {
             fn hello -> String
                 "hi there"
             end
-            hello"# = Program {
-            input: None,
-            elements: vec![
+            hello"# = vec![
                 Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
                     name: "hello".to_string(),
                     type_definition: FunctionSignature {
@@ -157,14 +155,13 @@ test_parse_equivalent! {
                     },
                     body: Scope {
                      elements: vec![
-                        Element::Expression(Expression::Value(Value::String("hi there".to_string())))
+                        Element::Expression(Expression::Value(PrimitiveValue::String("hi there".to_string())))
                     ],
                     },
                 lifecycle: None
                 })),
                 Element::Expression(Expression::Identifier("hello".to_string()))
-            ]
-        };
+            ];
     define_function r#"
             fn hello
                 "hi there"
@@ -176,9 +173,7 @@ test_parse_equivalent! {
             hello"#
     define_function_oneline r#"
             fn hello = "hi there"
-            hello"# = Program {
-            input: None,
-            elements: vec![
+            hello"# = vec![
                 Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
                     name: "hello".to_string(),
                     type_definition: FunctionSignature {
@@ -190,14 +185,13 @@ test_parse_equivalent! {
                     },
                     body: Scope {
                     elements: vec![
-                        Element::Expression(Expression::Value(Value::String("hi there".to_string())))
+                        Element::Expression(Expression::Value(PrimitiveValue::String("hi there".to_string())))
                     ],
                         },
                 lifecycle: None
                 })),
                 Element::Expression(Expression::Identifier("hello".to_string()))
-            ]
-        };
+            ];
     define_function_args r#"
             fn add(a, b, c)
               a + b + c
@@ -207,9 +201,7 @@ test_parse_equivalent! {
             fn add(a, b, c)
               a + b + c
             end
-            add(1, 2, 3)"#= Program {
-        input: None,
-        elements: vec![
+            add(1, 2, 3)"#= vec![
             Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
                 name: "add".to_string(),
                 type_definition: FunctionSignature {
@@ -252,18 +244,14 @@ test_parse_equivalent! {
                 },
                 lifecycle: None
             })),
-            Element::Expression(FunctionExpression::FunctionCall("add".to_string(), vec![Expression::Value(Value::Number(1.into())), Expression::Value(Value::Number(2.into())), Expression::Value(Value::Number(3.into()))].into()).into())
-        ]
-    };
+            Element::Expression(FunctionExpression::FunctionCall("add".to_string(), vec![Expression::Value(PrimitiveValue::Number(1.into())), Expression::Value(PrimitiveValue::Number(2.into())), Expression::Value(PrimitiveValue::Number(3.into()))].into()).into())
+        ];
 }
 
 test_parse! {
-    symbols "foo :hello" = Program {
-        input: None,
-        elements: vec![
-            Element::Expression(FunctionExpression::FunctionCall("foo".to_string(), vec![Expression::Symbol("hello".to_string())].into()).into())
-        ]
-    },
+    symbols "foo :hello" = vec![
+        Element::Expression(FunctionExpression::FunctionCall("foo".to_string(), vec![Expression::Symbol("hello".to_string())].into()).into())
+    ],
     traits r#"trait Hello
             fn foo
 
@@ -272,9 +260,7 @@ test_parse! {
             fn say(message: String) -> None
                 puts message
             end
-        end"# = Program {
-        input: None,
-        elements: vec![
+        end"# = vec![
             Element::Statement(Statement::Trait(TraitDefinition {
                 name: "Hello".to_string(),
                 functions: vec![
@@ -324,113 +310,91 @@ test_parse! {
                  }),
                 ],
             }))
-        ]
-    },
-    basic "1 + 2" = Program {
-        input: None,
-        elements: vec![
+        ],
+    basic "1 + 2" = vec![
             Element::Expression(
                 Expression::BinExp(
-                    Box::new(Expression::Value(Value::Number(1.into()))),
+                    Box::new(Expression::Value(PrimitiveValue::Number(1.into()))),
                     BinaryOperation::Add,
-                    Box::new(Expression::Value(Value::Number(2.into())))
+                    Box::new(Expression::Value(PrimitiveValue::Number(2.into())))
                 )
             )
-        ]
-    },
-    complex "1 + 2 * 3" = Program {
-        input: None,
-        elements: vec![
+        ],
+    complex "1 + 2 * 3" = vec![
             Element::Expression(
                 Expression::BinExp(
                     Box::new(Expression::binary(
-                        Expression::Value(Value::Number(1.into())),
+                        Expression::Value(PrimitiveValue::Number(1.into())),
                         BinaryOperation::Add,
-                        Expression::Value(Value::Number(2.into()))
+                        Expression::Value(PrimitiveValue::Number(2.into()))
                     )),
                     BinaryOperation::Mul,
-                    Box::new(Expression::Value(Value::Number(3.into())))
+                    Box::new(Expression::Value(PrimitiveValue::Number(3.into())))
                 )
             )
-        ]
-    },
-    complex_parens "1 + (2 * 3)" = Program {
-        input: None,
-        elements: vec![
+        ],
+    complex_parens "1 + (2 * 3)" = vec![
             Expression::binary(
-                Expression::Value(Value::Number(1.into())),
+                Expression::Value(PrimitiveValue::Number(1.into())),
                 BinaryOperation::Add,
                 Expression::binary(
-                    Expression::Value(Value::Number(2.into())),
+                    Expression::Value(PrimitiveValue::Number(2.into())),
                     BinaryOperation::Mul,
-                    Expression::Value(Value::Number(3.into()))
+                    Expression::Value(PrimitiveValue::Number(3.into()))
                 )
             ).into(),
-        ]
-    },
-    list "[1, '2', {a = 3}]" = Program {
-        input: None,
-        elements: vec![
+        ],
+    list "[1, '2', {a = 3}]" = vec![
             Element::Expression(
                 Expression::List(
                     vec![
-                        Expression::Value(Value::Number(1.into())),
-                        Expression::Value(Value::String("2".to_string())),
-                        Expression::Map(vec![(Expression::Identifier("a".to_string()), Expression::Value(Value::Number(3.into())))]),
+                        Expression::Value(PrimitiveValue::Number(1.into())),
+                        Expression::Value(PrimitiveValue::String("2".to_string())),
+                        Expression::Map(vec![(Expression::Identifier("a".to_string()), Expression::Value(PrimitiveValue::Number(3.into())))]),
                     ]
                 )
             )
-        ]
-    },
-    assign "a = 7 - 0" = Program {
-        input: None,
-        elements: vec![
+        ],
+    assign "a = 7 - 0" = vec![
             Element::Statement(Statement::Assignment {
                 lhs: Assign::Identifier("a".to_string(), false),
                 expression: Expression::BinExp(
-                    Box::new(Expression::Value(Value::Number(7.into()))),
+                    Box::new(Expression::Value(PrimitiveValue::Number(7.into()))),
                     BinaryOperation::Sub,
-                    Box::new(Expression::Value(Value::Number(0.into())))
+                    Box::new(Expression::Value(PrimitiveValue::Number(0.into())))
                 ),
             })
-        ]
-    },
-    multi_complex_parens "1 + (2 * (2 - 4)) / 4" = Program {
-        input: None,
-        elements: vec![
+        ],
+    multi_complex_parens "1 + (2 * (2 - 4)) / 4" = vec![
             Element::Expression(
                 Expression::BinExp(
                     Box::new(Expression::BinExp(
-                    Box::new(Expression::Value(Value::Number(1.into()))),
+                    Box::new(Expression::Value(PrimitiveValue::Number(1.into()))),
                     BinaryOperation::Add,
                     Box::new(Expression::BinExp(
-                        Box::new(Expression::Value(Value::Number(2.into()))),
+                        Box::new(Expression::Value(PrimitiveValue::Number(2.into()))),
                         BinaryOperation::Mul,
                         Box::new(Expression::BinExp(
-                                Box::new(Expression::Value(Value::Number(2.into()))),
+                                Box::new(Expression::Value(PrimitiveValue::Number(2.into()))),
                                 BinaryOperation::Sub,
-                                Box::new(Expression::Value(Value::Number(4.into()))))
+                                Box::new(Expression::Value(PrimitiveValue::Number(4.into()))))
                             ))
                         )
                     )
                 ),
                     BinaryOperation::Div,
                     Box::new(
-                        Expression::Value(Value::Number(4.into()))
+                        Expression::Value(PrimitiveValue::Number(4.into()))
                     )
                 )
             )
-        ]
-    },
-    union_type "a: String || Number || Bool = false" = Program {
-        input: None,
-        elements: vec![
+        ],
+    union_type "a: String || Number || Bool = false" = vec![
             Statement::Assignment {
                 lhs: Assign::TypedIdentifier("a".to_string(), false, RigzType::Union(vec![RigzType::String, RigzType::Number, RigzType::Bool])),
                 expression: Expression::Value(false.into()),
             }.into()
         ],
-    },
     composite_type r#"
         type Foo = {
             foo: Number
@@ -439,9 +403,7 @@ test_parse! {
             bar: Number
         }
         a: Foo & Bar = { foo = 1, bar = 7}
-    "# = Program {
-        input: None,
-        elements: vec![
+    "# = vec![
             Statement::TypeDefinition("Foo".to_string(), RigzType::Custom(CustomType {
                 name: "Foo".to_string(),
                 fields: vec![
@@ -468,15 +430,12 @@ test_parse! {
                 ])
             }.into()
         ],
-    },
     union_composite_type_parens r#"
         type Message = { message: String }
         type Id = { id: Number }
         type Result = String || (Message & Id)
         mut s: Result = ""
-    "# = Program {
-        input: None,
-        elements: vec![
+    "# = vec![
             Statement::TypeDefinition("Message".to_string(), RigzType::Custom(CustomType {
                 name: "Message".to_string(),
                 fields: vec![
@@ -506,14 +465,11 @@ test_parse! {
                 expression: Expression::Value("".into())
             }.into()
         ],
-    },
     define_function_named_args r#"
         fn add{a, b, c}
           a + b + c
         end
-        add a: 1, b: 2, c: 3"# = Program {
-        input: None,
-        elements: vec![
+        add a: 1, b: 2, c: 3"# = vec![
             Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
                 name: "add".to_string(),
                 lifecycle: None,
@@ -561,16 +517,13 @@ test_parse! {
                 }
             })),
             Element::Expression(FunctionExpression::FunctionCall("add".to_string(), RigzArguments::Named(vec![("a".to_string(), Expression::Value(1.into())), ("b".to_string(), Expression::Value(2.into())), ("c".to_string(), Expression::Value(3.into()))])).into())
-        ]
-    },
+        ],
     define_function_named_args_var r#"
         fn add{a, b, c}
           a + b + c
         end
         v = {a = 1, b = 2, c = 3}
-        add v"# = Program {
-        input: None,
-        elements: vec![
+        add v"# = vec![
             Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
                 name: "add".to_string(),
                 lifecycle: None,
@@ -619,14 +572,11 @@ test_parse! {
             })),
             Element::Statement(Statement::Assignment {
                 lhs: Assign::Identifier("v".to_string(), false),
-                expression: Expression::Map(vec![(Expression::Identifier("a".to_string()), Expression::Value(Value::Number(1.into()))), (Expression::Identifier("b".to_string()), Expression::Value(Value::Number(2.into()))), (Expression::Identifier("c".to_string()), Expression::Value(Value::Number(3.into())))]),
+                expression: Expression::Map(vec![(Expression::Identifier("a".to_string()), Expression::Value(PrimitiveValue::Number(1.into()))), (Expression::Identifier("b".to_string()), Expression::Value(PrimitiveValue::Number(2.into()))), (Expression::Identifier("c".to_string()), Expression::Value(PrimitiveValue::Number(3.into())))]),
             }),
             Element::Expression(FunctionExpression::FunctionCall("add".to_string(), vec![Expression::Identifier("v".to_string())].into()).into())
-        ]
-    },
-    lambda_instance_call r#"[1, 2, 3, 'a', 'b'].filter { |v| v.is_num }.map(|v| v * v)"# = Program {
-        input: None,
-        elements: vec![
+        ],
+    lambda_instance_call r#"[1, 2, 3, 'a', 'b'].filter { |v| v.is_num }.map(|v| v * v)"# = vec![
             Element::Expression(
                 FunctionExpression::InstanceFunctionCall(
                     FunctionExpression::InstanceFunctionCall(
@@ -677,8 +627,7 @@ test_parse! {
                     )
                 ).into()
             )
-        ]
-    },
+        ],
 }
 
 // mod debug {

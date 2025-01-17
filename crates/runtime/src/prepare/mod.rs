@@ -4,6 +4,7 @@ use crate::RuntimeError;
 use log::Level;
 pub use program::Program;
 use rigz_ast::*;
+use rigz_vm::{Instruction, LoadValue, RigzBuilder, VMBuilder, VM};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
@@ -137,7 +138,7 @@ pub(crate) struct ProgramParser<'vm, T: RigzBuilder> {
     pub(crate) modules: IndexMap<&'vm str, ModuleDefinition>,
     // todo nested functions are global, they should be removed if invalid
     pub(crate) function_scopes: IndexMap<String, FunctionCallSignatures>,
-    pub(crate) constants: IndexMap<Value, usize>,
+    pub(crate) constants: IndexMap<ObjectValue, usize>,
     pub(crate) identifiers: HashMap<String, FunctionType>,
     pub(crate) types: HashMap<String, RigzType>,
     // todo imports should be fully resolved path
@@ -147,12 +148,12 @@ pub(crate) struct ProgramParser<'vm, T: RigzBuilder> {
 impl<T: RigzBuilder> Default for ProgramParser<'_, T> {
     fn default() -> Self {
         let mut builder = T::default();
-        let none = builder.add_constant(Value::None);
+        let none = builder.add_constant(ObjectValue::default());
         ProgramParser {
             builder,
             modules: Default::default(),
             function_scopes: Default::default(),
-            constants: IndexMap::from([(Value::None, none)]),
+            constants: IndexMap::from([(ObjectValue::default(), none)]),
             identifiers: Default::default(),
             types: Default::default(),
             imports: Default::default(),
@@ -755,7 +756,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 self.parse_expression(*index)?;
                 self.builder.add_instance_get_instruction(false);
             }
-            Expression::Value(v) => self.parse_value(v),
+            Expression::Value(v) => self.parse_value(v.into()),
             Expression::BinExp(a, op, b) => {
                 self.parse_expression(*a)?;
                 self.parse_expression(*b)?;
@@ -905,7 +906,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             Expression::Return(ret) => {
                 match ret {
                     None => {
-                        let none = self.find_or_create_constant(Value::None);
+                        let none = self.find_or_create_constant(ObjectValue::default());
                         self.builder.add_load_instruction(LoadValue::Constant(none));
                     }
                     Some(e) => {
@@ -977,7 +978,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         Ok(())
     }
 
-    fn find_or_create_constant(&mut self, value: Value) -> usize {
+    fn find_or_create_constant(&mut self, value: ObjectValue) -> usize {
         match self.constants.entry(value) {
             IndexMapEntry::Occupied(e) => *e.get(),
             IndexMapEntry::Vacant(e) => {
@@ -1033,12 +1034,13 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             if values_only {
                 match v {
                     Expression::Value(v) => {
-                        base.push(v);
+                        base.push(v.into());
                     }
                     e => {
                         values_only = false;
                         let index = Number::Int(index as i64);
-                        self.builder.add_load_instruction(Value::List(base).into());
+                        self.builder
+                            .add_load_instruction(ObjectValue::List(base.into()).into());
                         base = Vec::new();
                         self.builder.add_load_instruction(index.into());
                         self.parse_expression(e)?;
@@ -1053,7 +1055,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             }
         }
         if values_only {
-            self.builder.add_load_instruction(Value::List(base).into());
+            self.builder
+                .add_load_instruction(ObjectValue::List(base).into());
         }
         Ok(())
     }
@@ -1065,11 +1068,12 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             if values_only {
                 match v {
                     Expression::Value(v) => {
-                        base.push(v);
+                        base.push(v.into());
                     }
                     e => {
                         values_only = false;
-                        self.builder.add_load_instruction(Value::Tuple(base).into());
+                        self.builder
+                            .add_load_instruction(ObjectValue::Tuple(base.into()).into());
                         base = Vec::new();
                         let index = Number::Int(index as i64);
                         self.builder.add_load_instruction(index.into());
@@ -1085,7 +1089,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             }
         }
         if values_only {
-            self.builder.add_load_instruction(Value::Tuple(base).into());
+            self.builder
+                .add_load_instruction(ObjectValue::Tuple(base).into());
         }
         Ok(())
     }
@@ -1098,14 +1103,15 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             if values_only {
                 match (k, v) {
                     (Expression::Value(k), Expression::Value(v)) => {
-                        base.insert(k, v);
+                        base.insert(k.into(), v.into());
                     }
                     (Expression::Identifier(k), Expression::Value(v)) => {
-                        base.insert(Value::String(k.to_string()), v);
+                        base.insert(k.to_string().into(), v.into());
                     }
                     (Expression::Identifier(k), e) => {
                         values_only = false;
-                        self.builder.add_load_instruction(Value::Map(base).into());
+                        self.builder
+                            .add_load_instruction(ObjectValue::Map(base).into());
                         self.builder.add_load_instruction(k.into());
                         self.parse_expression(e)?;
                         self.builder.add_instance_set_instruction();
@@ -1113,7 +1119,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     }
                     (k, v) => {
                         values_only = false;
-                        self.builder.add_load_instruction(Value::Map(base).into());
+                        self.builder
+                            .add_load_instruction(ObjectValue::Map(base).into());
                         base = IndexMap::new();
                         self.parse_expression(k)?;
                         self.parse_expression(v)?;
@@ -1137,7 +1144,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         }
 
         if values_only {
-            self.builder.add_load_instruction(Value::Map(base).into());
+            self.builder
+                .add_load_instruction(ObjectValue::Map(base).into());
         }
 
         Ok(())
@@ -1181,7 +1189,9 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     let len = arguments.len() - 2;
                     let mut arguments = arguments.iter();
                     let level = match arguments.next().unwrap() {
-                        Expression::Value(Value::String(s)) => Self::str_to_log_level(s.as_str())?,
+                        Expression::Value(PrimitiveValue::String(s)) => {
+                            Self::str_to_log_level(s.as_str())?
+                        }
                         Expression::Symbol(s) => Self::str_to_log_level(s)?,
                         // todo support identifiers here
                         e => {
@@ -1192,7 +1202,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     };
 
                     let template = match arguments.next().unwrap() {
-                        Expression::Value(Value::String(s)) => s.clone(),
+                        Expression::Value(PrimitiveValue::String(s)) => s.clone(),
                         _ => "{}".to_string(),
                     };
 
@@ -1322,11 +1332,11 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     }
                     CallSite::Module(m) => {
                         if vm_module {
-                            self.builder.add_call_vm_extension_module_instruction(
-                                m,
-                                name.to_string(),
-                                len,
-                            );
+                            // self.builder.add_call_vm_extension_module_instruction(
+                            //     m,
+                            //     name.to_string(),
+                            //     len,
+                            // );
                         } else {
                             self.builder
                                 .add_call_module_instruction(m, name.to_string(), len);
@@ -1652,8 +1662,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             }
             CallSite::Module(m) => {
                 if vm_module {
-                    self.builder
-                        .add_call_vm_extension_module_instruction(m, name, args);
+                    // self.builder
+                    //     .add_call_vm_extension_module_instruction(m, name, args);
                 } else if mutable {
                     self.builder
                         .add_call_mutable_extension_module_instruction(m, name, args);
@@ -1805,7 +1815,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         }
     }
 
-    fn parse_value(&mut self, value: Value) {
+    fn parse_value(&mut self, value: ObjectValue) {
         self.builder.add_load_instruction(value.into());
     }
 

@@ -1,10 +1,12 @@
 use crate::{
-    err, errln, handle_js, out, outln, BinaryOperation, CallFrame, Instruction, Logical, Module,
-    Number, Reference, ResolveValue, Reverse, Scope, StackValue, UnaryOperation, VMError,
-    VMOptions, VMState, Value,
+    err, errln, handle_js, out, outln, CallFrame, Instruction, Reference, Scope, VMOptions, VMState,
 };
 use indexmap::IndexMap;
 use log::log;
+use rigz_core::{
+    AsPrimitive, BinaryOperation, Logical, Module, Number, ObjectValue, PrimitiveValue,
+    ResolveValue, Reverse, StackValue, UnaryOperation, VMError,
+};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
@@ -162,7 +164,7 @@ macro_rules! runner_common {
             module: ResolvedModule,
             func: String,
             args: usize,
-        ) -> Result<Value, VMError> {
+        ) -> Result<ObjectValue, VMError> {
             let this = self.next_resolved_value("call_extension");
             let args = self.resolve_args(args).into();
             module.call_extension(this, func, args)
@@ -174,7 +176,7 @@ macro_rules! runner_common {
             module: ResolvedModule,
             func: String,
             args: usize,
-        ) -> Result<Option<Value>, VMError> {
+        ) -> Result<Option<ObjectValue>, VMError> {
             let this = self.next_resolved_value("call_extension");
             let args = self.resolve_args(args).into();
             module.call_mutable_extension(this, func, args)
@@ -183,39 +185,43 @@ macro_rules! runner_common {
 }
 
 #[inline]
-pub fn eval_unary(unary_operation: UnaryOperation, val: &Value) -> Value {
+pub fn eval_unary(unary_operation: UnaryOperation, val: &ObjectValue) -> ObjectValue {
     match unary_operation {
         UnaryOperation::Neg => -val,
         UnaryOperation::Not => !val,
         UnaryOperation::PrintLn => {
             outln!("{}", val);
-            Value::None
+            ObjectValue::default()
         }
         UnaryOperation::EPrintLn => {
             errln!("{}", val);
-            Value::None
+            ObjectValue::default()
         }
         UnaryOperation::Print => {
             out!("{}", val);
-            Value::None
+            ObjectValue::default()
         }
         UnaryOperation::EPrint => {
             err!("{}", val);
-            Value::None
+            ObjectValue::default()
         }
-        UnaryOperation::Reverse => val.reverse(),
+        UnaryOperation::Reverse => Reverse::reverse(val),
     }
 }
 
 #[inline]
-pub fn eval_binary_operation(binary_operation: BinaryOperation, lhs: &Value, rhs: &Value) -> Value {
+pub fn eval_binary_operation(
+    binary_operation: BinaryOperation,
+    lhs: &ObjectValue,
+    rhs: &ObjectValue,
+) -> ObjectValue {
     match binary_operation {
         BinaryOperation::Add => lhs + rhs,
         BinaryOperation::Sub => lhs - rhs,
         BinaryOperation::Shr => lhs >> rhs,
         BinaryOperation::Shl => lhs << rhs,
-        BinaryOperation::Eq => Value::Bool(lhs == rhs),
-        BinaryOperation::Neq => Value::Bool(lhs != rhs),
+        BinaryOperation::Eq => (lhs == rhs).into(),
+        BinaryOperation::Neq => (lhs != rhs).into(),
         BinaryOperation::Mul => lhs * rhs,
         BinaryOperation::Div => lhs / rhs,
         BinaryOperation::Rem => lhs % rhs,
@@ -225,11 +231,11 @@ pub fn eval_binary_operation(binary_operation: BinaryOperation, lhs: &Value, rhs
         BinaryOperation::And => lhs.and(rhs),
         BinaryOperation::Or => lhs.or(rhs),
         BinaryOperation::Xor => lhs.xor(rhs),
-        BinaryOperation::Gt => Value::Bool(lhs > rhs),
-        BinaryOperation::Gte => Value::Bool(lhs >= rhs),
-        BinaryOperation::Lt => Value::Bool(lhs < rhs),
-        BinaryOperation::Lte => Value::Bool(lhs <= rhs),
-        BinaryOperation::Elvis => lhs.elvis(rhs),
+        BinaryOperation::Gt => (lhs > rhs).into(),
+        BinaryOperation::Gte => (lhs >= rhs).into(),
+        BinaryOperation::Lt => (lhs < rhs).into(),
+        BinaryOperation::Lte => (lhs <= rhs).into(),
+        BinaryOperation::Elvis => lhs.or(rhs),
     }
 }
 
@@ -283,7 +289,7 @@ pub trait Runner: ResolveValue {
     fn call_frame_memo(&mut self, scope_index: usize) -> Result<(), VMError>;
 
     #[inline]
-    fn apply_unary(&mut self, unary_operation: UnaryOperation, val: Rc<RefCell<Value>>) {
+    fn apply_unary(&mut self, unary_operation: UnaryOperation, val: Rc<RefCell<ObjectValue>>) {
         let val = eval_unary(unary_operation, val.borrow().deref());
         self.store_value(val.into());
     }
@@ -298,8 +304,8 @@ pub trait Runner: ResolveValue {
     fn apply_binary(
         &mut self,
         binary_operation: BinaryOperation,
-        lhs: Rc<RefCell<Value>>,
-        rhs: Rc<RefCell<Value>>,
+        lhs: Rc<RefCell<ObjectValue>>,
+        rhs: Rc<RefCell<ObjectValue>>,
     ) {
         let v = eval_binary_operation(binary_operation, lhs.borrow().deref(), rhs.borrow().deref());
         self.store_value(v.into())
@@ -321,12 +327,12 @@ pub trait Runner: ResolveValue {
     }
 
     #[inline]
-    fn next_resolved_value<T: Display>(&mut self, location: T) -> Rc<RefCell<Value>> {
+    fn next_resolved_value<T: Display>(&mut self, location: T) -> Rc<RefCell<ObjectValue>> {
         self.next_value(location).resolve(self)
     }
 
     #[inline]
-    fn resolve_args(&mut self, count: usize) -> Vec<Rc<RefCell<Value>>> {
+    fn resolve_args(&mut self, count: usize) -> Vec<Rc<RefCell<ObjectValue>>> {
         (0..count)
             .map(|_| self.next_resolved_value("resolve_args"))
             .collect()
@@ -348,29 +354,33 @@ pub trait Runner: ResolveValue {
 
     fn get_variable_reference(&mut self, name: &str);
 
-    fn call(&mut self, module: ResolvedModule, func: String, args: usize)
-        -> Result<Value, VMError>;
+    fn call(
+        &mut self,
+        module: ResolvedModule,
+        func: String,
+        args: usize,
+    ) -> Result<ObjectValue, VMError>;
 
     fn call_extension(
         &mut self,
         module: ResolvedModule,
         func: String,
         args: usize,
-    ) -> Result<Value, VMError>;
+    ) -> Result<ObjectValue, VMError>;
 
     fn call_mutable_extension(
         &mut self,
         module: ResolvedModule,
         func: String,
         args: usize,
-    ) -> Result<Option<Value>, VMError>;
+    ) -> Result<Option<ObjectValue>, VMError>;
 
-    fn vm_extension(
-        &mut self,
-        module: ResolvedModule,
-        func: String,
-        args: usize,
-    ) -> Result<Value, VMError>;
+    // fn vm_extension(
+    //     &mut self,
+    //     module: ResolvedModule,
+    //     func: String,
+    //     args: usize,
+    // ) -> Result<ObjectValue, VMError>;
 
     fn sleep(&self, duration: Duration);
 
@@ -382,10 +392,11 @@ pub trait Runner: ResolveValue {
             Instruction::Halt => return VMState::Done(self.next_resolved_value("halt")),
             Instruction::HaltIfError => {
                 let value = self.next_resolved_value("halt if error");
-                if let Value::Error(e) = value.borrow().deref() {
+                if let ObjectValue::Primitive(PrimitiveValue::Error(e)) = value.borrow().deref() {
                     return e.clone().into();
                 };
-                self.store_value(value.into());
+                let s: StackValue = value.into();
+                self.store_value(s);
             }
             Instruction::Unary(u) => self.handle_unary(u),
             Instruction::Binary(b) => self.handle_binary(b),
@@ -435,14 +446,14 @@ pub trait Runner: ResolveValue {
                     }
                 }
             }
-            Instruction::CallVMExtension { module, func, args } => {
-                if let Some(module) = self.get_module(module) {
-                    let value = self
-                        .vm_extension(module, func, args)
-                        .unwrap_or_else(|e| e.into());
-                    self.store_value(value.into());
-                };
-            }
+            // Instruction::CallVMExtension { module, func, args } => {
+            //     if let Some(module) = self.get_module(module) {
+            //         let value = self
+            //             .vm_extension(module, func, args)
+            //             .unwrap_or_else(|e| e.into());
+            //         self.store_value(value.into());
+            //     };
+            // }
             Instruction::PersistScope(var) => {
                 if let Some(s) = self.persist_scope(var) {
                     return s.into();
@@ -488,7 +499,7 @@ pub trait Runner: ResolveValue {
                 let v = if truthy.borrow().to_bool() {
                     self.handle_scope(if_scope)
                 } else {
-                    Value::None.into()
+                    ObjectValue::default().into()
                 };
                 self.store_value(v.into());
             }
@@ -497,7 +508,7 @@ pub trait Runner: ResolveValue {
                 let v = if !truthy.borrow().to_bool() {
                     self.handle_scope(unless_scope)
                 } else {
-                    Value::None.into()
+                    ObjectValue::default().into()
                 };
                 self.store_value(v.into());
             }
@@ -516,7 +527,7 @@ pub trait Runner: ResolveValue {
                     res = res.replacen("{}", l.as_str(), 1);
                 }
                 log!(level, "{}", res);
-                self.store_value(Value::None.into());
+                self.store_value(ObjectValue::default().into());
             }
             Instruction::Puts(args) => {
                 if args == 0 {
@@ -528,7 +539,7 @@ pub trait Runner: ResolveValue {
                         outln!("{}", s);
                     }
                 }
-                self.store_value(Value::None.into());
+                self.store_value(ObjectValue::default().into());
             }
             Instruction::Ret => {
                 return VMError::UnsupportedOperation(format!(
@@ -618,14 +629,17 @@ pub trait Runner: ResolveValue {
             }
             Instruction::ForList { scope } => {
                 let mut result = vec![];
-                let this = self.next_resolved_value("for-list").borrow().to_list();
+                let this = match self.next_resolved_value("for-list").borrow().to_list() {
+                    Ok(l) => l,
+                    Err(e) => return e.into(),
+                };
                 for value in this {
                     self.store_value(value.into());
                     // todo ideally this doesn't need a call frame per intermediate, it should be possible to reuse the current scope/fram
                     // the process_ret instruction for the scope is the reason this is needed
                     let value = self.handle_scope(scope);
                     let value = value.borrow().clone();
-                    if value != Value::None {
+                    if value != ObjectValue::default() {
                         result.push(value)
                     }
                 }
@@ -633,28 +647,31 @@ pub trait Runner: ResolveValue {
             }
             Instruction::ForMap { scope } => {
                 let mut result = IndexMap::new();
-                let this = self.next_resolved_value("for-map").borrow().to_map();
+                let this = match self.next_resolved_value("for-map").borrow().to_map() {
+                    Ok(map) => map,
+                    Err(e) => return e.into(),
+                };
                 for (k, v) in this {
                     self.store_value(v.into());
                     self.store_value(k.into());
                     let value = self.handle_scope(scope);
                     let value = value.borrow().clone();
                     match value {
-                        Value::None => {}
-                        Value::Tuple(mut t) if t.len() >= 2 => {
+                        ObjectValue::Primitive(PrimitiveValue::None) => {}
+                        ObjectValue::Tuple(mut t) if t.len() >= 2 => {
                             // todo this should be == 2 but same tuple is reused appending to front
                             let v = t.remove(1);
                             let k = t.remove(0);
-                            if k != Value::None && v != Value::None {
+                            if k != ObjectValue::default() && v != ObjectValue::default() {
                                 result.insert(k, v);
                             }
                         }
                         // todo should a single value be both the key & value?
                         _ => {
-                            let e = VMError::UnsupportedOperation(format!(
+                            let e: ObjectValue = VMError::UnsupportedOperation(format!(
                                 "Invalid args in for-map {value}"
                             ))
-                            .to_value();
+                            .into();
                             result.insert(e.clone(), e);
                         }
                     }
@@ -693,7 +710,7 @@ pub trait Runner: ResolveValue {
                     Err(e) => return e.into(),
                 };
                 self.sleep(duration);
-                self.store_value(Value::None.into());
+                self.store_value(ObjectValue::default().into());
             }
             ins => {
                 return VMError::todo(format!("Instruction is not supported yet {ins:?}")).into()
@@ -708,7 +725,7 @@ pub trait Runner: ResolveValue {
         let source = self.next_resolved_value("instance_get - source");
         let v = match source.borrow().get(attr.borrow().deref()) {
             Ok(Some(v)) => v,
-            Ok(None) => Value::None,
+            Ok(None) => ObjectValue::default(),
             Err(e) => e.into(),
         };
         if multiple {
@@ -728,9 +745,13 @@ pub trait Runner: ResolveValue {
         } else {
             source.borrow().clone().into()
         };
+        // todo support negative numbers as index, -1 is last element
         match (source.borrow_mut().deref_mut(), attr.borrow().deref()) {
             // todo support ranges as attr
-            (Value::String(s), Value::Number(n)) => match n.to_usize() {
+            (
+                ObjectValue::Primitive(PrimitiveValue::String(s)),
+                ObjectValue::Primitive(PrimitiveValue::Number(n)),
+            ) => match n.to_usize() {
                 Ok(index) => {
                     s.insert_str(index, value.to_string().as_str());
                 }
@@ -738,7 +759,8 @@ pub trait Runner: ResolveValue {
                     source.replace(e.into());
                 }
             },
-            (Value::List(s), Value::Number(n)) | (Value::Tuple(s), Value::Number(n)) => {
+            (ObjectValue::List(s), ObjectValue::Primitive(PrimitiveValue::Number(n)))
+            | (ObjectValue::Tuple(s), ObjectValue::Primitive(PrimitiveValue::Number(n))) => {
                 match n.to_usize() {
                     Ok(index) => {
                         s.insert(index, value.clone());
@@ -748,10 +770,13 @@ pub trait Runner: ResolveValue {
                     }
                 }
             }
-            (Value::Map(source), index) => {
+            (ObjectValue::Map(source), index) => {
                 source.insert(index.clone(), value.clone());
             }
-            (Value::Number(source), Value::Number(n)) => {
+            (
+                ObjectValue::Primitive(PrimitiveValue::Number(source)),
+                ObjectValue::Primitive(PrimitiveValue::Number(n)),
+            ) => {
                 let value = if value.to_bool() { 1 } else { 0 };
                 *source = match source {
                     Number::Int(_) => {

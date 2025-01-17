@@ -1,6 +1,7 @@
 use itertools::Itertools;
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
+use rigz_vm::{out, outln};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -20,8 +21,8 @@ derive_module! {
         fn Any.to_f -> Float!
         fn Any.to_n -> Number!
         fn Any.to_s -> String
-        fn Any.to_list -> List
-        fn Any.to_map -> Map
+        fn Any.to_list -> List!
+        fn Any.to_map -> Map!
         fn Any.type -> String
         fn Any.get(index) -> Any!?
 
@@ -49,92 +50,105 @@ fn is_float(s: &str) -> bool {
 }
 
 impl RigzAny for AnyModule {
-    fn any_clone(&self, this: Value) -> Value {
+    fn any_clone(&self, this: ObjectValue) -> ObjectValue {
         this.clone()
     }
 
-    fn any_is_err(&self, this: Value) -> bool {
-        matches!(this, Value::Error(_))
+    fn any_is_err(&self, this: ObjectValue) -> bool {
+        matches!(this, ObjectValue::Primitive(PrimitiveValue::Error(_)))
     }
 
-    fn any_is_none(&self, this: Value) -> bool {
+    fn any_is_none(&self, this: ObjectValue) -> bool {
         // todo should error be counted as none?
-        matches!(this, Value::None)
+        matches!(this, ObjectValue::Primitive(PrimitiveValue::None))
     }
 
-    fn any_is_some(&self, this: Value) -> bool {
+    fn any_is_some(&self, this: ObjectValue) -> bool {
         // todo should error count as some?
-        !matches!(this, Value::None)
+        !matches!(this, ObjectValue::Primitive(PrimitiveValue::None))
     }
 
-    fn any_is(&self, this: Value, rigz_type: RigzType) -> bool {
+    fn any_is(&self, this: ObjectValue, rigz_type: RigzType) -> bool {
         this.rigz_type() == rigz_type
     }
 
-    fn any_is_int(&self, this: Value) -> bool {
+    fn any_is_int(&self, this: ObjectValue) -> bool {
         match this {
-            Value::Number(Number::Int(_)) => true,
-            Value::String(s) => s.trim().chars().all(|c| c.is_ascii_digit()),
+            ObjectValue::Primitive(p) => match p {
+                PrimitiveValue::Number(Number::Int(_)) => true,
+                PrimitiveValue::String(s) => s.trim().chars().all(|c| c.is_ascii_digit()),
+                _ => false,
+            },
             _ => false,
         }
     }
 
-    fn any_is_float(&self, this: Value) -> bool {
+    fn any_is_float(&self, this: ObjectValue) -> bool {
         match this {
-            Value::Number(Number::Float(_)) => true,
-            Value::String(s) => is_float(s.trim()),
+            ObjectValue::Primitive(p) => match p {
+                PrimitiveValue::Number(Number::Float(_)) => true,
+                PrimitiveValue::String(s) => is_float(s.trim()),
+                _ => false,
+            },
             _ => false,
         }
     }
 
-    fn any_is_num(&self, this: Value) -> bool {
+    fn any_is_num(&self, this: ObjectValue) -> bool {
         match this {
-            Value::Number(_) => true,
-            Value::String(s) => {
-                let s = s.trim();
-                s.chars().all(|c| c.is_ascii_digit()) || is_float(s)
-            }
+            ObjectValue::Primitive(p) => match p {
+                PrimitiveValue::Number(_) => true,
+                PrimitiveValue::String(s) => {
+                    let s = s.trim();
+                    s.chars().all(|c| c.is_ascii_digit()) || is_float(s)
+                }
+                _ => false,
+            },
             _ => false,
         }
     }
 
-    fn any_to_b(&self, this: Value) -> bool {
+    fn any_to_b(&self, this: ObjectValue) -> bool {
         this.to_bool()
     }
 
-    fn any_to_i(&self, this: Value) -> Result<i64, VMError> {
+    fn any_to_i(&self, this: ObjectValue) -> Result<i64, VMError> {
         this.to_int()
     }
 
-    fn any_to_f(&self, this: Value) -> Result<f64, VMError> {
+    fn any_to_f(&self, this: ObjectValue) -> Result<f64, VMError> {
         this.to_float()
     }
 
-    fn any_to_n(&self, this: Value) -> Result<Number, VMError> {
+    fn any_to_n(&self, this: ObjectValue) -> Result<Number, VMError> {
         this.to_number()
     }
 
-    fn any_to_s(&self, this: Value) -> String {
+    fn any_to_s(&self, this: ObjectValue) -> String {
         this.to_string()
     }
 
-    fn any_to_list(&self, this: Value) -> Vec<Value> {
+    fn any_to_list(&self, this: ObjectValue) -> Result<Vec<ObjectValue>, VMError> {
         this.to_list()
     }
 
-    fn any_to_map(&self, this: Value) -> IndexMap<Value, Value> {
+    fn any_to_map(&self, this: ObjectValue) -> Result<IndexMap<ObjectValue, ObjectValue>, VMError> {
         this.to_map()
     }
 
-    fn any_type(&self, this: Value) -> String {
+    fn any_type(&self, this: ObjectValue) -> String {
         this.rigz_type().to_string()
     }
 
-    fn any_get(&self, this: Value, index: Value) -> Result<Option<Value>, VMError> {
+    fn any_get(
+        &self,
+        this: ObjectValue,
+        index: ObjectValue,
+    ) -> Result<Option<ObjectValue>, VMError> {
         this.get(&index)
     }
 
-    fn format(&self, template: String, args: Vec<Value>) -> String {
+    fn format(&self, template: String, args: Vec<ObjectValue>) -> String {
         let mut res = template;
         for arg in args {
             let l = arg.to_string();
@@ -143,12 +157,12 @@ impl RigzAny for AnyModule {
         res
     }
 
-    fn print(&self, args: Vec<Value>) {
+    fn print(&self, args: Vec<ObjectValue>) {
         let s = args.iter().map(|a| a.to_string()).join("");
         out!("{s}")
     }
 
-    fn printf(&self, template: String, args: Vec<Value>) {
+    fn printf(&self, template: String, args: Vec<ObjectValue>) {
         outln!("{}", self.format(template, args))
     }
 }

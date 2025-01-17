@@ -14,9 +14,9 @@ impl RigzHtml for HtmlModule {
     fn string_elements(
         &self,
         this: String,
-        ids: Vec<Value>,
+        ids: Vec<ObjectValue>,
         selectors: Vec<String>,
-    ) -> IndexMap<Value, Value> {
+    ) -> IndexMap<ObjectValue, ObjectValue> {
         let html = scraper::Html::parse_document(&this);
         ids.into_iter()
             .zip(selectors)
@@ -26,7 +26,7 @@ impl RigzHtml for HtmlModule {
                         let select = html.select(&s);
                         let mut res: Vec<_> = select.map(|s| s.inner_html()).collect();
                         match res.len() {
-                            0 => Value::None,
+                            0 => ObjectValue::default(),
                             1 => res.remove(0).into(),
                             _ => res.into(),
                         }

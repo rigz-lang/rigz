@@ -11,9 +11,7 @@ mod format;
 
 #[cfg(feature = "format")]
 pub use format::format;
-
-#[cfg(feature = "derive")]
-pub use rigz_vm::derive::*;
+use std::collections::hash_map::Entry;
 
 use logos::Logos;
 pub use modules::ParsedModule;
@@ -24,9 +22,8 @@ pub use program::{
     ModuleTraitDefinition, Program, RigzArguments, Scope, Statement, TraitDefinition,
 };
 
-// todo it'd be nice for rigz_vm to not be required by the ast parser, rigz_value?, changes to vm will require lots of downstream crate updates
-// Currently the Module trait depends on VM, it would be possible to create a VMModule trait but this causes issues for rigz_ast_derive
-pub use rigz_vm::*;
+pub use rigz_core::*;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::path::PathBuf;
@@ -48,6 +45,7 @@ pub struct Parser<'t> {
     pub input: Option<String>,
     tokens: VecDeque<Token<'t>>,
     line: usize, // todo repl should set this
+    types: FxHashMap<String, RigzType>,
 }
 
 // TODO better error messages
@@ -102,6 +100,7 @@ impl<'t> Parser<'t> {
             input,
             tokens,
             line,
+            types: Default::default(),
         })
     }
 
@@ -113,6 +112,7 @@ impl<'t> Parser<'t> {
         Ok(Program {
             input: self.input,
             elements,
+            types: self.types,
         })
     }
 
@@ -542,7 +542,7 @@ impl<'t> Parser<'t> {
                 self.consume_token(TokenKind::Lparen)?;
                 let e = self.parse_paren_expression()?;
                 match e {
-                    Element::Expression(Expression::Value(Value::String(s))) => {
+                    Element::Expression(Expression::Value(PrimitiveValue::String(s))) => {
                         Ok(Lifecycle::On(EventLifecycle { event: s }))
                     }
                     _ => Err(ParsingError::ParseError(format!(
@@ -673,7 +673,7 @@ impl<'t> Parser<'t> {
                 };
                 let next = self.peek_token();
                 match next {
-                    None => Expression::Value(Value::Type(type_value)),
+                    None => Expression::Value(PrimitiveValue::Type(type_value)),
                     Some(t) if t.kind == TokenKind::Period => {
                         self.consume_token(TokenKind::Period)?;
                         let func_name =
@@ -692,7 +692,7 @@ impl<'t> Parser<'t> {
                             )));
                         }
                     }
-                    Some(_) => Expression::Value(Value::Type(type_value)),
+                    Some(_) => Expression::Value(PrimitiveValue::Type(type_value)),
                 }
             }
             TokenKind::Error => {
@@ -1598,7 +1598,7 @@ impl<'t> Parser<'t> {
         }
     }
 
-    fn parse_value(&mut self) -> Result<Value, ParsingError> {
+    fn parse_value(&mut self) -> Result<PrimitiveValue, ParsingError> {
         let token = self.next_required_token("parse_value")?;
         if let TokenKind::Value(v) = token.kind {
             return Ok(v.into());
@@ -1669,7 +1669,7 @@ impl<'t> Parser<'t> {
                 if default_type {
                     rigz_type = v.rigz_type();
                 }
-                Some(v)
+                Some(v.into())
             }
             _ => None,
         };
@@ -1713,8 +1713,16 @@ impl<'t> Parser<'t> {
     ) -> Result<RigzType, ParsingError> {
         let next = self.next_required_token("parse_rigz_type")?;
         let rigz_type: RigzType = match next.kind {
-            TokenKind::TypeValue(id) => match id.parse() {
-                Ok(t) => t,
+            TokenKind::TypeValue(id) => match id.parse::<RigzType>() {
+                Ok(t) => {
+                    match self.types.entry(id.to_string()) {
+                        Entry::Occupied(e) => {}
+                        Entry::Vacant(v) => {
+                            v.insert(t.clone());
+                        }
+                    }
+                    t
+                }
                 Err(e) => {
                     return Err(ParsingError::ParseError(format!(
                         "Invalid type value {:?}",

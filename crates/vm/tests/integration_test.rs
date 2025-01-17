@@ -1,14 +1,15 @@
 mod vm_test {
-    use rigz_vm::{
-        BinaryOperation, Instruction, Lifecycle, LoadValue, Module, Number, RigzArgs, RigzBuilder,
-        RigzType, Scope, TestLifecycle, TestResults, VMBuilder, VMError, Value, VM,
+    use rigz_core::{
+        BinaryOperation, Definition, Lifecycle, Module, ObjectValue, PrimitiveValue, RigzArgs,
+        RigzType, TestLifecycle, TestResults, VMError,
     };
+    use rigz_vm::{Instruction, LoadValue, RigzBuilder, Scope, VMBuilder, VM};
     use wasm_bindgen_test::*;
 
     #[wasm_bindgen_test(unsupported = test)]
     fn load_works() {
         let mut builder = VMBuilder::new();
-        builder.add_load_instruction(Value::Number(Number::Int(42)).into());
+        builder.add_load_instruction(42.into());
         let mut vm = builder.build();
         let v = vm.eval().unwrap();
         assert_eq!(v, 42.into());
@@ -18,7 +19,7 @@ mod vm_test {
     fn cast_works() {
         let mut builder = VMBuilder::new();
         builder
-            .add_load_instruction(Value::Number(Number::Int(42)).into())
+            .add_load_instruction(42.into())
             .add_cast_instruction(RigzType::String);
         let mut vm = builder.build();
         let v = vm.eval().unwrap();
@@ -34,7 +35,7 @@ mod vm_test {
             .add_add_instruction();
         let mut vm = builder.build();
         let v = vm.eval().unwrap();
-        assert_eq!(v, Value::Number(Number::Int(84)).into());
+        assert_eq!(v, 84.into());
     }
 
     #[wasm_bindgen_test(unsupported = test)]
@@ -78,20 +79,9 @@ mod vm_test {
     #[derive(Copy, Clone, Debug)]
     struct TestModule {}
 
-    #[allow(unused_variables)]
-    impl Module for TestModule {
+    impl Definition for TestModule {
         fn name(&self) -> &'static str {
             "test"
-        }
-
-        fn call(&self, function: String, args: RigzArgs) -> Result<Value, VMError> {
-            match function.as_str() {
-                "hello" => {
-                    println!("{}", Value::List(args.into()));
-                    Ok(Value::None)
-                }
-                f => Err(VMError::InvalidModuleFunction(f.to_string())),
-            }
         }
 
         fn trait_definition(&self) -> &'static str {
@@ -100,6 +90,19 @@ mod vm_test {
                 fn hello(var arg)
             end
             "#
+        }
+    }
+
+    #[allow(unused_variables)]
+    impl Module for TestModule {
+        fn call(&self, function: String, args: RigzArgs) -> Result<ObjectValue, VMError> {
+            match function.as_str() {
+                "hello" => {
+                    println!("{}", ObjectValue::List(args.into()));
+                    Ok(ObjectValue::default())
+                }
+                f => Err(VMError::InvalidModuleFunction(f.to_string())),
+            }
         }
     }
 
@@ -113,7 +116,7 @@ mod vm_test {
             .add_call_module_instruction("test".to_string(), "hello".to_string(), 1);
         let mut vm = builder.build();
         let v = vm.eval().unwrap();
-        assert_eq!(v, Value::None.into());
+        assert_eq!(v, PrimitiveValue::None.into());
     }
 
     #[wasm_bindgen_test(unsupported = test)]
@@ -149,7 +152,7 @@ mod vm_test {
             .add_load_instruction(LoadValue::ScopeId(scope))
             .add_halt_instruction();
         let mut vm = builder.build();
-        assert_eq!(vm.eval().unwrap(), Value::String("hello".to_string()))
+        assert_eq!(vm.eval().unwrap(), "hello".into())
     }
 
     #[wasm_bindgen_test(unsupported = test)]

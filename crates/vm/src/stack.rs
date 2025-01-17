@@ -1,4 +1,4 @@
-use crate::{Snapshot, StackValue, VMError};
+use rigz_core::{Snapshot, StackValue, VMError};
 use std::fmt::Display;
 use std::vec::IntoIter;
 

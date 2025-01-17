@@ -1,17 +1,17 @@
 mod options;
 mod runner;
-mod snapshot;
 mod values;
 
 use crate::call_frame::Frames;
-use crate::lifecycle::{Lifecycle, TestResults};
 use crate::process::{ModulesMap, MutableReference, ProcessManager};
 use crate::{
-    generate_builder, handle_js, out, CallFrame, Instruction, Module, RigzBuilder, Runner, Scope,
-    VMError, VMStack, Value, Variable,
+    generate_builder, handle_js, out, CallFrame, Instruction, RigzBuilder, Runner, Scope, VMStack,
+    Variable,
 };
 pub use options::VMOptions;
-pub use snapshot::Snapshot;
+use rigz_core::{
+    Lifecycle, Module, ObjectValue, PrimitiveValue, Snapshot, StackValue, TestResults, VMError,
+};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -27,7 +27,7 @@ pub struct VM {
     pub sp: usize,
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
-    pub constants: Vec<Value>,
+    pub constants: Vec<ObjectValue>,
     pub(crate) process_manager: MutableReference<ProcessManager>,
 }
 
@@ -155,16 +155,16 @@ impl VM {
     }
 
     /// Calls run and returns an error if the resulting value is an error
-    pub fn eval(&mut self) -> Result<Value, VMError> {
+    pub fn eval(&mut self) -> Result<ObjectValue, VMError> {
         match self.run() {
-            Value::Error(e) => Err(e),
+            ObjectValue::Primitive(PrimitiveValue::Error(e)) => Err(e),
             v => Ok(v),
         }
     }
 
-    pub fn eval_within(&mut self, duration: Duration) -> Result<Value, VMError> {
+    pub fn eval_within(&mut self, duration: Duration) -> Result<ObjectValue, VMError> {
         match self.run_within(duration) {
-            Value::Error(e) => Err(e),
+            ObjectValue::Primitive(PrimitiveValue::Error(e)) => Err(e),
             v => Ok(v),
         }
     }
@@ -182,7 +182,7 @@ impl VM {
     }
 
     /// Starts processes for each "On" lifecycle, Errors are returned as Value::Error(VMError)
-    pub fn run(&mut self) -> Value {
+    pub fn run(&mut self) -> ObjectValue {
         self.start_processes();
 
         let mut run = || loop {
@@ -196,7 +196,7 @@ impl VM {
     }
 
     #[inline]
-    fn step(&mut self) -> Option<Value> {
+    fn step(&mut self) -> Option<ObjectValue> {
         let instruction = match self.next_instruction() {
             // TODO this should probably be an error requiring explicit halt, this might still be an error
             None => return self.stack.pop().map(|e| e.resolve(self).borrow().clone()),
@@ -215,7 +215,7 @@ impl VM {
         None
     }
 
-    pub fn run_within(&mut self, duration: Duration) -> Value {
+    pub fn run_within(&mut self, duration: Duration) -> ObjectValue {
         self.start_processes();
         #[cfg(not(feature = "js"))]
         let now = std::time::Instant::now();
@@ -310,7 +310,7 @@ impl VM {
         loop {
             let instruction = match self.next_instruction() {
                 // TODO this should probably be an error requiring explicit halt, result would be none
-                None => return VMState::Done(Value::None.into()),
+                None => return VMState::Done(ObjectValue::default().into()),
                 Some(s) => s,
             };
 
@@ -359,13 +359,13 @@ impl VM {
 pub mod vm_tests {
     use crate::builder::RigzBuilder;
     use crate::vm::VM;
-    use crate::{VMBuilder, Value};
+    use crate::VMBuilder;
     use wasm_bindgen_test::*;
 
     #[wasm_bindgen_test(unsupported = test)]
     fn snapshot() {
         let mut builder = VMBuilder::new();
-        builder.add_load_instruction(Value::Bool(true).into());
+        builder.add_load_instruction(true.into());
         let vm = builder.build();
         let bytes = vm.snapshot().expect("snapshot failed");
         let mut vm2 = VM::default();

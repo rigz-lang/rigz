@@ -1,7 +1,44 @@
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
+use rigz_core::*;
 use std::cell::RefCell;
+use std::fmt::Display;
+use std::hash::Hash;
 use std::rc::Rc;
+
+// todo figure this out later
+// struct VM {}
+//
+// derive_module!(
+//     r#"trait VM
+//         fn mut VM.get_register(register: Number) -> Any!
+//         fn mut VM.first -> Any!
+//         fn mut VM.last -> Any!
+//         fn mut VM.remove_register(register: Number) -> Any!
+//     end"#
+// );
+// #[allow(unused_variables)]
+// impl RigzVM for VMModule<'_> {
+//     fn mut_vm_get_register(&self, vm: &mut VM, register: Number) -> Result<ObjectValue, VMError> {
+//         todo!()
+//     }
+//
+//     fn mut_vm_first(&self, vm: &mut VM) -> Result<ObjectValue, VMError> {
+//         todo!()
+//     }
+//
+//     fn mut_vm_last(&self, vm: &mut VM) -> Result<ObjectValue, VMError> {
+//         todo!()
+//     }
+//
+//     fn mut_vm_remove_register(
+//         &self,
+//         vm: &mut VM,
+//         register: Number,
+//     ) -> Result<ObjectValue, VMError> {
+//         todo!()
+//     }
+// }
 
 // need to borrow this for ext
 derive_module!(
@@ -15,15 +52,6 @@ derive_module!(
     r#"trait File
         fn read(path: String, encoding = "utf-8") -> String!
         fn write(path: String, contents: String, encoding = "utf-8") -> None!
-    end"#
-);
-
-derive_module!(
-    r#"trait VM
-        fn mut VM.get_register(register: Number) -> Any!
-        fn mut VM.first -> Any!
-        fn mut VM.last -> Any!
-        fn mut VM.remove_register(register: Number) -> Any!
     end"#
 );
 
@@ -74,116 +102,125 @@ derive_module!(
 
 #[allow(unused_variables)]
 impl RigzStd for StdModule {
-    fn any_clone(&self, this: Value) -> Value {
+    fn any_clone(&self, this: ObjectValue) -> ObjectValue {
         todo!()
     }
 
-    fn any_is_err(&self, this: Value) -> bool {
+    fn any_is_err(&self, this: ObjectValue) -> bool {
         todo!()
     }
 
-    fn any_is_none(&self, this: Value) -> bool {
+    fn any_is_none(&self, this: ObjectValue) -> bool {
         todo!()
     }
 
-    fn any_is_some(&self, this: Value) -> bool {
+    fn any_is_some(&self, this: ObjectValue) -> bool {
         todo!()
     }
 
-    fn any_to_b(&self, this: Value) -> bool {
+    fn any_to_b(&self, this: ObjectValue) -> bool {
         todo!()
     }
 
-    fn any_to_i(&self, this: Value) -> Result<i64, VMError> {
+    fn any_to_i(&self, this: ObjectValue) -> Result<i64, VMError> {
         todo!()
     }
 
-    fn any_to_f(&self, this: Value) -> Result<f64, VMError> {
+    fn any_to_f(&self, this: ObjectValue) -> Result<f64, VMError> {
         todo!()
     }
 
-    fn any_to_n(&self, this: Value) -> Result<Number, VMError> {
+    fn any_to_n(&self, this: ObjectValue) -> Result<Number, VMError> {
         todo!()
     }
 
-    fn any_to_s(&self, this: Value) -> String {
+    fn any_to_s(&self, this: ObjectValue) -> String {
         todo!()
     }
 
-    fn any_to_list(&self, this: Value) -> Vec<Value> {
+    fn any_to_list(&self, this: ObjectValue) -> Vec<ObjectValue> {
         todo!()
     }
 
-    fn any_to_map(&self, this: Value) -> IndexMap<Value, Value> {
+    fn any_to_map(&self, this: ObjectValue) -> IndexMap<ObjectValue, ObjectValue> {
         todo!()
     }
 
-    fn any_type(&self, this: Value) -> String {
+    fn any_type(&self, this: ObjectValue) -> String {
         todo!()
     }
 
-    fn mut_list_extend(&self, this: &mut Vec<Value>, value: Vec<Value>) {
+    fn mut_list_extend(&self, this: &mut Vec<ObjectValue>, value: Vec<ObjectValue>) {
         todo!()
     }
 
-    fn list_first(&self, this: Vec<Value>) -> Option<Value> {
+    fn list_first(&self, this: Vec<ObjectValue>) -> Option<ObjectValue> {
         todo!()
     }
 
-    fn list_last(&self, this: Vec<Value>) -> Option<Value> {
+    fn list_last(&self, this: Vec<ObjectValue>) -> Option<ObjectValue> {
         todo!()
     }
 
-    fn mut_list_push(&self, this: &mut Vec<Value>, value: Vec<Value>) {
+    fn mut_list_push(&self, this: &mut Vec<ObjectValue>, value: Vec<ObjectValue>) {
         todo!()
     }
 
-    fn list_concat(&self, this: Vec<Value>, value: Vec<Value>) -> Vec<Value> {
+    fn list_concat(&self, this: Vec<ObjectValue>, value: Vec<ObjectValue>) -> Vec<ObjectValue> {
         todo!()
     }
 
-    fn list_with(&self, this: Vec<Value>, value: Vec<Value>) -> Vec<Value> {
+    fn list_with(&self, this: Vec<ObjectValue>, value: Vec<ObjectValue>) -> Vec<ObjectValue> {
         todo!()
     }
 
-    fn mut_map_extend(&self, this: &mut IndexMap<Value, Value>, value: IndexMap<Value, Value>) {
+    fn mut_map_extend(
+        &self,
+        this: &mut IndexMap<ObjectValue, ObjectValue>,
+        value: IndexMap<ObjectValue, ObjectValue>,
+    ) {
         todo!()
     }
 
-    fn map_first(&self, this: IndexMap<Value, Value>) -> Option<Value> {
+    fn map_first(&self, this: IndexMap<ObjectValue, ObjectValue>) -> Option<ObjectValue> {
         todo!()
     }
 
-    fn map_last(&self, this: IndexMap<Value, Value>) -> Option<Value> {
+    fn map_last(&self, this: IndexMap<ObjectValue, ObjectValue>) -> Option<ObjectValue> {
         todo!()
     }
 
-    fn mut_map_insert(&self, this: &mut IndexMap<Value, Value>, key: Value, value: Value) {
+    fn mut_map_insert(
+        &self,
+        this: &mut IndexMap<ObjectValue, ObjectValue>,
+        key: ObjectValue,
+        value: ObjectValue,
+    ) {
         todo!()
     }
 
     fn map_with(
         &self,
-        this: IndexMap<Value, Value>,
-        key: Vec<Value>,
-        value: Vec<Value>,
-    ) -> IndexMap<Value, Value> {
+        this: IndexMap<ObjectValue, ObjectValue>,
+        key: Vec<ObjectValue>,
+        value: Vec<ObjectValue>,
+    ) -> IndexMap<ObjectValue, ObjectValue> {
         todo!()
     }
 
     fn map_concat(
         &self,
-        this: IndexMap<Value, Value>,
-        value: IndexMap<Value, Value>,
-    ) -> IndexMap<Value, Value> {
+        this: IndexMap<ObjectValue, ObjectValue>,
+        value: IndexMap<ObjectValue, ObjectValue>,
+    ) -> IndexMap<ObjectValue, ObjectValue> {
         todo!()
     }
 
-    fn map_entries(&self, this: IndexMap<Value, Value>) -> Vec<Value> {
+    fn map_entries(&self, this: IndexMap<ObjectValue, ObjectValue>) -> Vec<ObjectValue> {
         todo!()
     }
 
-    fn map_keys(&self, this: IndexMap<Value, Value>) -> Vec<Value> {
+    fn map_keys(&self, this: IndexMap<ObjectValue, ObjectValue>) -> Vec<ObjectValue> {
         todo!()
     }
 
@@ -199,7 +236,7 @@ impl RigzStd for StdModule {
         todo!()
     }
 
-    fn mut_string_push(&self, this: &mut String, value: Value) {
+    fn mut_string_push(&self, this: &mut String, value: ObjectValue) {
         todo!()
     }
 
@@ -207,7 +244,7 @@ impl RigzStd for StdModule {
         todo!()
     }
 
-    fn string_with(&self, this: String, value: Vec<Value>) -> String {
+    fn string_with(&self, this: String, value: Vec<ObjectValue>) -> String {
         todo!()
     }
 
@@ -215,30 +252,11 @@ impl RigzStd for StdModule {
         todo!()
     }
 
-    fn format(&self, template: String, args: Vec<Value>) -> String {
+    fn format(&self, template: String, args: Vec<ObjectValue>) -> String {
         todo!()
     }
 
-    fn printf(&self, template: String, args: Vec<Value>) {
-        todo!()
-    }
-}
-
-#[allow(unused_variables)]
-impl RigzVM for VMModule {
-    fn mut_vm_get_register(&self, vm: &mut VM, register: Number) -> Result<Value, VMError> {
-        todo!()
-    }
-
-    fn mut_vm_first(&self, vm: &mut VM) -> Result<Value, VMError> {
-        todo!()
-    }
-
-    fn mut_vm_last(&self, vm: &mut VM) -> Result<Value, VMError> {
-        todo!()
-    }
-
-    fn mut_vm_remove_register(&self, vm: &mut VM, register: Number) -> Result<Value, VMError> {
+    fn printf(&self, template: String, args: Vec<ObjectValue>) {
         todo!()
     }
 }
@@ -256,14 +274,14 @@ impl RigzFile for FileModule {
 
 #[allow(unused_variables)]
 impl RigzJSON for JSONModule {
-    fn any_to_json(&self, value: Value) -> Result<String, VMError> {
+    fn any_to_json(&self, value: ObjectValue) -> Result<String, VMError> {
         match serde_json::to_string(&value) {
             Ok(s) => Ok(s),
             Err(e) => Err(VMError::RuntimeError(format!("Failed to write json - {e}"))),
         }
     }
 
-    fn parse(&self, input: String) -> Result<Value, VMError> {
+    fn parse(&self, input: String) -> Result<ObjectValue, VMError> {
         match serde_json::from_str(input.as_str()) {
             Ok(v) => Ok(v),
             Err(e) => Err(VMError::RuntimeError(format!("Failed to parse json - {e}"))),
@@ -271,6 +289,7 @@ impl RigzJSON for JSONModule {
     }
 }
 
+use serde::{Deserialize, Serialize};
 use wasm_bindgen_test::*;
 
 #[wasm_bindgen_test(unsupported = test)]

@@ -1,7 +1,8 @@
 mod runner;
 
 use crate::process::{ModulesMap, MutableReference, ProcessManager};
-use crate::{Scope, VMOptions, Value};
+use crate::{Scope, VMOptions};
+use rigz_core::ObjectValue;
 use runner::ProcessRunner;
 
 #[derive(Debug)]
@@ -30,7 +31,7 @@ impl Process {
         }
     }
 
-    pub(crate) fn run(&self, args: Vec<Value>) -> Value {
+    pub(crate) fn run(&self, args: Vec<ObjectValue>) -> ObjectValue {
         let mut runner = ProcessRunner::new(
             &self.scope,
             args,

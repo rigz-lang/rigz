@@ -1,32 +1,31 @@
 extern crate proc_macro;
+
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use rigz_ast::{
-    rigz_type_to_rust_str, FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser,
-    RigzType, Tokens,
-};
+use rigz_ast::{FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser, RigzType};
+use rigz_core::derive::{rigz_type_to_rust_str, Tokens};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use syn::parse::{Parse, ParseStream};
 use syn::{parse_macro_input, parse_str, LitStr, Token, Type};
 
-struct DeriveInput {
+struct DeriveModule {
     ident: Option<Ident>,
     literal: LitStr,
 }
 
-impl Parse for DeriveInput {
+impl Parse for DeriveModule {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.peek(LitStr) {
-            Ok(DeriveInput {
+            Ok(DeriveModule {
                 ident: None,
                 literal: input.parse()?,
             })
         } else {
             let ident = Some(input.parse()?);
             input.parse::<Token![,]>()?;
-            Ok(DeriveInput {
+            Ok(DeriveModule {
                 ident,
                 literal: input.parse()?,
             })
@@ -39,7 +38,7 @@ impl Parse for DeriveInput {
 /// Rigz<Name> must be implemented manually
 #[proc_macro]
 pub fn derive_module(input: TokenStream) -> TokenStream {
-    let full = parse_macro_input!(input as DeriveInput);
+    let full = parse_macro_input!(input as DeriveModule);
     let input = full.literal.value();
 
     let input = &input;
@@ -184,7 +183,7 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
 
     if !calls.is_empty() {
         module_methods.push(quote! {
-            fn call(&self, function: String, args: RigzArgs) -> Result<Value, VMError> {
+            fn call(&self, function: String, args: RigzArgs) -> Result<ObjectValue, VMError> {
                 match function.as_str() {
                     #(#calls)*
                     _ => Err(VMError::InvalidModuleFunction(format!(
@@ -217,10 +216,10 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
         module_methods.push(quote! {
             fn call_extension(
                 &self,
-                this: Rc<RefCell<Value>>,
+                this: Rc<RefCell<ObjectValue>>,
                 function: String,
                 args: RigzArgs,
-            ) -> Result<Value, VMError> {
+            ) -> Result<ObjectValue, VMError> {
                 match function.as_str() {
                     #(#ext_calls)*
                     _ => Err(VMError::InvalidModuleFunction(format!(
@@ -231,7 +230,7 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
         });
     }
 
-    let mut_ext_calls: Vec<_> = all_fcs
+    let mut mut_ext_calls: Vec<_> = all_fcs
         .iter()
         .map(|(name, f)| {
             (
@@ -248,25 +247,6 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
         .filter(|(_, f)| !f.is_empty())
         .map(|(name, fs)| create_matched_call(name, fs, FirstArg::MutThis))
         .collect();
-
-    if !mut_ext_calls.is_empty() {
-        module_methods.push(quote! {
-            fn call_mutable_extension(
-                &self,
-                this: Rc<RefCell<Value>>,
-                function: String,
-                args: RigzArgs,
-            ) -> Result<Option<Value>, VMError> {
-                match function.as_str() {
-                    #(#mut_ext_calls)*
-                    _ => return Err(VMError::InvalidModuleFunction(format!(
-                        "Function {function} does not exist"
-                    )))
-                }
-                Ok(None)
-            }
-        });
-    }
 
     let vm_calls: Vec<_> = all_fcs
         .iter()
@@ -286,20 +266,26 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
         .map(|(name, fs)| create_matched_call(name, fs, FirstArg::VM))
         .collect();
 
-    if !vm_calls.is_empty() {
+    let has_vm = !vm_calls.is_empty();
+    if has_vm {
+        mut_ext_calls.extend(vm_calls);
+    }
+
+    if !mut_ext_calls.is_empty() {
         module_methods.push(quote! {
-            fn vm_extension(
+            fn call_mutable_extension(
                 &self,
-                vm: &mut VM,
-                function:String,
+                this: Rc<RefCell<ObjectValue>>,
+                function: String,
                 args: RigzArgs,
-            ) -> Result<Value, VMError> {
+            ) -> Result<Option<ObjectValue>, VMError> {
                 match function.as_str() {
-                    #(#vm_calls)*
-                    _ => Err(VMError::InvalidModuleFunction(format!(
+                    #(#mut_ext_calls)*
+                    _ => return Err(VMError::InvalidModuleFunction(format!(
                         "Function {function} does not exist"
                     )))
                 }
+                Ok(None)
             }
         });
     }
@@ -310,14 +296,20 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
         }
     };
 
-    final_definition(full, module, module_methods, module_def)
+    final_definition(full, module, module_methods, module_def, has_vm)
+}
+
+#[proc_macro]
+pub fn derive_object(input: TokenStream) -> TokenStream {
+    todo!()
 }
 
 fn final_definition(
-    full: DeriveInput,
+    full: DeriveModule,
     module: ModuleTraitDefinition,
     module_methods: Vec<Tokens>,
     module_def: Tokens,
+    has_vm: bool,
 ) -> TokenStream {
     let name = &module.definition.name;
     let module_name = match &full.ident {
@@ -328,16 +320,20 @@ fn final_definition(
     let input = full.literal.value();
     let input = input.as_str();
 
+    let lifetime_module = if has_vm {
+        quote! { #module_name<'_> }
+    } else {
+        quote! { #module_name }
+    };
+
     let base = quote! {
         #module_def
 
-        impl Module for #module_name {
+        impl Definition for #lifetime_module {
             #[inline]
             fn name(&self) -> &'static str {
                 #name
             }
-
-            #(#module_methods)*
 
             #[inline]
             fn trait_definition(&self) -> &'static str {
@@ -345,7 +341,11 @@ fn final_definition(
             }
         }
 
-        impl ParsedModule for #module_name {
+        impl Module for #lifetime_module {
+            #(#module_methods)*
+        }
+
+        impl ParsedModule for #lifetime_module {
             #[inline]
             fn module_definition(&self) -> ModuleTraitDefinition {
                 #module
@@ -355,9 +355,21 @@ fn final_definition(
 
     match full.ident {
         None => {
+            let struct_def = if has_vm {
+                quote! {
+                    pub struct #module_name<'v> {
+                        vm: &'v mut VM
+                    }
+                }
+            } else {
+                quote! {
+                    #[derive(Debug)]
+                    pub struct #module_name;
+                }
+            };
+
             quote! {
-                #[derive(Copy, Clone, Debug)]
-                pub struct #module_name;
+                #struct_def
 
                 #base
             }
@@ -379,7 +391,7 @@ impl From<FirstArg> for Option<Ident> {
     fn from(val: FirstArg) -> Self {
         match val {
             FirstArg::None => None,
-            FirstArg::VM => Some(Ident::new("vm", Span::call_site())),
+            FirstArg::VM => Some(Ident::new("self.vm", Span::call_site())),
             FirstArg::MutThis | FirstArg::This => Some(Ident::new("this", Span::call_site())),
         }
     }
@@ -439,7 +451,7 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
                             }
                         } else {
                             quote! {
-                                Value::Bool(v) => {
+                                ObjectValue::Primitive(PrimitiveValue::Bool(v)) => {
                                     let v = v.to_bool();
                                     #base_call
                                 }
@@ -455,7 +467,7 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
                             }
                         } else {
                             quote! {
-                                Value::Number(n) => {
+                                ObjectValue::Primitive(PrimitiveValue::Number(n)) => {
                                     let v = n.to_int();
                                     #base_call
                                 }
@@ -471,7 +483,7 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
                             }
                         } else {
                             quote! {
-                                Value::Number(n) => {
+                                ObjectValue::Primitive(PrimitiveValue::Number(n)) => {
                                     let v = n.to_float();
                                     #base_call
                                 }
@@ -487,7 +499,7 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
                             }
                         } else {
                             quote! {
-                                Value::Number(v) => {
+                                ObjectValue::Primitive(PrimitiveValue::Number(v)) => {
                                     #base_call
                                 }
                             }
@@ -502,7 +514,7 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
                             }
                         } else {
                             quote! {
-                                Value::String(v) => {
+                                ObjectValue::Primitive(PrimitiveValue::String(v)) => {
                                     #base_call
                                 }
                             }
@@ -517,7 +529,7 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
                             }
                         } else {
                             quote! {
-                                Value::List(v) => {
+                                ObjectValue::List(v) => {
                                     #base_call
                                 }
                             }
@@ -532,7 +544,7 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
                             }
                         } else {
                             quote! {
-                                Value::Map(v) => {
+                                ObjectValue::Map(v) => {
                                     #base_call
                                 }
                             }
@@ -540,7 +552,7 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
                     }
                     RigzType::Error => {
                         quote! {
-                            Value::Error(v) => {
+                            ObjectValue::Primitive(PrimitiveValue::Error(v)) => {
                                 #base_call
                             }
                         }
@@ -634,9 +646,9 @@ fn base_call(
         },
     };
 
-    let mut_result = match &function_signature.self_type {
-        None => false,
-        Some(t) => t.mutable && !t.rigz_type.is_vm(),
+    let (mut_result, is_vm) = match &function_signature.self_type {
+        None => (false, false),
+        Some(t) => (t.mutable, t.rigz_type.is_vm()),
     };
 
     let method_call = if mut_result {
@@ -672,9 +684,9 @@ fn base_call(
                                     match #base_call? {
                                         Some(v) => {
                                             let (#args) = v;
-                                            Ok(Value::Tuple(vec![#call_args]))
+                                            Ok(ObjectValue::Tuple(vec![#call_args]))
                                         },
-                                        None => Ok(Value::None),
+                                        None => Ok(ObjectValue::default()),
                                     }
                                 }
                             } else {
@@ -682,16 +694,16 @@ fn base_call(
                                     match #base_call {
                                         Some(v) => {
                                             let (#args) = v;
-                                            Ok(Value::Tuple(vec![#call_args]))
+                                            Ok(ObjectValue::Tuple(vec![#call_args]))
                                         },
-                                        None => Ok(Value::None),
+                                        None => Ok(ObjectValue::default()),
                                     }
                                 }
                             }
                         } else if *can_return_error {
                             quote! {
                                 let (#args) = #base_call?;
-                                Ok(Value::Tuple(vec![#call_args]))
+                                Ok(ObjectValue::Tuple(vec![#call_args]))
                             }
                         } else {
                             let v = tuple_call(base_call, values, None);
@@ -704,7 +716,7 @@ fn base_call(
                             quote! {
                                 match #base_call {
                                     Ok(Some(v)) => Ok(v),
-                                    Ok(None) => Ok(Value::None),
+                                    Ok(None) => Ok(ObjectValue::default()),
                                     Err(e) => Err(e)
                                 }
                             }
@@ -716,7 +728,7 @@ fn base_call(
                     } else if *can_return_error && base_type.as_ref() == &RigzType::None {
                         quote! {
                             #base_call?;
-                            Ok(Value::None)
+                            Ok(ObjectValue::default())
                         }
                     } else if *can_return_error {
                         if base_type.as_ref() != &RigzType::Any {
@@ -838,7 +850,7 @@ fn tuple_call_args(values: &[RigzType], offset: Option<usize>) -> Tokens {
     let values = values.iter().enumerate().map(|(index, v)| {
         if let RigzType::Tuple(t) = v {
             let v = tuple_call_args(t, offset);
-            quote! { Value::Tuple(vec![#v]) }
+            quote! { ObjectValue::Primitive(PrimitiveValue::Tuple(vec![#v])) }
         } else {
             let v = rigz_type_to_arg(v, index, offset);
             quote! {
@@ -855,7 +867,7 @@ fn tuple_call(base_call: Tokens, values: &[RigzType], offset: Option<usize>) -> 
     let call_args = tuple_call_args(values, offset);
     quote! {
         let (#args) = #base_call;
-        Ok(Value::Tuple(vec![#call_args]))
+        Ok(ObjectValue::Tuple(vec![#call_args]))
     }
 }
 
@@ -864,12 +876,13 @@ fn create_method_call(
     function_signature: &FunctionSignature,
     first_arg: FirstArg,
 ) -> Tokens {
-    let fs: Option<Ident> = first_arg.into();
     let first_arg = match &function_signature.self_type {
         None => None,
         Some(v) => match first_arg {
             FirstArg::None => unreachable!(),
-            FirstArg::VM | FirstArg::MutThis => {
+            FirstArg::VM => Some(quote! { self.vm }),
+            FirstArg::MutThis => {
+                let fs: Option<Ident> = first_arg.into();
                 let fs = fs.unwrap();
                 Some(quote! { #fs })
             }
@@ -877,6 +890,7 @@ fn create_method_call(
                 if v.rigz_type == RigzType::Any {
                     first_arg.into()
                 } else {
+                    let fs: Option<Ident> = first_arg.into();
                     let fs = fs.unwrap();
                     Some(quote! { #fs })
                 }
@@ -980,13 +994,13 @@ fn convert_type_for_borrowed_arg(
                 None => quote! { #name.borrow_mut().deref_mut().map_mut(|t| t) },
                 Some(t) => quote! { #name.borrow_mut().deref_mut().map_mut(|#name| #t) },
             },
-            RigzType::String => quote! { #name.borrow_mut().as_string() },
+            RigzType::String => quote! { #name.borrow_mut().as_string()? },
             RigzType::Number => quote! { #name.borrow_mut().as_number()? },
             RigzType::Int => quote! { #name.borrow_mut().as_int()? },
             RigzType::Float => quote! { #name.borrow_mut().as_float()? },
-            RigzType::Bool => quote! { #name.borrow_mut().as_bool() },
-            RigzType::List(_) => quote! { #name.borrow_mut().as_list() },
-            RigzType::Map(_, _) => quote! { #name.borrow_mut().as_map() },
+            RigzType::Bool => quote! { #name.borrow_mut().as_bool()? },
+            RigzType::List(_) => quote! { #name.borrow_mut().as_list()? },
+            RigzType::Map(_, _) => quote! { #name.borrow_mut().as_map()? },
             RigzType::Type => quote! { #name.borrow_mut().rigz_type() },
             r => todo!("call arg {r:?} is not supported"),
         }
@@ -1011,8 +1025,8 @@ fn convert_type_for_borrowed_arg(
             RigzType::Int => quote! { #name.borrow().to_int()? },
             RigzType::Float => quote! { #name.borrow().to_float()? },
             RigzType::Bool => quote! { #name.borrow().to_bool() },
-            RigzType::List(_) => quote! { #name.borrow().to_list() },
-            RigzType::Map(_, _) => quote! { #name.borrow().to_map() },
+            RigzType::List(_) => quote! { #name.borrow().to_list()? },
+            RigzType::Map(_, _) => quote! { #name.borrow().to_map()? },
             RigzType::Type => quote! { #name.borrow().rigz_type() },
             r => todo!("call arg {r:?} is not supported"),
         }
@@ -1055,13 +1069,13 @@ fn convert_type_for_arg(name: Tokens, rigz_type: &RigzType, mutable: bool) -> Op
                 None => return None,
                 Some(t) => quote! { #name.map_mut(|#name| #t) },
             },
-            RigzType::String => quote! { #name.as_string() },
+            RigzType::String => quote! { #name.as_string()? },
             RigzType::Number => quote! { #name.as_number()? },
             RigzType::Int => quote! { #name.as_int()? },
             RigzType::Float => quote! { #name.as_float()? },
-            RigzType::Bool => quote! { #name.as_bool() },
-            RigzType::List(_) => quote! { #name.as_list() },
-            RigzType::Map(_, _) => quote! { #name.as_map() },
+            RigzType::Bool => quote! { #name.as_bool()? },
+            RigzType::List(_) => quote! { #name.as_list()? },
+            RigzType::Map(_, _) => quote! { #name.as_map()? },
             RigzType::Type => quote! { #name.rigz_type() },
             r => todo!("call arg {r:?} is not supported"),
         }
@@ -1086,8 +1100,8 @@ fn convert_type_for_arg(name: Tokens, rigz_type: &RigzType, mutable: bool) -> Op
             RigzType::Int => quote! { #name.to_int()? },
             RigzType::Float => quote! { #name.to_float()? },
             RigzType::Bool => quote! { #name.to_bool() },
-            RigzType::List(_) => quote! { #name.to_list() },
-            RigzType::Map(_, _) => quote! { #name.to_map() },
+            RigzType::List(_) => quote! { #name.to_list()? },
+            RigzType::Map(_, _) => quote! { #name.to_map()? },
             RigzType::Type => quote! { #name.rigz_type() },
             r => todo!("call arg {r:?} is not supported"),
         }

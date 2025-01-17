@@ -1,5 +1,6 @@
 use clap::Args;
-use rigz_runtime::{Runtime, RuntimeError, VMError, Value};
+use rigz_ast::ObjectValue;
+use rigz_runtime::{PrimitiveValue, Runtime, RuntimeError, VMError};
 use rustyline::completion::Completer;
 use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
@@ -146,7 +147,7 @@ pub(crate) fn repl(args: ReplArgs) {
 fn highlight_value(
     highlighter: &mut Highlighter,
     rigz_config: &HighlightConfiguration,
-    value: Value,
+    value: ObjectValue,
 ) {
     print!("=> ");
     let r = highlight(highlighter, rigz_config, value.to_string().as_bytes());

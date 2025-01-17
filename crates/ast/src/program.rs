@@ -1,9 +1,20 @@
-use rigz_vm::{BinaryOperation, Lifecycle, RigzType, UnaryOperation, Value};
+use rigz_core::{BinaryOperation, Lifecycle, PrimitiveValue, RigzType, UnaryOperation};
+use rustc_hash::FxHashMap;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct Program {
     pub input: Option<String>,
     pub elements: Vec<Element>,
+    pub types: FxHashMap<String, RigzType>,
+}
+
+impl Program {
+    pub fn for_elements(elements: Vec<Element>) -> Self {
+        Self {
+            elements,
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -61,7 +72,7 @@ impl FunctionType {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionArgument {
     pub name: String,
-    pub default: Option<Value>,
+    pub default: Option<PrimitiveValue>,
     pub function_type: FunctionType,
     pub var_arg: bool,
     pub rest: bool,
@@ -210,7 +221,7 @@ impl From<FunctionExpression> for Box<Expression> {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expression {
     This,
-    Value(Value),
+    Value(PrimitiveValue),
     List(Vec<Expression>),
     Map(Vec<(Expression, Expression)>),
     Identifier(String),

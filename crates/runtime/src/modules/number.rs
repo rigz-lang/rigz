@@ -50,7 +50,7 @@ impl RigzNumber for NumberModule {
         this.max(other)
     }
 
-    fn number_to_bits(&self, this: Number) -> Vec<Value> {
+    fn number_to_bits(&self, this: Number) -> Vec<ObjectValue> {
         let bits = this.to_bits();
         let start = bits.leading_zeros();
         let bits = bits.reverse_bits();
@@ -62,7 +62,7 @@ impl RigzNumber for NumberModule {
             .collect()
     }
 
-    fn int_from_bits(&self, raw: Vec<Value>) -> i64 {
+    fn int_from_bits(&self, raw: Vec<ObjectValue>) -> i64 {
         raw.into_iter()
             .rev()
             .enumerate()
@@ -71,7 +71,7 @@ impl RigzNumber for NumberModule {
             })
     }
 
-    fn float_from_bits(&self, raw: Vec<Value>) -> f64 {
+    fn float_from_bits(&self, raw: Vec<ObjectValue>) -> f64 {
         let raw = raw
             .into_iter()
             .rev()

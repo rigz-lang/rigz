@@ -1,10 +1,8 @@
 use crate::process::ModulesMap;
-use crate::{
-    runner_common, CallFrame, Lifecycle, Number, ResolveValue, ResolvedModule, Runner, Scope,
-    StackValue, VMError, VMOptions, Value, Variable, VM,
-};
+use crate::{runner_common, CallFrame, ResolvedModule, Runner, Scope, VMOptions, Variable, VM};
 use itertools::Itertools;
 use log_derive::{logfn, logfn_inputs};
+use rigz_core::{Lifecycle, ObjectValue, ResolveValue, StackValue, VMError};
 use std::fmt::Display;
 use std::ops::Deref;
 use std::thread;
@@ -170,7 +168,7 @@ impl Runner for VM {
 
     fn receive(&mut self, args: usize) -> Result<(), VMError> {
         let args = self.resolve_args(args);
-        let res = self.process_manager.update(move |p| p.receive(args));
+        let res = self.process_manager.update(move |p| p.receive(args))?;
         self.store_value(res.into());
         Ok(())
     }
@@ -189,7 +187,7 @@ impl Runner for VM {
         let pid = self
             .process_manager
             .update_with_ref(move |p, pm| p.spawn(scope, vec![], options, m, timeout, pm))?;
-        self.store_value(Number::Int(pid as i64).into());
+        self.store_value((pid as i64).into());
         Ok(())
     }
 
@@ -198,20 +196,20 @@ impl Runner for VM {
         module: ResolvedModule,
         func: String,
         args: usize,
-    ) -> Result<Value, VMError> {
+    ) -> Result<ObjectValue, VMError> {
         let args = self.resolve_args(args).into();
         module.call(func, args)
     }
-
-    fn vm_extension(
-        &mut self,
-        module: ResolvedModule,
-        func: String,
-        args: usize,
-    ) -> Result<Value, VMError> {
-        let args = self.resolve_args(args).into();
-        module.vm_extension(self, func, args)
-    }
+    //
+    // fn vm_extension(
+    //     &mut self,
+    //     module: ResolvedModule,
+    //     func: String,
+    //     args: usize,
+    // ) -> Result<ObjectValue, VMError> {
+    //     let args = self.resolve_args(args).into();
+    //     module.vm_extension(self, func, args)
+    // }
 
     fn sleep(&self, duration: Duration) {
         thread::sleep(duration);

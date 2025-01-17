@@ -1,5 +1,5 @@
 pub mod runtime {
-    use rigz_ast::{VMError, Value};
+    use rigz_ast::{PrimitiveValue, VMError};
     #[allow(unused_imports)] // used by macro
     use rigz_runtime::runtime::{eval, eval_print_vm};
     use rigz_runtime::RuntimeError;
@@ -114,6 +114,7 @@ pub mod runtime {
     pub mod valid {
         use super::*;
         use rigz_ast::IndexMap;
+        use rigz_core::ObjectValue;
 
         run_expected! {
             raw_value("'Hello World'" = "Hello World")
@@ -121,8 +122,8 @@ pub mod runtime {
             list_index("[1, 2, 3][2]" = 3)
             list_index_getter("[1, 2, 3].2" = 3)
             map_sum("{1, 2, 3}.sum" = 6)
-            split_first("[1, 2, 3].split_first" = Value::Tuple(vec![1.into(), vec![2, 3].into()]))
-            split_first_map("{1, 2, 3}.split_first" = Value::Tuple(vec![Value::Tuple(vec![1.into(), 1.into()].into()), Value::Map(IndexMap::from([(2.into(), 2.into()), (3.into(), 3.into())]))]))
+            split_first("[1, 2, 3].split_first" = ObjectValue::Tuple(vec![1.into(), vec![2, 3].into()]))
+            split_first_map("{1, 2, 3}.split_first" = ObjectValue::Tuple(vec![ObjectValue::Tuple(vec![1.into(), 1.into()].into()), ObjectValue::Map(IndexMap::from([(2.into(), 2.into()), (3.into(), 3.into())]))]))
             split_first_assign("(first, rest) = [1, 2, 3].split_first; first + rest" = vec![1, 2, 3])
             complex_expression_ignore_precedence("1 + 2 * 3 - 4 / 5" = 1)
             ignore_precedence("2 + 1 * 3" = 9)
@@ -198,7 +199,7 @@ pub mod runtime {
             "# = IndexMap::from([(1, 1), (2, 2), (3, 3), (4, 4)]))
             create_dynamic_list(r#"
                 [{d = 1}]
-            "# = vec![Value::Map(IndexMap::from([("d".into(), 1.into())]))])
+            "# = vec![ObjectValue::Map(IndexMap::from([("d".into(), 1.into())]))])
             call_extension_function_multiple_times_inline_no_parens(r#"
             fn mut String.foo -> mut Self
                 self += "h"
@@ -225,10 +226,10 @@ pub mod runtime {
                     a.to_i if a.is_num
                 end
                 foo 'a'
-            "# = Value::None)
+            "# = PrimitiveValue::None)
             if_false(r#"if 1 == "abc"
                 14
-            end"# = Value::None)
+            end"# = PrimitiveValue::None)
             to_json("import JSON; {a=5}.to_json" = r#"{"a":5}"#)
             json_parse("import JSON; JSON.parse '5'" = 5)
             is("1.is Number" = true)
@@ -294,8 +295,8 @@ pub mod runtime {
             func = |v| v.is_num
             [for a in ['a', 'b', 'c', 1, 2, 3]: a if func a]
             "# = vec![1, 2, 3])
-            trailing_if_false(r#"v = 'a'; v if v.is_num"# = Value::None)
-            instance_trailing_if(r#"a = 'a'; a.to_i if a.is_num"# = Value::None)
+            trailing_if_false(r#"v = 'a'; v if v.is_num"# = PrimitiveValue::None)
+            instance_trailing_if(r#"a = 'a'; a.to_i if a.is_num"# = PrimitiveValue::None)
             filter(r#"[1, 2, 3, 'a', 'b'].filter(|v| v.is_num)"# = vec![1, 2, 3])
             map_filter(r#"{1, 2, 3, 'a', 'b'}.filter(|k, v| v.is_num)"# = IndexMap::from([(1, 1), (2, 2), (3, 3)]))
             map_filter_map(r#"{1, 2, 3, 'a', 'b'}.filter { |k, v| v.is_num }.map(|k, v| (k, v * v))"# = IndexMap::from([(1, 1), (2, 4), (3, 9)]))

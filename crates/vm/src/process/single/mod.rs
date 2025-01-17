@@ -1,5 +1,5 @@
 use crate::process::{ModulesMap, MutableReference, ProcessManager};
-use crate::{Lifecycle, Scope, VMError, VMOptions, Value};
+use crate::{Lifecycle, PrimitiveValue, Scope, VMError, VMOptions};
 
 #[derive(Debug)]
 pub struct Process {
@@ -47,11 +47,11 @@ impl Process {
         ))
     }
 
-    pub fn receive(&self, timeout: Option<usize>) -> Value {
+    pub fn receive(&self, timeout: Option<usize>) -> PrimitiveValue {
         VMError::todo("`receive` is not implemented for Single Threaded Process".to_string()).into()
     }
 
-    pub fn send(&self, args: Vec<Value>) -> Result<(), VMError> {
+    pub fn send(&self, args: Vec<PrimitiveValue>) -> Result<(), VMError> {
         Err(VMError::todo(
             "`send` is not implemented for Single Threaded Process".to_string(),
         ))

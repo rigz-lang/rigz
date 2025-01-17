@@ -1,0 +1,11 @@
+[package]
+name = "rigz_value"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+
+[dependencies]
+rigz_core.workspace = true
+rigz_ast_derive.workspace = true

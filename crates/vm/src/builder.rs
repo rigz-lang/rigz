@@ -1,12 +1,9 @@
 use crate::process::ModulesMap;
 use crate::vm::VMOptions;
-use crate::{
-    BinaryOperation, Instruction, Lifecycle, LoadValue, Module, RigzType, Scope, UnaryOperation,
-    Value, VM,
-};
+use crate::{Instruction, LoadValue, Scope, VM};
 use log::Level;
+use rigz_core::{BinaryOperation, Lifecycle, Module, ObjectValue, RigzType, UnaryOperation};
 use std::fmt::Debug;
-
 // todo use Rodeo (single threaded here + runtime), use Reference<(Threaded or not)Resolver> in VM
 
 #[derive(Clone, Debug)]
@@ -16,7 +13,7 @@ pub struct VMBuilder {
     pub modules: ModulesMap,
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
-    pub constants: Vec<Value>,
+    pub constants: Vec<ObjectValue>,
 }
 
 impl Default for VMBuilder {
@@ -58,7 +55,7 @@ macro_rules! generate_bin_op_methods {
 }
 
 pub trait RigzBuilder: Debug + Default {
-    fn add_constant(&mut self, value: Value) -> usize;
+    fn add_constant(&mut self, value: ObjectValue) -> usize;
 
     fn add_instruction(&mut self, instruction: Instruction) -> &mut Self;
 
@@ -181,21 +178,21 @@ pub trait RigzBuilder: Debug + Default {
         self.add_instruction(Instruction::CallMutableExtension { module, func, args });
         self
     }
-
-    #[inline]
-    fn add_call_vm_extension_module_instruction(
-        &mut self,
-        name: String,
-        func: String,
-        args: usize,
-    ) -> &mut Self {
-        self.add_instruction(Instruction::CallVMExtension {
-            module: name,
-            func,
-            args,
-        });
-        self
-    }
+    //
+    // #[inline]
+    // fn add_call_vm_extension_module_instruction(
+    //     &mut self,
+    //     name: String,
+    //     func: String,
+    //     args: usize,
+    // ) -> &mut Self {
+    //     self.add_instruction(Instruction::CallVMExtension {
+    //         module: name,
+    //         func,
+    //         args,
+    //     });
+    //     self
+    // }
 
     #[inline]
     fn add_halt_instruction(&mut self) -> &mut Self {
@@ -424,7 +421,7 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        fn add_constant(&mut self, value: Value) -> usize {
+        fn add_constant(&mut self, value: ObjectValue) -> usize {
             let index = self.constants.len();
             self.constants.push(value);
             index

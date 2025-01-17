@@ -1,5 +1,5 @@
-use crate::lifecycle::Lifecycle;
-use crate::{Instruction, Snapshot, VMError};
+use crate::Instruction;
+use rigz_core::{Lifecycle, Snapshot, VMError};
 use std::fmt::Display;
 use std::vec::IntoIter;
 

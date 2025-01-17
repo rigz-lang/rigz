@@ -1,9 +1,9 @@
 use crate::prepare::{Program, ProgramParser};
-use crate::VMOptions;
 use rigz_ast::{
-    ParsedModule, Parser, ParserOptions, ParsingError, TestResults, VMError, ValidationError,
-    Value, VM,
+    ObjectValue, ParsedModule, Parser, ParserOptions, ParsingError, TestResults, VMError,
+    ValidationError,
 };
+use rigz_vm::{VMOptions, VM};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
@@ -149,7 +149,7 @@ impl Runtime<'_> {
         self.parser.register_module(module);
     }
 
-    pub fn run(&mut self) -> Result<Value, RuntimeError> {
+    pub fn run(&mut self) -> Result<ObjectValue, RuntimeError> {
         self.parser.builder.eval().map_err(|e| e.into())
     }
 
@@ -157,13 +157,13 @@ impl Runtime<'_> {
         self.parser.builder.test()
     }
 
-    pub fn eval(&mut self, input: String) -> Result<Value, RuntimeError> {
+    pub fn eval(&mut self, input: String) -> Result<ObjectValue, RuntimeError> {
         self.parser.repl(input)?;
         self.run()
     }
 }
 
-pub fn eval(input: String) -> Result<Value, RuntimeError> {
+pub fn eval(input: String) -> Result<ObjectValue, RuntimeError> {
     let mut runtime = Runtime::create(input)?;
     runtime.run()
 }
@@ -173,7 +173,7 @@ pub fn test(input: String) -> Result<TestResults, RuntimeError> {
     Ok(runtime.test())
 }
 
-pub fn eval_print_vm(input: String) -> Result<Value, RuntimeError> {
+pub fn eval_print_vm(input: String) -> Result<ObjectValue, RuntimeError> {
     let mut runtime = Runtime::create(input)?;
     println!("VM (before) - {:#?}", runtime.vm());
     runtime.run()

@@ -1,4 +1,3 @@
-use crate::Module;
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
@@ -12,6 +11,9 @@ pub type ModulesMap =
 #[cfg(feature = "threaded")]
 pub type Reference<T> = std::sync::Arc<T>;
 
+#[cfg(not(feature = "threaded"))]
+pub type Reference<T> = std::rc::Rc<T>;
+
 #[cfg(feature = "threaded")]
 pub(crate) type Process = threaded::Process;
 
@@ -23,6 +25,7 @@ mod process_manager;
 mod single;
 
 pub(crate) use process_manager::ProcessManager;
+use rigz_core::Module;
 
 #[cfg(not(feature = "threaded"))]
 pub type Process = single::Process;

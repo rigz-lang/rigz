@@ -1,5 +1,5 @@
 use logos::{Logos, Span};
-use rigz_vm::{BinaryOperation, Number, Value};
+use rigz_core::{BinaryOperation, Number, PrimitiveValue};
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::ParseBoolError;
@@ -75,13 +75,13 @@ impl Display for TokenValue<'_> {
     }
 }
 
-impl From<TokenValue<'_>> for Value {
+impl From<TokenValue<'_>> for PrimitiveValue {
     fn from(val: TokenValue<'_>) -> Self {
         match val {
-            TokenValue::None => Value::None,
-            TokenValue::Bool(b) => Value::Bool(b),
-            TokenValue::Number(n) => Value::Number(n),
-            TokenValue::String(s) => Value::String(s.to_string()),
+            TokenValue::None => PrimitiveValue::None,
+            TokenValue::Bool(b) => PrimitiveValue::Bool(b),
+            TokenValue::Number(n) => PrimitiveValue::Number(n),
+            TokenValue::String(s) => PrimitiveValue::String(s.to_string()),
         }
     }
 }
@@ -145,7 +145,7 @@ pub(crate) enum TokenKind<'lex> {
     BinAssign(BinaryOperation),
     #[token("!")]
     Not,
-    #[regex("[A-Z][A-Za-z0-9_]+!?\\??", |lex| lex.slice())]
+    #[regex("[A-Z][A-Za-z0-9_]+(::[A-Z][A-Za-z0-9_]+)*!?\\??", |lex| lex.slice())]
     TypeValue(&'lex str),
     #[token("-")]
     Minus,
@@ -237,7 +237,6 @@ pub(crate) enum TokenKind<'lex> {
     Try,
     #[token("catch")]
     Catch,
-    // todo should puts & log be dedicated tokens to since they're VM instructions?
 }
 
 impl Display for TokenKind<'_> {

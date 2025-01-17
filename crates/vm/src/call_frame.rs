@@ -1,7 +1,7 @@
-use crate::{Snapshot, StackValue, VMError};
 use indexmap::map::Entry;
 use indexmap::IndexMap;
 use log_derive::{logfn, logfn_inputs};
+use rigz_core::{Snapshot, StackValue, VMError};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Index;
