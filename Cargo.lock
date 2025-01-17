@@ -2155,6 +2155,7 @@ dependencies = [
  "rigz_ast",
  "rigz_ast_derive",
  "rigz_core",
+ "rigz_runtime",
  "rigz_vm",
  "scraper",
  "serde_json",

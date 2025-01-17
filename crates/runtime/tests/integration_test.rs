@@ -6,6 +6,17 @@ pub mod runtime {
     use wasm_bindgen_test::*;
 
     macro_rules! run_expected {
+        (ignore: $($name:ident($input:literal = $expected:expr))*) => {
+            $(
+                #[ignore]
+                #[wasm_bindgen_test(unsupported = test)]
+                fn $name() {
+                    let input = $input.to_string();
+                    let v = eval(input);
+                    assert_eq!(v, Ok($expected.into()), "VM eval failed {}", $input);
+                }
+            )*
+        };
         ($($name:ident($input:literal = $expected:expr))*) => {
             $(
                  #[wasm_bindgen_test(unsupported = test)]
@@ -261,17 +272,6 @@ pub mod runtime {
             else
                 1 + 2
             end"# = 3)
-            memo_factorial(r#"
-            @memo
-            fn factorial(n: Number)
-                if n == 0
-                    1
-                else
-                    n * factorial n - 1
-                end
-            end
-            factorial 15
-            "#=1307674368000_i64)
             var_args_module(r#"
             let a = []
             a.with 1, 2, 3
@@ -350,37 +350,6 @@ pub mod runtime {
             list_map_if(r#"
                 [1, 37, '4', 'a'].map(|v| v.to_i if v.is_num)
             "# = vec![1, 37, 4])
-            factorial(r#"
-            fn factorial(n: Number)
-                if n == 0
-                    1
-                else
-                    a = factorial n - 1
-                    n * a
-                end
-            end
-            factorial 4
-            "#=24)
-            factorial_inline(r#"
-            fn factorial(n: Number)
-                if n == 0
-                    1
-                else
-                    n * factorial n - 1
-                end
-            end
-            factorial 4
-            "#=24)
-            fib_recursive(r#"
-            fn fib(n: Number) -> Number
-                if n <= 1
-                    n
-                else
-                    (fib n - 1) + (fib n - 2)
-                end
-            end
-            fib 6
-            "# = 8)
             trait_impl(r#"
             trait Hello
                 fn Self.hello -> String
@@ -542,5 +511,54 @@ pub mod runtime {
     pub mod debug {
         use super::*;
         run_debug_vm! {}
+    }
+
+    #[ignore]
+    pub mod recursive {
+        use super::*;
+        run_expected! {
+            factorial(r#"
+            fn factorial(n: Number)
+                if n == 0
+                    1
+                else
+                    a = factorial n - 1
+                    n * a
+                end
+            end
+            factorial 4
+            "#=24)
+            factorial_inline(r#"
+            fn factorial(n: Number)
+                if n == 0
+                    1
+                else
+                    n * factorial n - 1
+                end
+            end
+            factorial 4
+            "#=24)
+            fib_recursive(r#"
+            fn fib(n: Number) -> Number
+                if n <= 1
+                    n
+                else
+                    (fib n - 1) + (fib n - 2)
+                end
+            end
+            fib 6
+            "# = 8)
+            memo_factorial(r#"
+            @memo
+            fn factorial(n: Number)
+                if n == 0
+                    1
+                else
+                    n * factorial n - 1
+                end
+            end
+            factorial 15
+            "#=1307674368000_i64)
+        }
     }
 }

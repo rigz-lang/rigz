@@ -5,6 +5,7 @@ impl Sub for &ObjectValue {
     type Output = ObjectValue;
     fn sub(self, other: Self) -> Self::Output {
         match (self, other) {
+            (ObjectValue::Primitive(a), ObjectValue::Primitive(b)) => (a - b).into(),
             (ObjectValue::List(a), ObjectValue::List(b)) => {
                 let mut result = a.clone();
                 result.retain(|v| !b.contains(v));
