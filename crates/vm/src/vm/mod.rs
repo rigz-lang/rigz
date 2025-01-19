@@ -26,11 +26,7 @@ pub type ModulesMap =
 #[cfg(not(feature = "threaded"))]
 pub type ModulesMap = HashMap<&'static str, std::rc::Rc<dyn Module>>;
 
-#[cfg(not(feature = "threaded"))]
-pub type Dependencies = Vec<std::rc::Rc<Dependency>>;
-
-#[cfg(feature = "threaded")]
-pub type Dependencies = std::sync::RwLock<Vec<std::sync::Arc<Dependency>>>;
+pub type Dependencies = std::sync::RwLock<Vec<Arc<Dependency>>>;
 
 #[derive(Debug)]
 pub struct VM {

@@ -11,7 +11,6 @@ members = [
     "crates/core",
     "crates/ast",
     "crates/ast_derive",
-    "crates/value",
     "crates/vm",
     "crates/runtime",
     "crates/tree-sitter",
@@ -26,7 +25,6 @@ itertools = "0.14.0"
 log = { version = "0.4", features = [] }
 rand = { version = "0.8.5" }
 rigz_core = {version = "0.1", path = "crates/core"}
-rigz_value = {version = "0.1", path = "crates/value"}
 rigz_ast = {version = "0.6", path = "crates/ast", default-features = false}
 rigz_ast_derive = {version = "0.6", path = "crates/ast_derive"}
 rigz_vm = {version = "0.37", path = "crates/vm", default-features = false}

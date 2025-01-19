@@ -28,14 +28,13 @@ pub trait Definition {
         Self: Sized;
 }
 
-#[derive(PartialEq, Eq)]
 pub struct Dependency {
     pub create: fn(ObjectValue) -> Result<Box<dyn Object>, VMError>,
 }
 
 impl Debug for Dependency {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "")
+        write!(f, "Dependency")
     }
 }
 
