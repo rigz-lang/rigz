@@ -5,12 +5,11 @@ use log::{warn, Level};
 pub use program::Program;
 use rigz_ast::*;
 use rigz_core::{
-    Dependency, IndexMap, IndexMapEntry, Lifecycle, Number, ObjectValue, PrimitiveValue, RigzType,
+    IndexMap, IndexMapEntry, Lifecycle, Number, ObjectValue, PrimitiveValue, RigzType,
 };
 use rigz_vm::{Instruction, LoadValue, RigzBuilder, VMBuilder, VM};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::fmt::Display;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -163,7 +162,7 @@ pub(crate) struct ProgramParser<'vm, T: RigzBuilder> {
     // todo imports should be fully resolved path
     imports: HashMap<String, Imports>,
     objects: HashMap<String, Rc<ObjectDeclaration>>,
-    custom_objects: HashMap<String, Arc<Dependency>>,
+    custom_objects: HashMap<String, usize>,
 }
 
 impl<T: RigzBuilder> Default for ProgramParser<'_, T> {
@@ -256,9 +255,9 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         let def = M::module_definition();
         for dep in M::parsed_dependencies() {
             let obj = dep.object_definition;
+            let dep = self.builder.register_dependency(Arc::new(dep.dependency));
             if let Constructor::Declaration(..) = &obj.constructor {
-                self.custom_objects
-                    .insert(obj.rigz_type.to_string(), Arc::new(dep.dependency));
+                self.custom_objects.insert(obj.rigz_type.to_string(), dep);
             };
             self.parse_object_definition(obj)?;
         }
@@ -1239,8 +1238,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                             )))
                         }
                         Some(d) => {
-                            self.builder
-                                .add_call_dependency_instruction(args, d.clone());
+                            self.builder.add_call_dependency_instruction(args, *d);
                         }
                     },
                     Some(s) => {

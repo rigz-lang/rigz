@@ -1,5 +1,6 @@
-use crate::process::ModulesMap;
-use crate::{runner_common, CallFrame, ResolvedModule, Runner, Scope, VMOptions, Variable, VM};
+use crate::{
+    runner_common, CallFrame, ModulesMap, ResolvedModule, Runner, Scope, VMOptions, Variable, VM,
+};
 use itertools::Itertools;
 use log_derive::{logfn, logfn_inputs};
 use rigz_core::{Lifecycle, ObjectValue, ResolveValue, StackValue, VMError};
@@ -213,5 +214,18 @@ impl Runner for VM {
 
     fn sleep(&self, duration: Duration) {
         thread::sleep(duration);
+    }
+
+    fn call_dependency(&mut self, arg: ObjectValue, dep: usize) -> Result<ObjectValue, VMError> {
+        match self.dependencies.read() {
+            Ok(deps) => match deps.get(dep) {
+                None => Err(VMError::RuntimeError(format!("Dependency not found {dep}"))),
+                Some(dep) => {
+                    let c = dep.create;
+                    Ok(c(arg)?.into())
+                }
+            },
+            Err(e) => Err(VMError::RuntimeError(format!("Failed to get deps {e}"))),
+        }
     }
 }

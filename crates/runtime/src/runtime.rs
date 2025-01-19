@@ -1,6 +1,6 @@
 use crate::prepare::{Program, ProgramParser};
 use rigz_ast::{ParsedModule, Parser, ParserOptions, ParsingError, ValidationError};
-use rigz_core::{ObjectValue, PrimitiveValue, TestResults, VMError};
+use rigz_core::{ObjectValue, TestResults, VMError};
 use rigz_vm::{VMOptions, VM};
 use std::error::Error;
 use std::fmt::{Display, Formatter};

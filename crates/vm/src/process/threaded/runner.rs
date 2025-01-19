@@ -1,8 +1,8 @@
 use crate::call_frame::{CallFrame, Frames};
-use crate::process::{ModulesMap, ProcessManager};
+use crate::process::ProcessManager;
 use crate::{
-    runner_common, Instruction, ResolvedModule, Runner, Scope, VMOptions, VMStack, VMState,
-    Variable,
+    runner_common, Instruction, ModulesMap, ResolvedModule, Runner, Scope, VMOptions, VMStack,
+    VMState, Variable,
 };
 use log_derive::{logfn, logfn_inputs};
 use rigz_core::{MutableReference, ObjectValue, ResolveValue, StackValue, VMError};
@@ -119,6 +119,12 @@ impl Runner for ProcessRunner<'_> {
 
         #[cfg(not(feature = "threaded"))]
         thread::sleep(duration)
+    }
+
+    fn call_dependency(&mut self, arg: ObjectValue, dep: usize) -> Result<ObjectValue, VMError> {
+        Err(VMError::todo(format!(
+            "Process does not implement call dependency {dep}"
+        )))
     }
 }
 

@@ -2,8 +2,7 @@ mod runner;
 
 use log::Level;
 use rigz_core::{
-    BinaryOperation, Dependency, ObjectValue, Reference, RigzType, Snapshot, StackValue,
-    UnaryOperation, VMError,
+    BinaryOperation, ObjectValue, RigzType, Snapshot, StackValue, UnaryOperation, VMError,
 };
 pub use runner::{ResolvedModule, Runner};
 use std::fmt::Display;
@@ -191,7 +190,7 @@ pub enum Instruction {
     InstanceSet,
     InstanceSetMut,
     Call(usize),
-    CallDependency(usize, Arc<Dependency>),
+    CallDependency(usize, usize),
     CallMemo(usize),
     CallMatchingSelf(Vec<(VMArg, Vec<VMArg>, VMCallSite)>),
     CallMatchingSelfMemo(Vec<(VMArg, Vec<VMArg>, VMCallSite)>),
@@ -499,7 +498,9 @@ impl Snapshot for Instruction {
             }
             Instruction::CallDependency(args, dep) => {
                 let mut res = vec![47];
-                todo!("support deps")
+                res.extend(args.as_bytes());
+                res.extend(dep.as_bytes());
+                res
             }
         }
     }
@@ -610,6 +611,10 @@ impl Snapshot for Instruction {
                 Snapshot::from_bytes(bytes, location)?,
             ),
             46 => Instruction::CreateObject(Snapshot::from_bytes(bytes, location)?),
+            47 => Instruction::CallDependency(
+                Snapshot::from_bytes(bytes, location)?,
+                Snapshot::from_bytes(bytes, location)?,
+            ),
             b => {
                 return Err(VMError::RuntimeError(format!(
                     "Illegal instruction byte {b} {location}"

@@ -3,26 +3,41 @@ mod runner;
 mod values;
 
 use crate::call_frame::Frames;
-use crate::process::{ModulesMap, ProcessManager};
+use crate::process::ProcessManager;
 use crate::{
     generate_builder, out, CallFrame, Instruction, RigzBuilder, Runner, Scope, VMStack, Variable,
 };
 pub use options::VMOptions;
 use rigz_core::{
-    Lifecycle, Module, MutableReference, ObjectValue, PrimitiveValue, Snapshot, StackValue,
-    TestResults, VMError,
+    Dependency, Lifecycle, Module, MutableReference, ObjectValue, PrimitiveValue, Snapshot,
+    StackValue, TestResults, VMError,
 };
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::sync::Arc;
 use std::time::Duration;
 pub use values::*;
+
+#[cfg(feature = "threaded")]
+pub type ModulesMap =
+    std::sync::Arc<dashmap::DashMap<&'static str, std::sync::Arc<dyn Module + Send + Sync>>>;
+
+#[cfg(not(feature = "threaded"))]
+pub type ModulesMap = HashMap<&'static str, std::rc::Rc<dyn Module>>;
+
+#[cfg(not(feature = "threaded"))]
+pub type Dependencies = Vec<std::rc::Rc<Dependency>>;
+
+#[cfg(feature = "threaded")]
+pub type Dependencies = std::sync::RwLock<Vec<std::sync::Arc<Dependency>>>;
 
 #[derive(Debug)]
 pub struct VM {
     pub scopes: Vec<Scope>,
     pub frames: Frames,
     pub modules: ModulesMap,
+    pub(crate) dependencies: Dependencies,
     pub stack: VMStack,
     pub sp: usize,
     pub options: VMOptions,
@@ -37,6 +52,20 @@ impl RigzBuilder for VM {
     #[inline]
     fn build(self) -> VM {
         self
+    }
+
+    #[inline]
+    fn register_dependency(&mut self, dependency: Arc<Dependency>) -> usize {
+        let dep = self
+            .dependencies
+            .read()
+            .expect("failed to read dependencies")
+            .len();
+        self.dependencies
+            .get_mut()
+            .expect("failed to lock dependencies")
+            .push(dependency);
+        dep
     }
 }
 
@@ -58,6 +87,7 @@ impl Default for VM {
                 .into(),
             #[cfg(not(feature = "threaded"))]
             process_manager: ProcessManager::new().into(),
+            dependencies: vec![].into(),
         }
     }
 }

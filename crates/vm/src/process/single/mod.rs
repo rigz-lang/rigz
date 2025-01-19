@@ -1,5 +1,5 @@
-use crate::process::{ModulesMap, ProcessManager};
-use crate::{Scope, VMOptions};
+use crate::process::ProcessManager;
+use crate::{ModulesMap, Scope, VMOptions};
 use rigz_core::{Lifecycle, MutableReference, ObjectValue, VMError};
 
 #[derive(Debug)]

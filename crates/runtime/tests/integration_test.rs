@@ -1,5 +1,5 @@
 pub mod runtime {
-    use rigz_core::{PrimitiveValue, VMError};
+    use rigz_core::PrimitiveValue;
     #[allow(unused_imports)] // used by macro
     use rigz_runtime::runtime::{eval, eval_print_vm};
     use rigz_runtime::RuntimeError;

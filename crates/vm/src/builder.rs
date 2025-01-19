@@ -1,10 +1,9 @@
-use crate::process::ModulesMap;
 use crate::vm::VMOptions;
+use crate::ModulesMap;
 use crate::{Instruction, LoadValue, Scope, VM};
 use log::Level;
 use rigz_core::{
-    BinaryOperation, Dependency, Lifecycle, Module, ObjectValue, Reference, RigzType,
-    UnaryOperation,
+    BinaryOperation, Dependency, Lifecycle, Module, ObjectValue, RigzType, UnaryOperation,
 };
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -15,6 +14,7 @@ pub struct VMBuilder {
     pub sp: usize,
     pub scopes: Vec<Scope>,
     pub modules: ModulesMap,
+    pub dependencies: Vec<Arc<Dependency>>,
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
     pub constants: Vec<ObjectValue>,
@@ -27,6 +27,7 @@ impl Default for VMBuilder {
             sp: 0,
             scopes: vec![Default::default()],
             modules: Default::default(),
+            dependencies: Default::default(),
             options: Default::default(),
             lifecycles: Default::default(),
             constants: Default::default(),
@@ -85,6 +86,8 @@ pub trait RigzBuilder: Debug + Default {
     fn exit_scope(&mut self, current: usize) -> &mut Self;
 
     fn convert_to_lazy_scope(&mut self, scope_id: usize, var: String) -> &mut Self;
+
+    fn register_dependency(&mut self, dependency: Arc<Dependency>) -> usize;
 
     #[cfg(feature = "threaded")]
     fn register_module<M: Module + Send + Sync + 'static>(&mut self, module: M) -> &mut Self;
@@ -332,11 +335,7 @@ pub trait RigzBuilder: Debug + Default {
     }
 
     #[inline]
-    fn add_call_dependency_instruction(
-        &mut self,
-        args: usize,
-        value: Arc<Dependency>,
-    ) -> &mut Self {
+    fn add_call_dependency_instruction(&mut self, args: usize, value: usize) -> &mut Self {
         self.add_instruction(Instruction::CallDependency(args, value))
     }
 
@@ -469,11 +468,19 @@ impl RigzBuilder for VMBuilder {
         VM {
             scopes: self.scopes,
             modules: self.modules,
+            dependencies: self.dependencies.into(),
             options: self.options,
             lifecycles: self.lifecycles,
             constants: self.constants,
             ..Default::default()
         }
+    }
+
+    #[inline]
+    fn register_dependency(&mut self, dependency: Arc<Dependency>) -> usize {
+        let dep = self.dependencies.len();
+        self.dependencies.push(dependency);
+        dep
     }
 }
 

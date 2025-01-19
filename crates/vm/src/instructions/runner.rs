@@ -1,7 +1,7 @@
 use crate::{err, errln, out, outln, CallFrame, Instruction, Scope, VMOptions, VMState};
 use log::log;
 use rigz_core::{
-    AsPrimitive, BinaryOperation, IndexMap, Logical, Module, Number, ObjectValue, PrimitiveValue,
+    AsPrimitive, BinaryOperation, IndexMap, Logical, Module, ObjectValue, PrimitiveValue,
     Reference, ResolveValue, Reverse, RigzObject, StackValue, UnaryOperation, VMError,
 };
 use std::cell::RefCell;
@@ -239,7 +239,7 @@ pub fn eval_binary_operation(
 #[cfg(feature = "threaded")]
 pub type ResolvedModule = Reference<dyn Module + Send + Sync>;
 
-use crate::process::ModulesMap;
+use crate::ModulesMap;
 
 #[cfg(not(feature = "threaded"))]
 pub type ResolvedModule = Reference<dyn Module>;
@@ -284,6 +284,8 @@ pub trait Runner: ResolveValue {
     fn call_frame(&mut self, scope_index: usize) -> Result<(), VMError>;
 
     fn call_frame_memo(&mut self, scope_index: usize) -> Result<(), VMError>;
+
+    fn call_dependency(&mut self, arg: ObjectValue, dep: usize) -> Result<ObjectValue, VMError>;
 
     #[inline]
     fn apply_unary(&mut self, unary_operation: UnaryOperation, val: Rc<RefCell<ObjectValue>>) {
@@ -717,11 +719,7 @@ pub trait Runner: ResolveValue {
                 let args = self.resolve_args(args);
                 let arg =
                     ObjectValue::Tuple(args.into_iter().map(|v| v.borrow().clone()).collect());
-                let f = dep.deref().create;
-                let res: ObjectValue = match f(arg) {
-                    Ok(v) => v.into(),
-                    Err(e) => e.into(),
-                };
+                let res = self.call_dependency(arg, dep).unwrap_or_else(|e| e.into());
                 self.store_value(res.into());
             }
             ins => {

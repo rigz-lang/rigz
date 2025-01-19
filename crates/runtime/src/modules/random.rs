@@ -78,7 +78,7 @@ impl CreateObject for Random {
                 )))
             }
         };
-        let mut rng: InnerRng = ChaCha8Rng::seed_from_u64(seed as u64).into();
+        let rng: InnerRng = ChaCha8Rng::seed_from_u64(seed as u64).into();
         Ok(Random {
             seed,
             offset: 0,
