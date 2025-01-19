@@ -16,7 +16,6 @@ threaded = ["dep:dashmap", "dep:tokio", "rigz_core/threaded"]
 
 [dependencies]
 dashmap = { version = "6.1.0", optional = true, features = ["inline"] }
-dyn-clone = "1.0.17"
 itertools.workspace = true
 log.workspace = true
 log-derive = "0.4.1"
@@ -25,7 +24,6 @@ quote = { version = "1", optional = true }
 proc-macro2 = { version = "1.0", optional = true }
 serde.workspace = true
 tokio = { version = "1", features = ["rt-multi-thread", "time"], optional = true }
-typetag = "0.2.19"
 web-sys = { workspace = true, optional = true }
 web-time = {version = "1.1.0", optional = true}
 
