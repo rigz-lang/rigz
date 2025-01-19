@@ -1,4 +1,7 @@
-use crate::program::{ArgType, FunctionExpression, ImportValue, RigzArguments};
+use crate::program::{
+    ArgType, AssignIndex, Constructor, FunctionExpression, ImportValue, ObjectAttr,
+    ObjectDefinition, RigzArguments,
+};
 use crate::{
     Assign, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration,
     FunctionDefinition, FunctionSignature, FunctionType, ModuleTraitDefinition, Scope, Statement,
@@ -37,6 +40,11 @@ impl ToTokens for FunctionExpression {
             FunctionExpression::TypeFunctionCall(ty, name, args) => {
                 quote! {
                     FunctionExpression::TypeFunctionCall(#ty, #name.to_string(), #args)
+                }
+            }
+            FunctionExpression::TypeConstructor(ty, args) => {
+                quote! {
+                    FunctionExpression::TypeConstructor(#ty, #args)
                 }
             }
             FunctionExpression::InstanceFunctionCall(ex, calls, args) => {
@@ -292,6 +300,20 @@ impl ToTokens for Assign {
                     .collect();
                 quote! { Assign::Tuple(vec![#(#values)*]) }
             }
+            Assign::InstanceSet(base, calls) => {
+                let c = csv_vec(calls);
+                quote! { Assign::InstanceSet(#base, #c) }
+            }
+        };
+        tokens.extend(t)
+    }
+}
+
+impl ToTokens for AssignIndex {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let t = match self {
+            AssignIndex::Identifier(i) => quote! { AssignIndex::Identifier(#i.to_string()) },
+            AssignIndex::Index(s) => quote! { AssignIndex::Index(#s) },
         };
         tokens.extend(t)
     }
@@ -391,6 +413,11 @@ impl ToTokens for Statement {
                         concrete: #concrete,
                         definition: #definitions
                     }
+                }
+            }
+            Statement::ObjectDefinition(o) => {
+                quote! {
+                    Statement::ObjectDefinition(#o)
                 }
             }
         };
@@ -537,6 +564,65 @@ impl ToTokens for TraitDefinition {
             TraitDefinition {
                 name: #name.to_string(),
                 functions: #functions
+            }
+        })
+    }
+}
+
+impl ToTokens for ObjectDefinition {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let rt = &self.rigz_type;
+        let c = &self.constructor;
+        let func = csv_vec(&self.functions);
+        let f = csv_vec(&self.fields);
+        tokens.extend(quote! {
+            ObjectDefinition {
+                rigz_type: #rt,
+                constructor: #c,
+                fields: #f,
+                functions: #func
+            }
+        })
+    }
+}
+
+impl ToTokens for Constructor {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let t = match self {
+            Constructor::Default => {
+                quote! {
+                    Constructor::Default
+                }
+            }
+            Constructor::Declaration(d, var) => {
+                let d = csv_vec(d);
+                let v = option(var);
+                quote! {
+                    Constructor::Declaration(#d, #v)
+                }
+            }
+            Constructor::Definition(s, var, b) => {
+                let v = option(var);
+                let s = csv_vec(s);
+                quote! {
+                    Constructor::Definition(#s, #v, #b)
+                }
+            }
+        };
+        tokens.extend(t)
+    }
+}
+
+impl ToTokens for ObjectAttr {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let n = &self.name;
+        let a = &self.attr_type;
+        let d = option(&self.default);
+        tokens.extend(quote! {
+            ObjectAttr {
+                name: #n.to_string(),
+                attr_type: #a,
+                default: #d
             }
         })
     }

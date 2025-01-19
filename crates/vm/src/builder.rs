@@ -2,8 +2,12 @@ use crate::process::ModulesMap;
 use crate::vm::VMOptions;
 use crate::{Instruction, LoadValue, Scope, VM};
 use log::Level;
-use rigz_core::{BinaryOperation, Lifecycle, Module, ObjectValue, RigzType, UnaryOperation};
+use rigz_core::{
+    BinaryOperation, Dependency, Lifecycle, Module, ObjectValue, Reference, RigzType,
+    UnaryOperation,
+};
 use std::fmt::Debug;
+use std::sync::Arc;
 // todo use Rodeo (single threaded here + runtime), use Reference<(Threaded or not)Resolver> in VM
 
 #[derive(Clone, Debug)]
@@ -83,10 +87,10 @@ pub trait RigzBuilder: Debug + Default {
     fn convert_to_lazy_scope(&mut self, scope_id: usize, var: String) -> &mut Self;
 
     #[cfg(feature = "threaded")]
-    fn register_module(&mut self, module: impl Module + 'static + Send + Sync) -> &mut Self;
+    fn register_module<M: Module + Send + Sync + 'static>(&mut self, module: M) -> &mut Self;
 
     #[cfg(not(feature = "threaded"))]
-    fn register_module(&mut self, module: impl Module + 'static) -> &mut Self;
+    fn register_module<M: Module + 'static>(&mut self, module: M) -> &mut Self;
 
     fn with_options(&mut self, options: VMOptions) -> &mut Self;
 
@@ -318,6 +322,25 @@ pub trait RigzBuilder: Debug + Default {
     }
 
     #[inline]
+    fn add_instance_set_mut_instruction(&mut self) -> &mut Self {
+        self.add_instruction(Instruction::InstanceSetMut)
+    }
+
+    #[inline]
+    fn add_create_object_instruction(&mut self, value: Arc<RigzType>) -> &mut Self {
+        self.add_instruction(Instruction::CreateObject(value))
+    }
+
+    #[inline]
+    fn add_call_dependency_instruction(
+        &mut self,
+        args: usize,
+        value: Arc<Dependency>,
+    ) -> &mut Self {
+        self.add_instruction(Instruction::CallDependency(args, value))
+    }
+
+    #[inline]
     fn add_send_instruction(&mut self, args: usize) -> &mut Self {
         self.add_instruction(Instruction::Send(args))
     }
@@ -395,16 +418,15 @@ macro_rules! generate_builder {
 
         #[inline]
         #[cfg(feature = "threaded")]
-        fn register_module(&mut self, module: impl Module + 'static + Send + Sync) -> &mut Self {
-            self.modules
-                .insert(module.name(), std::sync::Arc::new(module));
+        fn register_module<M: Module + Send + Sync + 'static>(&mut self, module: M) -> &mut Self {
+            self.modules.insert(M::name(), std::sync::Arc::new(module));
             self
         }
 
         #[inline]
         #[cfg(not(feature = "threaded"))]
-        fn register_module(&mut self, module: impl Module + 'static) -> &mut Self {
-            self.modules.insert(module.name(), std::rc::Rc::new(module));
+        fn register_module<M: Module + 'static>(&mut self, module: M) -> &mut Self {
+            self.modules.insert(M::name(), std::rc::Rc::new(module));
             self
         }
 

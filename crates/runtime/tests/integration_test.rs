@@ -505,6 +505,18 @@ pub mod runtime {
 
             receive pid
             "# = 42)
+            object_definition(r#"object Foo
+                attr n, Number
+
+                Self(n: Number)
+                    self.n = n
+                end
+
+                fn Self.square = self.n * self.n
+            end
+
+            f = Foo.new 7
+            f.square"# = 49)
         }
     }
 

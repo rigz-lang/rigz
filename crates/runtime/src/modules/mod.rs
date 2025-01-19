@@ -30,28 +30,30 @@ pub use log::LogModule;
 pub use math::MathModule;
 pub use number::NumberModule;
 pub use random::RandomModule;
+use rigz_ast::ValidationError;
 use rigz_vm::RigzBuilder;
 pub use string::StringModule;
 pub use uuid::UUIDModule;
 // pub use vm::VMModule;
 
 impl<T: RigzBuilder> ProgramParser<'_, T> {
-    pub fn add_default_modules(&mut self) {
+    pub fn add_default_modules(&mut self) -> Result<(), ValidationError> {
         // self.register_module(VMModule);
-        self.register_module(AnyModule);
-        self.register_module(AssertionsModule);
-        self.register_module(NumberModule);
-        self.register_module(StringModule);
-        self.register_module(CollectionsModule);
-        self.register_module(LogModule);
+        self.register_module(AnyModule)?;
+        self.register_module(AssertionsModule)?;
+        self.register_module(NumberModule)?;
+        self.register_module(StringModule)?;
+        self.register_module(CollectionsModule)?;
+        self.register_module(LogModule)?;
         #[cfg(feature = "serde")]
-        self.register_module(JSONModule);
-        self.register_module(FileModule);
-        self.register_module(DateModule);
-        self.register_module(UUIDModule);
-        self.register_module(RandomModule);
-        self.register_module(MathModule);
-        self.register_module(HttpModule::default());
-        self.register_module(HtmlModule);
+        self.register_module(JSONModule)?;
+        self.register_module(FileModule)?;
+        self.register_module(DateModule)?;
+        self.register_module(UUIDModule)?;
+        self.register_module(RandomModule)?;
+        self.register_module(MathModule)?;
+        self.register_module(HttpModule::default())?;
+        self.register_module(HtmlModule)?;
+        Ok(())
     }
 }

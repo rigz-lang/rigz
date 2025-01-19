@@ -1,34 +1,64 @@
+mod as_primitive;
 mod dyn_traits;
 #[cfg(feature = "snapshot")]
 mod snapshot;
 
 use crate::{Number, ObjectValue, RigzArgs, RigzType, VMError};
 use dyn_clone::DynClone;
-use indexmap::IndexMap;
 use std::cell::RefCell;
 use std::cmp::Ordering;
-use std::fmt::{Debug, Display};
+use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::vec::IntoIter;
 
+pub use as_primitive::{AsPrimitive, WithTypeInfo};
 pub use dyn_traits::*;
 
 #[cfg(feature = "snapshot")]
 pub use snapshot::Snapshot;
 
 pub trait Definition {
-    fn name(&self) -> &'static str;
+    fn name() -> &'static str
+    where
+        Self: Sized;
 
-    fn trait_definition(&self) -> &'static str;
+    fn trait_definition() -> &'static str
+    where
+        Self: Sized;
+}
+
+#[derive(PartialEq, Eq)]
+pub struct Dependency {
+    pub create: fn(ObjectValue) -> Result<Box<dyn Object>, VMError>,
+}
+
+impl Debug for Dependency {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "")
+    }
+}
+
+impl Dependency {
+    pub fn new<T: Object + 'static>() -> Self {
+        Self {
+            create: |value| Ok(Box::new(T::create(value)?)),
+        }
+    }
 }
 
 #[allow(unused_variables)]
 pub trait Module: Debug + Definition {
+    fn deps() -> Vec<Dependency>
+    where
+        Self: Sized,
+    {
+        vec![]
+    }
+
     fn call(&self, function: String, args: RigzArgs) -> Result<ObjectValue, VMError> {
         Err(VMError::UnsupportedOperation(format!(
-            "{} does not implement `call`",
-            self.name()
+            "{self:?} does not implement `call`"
         )))
     }
 
@@ -39,8 +69,7 @@ pub trait Module: Debug + Definition {
         args: RigzArgs,
     ) -> Result<ObjectValue, VMError> {
         Err(VMError::UnsupportedOperation(format!(
-            "{} does not implement `call_extension`",
-            self.name()
+            "{self:?} does not implement `call_extension`"
         )))
     }
 
@@ -51,32 +80,33 @@ pub trait Module: Debug + Definition {
         args: RigzArgs,
     ) -> Result<Option<ObjectValue>, VMError> {
         Err(VMError::UnsupportedOperation(format!(
-            "{} does not implement `call_extension`",
-            self.name()
+            "{self:?} does not implement `call_extension`",
         )))
     }
+}
+
+pub trait CreateObject {
+    fn create(value: ObjectValue) -> Result<Self, VMError>
+    where
+        Self: Sized;
+
+    fn post_deserialize(&mut self) {}
 }
 
 #[allow(unused_variables)]
 #[cfg_attr(feature = "serde", typetag::serde)]
 pub trait Object:
-    DynCompare + DynClone + DynHash + AsPrimitive<ObjectValue> + Definition + Send + Sync
+    DynCompare + DynClone + DynHash + AsPrimitive<ObjectValue> + CreateObject + Definition + Send + Sync
 {
-    fn create() -> Self
-    where
-        Self: Sized;
-
     fn call(&self, function: String, args: RigzArgs) -> Result<ObjectValue, VMError> {
         Err(VMError::UnsupportedOperation(format!(
-            "{} does not implement `call`",
-            self.name()
+            "{self:?} does not implement `call`"
         )))
     }
 
     fn call_extension(&self, function: String, args: RigzArgs) -> Result<ObjectValue, VMError> {
         Err(VMError::UnsupportedOperation(format!(
-            "{} does not implement `call_extension`",
-            self.name()
+            "{self:?} does not implement `call_extension`"
         )))
     }
 
@@ -84,10 +114,12 @@ pub trait Object:
         &mut self,
         function: String,
         args: RigzArgs,
-    ) -> Result<Option<ObjectValue>, VMError> {
+    ) -> Result<Option<ObjectValue>, VMError>
+    where
+        Self: Sized,
+    {
         Err(VMError::UnsupportedOperation(format!(
-            "{} does not implement `call_mutable_extension`",
-            self.name()
+            "{self:?} does not implement `call_mutable_extension`"
         )))
     }
 }
@@ -133,92 +165,6 @@ impl Snapshot for Box<dyn Object + '_> {
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         todo!()
-    }
-}
-
-pub trait AsPrimitive<T: Clone + AsPrimitive<T> + Default + Sized>: Display + Debug {
-    fn rigz_type(&self) -> RigzType;
-
-    fn reverse(&self) -> Result<T, VMError> {
-        Err(VMError::UnsupportedOperation(format!(
-            "Cannot reverse {self}"
-        )))
-    }
-
-    fn as_list(&mut self) -> Result<&mut Vec<T>, VMError> {
-        Err(VMError::UnsupportedOperation(format!(
-            "Cannot convert {self:?} to mut List"
-        )))
-    }
-
-    fn to_list(&self) -> Result<Vec<T>, VMError> {
-        Err(VMError::UnsupportedOperation(format!(
-            "Cannot convert {self:?} to List"
-        )))
-    }
-
-    fn to_map(&self) -> Result<IndexMap<T, T>, VMError> {
-        Err(VMError::UnsupportedOperation(format!(
-            "Cannot convert {self:?} to Map"
-        )))
-    }
-
-    fn as_map(&mut self) -> Result<&mut IndexMap<T, T>, VMError> {
-        Err(VMError::UnsupportedOperation(format!(
-            "Cannot convert {self:?} to mut Map"
-        )))
-    }
-
-    fn to_number(&self) -> Result<Number, VMError> {
-        Err(VMError::UnsupportedOperation(format!(
-            "Cannot convert {self:?} to Number"
-        )))
-    }
-
-    fn as_number(&mut self) -> Result<&mut Number, VMError> {
-        Err(VMError::UnsupportedOperation(format!(
-            "Cannot convert {self:?} to mut Number"
-        )))
-    }
-
-    fn to_bool(&self) -> bool {
-        true
-    }
-
-    fn as_bool(&mut self) -> Result<&mut bool, VMError> {
-        Err(VMError::UnsupportedOperation(format!(
-            "Cannot convert {self:?} to mut Bool"
-        )))
-    }
-
-    fn as_string(&mut self) -> Result<&mut String, VMError> {
-        Err(VMError::UnsupportedOperation(format!(
-            "Cannot convert {self:?} to mut String"
-        )))
-    }
-
-    fn to_float(&self) -> Result<f64, VMError> {
-        Ok(self.to_number()?.to_float())
-    }
-
-    fn to_usize(&self) -> Result<usize, VMError> {
-        self.to_number()?.to_usize()
-    }
-
-    fn to_int(&self) -> Result<i64, VMError> {
-        Ok(self.to_number()?.to_int())
-    }
-
-    fn as_float(&mut self) -> Result<&mut f64, VMError> {
-        Err(VMError::UnsupportedOperation(format!(
-            "Cannot convert {self:?} to mut Float"
-        )))
-    }
-
-    fn as_int(&mut self) -> Result<&mut i64, VMError> {
-        Err(VMError::UnsupportedOperation(format!(
-            "Cannot convert {self:?} to mut Int"
-        )))
     }
 }
 

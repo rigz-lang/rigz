@@ -157,8 +157,11 @@ impl Runtime<'_> {
         program.create_runtime_without_modules()
     }
 
-    pub fn register_module(&mut self, module: impl ParsedModule + 'static) {
-        self.parser.register_module(module);
+    pub fn register_module(
+        &mut self,
+        module: impl ParsedModule + 'static,
+    ) -> Result<(), ValidationError> {
+        self.parser.register_module(module)
     }
 
     pub fn run(&mut self) -> Result<ObjectValue, RuntimeError> {

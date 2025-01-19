@@ -1,6 +1,6 @@
 use crate::prepare::{CallSignature, FunctionCallSignatures, ProgramParser};
 use rigz_ast::{Element, Expression, FunctionExpression, Scope, ValidationError};
-use rigz_core::{AsPrimitive, RigzType, UnaryOperation};
+use rigz_core::{AsPrimitive, RigzType, UnaryOperation, WithTypeInfo};
 use rigz_vm::RigzBuilder;
 use std::cmp::Ordering;
 use std::collections::HashSet;
@@ -271,6 +271,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     }
                 }
             }
+            FunctionExpression::TypeConstructor(r, _) => r.clone(),
         };
         Ok(e)
     }

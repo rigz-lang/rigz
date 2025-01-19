@@ -1,4 +1,4 @@
-use crate::{IndexMap, ObjectValue, PrimitiveValue, VMError};
+use crate::{IndexMap, Object, ObjectValue, PrimitiveValue, VMError};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -6,6 +6,12 @@ impl From<ObjectValue> for Rc<RefCell<ObjectValue>> {
     #[inline]
     fn from(value: ObjectValue) -> Self {
         Rc::new(RefCell::new(value))
+    }
+}
+
+impl From<Box<dyn Object>> for ObjectValue {
+    fn from(value: Box<dyn Object>) -> Self {
+        ObjectValue::Object(value)
     }
 }
 

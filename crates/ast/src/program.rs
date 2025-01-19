@@ -1,4 +1,6 @@
-use rigz_core::{BinaryOperation, Lifecycle, PrimitiveValue, RigzType, UnaryOperation};
+use rigz_core::{
+    BinaryOperation, Lifecycle, ObjectValue, PrimitiveValue, RigzType, UnaryOperation,
+};
 use rustc_hash::FxHashMap;
 
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -72,7 +74,7 @@ impl FunctionType {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionArgument {
     pub name: String,
-    pub default: Option<PrimitiveValue>,
+    pub default: Option<Expression>,
     pub function_type: FunctionType,
     pub var_arg: bool,
     pub rest: bool,
@@ -124,6 +126,13 @@ pub enum Statement {
         concrete: RigzType,
         definitions: Vec<FunctionDefinition>,
     },
+    ObjectDefinition(ObjectDefinition),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum AssignIndex {
+    Identifier(String),
+    Index(Expression),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -132,6 +141,7 @@ pub enum Assign {
     Identifier(String, bool),
     TypedIdentifier(String, bool, RigzType),
     Tuple(Vec<(String, bool)>),
+    InstanceSet(Expression, Vec<AssignIndex>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -187,6 +197,7 @@ impl From<Vec<Expression>> for RigzArguments {
 pub enum FunctionExpression {
     FunctionCall(String, RigzArguments),
     TypeFunctionCall(RigzType, String, RigzArguments),
+    TypeConstructor(RigzType, RigzArguments),
     InstanceFunctionCall(Box<Expression>, Vec<String>, RigzArguments),
 }
 
@@ -198,6 +209,9 @@ impl FunctionExpression {
             }
             FunctionExpression::TypeFunctionCall(t, name, args) => {
                 FunctionExpression::TypeFunctionCall(t, name, args.prepend(expression))
+            }
+            FunctionExpression::TypeConstructor(t, args) => {
+                FunctionExpression::TypeConstructor(t, args.prepend(expression))
             }
             FunctionExpression::InstanceFunctionCall(n, calls, args) => {
                 FunctionExpression::InstanceFunctionCall(n, calls, args.prepend(expression))
@@ -305,4 +319,26 @@ pub enum FunctionDeclaration {
 pub struct TraitDefinition {
     pub name: String,
     pub functions: Vec<FunctionDeclaration>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ObjectAttr {
+    pub name: String,
+    pub attr_type: FunctionType,
+    pub default: Option<Expression>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ObjectDefinition {
+    pub rigz_type: RigzType,
+    pub fields: Vec<ObjectAttr>,
+    pub constructor: Constructor,
+    pub functions: Vec<FunctionDeclaration>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Constructor {
+    Default,
+    Declaration(Vec<FunctionArgument>, Option<usize>),
+    Definition(Vec<FunctionArgument>, Option<usize>, Scope),
 }

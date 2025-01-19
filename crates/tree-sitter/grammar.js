@@ -19,9 +19,11 @@ module.exports = grammar({
             $.assignment,
             $.function_definition,
             $.expression,
+            $.instance_set,
             $.import,
             $.mod,
             $.trait,
+            $.object,
             $.impl,
         ), optional($._terminator))),
         type_definition: $ => choice(
@@ -29,6 +31,7 @@ module.exports = grammar({
         ),
         type_object: $ => seq("{", seq($.identifier, "=", $.type), repeat(seq(',', seq($.identifier, "=", $.type))), optional(','), "}"),
         mod: $ => seq("mod", $.type, repeat($.program), "end"),
+        object: $ => seq("object", $.type, repeat($.program), "end"),
         trait: $ => seq("trait", $.type, repeat(choice($.function_declaration, $.function_definition)), "end"),
         impl: $ => seq("impl", $.type, "for", $.type, repeat($.function_definition), "end"),
         _terminator: _ => choice(";", "\n"),
@@ -41,9 +44,7 @@ module.exports = grammar({
         _fn: _ => "fn",
         _end: _ => "end",
         self: _ => "self",
-        import: $ => seq("import", choice($.type, $.file, $.url)),
-        file: $ => seq(),
-        url: $ => seq(),
+        import: $ => seq("import", choice($.type, $.string)),
         scope: $ => prec.right(choice(seq("=", $.expression), seq($.program, $._end))),
         assignment: $ => choice(prec.right(seq(
             choice(seq(optional($._let), $.identifier), seq($._mut, $.identifier)),
@@ -61,6 +62,7 @@ module.exports = grammar({
             seq(choice("+", "-", "*", "/", "%", "^", "|", "||", "&", "&&", ">>", "<<"), "="),
             $.expression
         ),
+        instance_set: $ => seq($.expression, repeat1(choice(seq(".", choice($.identifier, $.int)), $.index)), "=", $.expression),
         function_declaration: $ => seq(
             optional($.lifecycle),
             $._fn, $.function_identifier, seq(
@@ -94,8 +96,10 @@ module.exports = grammar({
             $.tuple,
             // todo support string interpolation
             seq("(", $.expression, ")")
-        ), optional(choice($.cast, $.unless_guard, $.if_guard, $.into)))),
+            // todo into isn't quite right here foo 1, 2, 4 |> bar, as-is it will pass 4 into bar instead of foo 1, 2, 4
+        ), optional(choice($.cast, $.unless_guard, $.if_guard, $.into, repeat1($.index))))),
         do_scope: $ => seq(optional($.lifecycle), "do", $.scope),
+        index: $=> seq("[", $.expression, "]"),
         function_call: $ => choice(prec.right(seq(
             $.function_identifier,
             optional($._args)
@@ -136,7 +140,8 @@ module.exports = grammar({
         ),
         none: _ => "none",
         bool: _ => choice("false", "true"),
-        number: _ => token(/\d[\d_]*(\.[\d_]*)?/),
+        number: _ => token(/-?\d[\d_]*(\.[\d_]*)?/),
+        int: _ => token(/-?\d[\d_]*/),
         // todo support infinite ranges (requires VM changes) & full ascii character range
         range: $ => choice(
             seq(/[0-9]+/, "..", /[0-9]+/),
@@ -167,13 +172,12 @@ module.exports = grammar({
             "Map",
             "VM",
             seq("(", $.type, repeat(seq(",", $.type)), ")"),
-            // todo requires VM updates
-            // seq("[", $.type, "]"),
-            // seq("{", $.type, "}"),
-            // seq("{", $.type, $.type, "}"),
+            seq("[", $.type, "]"),
+            seq("{", $.type, "}"),
+            seq("{", $.type, $.type, "}"),
             "Error",
             $.type_identifier,
-        ), optional("!"), optional("?"))),
+        ), optional(choice(repeat1(seq("::", $.type)), "!", "?")))),
         _single_quoted_string: $ => /'([^'\\]|\\[\s\S])*'/,
         _double_quoted_string: $ => /"([^"\\]|\\[\s\S])*"/,
         _backtick_string: $ => /`([^`\\]|\\[\s\S])*`/,

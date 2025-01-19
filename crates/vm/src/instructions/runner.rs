@@ -2,7 +2,7 @@ use crate::{err, errln, out, outln, CallFrame, Instruction, Scope, VMOptions, VM
 use log::log;
 use rigz_core::{
     AsPrimitive, BinaryOperation, IndexMap, Logical, Module, Number, ObjectValue, PrimitiveValue,
-    Reference, ResolveValue, Reverse, StackValue, UnaryOperation, VMError,
+    Reference, ResolveValue, Reverse, RigzObject, StackValue, UnaryOperation, VMError,
 };
 use std::cell::RefCell;
 use std::fmt::Display;
@@ -710,6 +710,20 @@ pub trait Runner: ResolveValue {
                 self.sleep(duration);
                 self.store_value(ObjectValue::default().into());
             }
+            Instruction::CreateObject(ob) => {
+                self.store_value(RigzObject::new(ob).into());
+            }
+            Instruction::CallDependency(args, dep) => {
+                let args = self.resolve_args(args);
+                let arg =
+                    ObjectValue::Tuple(args.into_iter().map(|v| v.borrow().clone()).collect());
+                let f = dep.deref().create;
+                let res: ObjectValue = match f(arg) {
+                    Ok(v) => v.into(),
+                    Err(e) => e.into(),
+                };
+                self.store_value(res.into());
+            }
             ins => {
                 return VMError::todo(format!("Instruction is not supported yet {ins:?}")).into()
             }
@@ -743,55 +757,10 @@ pub trait Runner: ResolveValue {
         } else {
             source.borrow().clone().into()
         };
-        // todo support negative numbers as index, -1 is last element
-        match (source.borrow_mut().deref_mut(), attr.borrow().deref()) {
-            // todo support ranges as attr
-            (
-                ObjectValue::Primitive(PrimitiveValue::String(s)),
-                ObjectValue::Primitive(PrimitiveValue::Number(n)),
-            ) => match n.to_usize() {
-                Ok(index) => {
-                    s.insert_str(index, value.to_string().as_str());
-                }
-                Err(e) => {
-                    source.replace(e.into());
-                }
-            },
-            (ObjectValue::List(s), ObjectValue::Primitive(PrimitiveValue::Number(n)))
-            | (ObjectValue::Tuple(s), ObjectValue::Primitive(PrimitiveValue::Number(n))) => {
-                match n.to_usize() {
-                    Ok(index) => {
-                        s.insert(index, value.clone());
-                    }
-                    Err(e) => {
-                        source.replace(e.into());
-                    }
-                }
-            }
-            (ObjectValue::Map(source), index) => {
-                source.insert(index.clone(), value.clone());
-            }
-            (
-                ObjectValue::Primitive(PrimitiveValue::Number(source)),
-                ObjectValue::Primitive(PrimitiveValue::Number(n)),
-            ) => {
-                let value = if value.to_bool() { 1 } else { 0 };
-                *source = match source {
-                    Number::Int(_) => {
-                        i64::from_le_bytes((source.to_bits() & (value << n.to_int())).to_le_bytes())
-                            .into()
-                    }
-                    Number::Float(_) => {
-                        f64::from_bits(source.to_bits() & (value << n.to_int())).into()
-                    }
-                }
-            }
-            (source, attr) => {
-                *source =
-                    VMError::UnsupportedOperation(format!("Cannot read {} for {}", attr, source))
-                        .into();
-            }
-        };
+        let s = { source.borrow_mut().instance_set(attr, value.deref()) };
+        if let Err(e) = s {
+            source.replace(e.into());
+        }
         if !mutable {
             self.store_value(source.into());
         }

@@ -232,6 +232,12 @@ pub(crate) enum TokenKind<'lex> {
     For,
     #[token("in")]
     In,
+    #[token("object")]
+    Object,
+    #[token("attr")]
+    Attr,
+    #[token("new")]
+    New,
     // todo support zig style try / catch
     #[token("try")]
     Try,
@@ -298,6 +304,9 @@ impl Display for TokenKind<'_> {
             TokenKind::Arg(a) => write!(f, "${}", a),
             TokenKind::Increment => write!(f, "++"),
             TokenKind::Decrement => write!(f, "--"),
+            TokenKind::Object => write!(f, "object"),
+            TokenKind::Attr => write!(f, "attr"),
+            TokenKind::New => write!(f, "new"),
         }
     }
 }

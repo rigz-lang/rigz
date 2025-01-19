@@ -10,7 +10,7 @@ pub use value_range::ValueRange;
 
 use std::cell::RefCell;
 
-use crate::{impl_from, AsPrimitive, Number, RigzType};
+use crate::{impl_from, AsPrimitive, Number, RigzType, WithTypeInfo};
 use indexmap::IndexMap;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -70,7 +70,7 @@ impl From<()> for PrimitiveValue {
     }
 }
 
-impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
+impl WithTypeInfo for PrimitiveValue {
     fn rigz_type(&self) -> RigzType {
         match self {
             PrimitiveValue::None => RigzType::None,
@@ -82,7 +82,9 @@ impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
             PrimitiveValue::Type(r) => r.clone(),
         }
     }
+}
 
+impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
     fn to_list(&self) -> Result<Vec<PrimitiveValue>, VMError> {
         if let PrimitiveValue::Range(r) = self {
             Ok(r.to_list())

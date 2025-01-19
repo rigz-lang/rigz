@@ -132,6 +132,18 @@ pub mod valid {
         tuple_mut_assign r#"mut (first, second) = ('a', 2)"#,
         tuple_let_assign r#"let (first, second) = (true, none)"#,
         tuple_mixed_assign r#"let (first, mut second) = ([1, 2, 3], {})"#,
+        object_assign r#"mut a = { f = 1 }; a.f = 2"#,
+        object_definition r#"object Foo
+            attr n, Number
+
+            Self(n: Number)
+                self.n = n * n
+            end
+
+            fn Self.square = self.n * self.n
+        end
+
+        Foo.new 7"#,
     );
 }
 

@@ -14,13 +14,8 @@ pub use format::format;
 use std::collections::hash_map::Entry;
 
 use logos::Logos;
-pub use modules::ParsedModule;
-// Scope will collide with rigz_vm Scope if this is program::*
-pub use program::{
-    ArgType, Assign, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration,
-    FunctionDefinition, FunctionExpression, FunctionSignature, FunctionType, ImportValue,
-    ModuleTraitDefinition, Program, RigzArguments, Scope, Statement, TraitDefinition,
-};
+pub use modules::{ParsedDependency, ParsedModule, ParsedObject};
+pub use program::*;
 
 use rigz_core::*;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -328,7 +323,7 @@ impl<'t> Parser<'t> {
                             }
                             .into()
                         }
-                        _ => self.parse_identifier_expression(id)?.into(),
+                        _ => self.parse_identifier_element(id)?.into(),
                     },
                 }
             }
@@ -382,7 +377,7 @@ impl<'t> Parser<'t> {
                             }
                             .into()
                         }
-                        _ => self.parse_this_expression()?.into(),
+                        _ => self.parse_this_element()?,
                     },
                 }
             }
@@ -399,6 +394,9 @@ impl<'t> Parser<'t> {
                 Statement::Trait(self.parse_trait_definition()?).into()
             }
             TokenKind::Lifecycle(lifecycle) => self.parse_lifecycle_func(lifecycle)?.into(),
+            TokenKind::Object => {
+                Statement::ObjectDefinition(self.parse_object_definition()?).into()
+            }
             _ => self.parse_expression()?.into(),
         };
         match self.peek_token() {
@@ -678,18 +676,38 @@ impl<'t> Parser<'t> {
                         self.consume_token(TokenKind::Period)?;
                         let func_name =
                             self.next_required_token("parse_expression - TypeFunctionCall")?;
-                        if let TokenKind::Identifier(func_name) = func_name.kind {
-                            FunctionExpression::TypeFunctionCall(
-                                type_value,
-                                func_name.to_string(),
-                                self.parse_args()?,
-                            )
-                            .into()
-                        } else {
-                            return Err(ParsingError::ParseError(format!(
-                                "Invalid Token for Type Function Call {:?}",
-                                func_name
-                            )));
+                        match func_name.kind {
+                            TokenKind::Identifier(func_name) => {
+                                let (args, assign) = self.parse_args()?;
+                                if assign {
+                                    let t = self.next_required_token("parse_expression: =")?;
+                                    return Err(ParsingError::ParseError(format!(
+                                        "Unexpected = after {args:?} - {t:?}"
+                                    )));
+                                }
+                                FunctionExpression::TypeFunctionCall(
+                                    type_value,
+                                    func_name.to_string(),
+                                    args,
+                                )
+                                .into()
+                            }
+                            TokenKind::New => {
+                                let (args, assign) = self.parse_args()?;
+                                if assign {
+                                    let t = self.next_required_token("parse_expression: =")?;
+                                    return Err(ParsingError::ParseError(format!(
+                                        "Unexpected = after {args:?} - {t:?}"
+                                    )));
+                                }
+                                FunctionExpression::TypeConstructor(type_value, args).into()
+                            }
+                            _ => {
+                                return Err(ParsingError::ParseError(format!(
+                                    "Invalid Token for Type Function Call {:?}",
+                                    func_name
+                                )));
+                            }
                         }
                     }
                     Some(_) => Expression::Value(PrimitiveValue::Type(type_value)),
@@ -893,6 +911,32 @@ impl<'t> Parser<'t> {
         })
     }
 
+    fn parse_identifier_element(&mut self, id: &'t str) -> Result<Element, ParsingError> {
+        let args = match self.peek_token() {
+            None => return Ok(id.into()),
+            Some(next) => match next.kind {
+                TokenKind::Value(_)
+                | TokenKind::Identifier(_)
+                | TokenKind::Symbol(_)
+                | TokenKind::Lparen
+                | TokenKind::Lcurly
+                | TokenKind::This
+                | TokenKind::Lbracket
+                // if/unless not allowed as args without parens
+                | TokenKind::Do => {
+                    let (args, assign) = self.parse_args()?;
+                    if assign {
+                        let t = self.next_required_token("parse_identifier_element - =")?;
+                        return Err(ParsingError::ParseError(format!("Unexpected = after {args:?} - {t:?}")))
+                    }
+                    args
+                },
+                _ => return self.parse_inline_element(id),
+            },
+        };
+        Ok(FunctionExpression::FunctionCall(id.to_string(), args).into())
+    }
+
     fn parse_identifier_expression(&mut self, id: &'t str) -> Result<Expression, ParsingError> {
         let args = match self.peek_token() {
             None => return Ok(id.into()),
@@ -905,7 +949,14 @@ impl<'t> Parser<'t> {
                 | TokenKind::This
                 | TokenKind::Lbracket
                 // if/unless not allowed as args without parens
-                | TokenKind::Do => self.parse_args()?,
+                | TokenKind::Do => {
+                    let (args, assign) = self.parse_args()?;
+                    if assign {
+                        let t = self.next_required_token("parse_identifier_expression - =")?;
+                        return Err(ParsingError::ParseError(format!("Unexpected = after {args:?} - {t:?}")))
+                    }
+                    args
+                },
                 _ => return self.parse_inline_expression(id),
             },
         };
@@ -929,7 +980,17 @@ impl<'t> Parser<'t> {
                 | TokenKind::Lparen
                 | TokenKind::Lcurly
                 | TokenKind::Lbracket
-                | TokenKind::Do => self.parse_args()?,
+                | TokenKind::Do => {
+                    let (args, assign) = self.parse_args()?;
+                    if assign {
+                        let t = self
+                            .next_required_token("parse_identifier_expression_skip_inline - =")?;
+                        return Err(ParsingError::ParseError(format!(
+                            "Unexpected = after {args:?} - {t:?}"
+                        )));
+                    }
+                    args
+                }
                 _ => return Ok(id.into()),
             },
         };
@@ -1033,13 +1094,13 @@ impl<'t> Parser<'t> {
         }
     }
 
-    fn parse_inline_expression<LHS>(&mut self, lhs: LHS) -> Result<Expression, ParsingError>
+    fn parse_inline_element<LHS>(&mut self, lhs: LHS) -> Result<Element, ParsingError>
     where
         LHS: Into<Expression>,
     {
         let mut res = lhs.into();
         if matches!(res, Expression::Lambda { .. }) {
-            return Ok(res);
+            return Ok(res.into());
         }
 
         loop {
@@ -1052,7 +1113,12 @@ impl<'t> Parser<'t> {
                 }
                 Some(next) => match next.kind {
                     TokenKind::Period => {
-                        res = self.parse_instance_call(res)?;
+                        match self.parse_instance_call_element(res)? {
+                            Element::Expression(e) => {
+                                res = e;
+                            }
+                            el => return Ok(el)
+                        }
                     }
                     TokenKind::BinOp(op) => {
                         res = self.parse_binary_expression(res, op)?
@@ -1087,7 +1153,19 @@ impl<'t> Parser<'t> {
                 },
             }
         }
-        Ok(res)
+        Ok(res.into())
+    }
+
+    fn parse_inline_expression<LHS>(&mut self, lhs: LHS) -> Result<Expression, ParsingError>
+    where
+        LHS: Into<Expression>,
+    {
+        match self.parse_inline_element(lhs)? {
+            Element::Statement(s) => Err(ParsingError::ParseError(format!(
+                "Unexpected statement for inline expression {s:?}"
+            ))),
+            Element::Expression(e) => Ok(e),
+        }
     }
 
     fn parse_binary_expression(
@@ -1139,7 +1217,16 @@ impl<'t> Parser<'t> {
     }
 
     fn parse_instance_call(&mut self, lhs: Expression) -> Result<Expression, ParsingError> {
-        let next = self.next_required_token("parse_instance_call")?;
+        match self.parse_instance_call_element(lhs)? {
+            Element::Statement(s) => Err(ParsingError::ParseError(format!(
+                "Unexpected statement in place of expression, {s:?}"
+            ))),
+            Element::Expression(e) => Ok(e),
+        }
+    }
+
+    fn parse_instance_call_element(&mut self, lhs: Expression) -> Result<Element, ParsingError> {
+        let next = self.next_required_token("parse_instance_call_element")?;
         let mut lhs = lhs;
         let mut calls = match next.kind {
             TokenKind::Identifier(id) => {
@@ -1216,15 +1303,41 @@ impl<'t> Parser<'t> {
         }
 
         if !calls.is_empty() {
-            let args = self.parse_args()?;
+            let (args, assign) = self.parse_args()?;
+            if assign {
+                return if args.is_empty() {
+                    self.consume_token(TokenKind::Assign)?;
+
+                    Ok(Statement::Assignment {
+                        lhs: Assign::InstanceSet(
+                            lhs,
+                            calls
+                                .into_iter()
+                                .map(|s| AssignIndex::Identifier(s))
+                                .collect(),
+                        ),
+                        expression: self.parse_expression()?,
+                    }
+                    .into())
+                } else {
+                    Err(ParsingError::ParseError(format!(
+                        "Unexpected = after args in instance call - {lhs:?}.{} ({args:?})",
+                        calls.join(".")
+                    )))
+                };
+            }
             Ok(FunctionExpression::InstanceFunctionCall(Box::new(lhs), calls, args).into())
         } else {
-            Ok(lhs)
+            Ok(lhs.into())
         }
     }
 
     fn parse_value_expression(&mut self, value: TokenValue) -> Result<Expression, ParsingError> {
         self.parse_inline_expression(value)
+    }
+
+    fn parse_this_element(&mut self) -> Result<Element, ParsingError> {
+        self.parse_inline_element(Expression::This)
     }
 
     fn parse_this_expression(&mut self) -> Result<Expression, ParsingError> {
@@ -1253,10 +1366,11 @@ impl<'t> Parser<'t> {
         Ok(Expression::unary(op, exp))
     }
 
-    fn parse_args(&mut self) -> Result<RigzArguments, ParsingError> {
+    fn parse_args(&mut self) -> Result<(RigzArguments, bool), ParsingError> {
         let mut args = Vec::new();
         let mut needs_comma = false;
         let mut named = None;
+        let mut assign = false;
         loop {
             match self.peek_token() {
                 None => break,
@@ -1283,20 +1397,27 @@ impl<'t> Parser<'t> {
                                 return Err(ParsingError::ParseError(format!("Expected : after {id} {t:?}")))
                             }
                             Some(s) => {
-                                if s.kind == TokenKind::Colon {
-                                    self.consume_token(TokenKind::Colon)?;
-                                    match &mut named {
-                                        None => {
-                                            named = Some(vec![(id.to_string(), self.parse_expression()?)]);
-                                        }
-                                        Some(v) => {
-                                            v.push((id.to_string(), self.parse_expression()?));
-                                            needs_comma = true
+                                match s.kind {
+                                    TokenKind::Colon  => {
+                                        self.consume_token(TokenKind::Colon)?;
+                                        match &mut named {
+                                            None => {
+                                                named = Some(vec![(id.to_string(), self.parse_expression()?)]);
+                                            }
+                                            Some(v) => {
+                                                v.push((id.to_string(), self.parse_expression()?));
+                                                needs_comma = true
+                                            }
                                         }
                                     }
-                                } else {
-                                    args.push(self.parse_identifier_expression(id)?);
-                                    needs_comma = true
+                                    TokenKind::Assign => {
+                                        assign = true;
+                                        break;
+                                    }
+                                    _ => {
+                                        args.push(self.parse_identifier_expression(id)?);
+                                        needs_comma = true
+                                    }
                                 }
                             }
                         };
@@ -1320,7 +1441,11 @@ impl<'t> Parser<'t> {
                             }
                         }
                     }
-                    _ if named.is_none() && !needs_comma => {
+                    t if named.is_none() && !needs_comma => {
+                        if t == TokenKind::Assign {
+                            assign = true;
+                            break
+                        }
                         args.push(self.parse_expression()?);
                         needs_comma = true
                     }
@@ -1332,21 +1457,22 @@ impl<'t> Parser<'t> {
             }
         }
 
-        match named {
+        let args = match named {
             None => {
                 if args.len() == 1 {
                     let args = match args.remove(0) {
                         Expression::Tuple(a) => a.into(),
                         a => vec![a].into(),
                     };
-                    Ok(args)
+                    args
                 } else {
-                    Ok(args.into())
+                    args.into()
                 }
             }
-            Some(n) if args.is_empty() => Ok(RigzArguments::Named(n)),
-            Some(n) => Ok(RigzArguments::Mixed(args, n)),
-        }
+            Some(n) if args.is_empty() => RigzArguments::Named(n),
+            Some(n) => RigzArguments::Mixed(args, n),
+        };
+        Ok((args, assign))
     }
 
     fn parse_for_list(&mut self) -> Result<Expression, ParsingError> {
@@ -1665,9 +1791,11 @@ impl<'t> Parser<'t> {
         {
             TokenKind::Assign => {
                 self.consume_token(TokenKind::Assign)?;
-                let v = self.parse_value()?;
+                let v = self.parse_expression()?;
                 if default_type {
-                    rigz_type = v.rigz_type();
+                    if let Expression::Value(v) = &v {
+                        rigz_type = v.rigz_type()
+                    };
                 }
                 Some(v.into())
             }
@@ -2212,6 +2340,103 @@ impl<'t> Parser<'t> {
             }),
         };
         Ok(dec)
+    }
+
+    pub fn parse_object_definition(&mut self) -> Result<ObjectDefinition, ParsingError> {
+        self.consume_token(TokenKind::Object)?;
+        let n = self.next_required_token("parse_object_definition")?;
+        let name = if let TokenKind::TypeValue(ty) = n.kind {
+            ty.to_string()
+        } else {
+            return Err(ParsingError::ParseError(format!(
+                "Missing Type value for Object {n:?}"
+            )));
+        };
+        let fields = self.parse_attrs()?;
+        let rigz_type = RigzType::Custom(CustomType {
+            name,
+            fields: fields
+                .iter()
+                .map(|f| (f.name.clone(), f.attr_type.rigz_type.clone()))
+                .collect(),
+        });
+
+        let constructor = self.parse_constructor()?;
+        let functions = self.parse_trait_declarations()?;
+        self.consume_token_eat_newlines(TokenKind::End)?;
+        Ok(ObjectDefinition {
+            rigz_type,
+            fields,
+            constructor,
+            functions,
+        })
+    }
+
+    pub fn parse_constructor(&mut self) -> Result<Constructor, ParsingError> {
+        let t = self.peek_required_token("parse_constructor - end required")?;
+        if let TokenKind::TypeValue(tv) = t.kind {
+            if tv != "Self" {
+                return Err(ParsingError::ParseError(format!("Received non-self type for constructor, {tv}, use Self() or rely on default constructor")));
+            }
+            self.consume_token(t.kind)?;
+            let (args, var, ty) = self.parse_function_arguments()?;
+            // todo support all types for ty
+            let next = self.peek_required_token_eat_newlines("parse_constructor - fn or end")?;
+            return if let TokenKind::FunctionDef = next.kind {
+                Ok(Constructor::Declaration(args, var))
+            } else {
+                Ok(Constructor::Definition(args, var, self.parse_scope()?))
+            };
+        }
+        Ok(Constructor::Default)
+    }
+
+    pub fn parse_attrs(&mut self) -> Result<Vec<ObjectAttr>, ParsingError> {
+        let mut attrs = Vec::new();
+        loop {
+            let next = self.peek_required_token_eat_newlines("parse_attrs - attr")?;
+            // todo support mut attr
+            if next.kind == TokenKind::Attr {
+                self.consume_token(next.kind)?;
+            } else {
+                break;
+            }
+
+            let next = self.next_required_token("parse_attrs - id")?;
+            let id = if let TokenKind::Identifier(id) = next.kind {
+                id
+            } else {
+                return Err(ParsingError::ParseError(format!(
+                    "Expected identifier after `attr`, received {next:?}"
+                )));
+            };
+
+            let comma = self.peek_required_token("parse_attrs - end required")?;
+            let rt = if comma.kind == TokenKind::Comma {
+                self.consume_token(comma.kind)?;
+                self.parse_rigz_type(None, false)?
+            } else {
+                RigzType::default()
+            };
+
+            let def = self.peek_required_token("parse_attrs - end required")?;
+            let default = if def.kind == TokenKind::Assign {
+                self.consume_token(def.kind)?;
+                Some(self.parse_expression()?)
+            } else {
+                None
+            };
+
+            attrs.push(ObjectAttr {
+                name: id.to_string(),
+                attr_type: FunctionType {
+                    rigz_type: rt,
+                    mutable: false,
+                },
+                default,
+            });
+        }
+        Ok(attrs)
     }
 }
 

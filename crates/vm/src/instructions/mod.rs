@@ -2,10 +2,12 @@ mod runner;
 
 use log::Level;
 use rigz_core::{
-    BinaryOperation, ObjectValue, RigzType, Snapshot, StackValue, UnaryOperation, VMError,
+    BinaryOperation, Dependency, ObjectValue, Reference, RigzType, Snapshot, StackValue,
+    UnaryOperation, VMError,
 };
 pub use runner::{ResolvedModule, Runner};
 use std::fmt::Display;
+use std::sync::Arc;
 use std::vec::IntoIter;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -189,11 +191,13 @@ pub enum Instruction {
     InstanceSet,
     InstanceSetMut,
     Call(usize),
+    CallDependency(usize, Arc<Dependency>),
     CallMemo(usize),
     CallMatchingSelf(Vec<(VMArg, Vec<VMArg>, VMCallSite)>),
     CallMatchingSelfMemo(Vec<(VMArg, Vec<VMArg>, VMCallSite)>),
     CallMatching(Vec<(Vec<VMArg>, VMCallSite)>),
     CallMatchingMemo(Vec<(Vec<VMArg>, VMCallSite)>),
+    CreateObject(Arc<RigzType>),
     Log(Level, String, usize),
     Puts(usize),
     CallEq(usize),
@@ -488,6 +492,15 @@ impl Snapshot for Instruction {
                 res.extend(v.as_bytes());
                 res
             }
+            Instruction::CreateObject(o) => {
+                let mut res = vec![46];
+                res.extend(o.as_bytes());
+                res
+            }
+            Instruction::CallDependency(args, dep) => {
+                let mut res = vec![47];
+                todo!("support deps")
+            }
         }
     }
 
@@ -596,6 +609,7 @@ impl Snapshot for Instruction {
                 Snapshot::from_bytes(bytes, location)?,
                 Snapshot::from_bytes(bytes, location)?,
             ),
+            46 => Instruction::CreateObject(Snapshot::from_bytes(bytes, location)?),
             b => {
                 return Err(VMError::RuntimeError(format!(
                     "Illegal instruction byte {b} {location}"

@@ -80,11 +80,11 @@ mod vm_test {
     struct TestModule {}
 
     impl Definition for TestModule {
-        fn name(&self) -> &'static str {
+        fn name() -> &'static str {
             "test"
         }
 
-        fn trait_definition(&self) -> &'static str {
+        fn trait_definition() -> &'static str {
             r#"
             trait test
                 fn hello(var arg)

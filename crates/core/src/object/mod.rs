@@ -4,10 +4,15 @@ mod ops;
 #[cfg(feature = "snapshot")]
 mod snapshot;
 
-use crate::{AsPrimitive, IndexMap, Number, Object, PrimitiveValue, RigzType, VMError};
+use crate::{
+    AsPrimitive, IndexMap, Number, Object, PrimitiveValue, RigzType, VMError, WithTypeInfo,
+};
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::ops::Deref;
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -205,6 +210,7 @@ impl ObjectValue {
                 ObjectValue::Primitive(PrimitiveValue::Number(source)),
                 ObjectValue::Primitive(PrimitiveValue::Number(n)),
             ) => (source.to_bits() & (1 << n.to_int()) != 0).into(),
+            (ObjectValue::Object(o), v) => o.get(v)?,
             (source, attr) => {
                 return Err(VMError::UnsupportedOperation(format!(
                     "Cannot read {} for {}",
@@ -213,6 +219,79 @@ impl ObjectValue {
             }
         };
         Ok(Some(v))
+    }
+
+    pub fn instance_set(
+        &mut self,
+        attr: Rc<RefCell<ObjectValue>>,
+        value: &ObjectValue,
+    ) -> Result<(), VMError> {
+        // todo support negative numbers as index, -1 is last element
+        let e = match (self, attr.borrow().deref()) {
+            // todo support ranges as attr
+            (
+                ObjectValue::Primitive(PrimitiveValue::String(s)),
+                ObjectValue::Primitive(PrimitiveValue::Number(n)),
+            ) => match n.to_usize() {
+                Ok(index) => {
+                    s.insert_str(index, value.to_string().as_str());
+                    None
+                }
+                Err(e) => Some(e),
+            },
+            (ObjectValue::List(s), ObjectValue::Primitive(PrimitiveValue::Number(n)))
+            | (ObjectValue::Tuple(s), ObjectValue::Primitive(PrimitiveValue::Number(n))) => {
+                match n.to_usize() {
+                    Ok(index) => {
+                        s.insert(index, value.clone());
+                        None
+                    }
+                    Err(e) => Some(e),
+                }
+            }
+            (ObjectValue::Map(source), index) => {
+                source.insert(index.clone(), value.clone());
+                None
+            }
+            (
+                ObjectValue::Primitive(PrimitiveValue::Number(source)),
+                ObjectValue::Primitive(PrimitiveValue::Number(n)),
+            ) => {
+                let value = if value.to_bool() { 1 } else { 0 };
+                *source = match source {
+                    Number::Int(_) => {
+                        i64::from_le_bytes((source.to_bits() & (value << n.to_int())).to_le_bytes())
+                            .into()
+                    }
+                    Number::Float(_) => {
+                        f64::from_bits(source.to_bits() & (value << n.to_int())).into()
+                    }
+                };
+                None
+            }
+            (source, attr) => {
+                if let ObjectValue::Object(o) = source {
+                    let value = value.clone();
+                    let v = o.set(attr, value);
+                    if let Err(e) = v {
+                        Some(e)
+                    } else {
+                        None
+                    }
+                } else {
+                    Some(VMError::UnsupportedOperation(format!(
+                        "Cannot read {} for {}",
+                        attr, source
+                    )))
+                }
+            }
+        };
+
+        if let Some(e) = e {
+            Err(e)
+        } else {
+            Ok(())
+        }
     }
 
     #[inline]
@@ -284,7 +363,7 @@ impl ObjectValue {
     }
 }
 
-impl AsPrimitive<ObjectValue> for ObjectValue {
+impl WithTypeInfo for ObjectValue {
     fn rigz_type(&self) -> RigzType {
         match self {
             ObjectValue::Primitive(p) => p.rigz_type(),
@@ -299,7 +378,9 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
             ObjectValue::Object(o) => o.rigz_type(),
         }
     }
+}
 
+impl AsPrimitive<ObjectValue> for ObjectValue {
     fn as_list(&mut self) -> Result<&mut Vec<ObjectValue>, VMError> {
         *self = ObjectValue::List(AsPrimitive::to_list(self)?);
         let ObjectValue::List(m) = self else {

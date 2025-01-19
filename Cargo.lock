@@ -609,6 +609,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "derivative"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fcc3dd5e9e9c0b295d6e1e4d811fb6f157d5ffd784b8d202fc62eac8035a770b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "derive_more"
 version = "0.99.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2147,11 +2158,13 @@ version = "0.6.0"
 dependencies = [
  "chrono",
  "criterion",
+ "derivative",
  "getrandom",
  "itertools 0.14.0",
  "log",
  "pretty_env_logger",
  "rand",
+ "rand_chacha",
  "reqwest",
  "rigz_ast",
  "rigz_ast_derive",
@@ -2159,7 +2172,9 @@ dependencies = [
  "rigz_runtime",
  "rigz_vm",
  "scraper",
+ "serde",
  "serde_json",
+ "typetag",
  "uuid",
  "wasm-bindgen-test",
  "web-sys",

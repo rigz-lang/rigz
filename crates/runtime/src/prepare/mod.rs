@@ -1,15 +1,18 @@
 mod program;
 
 use crate::RuntimeError;
-use log::Level;
+use log::{warn, Level};
 pub use program::Program;
 use rigz_ast::*;
 use rigz_core::{
-    IndexMap, IndexMapEntry, Lifecycle, Number, ObjectValue, PrimitiveValue, RigzType,
+    Dependency, IndexMap, IndexMapEntry, Lifecycle, Number, ObjectValue, PrimitiveValue, RigzType,
 };
 use rigz_vm::{Instruction, LoadValue, RigzBuilder, VMBuilder, VM};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::fmt::Display;
+use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum CallSite {
@@ -136,6 +139,19 @@ struct Imports {
 }
 
 #[derive(Debug)]
+enum ObjectConstructor {
+    Scope(Vec<FunctionArgument>, Option<usize>, usize),
+    Custom(Vec<FunctionArgument>, Option<usize>),
+}
+
+#[derive(Debug)]
+struct ObjectDeclaration {
+    constructor: ObjectConstructor,
+    rigz_type: Arc<RigzType>,
+    fields: Vec<ObjectAttr>,
+}
+
+#[derive(Debug)]
 pub(crate) struct ProgramParser<'vm, T: RigzBuilder> {
     pub(crate) builder: T,
     pub(crate) modules: IndexMap<&'vm str, ModuleDefinition>,
@@ -146,6 +162,8 @@ pub(crate) struct ProgramParser<'vm, T: RigzBuilder> {
     pub(crate) types: HashMap<String, RigzType>,
     // todo imports should be fully resolved path
     imports: HashMap<String, Imports>,
+    objects: HashMap<String, Rc<ObjectDeclaration>>,
+    custom_objects: HashMap<String, Arc<Dependency>>,
 }
 
 impl<T: RigzBuilder> Default for ProgramParser<'_, T> {
@@ -160,6 +178,8 @@ impl<T: RigzBuilder> Default for ProgramParser<'_, T> {
             identifiers: Default::default(),
             types: Default::default(),
             imports: Default::default(),
+            objects: Default::default(),
+            custom_objects: Default::default(),
         }
     }
 }
@@ -174,6 +194,8 @@ impl<'vm> ProgramParser<'vm, VMBuilder> {
             identifiers,
             types,
             imports,
+            objects,
+            custom_objects,
         } = self;
         ProgramParser {
             builder: builder.build(),
@@ -183,6 +205,8 @@ impl<'vm> ProgramParser<'vm, VMBuilder> {
             identifiers,
             types,
             imports,
+            objects,
+            custom_objects,
         }
     }
 }
@@ -219,15 +243,28 @@ struct BestMatch {
 impl<T: RigzBuilder> ProgramParser<'_, T> {
     pub(crate) fn new() -> Self {
         let mut p = ProgramParser::default();
-        p.add_default_modules();
+        p.add_default_modules()
+            .expect("failed to register default modules");
         p
     }
 
-    pub(crate) fn register_module(&mut self, module: impl ParsedModule + 'static) {
-        let name = module.name();
-        let def = module.module_definition();
+    pub(crate) fn register_module<M: ParsedModule + 'static>(
+        &mut self,
+        module: M,
+    ) -> Result<(), ValidationError> {
+        let name = M::name();
+        let def = M::module_definition();
+        for dep in M::parsed_dependencies() {
+            let obj = dep.object_definition;
+            if let Constructor::Declaration(..) = &obj.constructor {
+                self.custom_objects
+                    .insert(obj.rigz_type.to_string(), Arc::new(dep.dependency));
+            };
+            self.parse_object_definition(obj)?;
+        }
         self.modules.insert(name, ModuleDefinition::Module(def));
         self.builder.register_module(module);
+        Ok(())
     }
 
     fn parse_module_trait_definition(
@@ -440,6 +477,56 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     }
                 }
             }
+            Assign::InstanceSet(base, calls) => {
+                if calls.is_empty() {
+                    return Err(ValidationError::MissingExpression(format!(
+                        "Invalid InstanceSet call {base:?}"
+                    )));
+                }
+                match base {
+                    Expression::This => {
+                        self.builder.add_get_self_mut_instruction();
+                    }
+                    Expression::Identifier(id) => {
+                        self.builder.add_get_mutable_variable_instruction(id);
+                    }
+                    e => {
+                        return Err(ValidationError::InvalidType(format!(
+                            "Cannot use instance_set for {e:?} - {calls:?}"
+                        )))
+                    }
+                }
+
+                let last = calls.len() - 1;
+                let mut calls = calls.into_iter().enumerate();
+                let (_, next) = calls.next().unwrap();
+                match next {
+                    AssignIndex::Identifier(id) => {
+                        self.builder.add_load_instruction(id.into());
+                    }
+                    AssignIndex::Index(index) => {
+                        self.parse_expression(index)?;
+                    }
+                }
+
+                self.parse_expression(expression)?;
+                if last > 0 {
+                    self.builder.add_instance_get_instruction(true);
+                }
+                for (i, c) in calls {
+                    match c {
+                        AssignIndex::Identifier(id) => {
+                            self.builder.add_load_instruction(id.into());
+                            self.builder.add_instance_get_instruction(i != last);
+                        }
+                        AssignIndex::Index(index) => {
+                            self.parse_expression(index)?;
+                            self.builder.add_instance_get_instruction(i != last);
+                        }
+                    }
+                }
+                self.builder.add_instance_set_mut_instruction();
+            }
         }
         Ok(())
     }
@@ -501,14 +588,149 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             } => {
                 todo!("Binary assignment not supported for tuple expressions");
             }
+            Statement::BinaryAssignment {
+                lhs: Assign::InstanceSet(..),
+                op: _,
+                expression: _,
+            } => {
+                todo!("Binary assignment not supported for InstanceSet");
+            }
             Statement::TraitImpl { definitions, .. } => {
                 // todo this probably needs some form of checking base_trait and concrete type
                 for fd in definitions {
                     self.parse_function_definition(fd)?;
                 }
             }
+            Statement::ObjectDefinition(definition) => self.parse_object_definition(definition)?,
         }
         Ok(())
+    }
+
+    fn parse_object_definition(
+        &mut self,
+        definition: ObjectDefinition,
+    ) -> Result<(), ValidationError> {
+        let rt = Arc::new(definition.rigz_type);
+        let obj = rt.to_string();
+        let constructor = match definition.constructor {
+            Constructor::Default => {
+                let body = Scope {
+                    elements: definition
+                        .fields
+                        .iter()
+                        .map(|f| {
+                            Element::Statement(Statement::Assignment {
+                                lhs: Assign::InstanceSet(
+                                    Expression::This,
+                                    vec![AssignIndex::Identifier(f.name.clone())],
+                                ),
+                                expression: Expression::Identifier(f.name.clone()),
+                            })
+                        })
+                        .collect(),
+                };
+                let args = definition
+                    .fields
+                    .iter()
+                    .map(|a| FunctionArgument {
+                        name: a.name.clone(),
+                        default: a.default.clone(),
+                        function_type: a.attr_type.clone(),
+                        var_arg: false,
+                        rest: false,
+                    })
+                    .collect();
+                let s = self.parse_constructor(body, rt.clone(), &args)?;
+                ObjectConstructor::Scope(args, None, s)
+            }
+            Constructor::Declaration(args, var) => ObjectConstructor::Custom(args, var),
+            Constructor::Definition(args, var, body) => {
+                let s = self.parse_constructor(body, rt.clone(), &args)?;
+                ObjectConstructor::Scope(args, var, s)
+            }
+        };
+
+        for func in definition.functions {
+            match func {
+                FunctionDeclaration::Declaration { .. } => {}
+                FunctionDeclaration::Definition(d) => {
+                    let this = match d.type_definition.self_type.as_ref() {
+                        None => None,
+                        Some(f) => {
+                            if f.rigz_type == RigzType::This {
+                                let old = self.identifiers.insert(
+                                    "self".to_string(),
+                                    FunctionType {
+                                        rigz_type: rt.as_ref().clone(),
+                                        mutable: f.mutable,
+                                    },
+                                );
+                                Some(old)
+                            } else {
+                                None
+                            }
+                        }
+                    };
+                    self.parse_function_definition(d)?;
+                    if let Some(old) = this {
+                        match old {
+                            None => {
+                                self.identifiers.remove("self");
+                            }
+                            Some(old) => {
+                                self.identifiers.insert("self".to_string(), old);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let decl = ObjectDeclaration {
+            constructor,
+            rigz_type: rt,
+            fields: definition.fields,
+        };
+        let old = self.objects.insert(obj, Rc::new(decl));
+        if let Some(o) = old {
+            warn!("Overwrote previous object {o:?}")
+        }
+        Ok(())
+    }
+
+    fn parse_constructor(
+        &mut self,
+        body: Scope,
+        rigz_type: Arc<RigzType>,
+        args: &Vec<FunctionArgument>,
+    ) -> Result<usize, ValidationError> {
+        let current_vars = self.identifiers.clone();
+        let current = self.builder.current_scope();
+        self.builder.enter_scope(
+            rigz_type.to_string(),
+            args.iter()
+                .map(|a| (a.name.clone(), a.function_type.mutable))
+                .collect(),
+            None,
+        );
+        let res = self.builder.current_scope();
+        self.builder
+            .add_create_object_instruction(rigz_type.clone());
+        self.identifiers.insert(
+            "self".to_string(),
+            FunctionType {
+                rigz_type: rigz_type.as_ref().clone(),
+                mutable: true,
+            },
+        );
+        self.builder.add_load_mut_instruction("self".to_string());
+        for e in body.elements {
+            self.parse_element(e)?;
+        }
+        self.builder.add_get_self_instruction();
+        self.builder.exit_scope(current);
+        self.identifiers = current_vars;
+        Ok(res)
     }
 
     fn parse_lazy_expression(
@@ -974,6 +1196,55 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                         break;
                     } else {
                         self.call_inline_extension(&c, fcs, vec![].into())?;
+                    }
+                }
+            }
+            FunctionExpression::TypeConstructor(ty, args) => {
+                let ty = ty.to_string();
+                let dec = match self.objects.get(&ty) {
+                    None => {
+                        return Err(ValidationError::InvalidType(format!(
+                            "Missing constructor for {ty}"
+                        )))
+                    }
+                    Some(dec) => dec.clone(),
+                };
+                let (cargs, var, scope) = match &dec.constructor {
+                    ObjectConstructor::Scope(cargs, var, s) => {
+                        (cargs.clone(), var.clone(), Some(*s))
+                    }
+                    ObjectConstructor::Custom(cargs, var) => (cargs.clone(), var.clone(), None),
+                };
+
+                let args = self.setup_call_args(
+                    args,
+                    FunctionCallSignature {
+                        name: "Self".to_string(),
+                        arguments: cargs,
+                        return_type: FunctionType {
+                            rigz_type: Default::default(),
+                            mutable: false,
+                        },
+                        self_type: None,
+                        arg_type: ArgType::Positional,
+                        var_args_start: var,
+                    },
+                )?;
+
+                match scope {
+                    None => match self.custom_objects.get(&ty) {
+                        None => {
+                            return Err(ValidationError::InvalidType(format!(
+                                "{ty} is not a Custom Type, definition required for object"
+                            )))
+                        }
+                        Some(d) => {
+                            self.builder
+                                .add_call_dependency_instruction(args, d.clone());
+                        }
+                    },
+                    Some(s) => {
+                        self.builder.add_call_instruction(s);
                     }
                 }
             }
@@ -1487,7 +1758,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
     fn setup_call_args(
         &mut self,
         arguments: RigzArguments,
-        fcs: FunctionCallSignature,
+        fcs: FunctionCallSignature, // todo don't use FCS here, create a minimal type
     ) -> Result<usize, ValidationError> {
         let arguments = fcs.convert(arguments)?;
         let al = arguments.len();
@@ -1495,14 +1766,15 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             let mut arguments = arguments;
             let (_, rem) = fcs.arguments.split_at(al);
             for arg in rem {
-                if arg.default.is_none() {
-                    return Err(ValidationError::MissingExpression(format!(
-                        "Invalid args for {} expected default value for {arg:?}",
-                        fcs.name
-                    )));
+                match &arg.default {
+                    None => {
+                        return Err(ValidationError::MissingExpression(format!(
+                            "Invalid args for {} expected default value for {arg:?}",
+                            fcs.name
+                        )));
+                    }
+                    Some(e) => arguments.push(e.clone()),
                 }
-                // todo should these be constants?
-                arguments.push(Expression::Value(arg.default.clone().unwrap()))
             }
             arguments
         } else {
@@ -1523,15 +1795,15 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     if last_var_arg % var_arg_count != 0 {
                         let (_, rem) = fcs.arguments.split_at(i);
                         for (index, arg) in rem.iter().enumerate() {
-                            if arg.default.is_none() {
-                                return Err(ValidationError::MissingExpression(format!(
-                                    "Invalid var_args for {} expected default value for {arg:?}",
-                                    fcs.name
-                                )));
+                            match arg.default.as_ref() {
+                                None => {
+                                    return Err(ValidationError::MissingExpression(format!(
+                                        "Invalid var_args for {} expected default value for {arg:?}",
+                                        fcs.name
+                                    )));
+                                }
+                                Some(e) => a[index + last_var_arg].push(e.clone()),
                             }
-                            // todo should these be constants?
-                            a[index + last_var_arg]
-                                .push(Expression::Value(arg.default.clone().unwrap()))
                         }
                     }
                     args.extend(a.into_iter().map(Expression::List));
@@ -1823,7 +2095,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
     }
 
     // dont use this for function scopes!
-    fn parse_scope(&mut self, scope: Scope, named: &'static str) -> Result<usize, ValidationError> {
+    fn parse_scope(&mut self, scope: Scope, named: &str) -> Result<usize, ValidationError> {
         let current_vars = self.identifiers.clone();
         let current = self.builder.current_scope();
         self.builder.enter_scope(named.to_string(), vec![], None);
