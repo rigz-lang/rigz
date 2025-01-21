@@ -11,7 +11,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         let e = match scope.elements.last() {
             None => {
                 return Err(ValidationError::MissingExpression(format!(
-                    "Invalid Scope - {scope}"
+                    "Invalid Scope - {scope:?}"
                 )))
             }
             Some(s) => s,
@@ -250,7 +250,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 let name = match calls.last() {
                     None => {
                         return Err(ValidationError::InvalidFunction(format!(
-                            "Invalid instance function call - {ex}."
+                            "Invalid instance function call - {ex:?}."
                         )))
                     }
                     Some(s) => s,

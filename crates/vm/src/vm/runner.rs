@@ -91,15 +91,15 @@ impl Runner for VM {
                     let memo = match l {
                         Lifecycle::Memo(m) => m,
                         Lifecycle::Composite(c) => {
-                            let index = c.iter().find_position(|l| matches!(l, Lifecycle::Memo(_)));
+                            let index = c.iter_mut().find_position(|l| matches!(l, Lifecycle::Memo(_)));
                             match index {
                                 None => {
                                     return Err(VMError::ScopeDoesNotExist(format!(
                                     "Invalid Scope {scope_index}, does not contain @memo lifecycle"
                                 )))
                                 }
-                                Some((index, _)) => {
-                                    let Lifecycle::Memo(m) = c.get_mut(index).unwrap() else {
+                                Some((index, l)) => {
+                                    let Lifecycle::Memo(m) = l else {
                                         unreachable!()
                                     };
                                     m

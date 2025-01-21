@@ -405,9 +405,10 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
             ObjectValue::List(l) => Ok(l.iter().map(|v| (v.clone(), v.clone())).collect()),
             ObjectValue::Tuple(t) => Ok(t
                 .chunks(2)
-                .map(|c| match c {
+                .map(|c| match &c[..2] {
                     [k, v] => (k.clone(), v.clone()),
                     [v] => (v.clone(), v.clone()),
+                    _ => unreachable!(),
                 })
                 .collect()),
             ObjectValue::Object(m) => m.to_map(),
