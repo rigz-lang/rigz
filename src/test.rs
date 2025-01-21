@@ -1,5 +1,6 @@
 use crate::utils::{current_dir, path_to_string, read_rigz_files};
 use clap::Args;
+use rigz_ast::ParserOptions;
 use rigz_core::{Lifecycle, TestResults, VMError};
 use rigz_runtime::Runtime;
 use std::fs::read_to_string;
@@ -14,13 +15,18 @@ pub struct TestArgs {
 
 pub(crate) fn test(args: TestArgs) {
     let input = args.input.unwrap_or_else(current_dir);
-    let test_files = read_rigz_files(input).expect("Failed to open test files");
+    let test_files = read_rigz_files(&input).expect("Failed to open test files");
     // # of tests
     let mut total = TestResults::default();
     for file in test_files {
+        let pb = file.parent().expect("Absolute path expected").to_path_buf();
+        let parser_options = ParserOptions {
+            current_directory: Some(pb),
+            ..Default::default()
+        };
         match read_to_string(&file) {
             Ok(s) => {
-                match Runtime::create_unverified(s) {
+                match Runtime::create_unverified_with_options(s, parser_options) {
                     Ok(mut r) => {
                         if r.vm()
                             .scopes

@@ -10,6 +10,9 @@ use rigz_core::{
 use rigz_vm::{Instruction, LoadValue, RigzBuilder, VMBuilder, VM};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::env;
+use std::fmt::Debug;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -152,6 +155,12 @@ struct ObjectDeclaration {
     dep: Option<usize>,
 }
 
+#[derive(Debug, Hash, PartialEq, Eq)]
+enum ImportPath {
+    Url(String),
+    File(PathBuf),
+}
+
 #[derive(Debug)]
 pub(crate) struct ProgramParser<'vm, T: RigzBuilder> {
     pub(crate) builder: T,
@@ -161,8 +170,9 @@ pub(crate) struct ProgramParser<'vm, T: RigzBuilder> {
     pub(crate) constants: IndexMap<ObjectValue, usize>,
     pub(crate) identifiers: HashMap<String, FunctionType>,
     pub(crate) types: HashMap<String, RigzType>,
+    pub(crate) parser_options: ParserOptions,
     // todo imports should be fully resolved path
-    imports: HashMap<String, Imports>,
+    imports: HashMap<ImportPath, Imports>,
     objects: HashMap<String, Rc<ObjectDeclaration>>,
 }
 
@@ -177,6 +187,7 @@ impl<T: RigzBuilder> Default for ProgramParser<'_, T> {
             constants: IndexMap::from([(ObjectValue::default(), none)]),
             identifiers: Default::default(),
             types: Default::default(),
+            parser_options: Default::default(),
             imports: Default::default(),
             objects: Default::default(),
         }
@@ -192,6 +203,7 @@ impl<'vm> ProgramParser<'vm, VMBuilder> {
             constants,
             identifiers,
             types,
+            parser_options,
             imports,
             objects,
         } = self;
@@ -202,6 +214,7 @@ impl<'vm> ProgramParser<'vm, VMBuilder> {
             constants,
             identifiers,
             types,
+            parser_options,
             imports,
             objects,
         }
@@ -223,7 +236,7 @@ impl ProgramParser<'_, VM> {
             }
         }
 
-        let p = parse(next_input.as_str(), false)
+        let p = parse(next_input.as_str(), self.parser_options.clone())
             .map_err(|e| e.into())?
             .into();
         self.parse_program(p).map_err(|e| e.into())?;
@@ -240,6 +253,16 @@ struct BestMatch {
 impl<T: RigzBuilder> ProgramParser<'_, T> {
     pub(crate) fn new() -> Self {
         let mut p = ProgramParser::default();
+        p.add_default_modules()
+            .expect("failed to register default modules");
+        p
+    }
+
+    pub(crate) fn with_options(parser_options: ParserOptions) -> Self {
+        let mut p = ProgramParser {
+            parser_options,
+            ..Default::default()
+        };
         p.add_default_modules()
             .expect("failed to register default modules");
         p
@@ -269,10 +292,25 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
     }
 
     pub(crate) fn parse_program(&mut self, program: Program) -> Result<(), ValidationError> {
+        self.parse_scoped_program(program, None)
+    }
+
+    pub(crate) fn parse_scoped_program(
+        &mut self,
+        program: Program,
+        current: Option<usize>,
+    ) -> Result<(), ValidationError> {
         for element in program.elements {
             self.parse_element(element)?;
         }
-        self.builder.add_halt_instruction();
+        match current {
+            None => {
+                self.builder.add_halt_instruction();
+            }
+            Some(s) => {
+                self.builder.exit_scope(s);
+            }
+        }
         Ok(())
     }
 
@@ -2031,13 +2069,17 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         Ok(())
     }
 
-    fn parse_contents(&self, contents: String, path: &str) -> Result<VMBuilder, ValidationError> {
+    fn parse_contents<P: Debug>(
+        &mut self,
+        contents: String,
+        path: P,
+    ) -> Result<usize, ValidationError> {
         let input = contents.as_str();
-        let parser = match Parser::prepare(input, false) {
+        let parser = match Parser::prepare(input, self.parser_options.clone()) {
             Ok(p) => p,
             Err(e) => {
                 return Err(ValidationError::InvalidImport(format!(
-                    "Failed to setup parser {path} - {e}"
+                    "Failed to setup parser {path:?} - {e}"
                 )))
             }
         };
@@ -2046,33 +2088,32 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             Ok(p) => p.into(),
             Err(e) => {
                 return Err(ValidationError::InvalidImport(format!(
-                    "Failed to parse {path} - {e}"
+                    "Failed to parse {path:?} - {e}"
                 )))
             }
         };
-        let mut builder = ProgramParser::new();
-        // todo need a better way to ensure we aren't parsing the same file repeatedly
-        builder.imports = self.imports.clone();
-        builder.constants = self.constants.clone();
+        let current = self.builder.current_scope();
+        let dest = self.builder.enter_scope(format!("{path:?}"), vec![], None);
         // skip validation, imports don't need to end with an expression
-        if let Err(e) = builder.parse_program(program) {
+        if let Err(e) = self.parse_scoped_program(program, Some(current)) {
             return Err(ValidationError::InvalidImport(format!(
-                "Failed to process {path} - {e}"
+                "Failed to process {path:?} - {e}"
             )));
         }
-        Ok(builder.builder)
+
+        Ok(dest)
     }
 
-    fn parse_file(&self, path: &str) -> Result<VMBuilder, ValidationError> {
-        let raw = match std::fs::read_to_string(path) {
+    fn parse_file(&mut self, parse: &PathBuf) -> Result<usize, ValidationError> {
+        let raw = match std::fs::read_to_string(parse) {
             Ok(s) => s,
             Err(e) => {
                 return Err(ValidationError::InvalidImport(format!(
-                    "Failed to read {path} - {e}"
+                    "Failed to read {parse:?} - {e}"
                 )))
             }
         };
-        self.parse_contents(raw, path)
+        self.parse_contents(raw, parse)
     }
 
     fn download(&self, url: &str) -> Result<String, ValidationError> {
@@ -2085,37 +2126,58 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         }
     }
 
-    fn parse_url(&self, url: &str) -> Result<VMBuilder, ValidationError> {
+    fn parse_url(&mut self, url: &str) -> Result<usize, ValidationError> {
         let contents = self.download(url)?;
         self.parse_contents(contents, url)
+    }
+
+    fn parse_import_path(&mut self, import_path: ImportPath) -> Result<(), ValidationError> {
+        let root = match &import_path {
+            ImportPath::Url(url) => self.parse_url(url),
+            ImportPath::File(path) => self.parse_file(path),
+        }?;
+        self.builder.add_call_instruction(root);
+        self.imports.insert(import_path, Imports { root });
+        Ok(())
     }
 
     fn parse_import(&mut self, import: ImportValue) -> Result<(), ValidationError> {
         let name = match import {
             ImportValue::TypeValue(tv) => tv,
             ImportValue::FilePath(f) => {
-                if self.imports.contains_key(&f) {
+                if self.parser_options.current_directory.is_none() {
+                    self.parser_options.current_directory = match env::current_dir() {
+                        Ok(f) => {
+                            println!("Current Dir: {f:?}");
+                            Some(f)
+                        }
+                        Err(e) => {
+                            return Err(ValidationError::InvalidImport(format!(
+                                "Failed to get current directory - {e}"
+                            )))
+                        }
+                    }
+                }
+                let parse = match &self.parser_options.current_directory {
+                    None => {
+                        return Err(ValidationError::InvalidImport(format!(
+                            "Current Directory is not set, unable to parse_file {f}"
+                        )))
+                    }
+                    Some(p) => ImportPath::File(p.join(&f)),
+                };
+                if self.imports.contains_key(&parse) {
                     return Ok(());
                 }
-
-                let builder = self.parse_file(&f)?;
-                let root = self.builder.merge(builder);
-
-                self.builder.add_call_instruction(root);
-                self.imports.insert(f, Imports { root });
-                return Ok(());
+                return self.parse_import_path(parse);
             }
             ImportValue::UrlPath(url) => {
-                if self.imports.contains_key(&url) {
+                let path = ImportPath::Url(url);
+                if self.imports.contains_key(&path) {
                     return Ok(());
                 }
 
-                let builder = self.parse_url(&url)?;
-                let root = self.builder.merge(builder);
-
-                self.builder.add_call_instruction(root);
-                self.imports.insert(url, Imports { root });
-                return Ok(());
+                return self.parse_import_path(path);
             } // todo support `import "<URL | path>" as foo`
               // todo support `import dep` to support external resources, like package.json or Gemfile
         };

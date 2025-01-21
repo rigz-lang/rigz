@@ -26,10 +26,10 @@ pub use validate::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct ParserOptions {
-    current_directory: Option<PathBuf>,
-    debug: bool,
-    disable_file_imports: bool,
-    disable_url_imports: bool,
+    pub current_directory: Option<PathBuf>,
+    pub debug: bool,
+    pub disable_file_imports: bool,
+    pub disable_url_imports: bool,
 }
 
 #[derive(Debug)]
@@ -38,15 +38,16 @@ pub struct Parser<'t> {
     pub input: Option<String>,
     tokens: VecDeque<Token<'t>>,
     line: usize, // todo repl should set this
+    parser_options: ParserOptions,
 }
 
 // TODO better error messages
-pub fn parse(input: &str, debug: bool) -> Result<Program, ParsingError> {
-    Parser::prepare(input, debug)?.parse()
+pub fn parse(input: &str, parser_options: ParserOptions) -> Result<Program, ParsingError> {
+    Parser::prepare(input, parser_options)?.parse()
 }
 
 impl<'t> Parser<'t> {
-    pub fn prepare(input: &'t str, debug: bool) -> Result<Self, ParsingError> {
+    pub fn prepare(input: &'t str, parser_options: ParserOptions) -> Result<Self, ParsingError> {
         let input = input.trim(); // ensure no trailing newlines to avoid issues in parse_element
         if input.is_empty() {
             return Err(ParsingError::ParseError(
@@ -87,11 +88,16 @@ impl<'t> Parser<'t> {
                 tokens.push_back(Token { kind, span, line })
             }
         }
-        let input = if debug { Some(input.to_string()) } else { None };
+        let input = if parser_options.debug {
+            Some(input.to_string())
+        } else {
+            None
+        };
         Ok(Parser {
             input,
             tokens,
             line,
+            parser_options,
         })
     }
 
@@ -584,8 +590,14 @@ impl<'t> Parser<'t> {
             }
             TokenKind::Value(TokenValue::String(s)) => {
                 if s.starts_with("http") {
+                    if self.parser_options.disable_url_imports {
+                        return Err(ParsingError::ParseError(format!("URL imports are not allowed - {s}")))
+                    }
                     ImportValue::UrlPath(s.to_string())
                 } else {
+                    if self.parser_options.disable_file_imports {
+                        return Err(ParsingError::ParseError(format!("File imports are not allowed - {s}")))
+                    }
                     ImportValue::FilePath(s.to_string())
                 }
             }

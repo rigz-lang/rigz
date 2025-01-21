@@ -13,7 +13,7 @@ pub struct FormatArgs {
 
 pub(crate) fn format(args: FormatArgs) {
     let input = args.input.unwrap_or_else(current_dir);
-    let files = read_rigz_files(input).expect("failed to read input files");
+    let files = read_rigz_files(&input).expect("failed to read input files");
     for file in files {
         match read_to_string(&file) {
             Ok(input) => {

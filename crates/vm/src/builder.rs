@@ -380,8 +380,6 @@ pub trait RigzBuilder: Debug + Default {
     fn add_sleep_instruction(&mut self) -> &mut Self {
         self.add_instruction(Instruction::Sleep)
     }
-
-    fn merge(&mut self, other: VMBuilder) -> usize;
 }
 
 #[macro_export]
@@ -468,16 +466,6 @@ macro_rules! generate_builder {
             let index = self.constants.len();
             self.constants.push(value);
             index
-        }
-
-        #[inline]
-        /// all constants must be contained in other.constants!
-        fn merge(&mut self, other: crate::VMBuilder) -> usize {
-            let first = self.scopes.len();
-            self.scopes.extend(other.scopes);
-            self.lifecycles.extend(other.lifecycles);
-            self.constants = other.constants;
-            first
         }
     };
 }

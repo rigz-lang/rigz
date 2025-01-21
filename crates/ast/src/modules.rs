@@ -1,5 +1,5 @@
 use crate::program::ObjectDefinition;
-use crate::{ModuleTraitDefinition, Parser};
+use crate::{ModuleTraitDefinition, Parser, ParserOptions};
 use rigz_core::{Dependency, Module, Object};
 
 pub struct ParsedDependency {
@@ -28,7 +28,7 @@ pub trait ParsedModule: Module + Send + Sync {
     where
         Self: Sized,
     {
-        let mut parser = match Parser::prepare(Self::trait_definition(), false) {
+        let mut parser = match Parser::prepare(Self::trait_definition(), ParserOptions::default()) {
             Ok(p) => p,
             Err(e) => panic!("Failed to setup parser {} - {e}", Self::name()),
         };
@@ -44,7 +44,7 @@ pub trait ParsedObject: Object {
     where
         Self: Sized,
     {
-        let mut parser = match Parser::prepare(Self::trait_definition(), false) {
+        let mut parser = match Parser::prepare(Self::trait_definition(), ParserOptions::default()) {
             Ok(p) => p,
             Err(e) => panic!("Failed to setup parser {} - {e}", Self::name()),
         };

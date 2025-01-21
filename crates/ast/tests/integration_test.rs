@@ -8,7 +8,7 @@ macro_rules! test_parse {
             #[wasm_bindgen_test(unsupported = test)]
             fn $name() {
                 let input = $input;
-                let v = parse(input, false).and_then(|p| Ok(p.elements));
+                let v = parse(input, ParserOptions::default()).and_then(|p| Ok(p.elements));
                 assert_eq!(v, Ok($expected), "Failed to parse input: {}", input)
             }
         )*
@@ -25,7 +25,7 @@ macro_rules! test_parse_equivalent {
                 #[wasm_bindgen_test(unsupported = test)]
                 fn $name() {
                     let input = $input;
-                    let v = parse(input, false).and_then(|p| Ok(p.elements));
+                    let v = parse(input, ParserOptions::default()).and_then(|p| Ok(p.elements));
                     assert_eq!(v, Ok($expected), "Failed to parse input: {}", input)
                 }
             )*
@@ -39,7 +39,7 @@ macro_rules! test_parse_valid {
             #[wasm_bindgen_test(unsupported = test)]
             fn $name() {
                 let input = $input;
-                let v = parse(input, false);
+                let v = parse(input, ParserOptions::default());
                 assert_eq!(v.is_ok(), true, "Parse Failed {:?} - {}", v.unwrap_err(), input);
             }
         )*
@@ -52,7 +52,7 @@ macro_rules! test_parse_invalid {
             #[wasm_bindgen_test(unsupported = test)]
             fn $name() {
                 let input = $input;
-                let v = parse(input, false);
+                let v = parse(input, ParserOptions::default());
                 assert_eq!(v.is_err(), true, "Successfully parsed invalid input {}", input);
             }
         )*

@@ -2,7 +2,7 @@ pub(crate) mod expression;
 
 use crate::prepare::ProgramParser;
 use crate::{Runtime, RuntimeError};
-use rigz_ast::Element;
+use rigz_ast::{Element, ParserOptions};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Program {
@@ -21,6 +21,16 @@ impl<'lex> Program {
     #[inline]
     pub fn create_runtime(self) -> Result<Runtime<'lex>, RuntimeError> {
         let mut builder = ProgramParser::new();
+        builder.parse_program(self).map_err(|e| e.into())?;
+        Ok(builder.create().into())
+    }
+
+    #[inline]
+    pub fn create_runtime_with_options(
+        self,
+        options: ParserOptions,
+    ) -> Result<Runtime<'lex>, RuntimeError> {
+        let mut builder = ProgramParser::with_options(options);
         builder.parse_program(self).map_err(|e| e.into())?;
         Ok(builder.create().into())
     }

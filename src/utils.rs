@@ -5,17 +5,17 @@ pub fn current_dir() -> PathBuf {
     env::current_dir().expect("Unable to read current directory")
 }
 
-pub fn read_rigz_files(input: PathBuf) -> io::Result<Vec<PathBuf>> {
+pub fn read_rigz_files(input: &PathBuf) -> io::Result<Vec<PathBuf>> {
     let mut files = Vec::with_capacity(1);
     if input.is_dir() {
         for f in input.read_dir()? {
-            files.extend(read_rigz_files(f?.path())?);
+            files.extend(read_rigz_files(&f?.path())?);
         }
     } else if matches!(
         input.extension().map(|e| e.to_str()),
         Some(Some("rg") | Some("rigz"))
     ) {
-        files.push(input);
+        files.push(input.clone());
     }
     Ok(files)
 }

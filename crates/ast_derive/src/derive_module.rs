@@ -1,7 +1,9 @@
 use crate::{create_matched_call, method_name, rigz_type_to_return_type, FirstArg};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
-use rigz_ast::{FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser};
+use rigz_ast::{
+    FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser, ParserOptions,
+};
 use rigz_core::derive::{rigz_type_to_rust_str, Tokens};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -55,7 +57,8 @@ impl ToTokens for DeriveModule {
         let input = self.literal.value();
 
         let input = &input;
-        let mut parser = Parser::prepare(input, false).expect("Failed to setup parser");
+        let mut parser =
+            Parser::prepare(input, ParserOptions::default()).expect("Failed to setup parser");
         let module = parser
             .parse_module_trait_definition()
             .expect("Failed to parse input");

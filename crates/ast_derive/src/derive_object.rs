@@ -1,7 +1,7 @@
 use crate::{convert_response, rigz_type_to_arg, rigz_type_to_return_type, setup_call_args};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
-use rigz_ast::{FunctionDeclaration, FunctionType, ObjectDefinition, Parser};
+use rigz_ast::{FunctionDeclaration, FunctionType, ObjectDefinition, Parser, ParserOptions};
 use rigz_core::derive::Tokens;
 use rigz_core::RigzType;
 use std::slice::Iter;
@@ -150,8 +150,8 @@ impl DeriveObject {
         };
 
         let name = id.to_string();
-        let mut obj_def =
-            Parser::prepare(lit.as_str(), false).expect("failed to setup object definition parser");
+        let mut obj_def = Parser::prepare(lit.as_str(), ParserOptions::default())
+            .expect("failed to setup object definition parser");
         let obj_def = obj_def
             .parse_object_definition()
             .expect("failed to parse object definition");

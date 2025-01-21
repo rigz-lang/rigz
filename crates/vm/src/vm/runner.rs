@@ -91,7 +91,9 @@ impl Runner for VM {
                     let memo = match l {
                         Lifecycle::Memo(m) => m,
                         Lifecycle::Composite(c) => {
-                            let index = c.iter_mut().find_position(|l| matches!(l, Lifecycle::Memo(_)));
+                            let index = c
+                                .iter_mut()
+                                .find_position(|l| matches!(l, Lifecycle::Memo(_)));
                             match index {
                                 None => {
                                     return Err(VMError::ScopeDoesNotExist(format!(
