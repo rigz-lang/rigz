@@ -1,11 +1,30 @@
 use rigz_ast::*;
-use rigz_ast_derive::derive_module;
+use rigz_ast_derive::{derive_module, derive_object};
 use rigz_core::*;
 use std::ops::Deref;
 
-#[derive(Debug, Default)]
+// pub struct Response {
+//
+// }
+//
+// derive_object! {
+//     "Http",
+//     Response,
+//     r#"object Response
+//     end"#
+// }
+
+#[derive(Debug)]
 pub struct HttpModule {
-    client: reqwest::blocking::Client,
+    client: ureq::Agent,
+}
+
+impl Default for HttpModule {
+    fn default() -> Self {
+        Self {
+            client: ureq::Agent::new(),
+        }
+    }
 }
 
 // todo once {String, Value} syntax is supported update these to allow passing in map for headers
@@ -22,12 +41,12 @@ derive_module! {
 
 impl RigzHttp for HttpModule {
     fn get(&self, path: String, content_type: Option<String>) -> Result<String, VMError> {
-        let mut req = self.client.get(path);
+        let mut req = self.client.get(&path);
         if let Some(content_type) = content_type {
-            req = req.header(reqwest::header::CONTENT_TYPE, content_type);
+            req = req.set("Content-Type", &content_type);
         }
 
-        match req.send().map(|r| r.text()) {
+        match req.call().map(|r| r.into_string()) {
             Ok(Ok(t)) => Ok(t),
             Ok(Err(t)) => Err(VMError::RuntimeError(format!(
                 "Failed to convert response to text - {t}"
@@ -42,27 +61,22 @@ impl RigzHttp for HttpModule {
         body: Option<String>,
         content_type: Option<String>,
     ) -> (Result<String, VMError>, Result<Option<String>, VMError>) {
-        let mut req = self.client.post(path);
+        let mut req = self.client.post(&path);
         if let Some(content_type) = content_type {
-            req = req.header("Content-Type", content_type);
+            req = req.set("Content-Type", &content_type);
         };
-        if let Some(body) = body {
-            req = req.body(body);
-        }
-        match req.send() {
+        let resp = if let Some(body) = body {
+            req.send_string(&body)
+        } else {
+            req.call()
+        };
+        match resp {
             Ok(t) => {
-                let l = match t
-                    .headers()
-                    .get(reqwest::header::LOCATION)
-                    .map(|n| n.to_str().map(|s| s.to_string()))
-                {
-                    Some(Ok(l)) => Ok(Some(l)),
+                let l = match t.header("Location").map(|n| n.to_string()) {
+                    Some(l) => Ok(Some(l)),
                     None => Ok(None),
-                    Some(Err(e)) => Err(VMError::RuntimeError(format!(
-                        "Failed to convert Location Header to string: {e}"
-                    ))),
                 };
-                match t.text() {
+                match t.into_string() {
                     Ok(t) => (Ok(t), l),
                     Err(e) => (
                         Err(VMError::RuntimeError(format!(

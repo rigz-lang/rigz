@@ -2117,11 +2117,13 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
     }
 
     fn download(&self, url: &str) -> Result<String, ValidationError> {
-        // todo add a client and use tokio to support js version
-        match reqwest::blocking::get(url).and_then(|r| r.text()) {
-            Ok(s) => Ok(s),
-            Err(o) => Err(ValidationError::DownloadFailed(format!(
-                "Failed to download {url} - {o}"
+        match ureq::get(url).call().map(|r| r.into_string()) {
+            Ok(Ok(s)) => Ok(s),
+            Ok(Err(e)) => Err(ValidationError::DownloadFailed(format!(
+                "Failed to parse response {url} - {e}"
+            ))),
+            Err(e) => Err(ValidationError::DownloadFailed(format!(
+                "Failed to download {url} - {e}"
             ))),
         }
     }
