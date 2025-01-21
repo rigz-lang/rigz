@@ -34,13 +34,5 @@ wasm-bindgen-test = "0.3"
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [[bench]]
-name = "number_benchmarks"
-harness = false
-
-[[bench]]
-name = "value_benchmarks"
-harness = false
-
-[[bench]]
 name = "vm_benchmarks"
 harness = false

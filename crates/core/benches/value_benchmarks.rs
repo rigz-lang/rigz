@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use rigz_vm::PrimitiveValue;
+use rigz_core::PrimitiveValue;
 use std::hint::black_box;
 
 fn value_benchmark(c: &mut Criterion) {

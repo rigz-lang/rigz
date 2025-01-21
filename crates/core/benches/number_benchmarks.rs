@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use rigz_vm::Number;
+use rigz_core::Number;
 use std::hint::black_box;
 
 fn number_benchmark(c: &mut Criterion) {
