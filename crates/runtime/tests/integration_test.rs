@@ -522,7 +522,13 @@ pub mod runtime {
 
     pub mod debug {
         use super::*;
-        run_debug_vm! {}
+        run_debug_vm! {
+            random_object(r#"
+                import Random
+                mut rand = Random.create 49
+                rand.next_int
+            "# = -8718902610742086980i64)
+        }
     }
 
     pub mod recursive {

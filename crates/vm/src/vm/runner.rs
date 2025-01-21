@@ -1,9 +1,10 @@
 use crate::{
-    runner_common, CallFrame, ModulesMap, ResolvedModule, Runner, Scope, VMOptions, Variable, VM,
+    runner_common, CallFrame, CallType, ModulesMap, ResolvedModule, Runner, Scope, VMOptions,
+    Variable, VM,
 };
 use itertools::Itertools;
 use log_derive::{logfn, logfn_inputs};
-use rigz_core::{Lifecycle, ObjectValue, ResolveValue, StackValue, VMError};
+use rigz_core::{Lifecycle, ObjectValue, ResolveValue, RigzArgs, StackValue, VMError};
 use std::fmt::Display;
 use std::ops::Deref;
 use std::thread;
@@ -154,6 +155,33 @@ impl Runner for VM {
         Ok(())
     }
 
+    fn call_dependency(
+        &mut self,
+        args: RigzArgs,
+        dep: usize,
+        call_type: CallType,
+    ) -> Result<ObjectValue, VMError> {
+        match self.dependencies.read() {
+            Ok(deps) => match deps.get(dep) {
+                None => Err(VMError::RuntimeError(format!("Dependency not found {dep}"))),
+                Some(dep) => {
+                    let res = match call_type {
+                        CallType::Create => {
+                            let c = dep.create;
+                            c(args)?.into()
+                        }
+                        CallType::Call(func) => {
+                            let c = dep.call;
+                            c(func, args)?
+                        }
+                    };
+                    Ok(res)
+                }
+            },
+            Err(e) => Err(VMError::RuntimeError(format!("Failed to get deps {e}"))),
+        }
+    }
+
     fn goto(&mut self, scope_id: usize, pc: usize) -> Result<(), VMError> {
         self.sp = scope_id;
         self.frames.current.borrow_mut().pc = pc;
@@ -191,16 +219,6 @@ impl Runner for VM {
         self.store_value((pid as i64).into());
         Ok(())
     }
-
-    fn call(
-        &mut self,
-        module: ResolvedModule,
-        func: String,
-        args: usize,
-    ) -> Result<ObjectValue, VMError> {
-        let args = self.resolve_args(args).into();
-        module.call(func, args)
-    }
     //
     // fn vm_extension(
     //     &mut self,
@@ -212,20 +230,17 @@ impl Runner for VM {
     //     module.vm_extension(self, func, args)
     // }
 
-    fn sleep(&self, duration: Duration) {
-        thread::sleep(duration);
+    fn call(
+        &mut self,
+        module: ResolvedModule,
+        func: String,
+        args: usize,
+    ) -> Result<ObjectValue, VMError> {
+        let args = self.resolve_args(args).into();
+        module.call(func, args)
     }
 
-    fn call_dependency(&mut self, arg: ObjectValue, dep: usize) -> Result<ObjectValue, VMError> {
-        match self.dependencies.read() {
-            Ok(deps) => match deps.get(dep) {
-                None => Err(VMError::RuntimeError(format!("Dependency not found {dep}"))),
-                Some(dep) => {
-                    let c = dep.create;
-                    Ok(c(arg)?.into())
-                }
-            },
-            Err(e) => Err(VMError::RuntimeError(format!("Failed to get deps {e}"))),
-        }
+    fn sleep(&self, duration: Duration) {
+        thread::sleep(duration);
     }
 }

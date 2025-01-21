@@ -3,7 +3,7 @@ mod dyn_traits;
 #[cfg(feature = "snapshot")]
 mod snapshot;
 
-use crate::{Number, ObjectValue, RigzArgs, RigzType, VMError};
+use crate::{ObjectValue, RigzArgs, VMError};
 use dyn_clone::DynClone;
 use std::cell::RefCell;
 use std::cmp::Ordering;
@@ -29,7 +29,8 @@ pub trait Definition {
 }
 
 pub struct Dependency {
-    pub create: fn(ObjectValue) -> Result<Box<dyn Object>, VMError>,
+    pub create: fn(RigzArgs) -> Result<Box<dyn Object>, VMError>,
+    pub call: fn(String, RigzArgs) -> Result<ObjectValue, VMError>,
 }
 
 impl Debug for Dependency {
@@ -42,9 +43,12 @@ impl Dependency {
     pub fn new<T: Object + 'static>() -> Self {
         Self {
             create: |value| Ok(Box::new(T::create(value)?)),
+            call: |func, args| T::call(func, args),
         }
     }
 }
+
+// todo convert function: String to function: usize?
 
 #[allow(unused_variables)]
 pub trait Module: Debug + Definition {
@@ -57,7 +61,7 @@ pub trait Module: Debug + Definition {
 
     fn call(&self, function: String, args: RigzArgs) -> Result<ObjectValue, VMError> {
         Err(VMError::UnsupportedOperation(format!(
-            "{self:?} does not implement `call`"
+            "{self:?} does not implement `call` - {function}"
         )))
     }
 
@@ -68,7 +72,7 @@ pub trait Module: Debug + Definition {
         args: RigzArgs,
     ) -> Result<ObjectValue, VMError> {
         Err(VMError::UnsupportedOperation(format!(
-            "{self:?} does not implement `call_extension`"
+            "{self:?} does not implement `call_extension` - {function}"
         )))
     }
 
@@ -79,13 +83,13 @@ pub trait Module: Debug + Definition {
         args: RigzArgs,
     ) -> Result<Option<ObjectValue>, VMError> {
         Err(VMError::UnsupportedOperation(format!(
-            "{self:?} does not implement `call_extension`",
+            "{self:?} does not implement `call_extension` - {function}",
         )))
     }
 }
 
 pub trait CreateObject {
-    fn create(value: ObjectValue) -> Result<Self, VMError>
+    fn create(args: RigzArgs) -> Result<Self, VMError>
     where
         Self: Sized;
 
@@ -97,15 +101,19 @@ pub trait CreateObject {
 pub trait Object:
     DynCompare + DynClone + DynHash + AsPrimitive<ObjectValue> + CreateObject + Definition + Send + Sync
 {
-    fn call(&self, function: String, args: RigzArgs) -> Result<ObjectValue, VMError> {
+    fn call(function: String, args: RigzArgs) -> Result<ObjectValue, VMError>
+    where
+        Self: Sized,
+    {
         Err(VMError::UnsupportedOperation(format!(
-            "{self:?} does not implement `call`"
+            "{} does not implement `call` - {function}",
+            Self::name()
         )))
     }
 
     fn call_extension(&self, function: String, args: RigzArgs) -> Result<ObjectValue, VMError> {
         Err(VMError::UnsupportedOperation(format!(
-            "{self:?} does not implement `call_extension`"
+            "{self:?} does not implement `call_extension` - {function}"
         )))
     }
 
@@ -113,12 +121,9 @@ pub trait Object:
         &mut self,
         function: String,
         args: RigzArgs,
-    ) -> Result<Option<ObjectValue>, VMError>
-    where
-        Self: Sized,
-    {
+    ) -> Result<Option<ObjectValue>, VMError> {
         Err(VMError::UnsupportedOperation(format!(
-            "{self:?} does not implement `call_mutable_extension`"
+            "{self:?} does not implement `call_mutable_extension` - {function}"
         )))
     }
 }

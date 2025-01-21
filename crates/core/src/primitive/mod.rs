@@ -287,7 +287,7 @@ impl Display for PrimitiveValue {
         match self {
             PrimitiveValue::None => write!(f, "none"),
             // todo dedicated to_string instead of debug
-            PrimitiveValue::Error(e) => write!(f, "{}", e),
+            PrimitiveValue::Error(e) => write!(f, "Error({})", e),
             PrimitiveValue::Type(e) => write!(f, "{}", e),
             PrimitiveValue::Bool(v) => write!(f, "{}", v),
             PrimitiveValue::Number(v) => write!(f, "{}", v),

@@ -18,7 +18,7 @@ pub use modules::{ParsedDependency, ParsedModule, ParsedObject};
 pub use program::*;
 
 use rigz_core::*;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::path::PathBuf;
@@ -1722,15 +1722,6 @@ impl<'t> Parser<'t> {
         } else {
             Ok(false)
         }
-    }
-
-    fn parse_value(&mut self) -> Result<PrimitiveValue, ParsingError> {
-        let token = self.next_required_token("parse_value")?;
-        if let TokenKind::Value(v) = token.kind {
-            return Ok(v.into());
-        }
-
-        Err(ParsingError::ParseError(format!("Invalid value {token:?}")))
     }
 
     fn parse_function_argument(

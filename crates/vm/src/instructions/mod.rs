@@ -4,7 +4,7 @@ use log::Level;
 use rigz_core::{
     BinaryOperation, ObjectValue, RigzType, Snapshot, StackValue, UnaryOperation, VMError,
 };
-pub use runner::{ResolvedModule, Runner};
+pub use runner::{CallType, ResolvedModule, Runner};
 use std::fmt::Display;
 use std::sync::Arc;
 use std::vec::IntoIter;
@@ -190,7 +190,7 @@ pub enum Instruction {
     InstanceSet,
     InstanceSetMut,
     Call(usize),
-    CallDependency(usize, usize),
+    CreateDependency(usize, usize),
     CallMemo(usize),
     CallMatchingSelf(Vec<(VMArg, Vec<VMArg>, VMCallSite)>),
     CallMatchingSelfMemo(Vec<(VMArg, Vec<VMArg>, VMCallSite)>),
@@ -232,6 +232,19 @@ pub enum Instruction {
     },
     CallMutableExtension {
         module: String,
+        func: String,
+        args: usize,
+    },
+    CallObject {
+        dep: usize,
+        func: String,
+        args: usize,
+    },
+    CallObjectExtension {
+        func: String,
+        args: usize,
+    },
+    CallMutableObjectExtension {
         func: String,
         args: usize,
     },
@@ -496,10 +509,29 @@ impl Snapshot for Instruction {
                 res.extend(o.as_bytes());
                 res
             }
-            Instruction::CallDependency(args, dep) => {
+            Instruction::CreateDependency(args, dep) => {
                 let mut res = vec![47];
                 res.extend(args.as_bytes());
                 res.extend(dep.as_bytes());
+                res
+            }
+            Instruction::CallObject { dep, func, args } => {
+                let mut res = vec![48];
+                res.extend(dep.as_bytes());
+                res.extend(func.as_bytes());
+                res.extend(args.as_bytes());
+                res
+            }
+            Instruction::CallObjectExtension { func, args } => {
+                let mut res = vec![49];
+                res.extend(func.as_bytes());
+                res.extend(args.as_bytes());
+                res
+            }
+            Instruction::CallMutableObjectExtension { func, args } => {
+                let mut res = vec![50];
+                res.extend(func.as_bytes());
+                res.extend(args.as_bytes());
                 res
             }
         }
@@ -611,10 +643,23 @@ impl Snapshot for Instruction {
                 Snapshot::from_bytes(bytes, location)?,
             ),
             46 => Instruction::CreateObject(Snapshot::from_bytes(bytes, location)?),
-            47 => Instruction::CallDependency(
+            47 => Instruction::CreateDependency(
                 Snapshot::from_bytes(bytes, location)?,
                 Snapshot::from_bytes(bytes, location)?,
             ),
+            48 => Instruction::CallObject {
+                dep: Snapshot::from_bytes(bytes, location)?,
+                func: Snapshot::from_bytes(bytes, location)?,
+                args: Snapshot::from_bytes(bytes, location)?,
+            },
+            49 => Instruction::CallObjectExtension {
+                func: Snapshot::from_bytes(bytes, location)?,
+                args: Snapshot::from_bytes(bytes, location)?,
+            },
+            50 => Instruction::CallMutableObjectExtension {
+                func: Snapshot::from_bytes(bytes, location)?,
+                args: Snapshot::from_bytes(bytes, location)?,
+            },
             b => {
                 return Err(VMError::RuntimeError(format!(
                     "Illegal instruction byte {b} {location}"

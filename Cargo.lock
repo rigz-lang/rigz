@@ -2186,7 +2186,6 @@ version = "0.37.0"
 dependencies = [
  "criterion",
  "dashmap 6.1.0",
- "dyn-clone",
  "itertools 0.14.0",
  "log",
  "log-derive",
@@ -2195,7 +2194,6 @@ dependencies = [
  "rigz_core",
  "serde",
  "tokio",
- "typetag",
  "wasm-bindgen-test",
  "web-sys",
  "web-time",

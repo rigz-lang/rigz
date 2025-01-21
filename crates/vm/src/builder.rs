@@ -185,6 +185,28 @@ pub trait RigzBuilder: Debug + Default {
         self.add_instruction(Instruction::CallMutableExtension { module, func, args });
         self
     }
+
+    #[inline]
+    fn add_call_object_instruction(&mut self, dep: usize, func: String, args: usize) -> &mut Self {
+        self.add_instruction(Instruction::CallObject { dep, func, args });
+        self
+    }
+
+    #[inline]
+    fn add_call_extension_object_instruction(&mut self, func: String, args: usize) -> &mut Self {
+        self.add_instruction(Instruction::CallObjectExtension { func, args });
+        self
+    }
+
+    #[inline]
+    fn add_call_mutable_object_extension_module_instruction(
+        &mut self,
+        func: String,
+        args: usize,
+    ) -> &mut Self {
+        self.add_instruction(Instruction::CallMutableObjectExtension { func, args });
+        self
+    }
     //
     // #[inline]
     // fn add_call_vm_extension_module_instruction(
@@ -336,7 +358,7 @@ pub trait RigzBuilder: Debug + Default {
 
     #[inline]
     fn add_call_dependency_instruction(&mut self, args: usize, value: usize) -> &mut Self {
-        self.add_instruction(Instruction::CallDependency(args, value))
+        self.add_instruction(Instruction::CreateDependency(args, value))
     }
 
     #[inline]

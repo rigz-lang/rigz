@@ -1,19 +1,21 @@
-use proc_macro2::{Ident, TokenStream};
+use crate::{convert_response, rigz_type_to_arg, rigz_type_to_return_type, setup_call_args};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
-use rigz_ast::Parser;
+use rigz_ast::{FunctionDeclaration, FunctionType, ObjectDefinition, Parser};
 use rigz_core::derive::Tokens;
 use rigz_core::RigzType;
+use std::slice::Iter;
 use syn::parse::{Parse, ParseStream};
 use syn::{token, ItemStruct, LitStr, Token, Type, Visibility};
 
-enum ObjectDefinition {
+enum ObjectArg {
     Ident(Ident),
     Struct(ItemStruct),
 }
 
 pub(crate) struct DeriveObject {
     parent: LitStr,
-    definition: ObjectDefinition,
+    definition: ObjectArg,
     literal: LitStr,
     display: bool,
 }
@@ -23,9 +25,9 @@ impl Parse for DeriveObject {
         let parent = input.parse()?;
         input.parse::<Token![,]>()?;
         let definition = if input.peek(token::Struct) {
-            ObjectDefinition::Struct(input.parse()?)
+            ObjectArg::Struct(input.parse()?)
         } else {
-            ObjectDefinition::Ident(input.parse()?)
+            ObjectArg::Ident(input.parse()?)
         };
         input.parse::<Token![,]>()?;
         Ok(DeriveObject {
@@ -67,8 +69,8 @@ impl DeriveObject {
     fn full_definition(&self) -> Tokens {
         let parent = &self.parent;
         let (id, base, lit) = match &self.definition {
-            ObjectDefinition::Ident(i) => (i, quote! {}, self.literal.value()),
-            ObjectDefinition::Struct(s) => {
+            ObjectArg::Ident(i) => (i, quote! {}, self.literal.value()),
+            ObjectArg::Struct(s) => {
                 let id = &s.ident;
                 let pub_fields = s
                     .fields
@@ -174,7 +176,7 @@ impl DeriveObject {
             }
         };
 
-        let impl_object = impl_object(id, lit);
+        let impl_object = impl_object(id, &obj_def);
 
         quote! {
             #base
@@ -186,11 +188,228 @@ impl DeriveObject {
     }
 }
 
-fn impl_object(name: &Ident, definition: String) -> Tokens {
+fn impl_object(name: &Ident, object_definition: &ObjectDefinition) -> Tokens {
+    let CustomTrait {
+        ext,
+        mutf,
+        statf,
+        trait_def,
+    } = custom_trait(name, object_definition);
+
     quote! {
         #[cfg_attr(feature = "serde", typetag::serde)]
         impl rigz_core::Object for #name {
+            #ext
 
+            #mutf
+
+            #statf
         }
+
+        #trait_def
+    }
+}
+
+struct CustomTrait {
+    ext: Option<Tokens>,
+    mutf: Option<Tokens>,
+    statf: Option<Tokens>,
+    trait_def: Tokens,
+}
+
+fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTrait {
+    let funcs: Vec<_> = object_definition
+        .functions
+        .iter()
+        .filter_map(|f| match f {
+            FunctionDeclaration::Declaration {
+                name,
+                type_definition,
+            } => Some((name, type_definition)),
+            FunctionDeclaration::Definition(_) => None,
+        })
+        .collect();
+
+    let mut stat_funcs = Vec::new();
+    let mut mut_funcs = Vec::new();
+    let mut ext_funcs = Vec::new();
+
+    let trait_methods = funcs
+        .iter()
+        .map(|(name, sig)| {
+            let (mut args, fn_name) = match &sig.self_type {
+                Some(s) => {
+                    let mut_str = if s.mutable { "mut_" } else { "" };
+                    let (base, n) = if let RigzType::This = s.rigz_type {
+                        (
+                            quote! { self },
+                            Ident::new(format!("{mut_str}{name}").as_str(), Span::call_site()),
+                        )
+                    } else {
+                        panic!(
+                            "Non Self extensions are not supported for Objects yet {:?}",
+                            s.rigz_type
+                        );
+                        let arg = match rigz_type_to_return_type(&s.rigz_type) {
+                            None => quote! { ObjectValue },
+                            Some(t) => quote! { #t },
+                        };
+                        (
+                            quote! { value: #arg },
+                            Ident::new(
+                                format!("{mut_str}{}", s.rigz_type.to_string().to_lowercase())
+                                    .as_str(),
+                                Span::call_site(),
+                            ),
+                        )
+                    };
+                    let base = if s.mutable {
+                        quote! { &mut #base }
+                    } else {
+                        quote! { &#base }
+                    };
+                    (vec![base], n)
+                }
+                None => {
+                    let fn_name = Ident::new(format!("static_{name}").as_str(), Span::call_site());
+                    (vec![], fn_name)
+                }
+            };
+
+            args.extend(sig.arguments.iter().map(|arg| {
+                let ident = Ident::new(arg.name.as_str(), Span::call_site());
+                let rt = match rigz_type_to_return_type(&arg.function_type.rigz_type) {
+                    None => quote! { ObjectValue },
+                    Some(t) => quote! { #t },
+                };
+                quote! { #ident:  #rt }
+            }));
+
+            let (call_args, setup_args, var_args) = setup_call_args(sig);
+            if var_args.is_some() {
+                panic!("Var Args are not supported by objects yet {name}");
+            }
+
+            match &sig.self_type {
+                None => {
+                    let method_call =
+                        convert_response(quote! { Self::#fn_name(#(#call_args)*) }, sig);
+                    stat_funcs.push(quote! {
+                        #name => {
+                            let [#(#call_args)*] = args.take()?;
+                            #(#setup_args)*
+                            #method_call
+                        }
+                    });
+                }
+                Some(ft) if ft.mutable => {
+                    let method_call =
+                        convert_response(quote! { self.#fn_name(#(#call_args)*) }, sig);
+                    mut_funcs.push(quote! {
+                        #name => {
+                            let [#(#call_args)*] = args.take()?;
+                            #(#setup_args)*
+                            #method_call
+                        }
+                    });
+                }
+                Some(_) => {
+                    let method_call =
+                        convert_response(quote! { self.#fn_name(#(#call_args)*) }, sig);
+                    ext_funcs.push(quote! {
+                        #name => {
+                            let [#(#call_args)*] = args.take()?;
+                            #(#setup_args)*
+                            #method_call
+                        }
+                    });
+                }
+            }
+
+            let ret = match rigz_type_to_return_type(&sig.return_type.rigz_type) {
+                None => None,
+                Some(s) => Some(quote! { -> #s }),
+            };
+            if sig.self_type.is_none() {
+                quote! {
+                    fn #fn_name(#(#args, )*) #ret where Self: Sized;
+                }
+            } else {
+                quote! {
+                    fn #fn_name(#(#args, )*) #ret;
+                }
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let ext = if ext_funcs.is_empty() {
+        None
+    } else {
+        Some(quote! {
+            fn call_extension(&self, function: String, args: RigzArgs) -> Result<ObjectValue, VMError> {
+                match function.as_str() {
+                    #(#ext_funcs)*
+                    _ => {
+                        Err(VMError::UnsupportedOperation(format!(
+                            "{self:?} does not implement `call_extension` - {function}"
+                        )))
+                    }
+                }
+            }
+        })
+    };
+
+    let mutf = if mut_funcs.is_empty() {
+        None
+    } else {
+        Some(quote! {
+            fn call_mutable_extension(
+                &mut self,
+                function: String,
+                args: RigzArgs,
+            ) -> Result<Option<ObjectValue>, VMError>
+            {
+                match function.as_str() {
+                    #(#mut_funcs)*
+                    _ => {
+                        return Err(VMError::UnsupportedOperation(format!(
+                            "{self:?} does not implement `call_mutable_extension` - {function}"
+                        )))
+                    }
+                }
+                Ok(None)
+            }
+        })
+    };
+
+    let statf = if stat_funcs.is_empty() {
+        None
+    } else {
+        Some(quote! {
+            fn call(function: String, args: RigzArgs) -> Result<ObjectValue, VMError> where Self: Sized {
+                match function.as_str() {
+                    #(#stat_funcs)*
+                    _ => {
+                        Err(VMError::UnsupportedOperation(format!(
+                            "{} does not implement `call` - {function}", Self::name()
+                        )))
+                    }
+                }
+            }
+        })
+    };
+
+    let trait_name = Ident::new(format!("{}Object", name).as_str(), Span::call_site());
+    let trait_def = quote! {
+        trait #trait_name {
+            #(#trait_methods)*
+        }
+    };
+
+    CustomTrait {
+        ext,
+        mutf,
+        statf,
+        trait_def,
     }
 }

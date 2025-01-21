@@ -242,68 +242,24 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
     }
 }
 
-fn base_call(
-    name: &str,
-    function_signature: &FunctionSignature,
-    first_arg: Option<Tokens>,
-    matched: bool,
-) -> Tokens {
-    let method_name = method_name(name, function_signature);
-    let (args, call_args, var_args) = setup_call_args(function_signature);
-    let fn_args = match var_args {
-        None => quote! { #(#args)* },
-        Some(index) => {
-            let (args, var) = args.split_at(index);
-            if index == 0 {
-                quote! { #(#var)* }
-            } else {
-                quote! { #(#args)*, #(#var)* }
-            }
-        }
-    };
-    let base_call = match first_arg {
-        None => {
-            quote! {
-                self.#method_name(#fn_args)
-            }
-        }
-        Some(first_arg) => match &function_signature.self_type {
-            None => {
-                quote! {
-                    self.#method_name(#first_arg, #fn_args)
-                }
-            }
-            Some(ft) if !matched => {
-                let f = first_arg.clone();
-                match convert_type_for_borrowed_arg(first_arg.clone(), &ft.rigz_type, ft.mutable) {
-                    None => {
-                        quote! {
-                            self.#method_name(#f, #fn_args)
-                        }
-                    }
-                    Some(t) => {
-                        quote! {
-                            self.#method_name(#t, #fn_args)
-                        }
-                    }
-                }
-            }
-            Some(_) => {
-                quote! {
-                    self.#method_name(#first_arg, #fn_args)
-                }
-            }
-        },
-    };
-
+fn convert_response(base_call: Tokens, function_signature: &FunctionSignature) -> Tokens {
     let (mut_result, is_vm) = match &function_signature.self_type {
         None => (false, false),
         Some(t) => (t.mutable, t.rigz_type.is_vm()),
     };
 
-    let method_call = if mut_result {
-        quote! {
-            #base_call;
+    if mut_result {
+        if matches!(
+            &function_signature.return_type.rigz_type,
+            RigzType::None | RigzType::This
+        ) {
+            quote! {
+                #base_call;
+            }
+        } else {
+            quote! {
+                return Ok(Some(#base_call.into()));
+            }
         }
     } else {
         match &function_signature.return_type.rigz_type {
@@ -405,7 +361,64 @@ fn base_call(
                 }
             }
         }
+    }
+}
+
+fn base_call(
+    name: &str,
+    function_signature: &FunctionSignature,
+    first_arg: Option<Tokens>,
+    matched: bool,
+) -> Tokens {
+    let method_name = method_name(name, function_signature);
+    let (args, call_args, var_args) = setup_call_args(function_signature);
+    let fn_args = match var_args {
+        None => quote! { #(#args)* },
+        Some(index) => {
+            let (args, var) = args.split_at(index);
+            if index == 0 {
+                quote! { #(#var)* }
+            } else {
+                quote! { #(#args)*, #(#var)* }
+            }
+        }
     };
+    let base_call = match first_arg {
+        None => {
+            quote! {
+                self.#method_name(#fn_args)
+            }
+        }
+        Some(first_arg) => match &function_signature.self_type {
+            None => {
+                quote! {
+                    self.#method_name(#first_arg, #fn_args)
+                }
+            }
+            Some(ft) if !matched => {
+                let f = first_arg.clone();
+                match convert_type_for_borrowed_arg(first_arg.clone(), &ft.rigz_type, ft.mutable) {
+                    None => {
+                        quote! {
+                            self.#method_name(#f, #fn_args)
+                        }
+                    }
+                    Some(t) => {
+                        quote! {
+                            self.#method_name(#t, #fn_args)
+                        }
+                    }
+                }
+            }
+            Some(_) => {
+                quote! {
+                    self.#method_name(#first_arg, #fn_args)
+                }
+            }
+        },
+    };
+
+    let method_call = convert_response(base_call, function_signature);
 
     let args = if args.is_empty() {
         quote! {}

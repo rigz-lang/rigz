@@ -1,6 +1,4 @@
-use rigz_core::{
-    BinaryOperation, Lifecycle, ObjectValue, PrimitiveValue, RigzType, UnaryOperation,
-};
+use rigz_core::{BinaryOperation, Lifecycle, PrimitiveValue, RigzType, UnaryOperation};
 use rustc_hash::FxHashMap;
 
 #[derive(Debug, Default, PartialEq, Clone)]

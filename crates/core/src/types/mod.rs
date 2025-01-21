@@ -159,9 +159,15 @@ impl Display for RigzType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash)]
+#[derive(Clone, Debug, PartialOrd, Ord, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CustomType {
     pub name: String,
     pub fields: Vec<(String, RigzType)>,
+}
+
+impl PartialEq for CustomType {
+    fn eq(&self, other: &Self) -> bool {
+        self.name.eq(&other.name)
+    }
 }

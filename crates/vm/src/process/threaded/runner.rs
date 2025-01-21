@@ -1,11 +1,11 @@
 use crate::call_frame::{CallFrame, Frames};
 use crate::process::ProcessManager;
 use crate::{
-    runner_common, Instruction, ModulesMap, ResolvedModule, Runner, Scope, VMOptions, VMStack,
-    VMState, Variable,
+    runner_common, CallType, Instruction, ModulesMap, ResolvedModule, Runner, Scope, VMOptions,
+    VMStack, VMState, Variable,
 };
 use log_derive::{logfn, logfn_inputs};
-use rigz_core::{MutableReference, ObjectValue, ResolveValue, StackValue, VMError};
+use rigz_core::{MutableReference, ObjectValue, ResolveValue, RigzArgs, StackValue, VMError};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Deref;
@@ -121,7 +121,12 @@ impl Runner for ProcessRunner<'_> {
         thread::sleep(duration)
     }
 
-    fn call_dependency(&mut self, arg: ObjectValue, dep: usize) -> Result<ObjectValue, VMError> {
+    fn call_dependency(
+        &mut self,
+        arg: RigzArgs,
+        dep: usize,
+        call_type: CallType,
+    ) -> Result<ObjectValue, VMError> {
         Err(VMError::todo(format!(
             "Process does not implement call dependency {dep}"
         )))

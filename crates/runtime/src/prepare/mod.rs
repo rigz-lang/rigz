@@ -17,6 +17,7 @@ use std::sync::Arc;
 pub(crate) enum CallSite {
     Scope(usize, bool),
     Module(String),
+    Object(usize),
     // todo only store used functions in VM
     // Parsed,
 }
@@ -148,6 +149,7 @@ struct ObjectDeclaration {
     constructor: ObjectConstructor,
     rigz_type: Arc<RigzType>,
     fields: Vec<ObjectAttr>,
+    dep: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -162,7 +164,6 @@ pub(crate) struct ProgramParser<'vm, T: RigzBuilder> {
     // todo imports should be fully resolved path
     imports: HashMap<String, Imports>,
     objects: HashMap<String, Rc<ObjectDeclaration>>,
-    custom_objects: HashMap<String, usize>,
 }
 
 impl<T: RigzBuilder> Default for ProgramParser<'_, T> {
@@ -178,7 +179,6 @@ impl<T: RigzBuilder> Default for ProgramParser<'_, T> {
             types: Default::default(),
             imports: Default::default(),
             objects: Default::default(),
-            custom_objects: Default::default(),
         }
     }
 }
@@ -194,7 +194,6 @@ impl<'vm> ProgramParser<'vm, VMBuilder> {
             types,
             imports,
             objects,
-            custom_objects,
         } = self;
         ProgramParser {
             builder: builder.build(),
@@ -205,7 +204,6 @@ impl<'vm> ProgramParser<'vm, VMBuilder> {
             types,
             imports,
             objects,
-            custom_objects,
         }
     }
 }
@@ -256,10 +254,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         for dep in M::parsed_dependencies() {
             let obj = dep.object_definition;
             let dep = self.builder.register_dependency(Arc::new(dep.dependency));
-            if let Constructor::Declaration(..) = &obj.constructor {
-                self.custom_objects.insert(obj.rigz_type.to_string(), dep);
-            };
-            self.parse_object_definition(obj)?;
+            self.parse_object_definition(obj, Some(dep))?;
         }
         self.modules.insert(name, ModuleDefinition::Module(def));
         self.builder.register_module(module);
@@ -600,7 +595,9 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     self.parse_function_definition(fd)?;
                 }
             }
-            Statement::ObjectDefinition(definition) => self.parse_object_definition(definition)?,
+            Statement::ObjectDefinition(definition) => {
+                self.parse_object_definition(definition, None)?
+            }
         }
         Ok(())
     }
@@ -608,6 +605,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
     fn parse_object_definition(
         &mut self,
         definition: ObjectDefinition,
+        dep: Option<usize>,
     ) -> Result<(), ValidationError> {
         let rt = Arc::new(definition.rigz_type);
         let obj = rt.to_string();
@@ -651,7 +649,53 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
 
         for func in definition.functions {
             match func {
-                FunctionDeclaration::Declaration { .. } => {}
+                FunctionDeclaration::Declaration {
+                    name,
+                    type_definition,
+                } => {
+                    let FunctionSignature {
+                        arguments,
+                        return_type,
+                        self_type,
+                        var_args_start,
+                        arg_type,
+                    } = type_definition;
+                    let dep = match dep {
+                        None => {
+                            return Err(ValidationError::InvalidFunction(format!(
+                                "Missing object implementation {obj}.{name}"
+                            )))
+                        }
+                        Some(d) => d,
+                    };
+                    let self_type = if let Some(FunctionType {
+                        rigz_type: RigzType::This,
+                        mutable,
+                    }) = self_type
+                    {
+                        Some(FunctionType {
+                            rigz_type: rt.as_ref().clone(),
+                            mutable,
+                        })
+                    } else {
+                        self_type
+                    };
+                    let fcs = FunctionCallSignature {
+                        name: name.clone(),
+                        arguments,
+                        return_type,
+                        self_type,
+                        arg_type,
+                        var_args_start,
+                    };
+                    let cs = CallSignature::Function(fcs, CallSite::Object(dep));
+                    match self.function_scopes.entry(name) {
+                        IndexMapEntry::Occupied(mut ex) => ex.get_mut().push(cs),
+                        IndexMapEntry::Vacant(v) => {
+                            v.insert(vec![cs]);
+                        }
+                    };
+                }
                 FunctionDeclaration::Definition(d) => {
                     let this = match d.type_definition.self_type.as_ref() {
                         None => None,
@@ -689,6 +733,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             constructor,
             rigz_type: rt,
             fields: definition.fields,
+            dep,
         };
         let old = self.objects.insert(obj, Rc::new(decl));
         if let Some(o) = old {
@@ -1231,14 +1276,14 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 )?;
 
                 match scope {
-                    None => match self.custom_objects.get(&ty) {
+                    None => match dec.dep {
                         None => {
                             return Err(ValidationError::InvalidType(format!(
                                 "{ty} is not a Custom Type, definition required for object"
                             )))
                         }
                         Some(d) => {
-                            self.builder.add_call_dependency_instruction(args, *d);
+                            self.builder.add_call_dependency_instruction(args, d);
                         }
                     },
                     Some(s) => {
@@ -1614,6 +1659,10 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                                 .add_call_module_instruction(m, name.to_string(), len);
                         }
                     }
+                    CallSite::Object(dep) => {
+                        self.builder
+                            .add_call_object_instruction(dep, name.to_string(), len);
+                    }
                 }
             }
             CallSignature::Lambda(_fcs, args, _) => {
@@ -1685,7 +1734,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                         let fc_arg_len = fc.arguments.len();
                         match (&fc.self_type, &rigz_type) {
                             (None, None) => {
-                                if arg_len == fc_arg_len {
+                                if arg_len <= fc_arg_len {
                                     fcs = Some(CallSignature::Function(fc, call_site));
                                     break;
                                 } else {
@@ -1701,6 +1750,11 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                                 }
                             }
                             (Some(ft), Some(s)) => {
+                                let s = if let RigzType::Wrapper { base_type, .. } = s {
+                                    base_type.as_ref()
+                                } else {
+                                    s
+                                };
                                 if &ft.rigz_type == s {
                                     if arg_len <= fc_arg_len {
                                         vm_module = ft.rigz_type.is_vm();
@@ -1897,15 +1951,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         match fcs {
             CallSignature::Function(fcs, call) => {
                 let len = self.setup_call_args(arguments, fcs)?;
-                match &call {
-                    CallSite::Scope(_, _) => {
-                        self.parse_extension_expression(mutable, this_exp)?;
-                    }
-                    CallSite::Module(_) => {
-                        self.parse_extension_expression(mutable, this_exp)?;
-                    }
-                }
-
+                self.parse_extension_expression(mutable, this_exp)?;
                 self.process_extension_call(name.to_string(), vm_module, mutable, len, call);
             }
             CallSignature::Lambda(..) => {
@@ -1943,6 +1989,15 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 } else {
                     self.builder
                         .add_call_extension_module_instruction(m, name, args);
+                }
+            }
+            CallSite::Object(_) => {
+                if mutable {
+                    self.builder
+                        .add_call_mutable_object_extension_module_instruction(name, args);
+                } else {
+                    self.builder
+                        .add_call_extension_object_instruction(name, args);
                 }
             }
         }

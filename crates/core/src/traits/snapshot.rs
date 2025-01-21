@@ -275,7 +275,7 @@ impl Snapshot for u32 {
     }
 }
 
-impl<T: ?Sized + Snapshot> Snapshot for Box<T> {
+impl<T: Snapshot> Snapshot for Box<T> {
     fn as_bytes(&self) -> Vec<u8> {
         self.as_ref().as_bytes()
     }

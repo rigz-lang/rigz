@@ -1,6 +1,6 @@
 use crate::program::ObjectDefinition;
 use crate::{ModuleTraitDefinition, Parser};
-use rigz_core::{Definition, Dependency, Module, Object};
+use rigz_core::{Dependency, Module, Object};
 
 pub struct ParsedDependency {
     pub dependency: Dependency,

@@ -1,6 +1,6 @@
 use crate::{
-    AsPrimitive, CreateObject, Definition, Object, ObjectValue, PrimitiveValue, Reference,
-    RigzType, VMError, WithTypeInfo,
+    AsPrimitive, CreateObject, Definition, Object, ObjectValue, PrimitiveValue, RigzArgs, RigzType,
+    VMError, WithTypeInfo,
 };
 use log::warn;
 use std::fmt::{Debug, Display, Formatter};
@@ -147,7 +147,7 @@ impl AsPrimitive<ObjectValue> for RigzObject {
 }
 
 impl CreateObject for RigzObject {
-    fn create(value: ObjectValue) -> Result<Self, VMError>
+    fn create(value: RigzArgs) -> Result<Self, VMError>
     where
         Self: Sized,
     {

@@ -2,9 +2,9 @@ use crate::{err, errln, out, outln, CallFrame, Instruction, Scope, VMOptions, VM
 use log::log;
 use rigz_core::{
     AsPrimitive, BinaryOperation, IndexMap, Logical, Module, ObjectValue, PrimitiveValue,
-    Reference, ResolveValue, Reverse, RigzObject, StackValue, UnaryOperation, VMError,
+    Reference, ResolveValue, Reverse, RigzArgs, RigzObject, StackValue, UnaryOperation, VMError,
 };
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
@@ -241,6 +241,11 @@ pub type ResolvedModule = Reference<dyn Module + Send + Sync>;
 
 use crate::ModulesMap;
 
+pub enum CallType {
+    Create,
+    Call(String),
+}
+
 #[cfg(not(feature = "threaded"))]
 pub type ResolvedModule = Reference<dyn Module>;
 
@@ -285,7 +290,12 @@ pub trait Runner: ResolveValue {
 
     fn call_frame_memo(&mut self, scope_index: usize) -> Result<(), VMError>;
 
-    fn call_dependency(&mut self, arg: ObjectValue, dep: usize) -> Result<ObjectValue, VMError>;
+    fn call_dependency(
+        &mut self,
+        arg: RigzArgs,
+        dep: usize,
+        call_type: CallType,
+    ) -> Result<ObjectValue, VMError>;
 
     #[inline]
     fn apply_unary(&mut self, unary_operation: UnaryOperation, val: Rc<RefCell<ObjectValue>>) {
@@ -715,12 +725,45 @@ pub trait Runner: ResolveValue {
             Instruction::CreateObject(ob) => {
                 self.store_value(RigzObject::new(ob).into());
             }
-            Instruction::CallDependency(args, dep) => {
-                let args = self.resolve_args(args);
-                let arg =
-                    ObjectValue::Tuple(args.into_iter().map(|v| v.borrow().clone()).collect());
-                let res = self.call_dependency(arg, dep).unwrap_or_else(|e| e.into());
+            Instruction::CreateDependency(args, dep) => {
+                let args = self.resolve_args(args).into();
+                let res = self
+                    .call_dependency(args, dep, CallType::Create)
+                    .unwrap_or_else(|e| e.into());
                 self.store_value(res.into());
+            }
+            Instruction::CallObject { dep, func, args } => {
+                let args = self.resolve_args(args).into();
+                let res = self
+                    .call_dependency(args, dep, CallType::Call(func))
+                    .unwrap_or_else(|e| e.into());
+                self.store_value(res.into());
+            }
+            Instruction::CallObjectExtension { func, args } => {
+                let v = self.next_resolved_value("object_extension");
+                let args = self.resolve_args(args).into();
+                let v = match v.borrow().deref() {
+                    ObjectValue::Object(o) => o.call_extension(func, args),
+                    s => Err(VMError::UnsupportedOperation(format!(
+                        "{s}.{func} is not callable"
+                    ))),
+                };
+                self.store_value(v.into());
+            }
+            Instruction::CallMutableObjectExtension { func, args } => {
+                let v = self.next_resolved_value("mut_object_extension");
+                let args = self.resolve_args(args).into();
+                let v = match v.borrow_mut().deref_mut() {
+                    ObjectValue::Object(o) => o.call_mutable_extension(func, args),
+                    s => Err(VMError::UnsupportedOperation(format!(
+                        "{s}.{func} is not callable"
+                    ))),
+                };
+
+                if let Ok(None) = v {
+                } else {
+                    self.store_value(v.into());
+                }
             }
             ins => {
                 return VMError::todo(format!("Instruction is not supported yet {ins:?}")).into()

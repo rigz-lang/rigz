@@ -1,6 +1,5 @@
 use crate::ObjectValue;
 use std::cell::RefCell;
-use std::fmt::Display;
 use std::rc::Rc;
 
 #[derive(Clone, Debug, PartialEq, Eq)]

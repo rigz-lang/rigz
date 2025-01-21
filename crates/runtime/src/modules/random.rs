@@ -1,9 +1,10 @@
-use rand::{Rng, SeedableRng};
+use rand::{Rng, RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use rigz_ast::*;
 use rigz_ast_derive::{derive_module, derive_object};
 use rigz_core::*;
 use std::fmt::{Display, Formatter};
+use std::ops::Deref;
 
 derive_object! {
     "Random",
@@ -12,14 +13,14 @@ derive_object! {
         stream: u64,
         offset: u128,
         #[cfg_attr(feature = "serde", serde(skip))]
-        #[derivative(Hash="ignore", PartialEq="ignore", PartialOrd="ignore")]
+        #[derivative(Debug="ignore", Hash="ignore", PartialEq="ignore", PartialOrd="ignore")]
         rng: InnerRng,
     },
     r#"object Random
         Self(seed: Number? = none)
-        fn Self.offset -> (Number, Number)
-        fn Self.stream -> (Number, Number)
-        fn mut Self.set_offset(offset: (Number, Number))
+        fn Self.offset -> (Int, Int)
+        fn Self.stream -> Int
+        fn mut Self.set_offset(upper: Number, lower: Number)
         fn mut Self.set_stream(stream: Number)
         fn mut Self.set_seed(seed: Number)
         fn mut Self.next_int -> Int
@@ -29,29 +30,70 @@ derive_object! {
     "#
 }
 
-#[derive(Clone, Debug)]
+impl RandomObject for Random {
+    fn offset(&self) -> (i64, i64) {
+        let upper = (self.offset >> 64) as u64;
+        let lower = self.offset as u64;
+        (upper as i64, lower as i64)
+    }
+
+    fn stream(&self) -> i64 {
+        self.stream as i64
+    }
+
+    fn mut_set_offset(&mut self, upper: Number, lower: Number) {
+        let mut offset = lower.to_bits() as u128;
+        offset |= (upper.to_bits() as u128) << 64;
+        self.offset = offset;
+    }
+
+    fn mut_set_stream(&mut self, stream: Number) {
+        self.stream = stream.to_bits();
+    }
+
+    fn mut_set_seed(&mut self, seed: Number) {
+        self.seed = seed.to_int();
+    }
+
+    fn mut_next_int(&mut self) -> i64 {
+        self.rng.0.next_u64() as i64
+    }
+
+    fn mut_next_float(&mut self) -> f64 {
+        f64::from_bits(self.rng.0.next_u64())
+    }
+
+    fn mut_next_bool(&mut self, percent: f64) -> bool {
+        self.rng.0.gen_bool(percent)
+    }
+}
+
+#[derive(Clone)]
 struct InnerRng(ChaCha8Rng);
 
 impl From<ChaCha8Rng> for InnerRng {
+    #[inline]
     fn from(value: ChaCha8Rng) -> Self {
-        value.into()
+        InnerRng(value)
     }
 }
 
 impl Default for InnerRng {
+    #[inline]
     fn default() -> Self {
-        InnerRng(ChaCha8Rng::from_entropy())
+        ChaCha8Rng::from_entropy().into()
     }
 }
 
 impl AsPrimitive<ObjectValue> for Random {}
 
 impl CreateObject for Random {
-    fn create(value: ObjectValue) -> Result<Self, VMError>
+    fn create(value: RigzArgs) -> Result<Self, VMError>
     where
         Self: Sized,
     {
-        let seed = match value {
+        let v = value.first()?;
+        let seed = match v.borrow().deref() {
             ObjectValue::Primitive(p) => match p {
                 PrimitiveValue::None => rand::random(),
                 PrimitiveValue::Number(n) => n.to_int(),

@@ -80,9 +80,7 @@ impl PartialEq for ObjectValue {
 impl PartialOrd for ObjectValue {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self, other) {
-            (ObjectValue::Primitive(left), ObjectValue::Primitive(right)) => {
-                left.partial_cmp(right)
-            }
+            (ObjectValue::Primitive(left), ObjectValue::Primitive(right)) => Some(left.cmp(right)),
             (ObjectValue::List(lhs), ObjectValue::List(rhs)) => lhs.partial_cmp(rhs),
             (ObjectValue::Map(lhs), ObjectValue::Map(rhs)) => lhs.into_iter().partial_cmp(rhs),
             (ObjectValue::Tuple(lhs), ObjectValue::Tuple(rhs)) => lhs.partial_cmp(rhs),
