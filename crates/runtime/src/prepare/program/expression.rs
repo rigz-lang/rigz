@@ -1,6 +1,7 @@
 use crate::prepare::{CallSignature, FunctionCallSignatures, ProgramParser};
+use itertools::Itertools;
 use rigz_ast::{Element, Expression, FunctionExpression, Scope, ValidationError};
-use rigz_core::{RigzType, UnaryOperation, WithTypeInfo};
+use rigz_core::{PrimitiveValue, RigzType, UnaryOperation, ValueRange, WithTypeInfo};
 use rigz_vm::RigzBuilder;
 use std::cmp::Ordering;
 use std::collections::HashSet;
@@ -120,32 +121,14 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             Expression::List(_) => RigzType::List(Box::new(RigzType::Any)),
             Expression::Map(_) => RigzType::Map(Box::new(RigzType::Any), Box::new(RigzType::Any)),
             Expression::Index(base, _index) => {
-                let base = self.rigz_type(base)?;
-                // todo confirm index can be used
-                match base {
-                    RigzType::None | RigzType::Bool | RigzType::Error => RigzType::Error,
-                    RigzType::Any => RigzType::Any,
-                    RigzType::Int | RigzType::Float | RigzType::Number => RigzType::Bool,
-                    RigzType::String => RigzType::String,
-                    RigzType::List(l) | RigzType::Map(_, l) => *l,
-                    RigzType::Type => RigzType::Error,
-                    _ => todo!(),
-                    // todo need to know whether int range, char range, or dynamic
-                    /*
-                    RigzType::Range => RigzType::Any,
-                    RigzType::Function(_, _) => {}
-                    RigzType::This => {
-                        // todo improve this logic, move most of this to a function
-                        match self.identifiers.get("self") {
-                            None => RigzType::This,
-                            Some(v) => v.rigz_type.clone(),
-                        }
+                if let Expression::Value(PrimitiveValue::Range(v)) = base.as_ref() {
+                    match v {
+                        ValueRange::Int(_) => RigzType::Int,
+                        ValueRange::Char(_) => RigzType::String,
                     }
-                    RigzType::Tuple(_) => {}
-                    RigzType::Union(_) => {}
-                    RigzType::Composite(_) => {}
-                    RigzType::Custom(_) => {}
-                     */
+                } else {
+                    let base = self.rigz_type(base)?;
+                    self.index_type(base)
                 }
             }
             Expression::Into { next, .. } => {
@@ -154,6 +137,34 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             }
         };
         Ok(t)
+    }
+
+    fn index_type(&mut self, base: RigzType) -> RigzType {
+        // todo confirm index can be used
+        match base {
+            RigzType::None | RigzType::Bool | RigzType::Error | RigzType::Function(_, _) => {
+                RigzType::Error
+            }
+            RigzType::Any => RigzType::Any,
+            RigzType::Int | RigzType::Float | RigzType::Number => RigzType::Bool,
+            RigzType::String => RigzType::String,
+            RigzType::List(l) | RigzType::Map(_, l) => *l,
+            RigzType::Type => RigzType::Error,
+            RigzType::Range => unreachable!(),
+            RigzType::This => {
+                // todo improve this logic, move most of this to a function
+                match self.identifiers.get("self") {
+                    None => RigzType::This,
+                    Some(v) => v.rigz_type.clone(),
+                }
+            }
+            RigzType::Tuple(t) => RigzType::Union(t.into_iter().unique().collect()),
+            RigzType::Union(v) | RigzType::Composite(v) => {
+                RigzType::Union(v.into_iter().map(|v| self.index_type(v)).unique().collect())
+            }
+            RigzType::Custom(_) => RigzType::Any,
+            RigzType::Wrapper { base_type, .. } => self.index_type(*base_type),
+        }
     }
 
     fn function_type(&mut self, fe: &FunctionExpression) -> Result<RigzType, ValidationError> {

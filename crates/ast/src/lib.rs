@@ -1828,9 +1828,7 @@ impl<'t> Parser<'t> {
         let next = self.next_required_token("parse_rigz_type")?;
         let rigz_type: RigzType = match next.kind {
             TokenKind::TypeValue(id) => match id.parse::<RigzType>() {
-                Ok(t) => {
-                    t
-                }
+                Ok(t) => t,
                 Err(e) => {
                     return Err(ParsingError::ParseError(format!(
                         "Invalid type value {:?}",
@@ -2427,8 +2425,10 @@ fn convert_to_assign(tuple: &mut Vec<Expression>) -> Result<Vec<(String, bool)>,
             Expression::Identifier(id) => {
                 results.push((id.to_string(), false));
             }
-            Expression::Tuple(_) => {
-                todo!("nested tuples not supported yet")
+            Expression::Tuple(t) => {
+                return Err(ParsingError::ParseError(format!(
+                    "nested tuples not supported yet - {t:?}"
+                )))
             }
             _ => {
                 return Err(ParsingError::ParseError(format!(

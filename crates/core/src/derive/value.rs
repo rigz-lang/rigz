@@ -30,7 +30,7 @@ impl ToTokens for ObjectValue {
                     ObjectValue::Map(IndexMap::from([#(#values)*]))
                 }
             }
-            ObjectValue::Object(_) => todo!(),
+            ObjectValue::Object(v) => todo!("Unable to convert {v:?} to tokens"),
         };
         tokens.extend(t)
     }

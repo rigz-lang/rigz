@@ -4,16 +4,16 @@ mod dyn_traits;
 mod snapshot;
 
 use crate::{ObjectValue, RigzArgs, VMError};
+pub use as_primitive::{AsPrimitive, WithTypeInfo};
 use dyn_clone::DynClone;
+pub use dyn_traits::*;
+use log::{error, warn};
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::vec::IntoIter;
-
-pub use as_primitive::{AsPrimitive, WithTypeInfo};
-pub use dyn_traits::*;
 
 #[cfg(feature = "snapshot")]
 pub use snapshot::Snapshot;
@@ -164,11 +164,12 @@ impl PartialOrd<&Self> for Box<dyn Object> {
 #[cfg(feature = "snapshot")]
 impl Snapshot for Box<dyn Object + '_> {
     fn as_bytes(&self) -> Vec<u8> {
-        todo!()
+        error!("Snapshot is not supported for Objects yet - {self:?}");
+        vec![]
     }
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
-        todo!()
+        Err(VMError::todo("Snapshot is not supported for Objects yet"))
     }
 }
 

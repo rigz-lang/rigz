@@ -1,7 +1,7 @@
 mod program;
 
 use crate::RuntimeError;
-use log::{warn, Level};
+use log::{error, warn, Level};
 pub use program::Program;
 use rigz_ast::*;
 use rigz_core::{
@@ -580,14 +580,18 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 op: _,
                 expression: _,
             } => {
-                todo!("Binary assignment not supported for tuple expressions");
+                return Err(ValidationError::NotImplemented(
+                    "Binary assignment not supported for tuple expressions".to_string(),
+                ))
             }
             Statement::BinaryAssignment {
                 lhs: Assign::InstanceSet(..),
                 op: _,
                 expression: _,
             } => {
-                todo!("Binary assignment not supported for InstanceSet");
+                return Err(ValidationError::NotImplemented(
+                    "Binary assignment not supported for InstanceSet".to_string(),
+                ))
             }
             Statement::TraitImpl { definitions, .. } => {
                 // todo this probably needs some form of checking base_trait and concrete type
@@ -1898,7 +1902,10 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                                                 CallSite::Scope(id, _) if fcs.arguments.len() == args.len() => {
                                                     Some(*id)
                                                 }
-                                                CallSite::Module(_) => todo!("Module function references are not supported yet {id}"),
+                                                CallSite::Module(m) => {
+                                                    error!("Module function references are not supported yet {id} - Module {m}");
+                                                    None
+                                                },
                                                 _ => None,
                                             }
                                         }

@@ -151,7 +151,9 @@ impl CreateObject for RigzObject {
     where
         Self: Sized,
     {
-        todo!()
+        Err(VMError::UnsupportedOperation(format!(
+            "Create Object RigzObject should not be called directly - {value:?}"
+        )))
     }
 }
 

@@ -14,8 +14,9 @@ fn expressions(c: &mut Criterion) {
     c.bench_function("factorial(10)", |b| {
         b.iter(|| {
             let mut runtime = Runtime::default();
-            let _ = runtime.eval(
-                r#"
+            let _ = runtime
+                .eval(
+                    r#"
                 fn factorial(n)
                     if n <= 1
                         1
@@ -25,9 +26,9 @@ fn expressions(c: &mut Criterion) {
                 end
                 factorial 10
             "#
-                .to_string(),
-            )
-            .expect("Run Failed");
+                    .to_string(),
+                )
+                .expect("Run Failed");
         })
     });
 }

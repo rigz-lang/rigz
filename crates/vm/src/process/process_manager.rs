@@ -156,7 +156,9 @@ impl ProcessManager {
         &mut self,
         args: Vec<Rc<RefCell<ObjectValue>>>,
     ) -> Result<ObjectValue, VMError> {
-        todo!()
+        Err(VMError::todo(
+            "send is not implemented for single threaded processes",
+        ))
     }
 
     pub(crate) fn receive(
@@ -235,7 +237,10 @@ impl ProcessManager {
 
     #[cfg(not(feature = "threaded"))]
     fn handle_receive(&mut self, pid: usize, timeout: Option<usize>) -> ObjectValue {
-        todo!()
+        VMError::todo(format!(
+            "receive is not implemented for single threaded processes - {pid}"
+        ))
+        .into()
     }
 
     #[cfg(feature = "threaded")]

@@ -7,6 +7,7 @@ mod snapshot;
 use crate::{
     AsPrimitive, IndexMap, Number, Object, PrimitiveValue, RigzType, VMError, WithTypeInfo,
 };
+use itertools::Itertools;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
@@ -92,7 +93,7 @@ impl PartialOrd for ObjectValue {
 
 impl Ord for ObjectValue {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap_or_else(|| Ordering::Less)
+        self.partial_cmp(other).unwrap_or(Ordering::Less)
     }
 }
 
@@ -366,13 +367,9 @@ impl WithTypeInfo for ObjectValue {
         match self {
             ObjectValue::Primitive(p) => p.rigz_type(),
             // todo figure out concrete types
-            ObjectValue::List(_) => RigzType::List(Box::new(RigzType::default())),
-            ObjectValue::Map(_) => {
-                RigzType::Map(Box::new(RigzType::default()), Box::new(RigzType::default()))
-            }
-            ObjectValue::Tuple(t) => {
-                RigzType::Tuple(t.into_iter().map(|i| i.rigz_type()).collect())
-            }
+            ObjectValue::List(_) => RigzType::List(Box::default()),
+            ObjectValue::Map(_) => RigzType::Map(Box::default(), Box::default()),
+            ObjectValue::Tuple(t) => RigzType::Tuple(t.iter().map(|i| i.rigz_type()).collect()),
             ObjectValue::Object(o) => o.rigz_type(),
         }
     }
@@ -405,7 +402,14 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
                 .map(|(k, v)| (k.into(), v.into()))
                 .collect()),
             ObjectValue::Map(m) => Ok(m.clone()),
-            ObjectValue::List(_) | ObjectValue::Tuple(_) => todo!(),
+            ObjectValue::List(l) => Ok(l.iter().map(|v| (v.clone(), v.clone())).collect()),
+            ObjectValue::Tuple(t) => Ok(t
+                .chunks(2)
+                .map(|c| match c {
+                    [k, v] => (k.clone(), v.clone()),
+                    [v] => (v.clone(), v.clone()),
+                })
+                .collect()),
             ObjectValue::Object(m) => m.to_map(),
         }
     }

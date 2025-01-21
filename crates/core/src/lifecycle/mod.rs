@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::ops::AddAssign;
 use std::time::Duration;
-use std::vec::IntoIter;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Lifecycle {
