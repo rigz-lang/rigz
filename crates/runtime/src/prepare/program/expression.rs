@@ -8,7 +8,14 @@ use std::collections::HashSet;
 
 impl<T: RigzBuilder> ProgramParser<'_, T> {
     fn scope_type(&mut self, scope: &Scope) -> Result<RigzType, ValidationError> {
-        let e = scope.elements.last().expect("Invalid scope");
+        let e = match scope.elements.last() {
+            None => {
+                return Err(ValidationError::MissingExpression(format!(
+                    "Invalid Scope - {scope}"
+                )))
+            }
+            Some(s) => s,
+        };
         match e {
             Element::Statement(_) => Ok(RigzType::None),
             Element::Expression(e) => self.rigz_type(e),
@@ -240,7 +247,14 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     },
                     _ => this,
                 };
-                let name = calls.last().expect("Invalid instance function call");
+                let name = match calls.last() {
+                    None => {
+                        return Err(ValidationError::InvalidFunction(format!(
+                            "Invalid instance function call - {ex}."
+                        )))
+                    }
+                    Some(s) => s,
+                };
                 // todo need to handle call chaining
                 self.check_module_exists(name)?;
                 match self.function_scopes.get(name) {
