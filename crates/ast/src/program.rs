@@ -1,11 +1,9 @@
 use rigz_core::{BinaryOperation, Lifecycle, PrimitiveValue, RigzType, UnaryOperation};
-use rustc_hash::FxHashMap;
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Program {
     pub input: Option<String>,
     pub elements: Vec<Element>,
-    pub types: FxHashMap<String, RigzType>,
 }
 
 impl Program {

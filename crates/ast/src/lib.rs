@@ -11,14 +11,12 @@ mod format;
 
 #[cfg(feature = "format")]
 pub use format::format;
-use std::collections::hash_map::Entry;
 
 use logos::Logos;
 pub use modules::{ParsedDependency, ParsedModule, ParsedObject};
 pub use program::*;
 
 use rigz_core::*;
-use rustc_hash::FxHashMap;
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::path::PathBuf;
@@ -40,7 +38,6 @@ pub struct Parser<'t> {
     pub input: Option<String>,
     tokens: VecDeque<Token<'t>>,
     line: usize, // todo repl should set this
-    types: FxHashMap<String, RigzType>,
 }
 
 // TODO better error messages
@@ -95,7 +92,6 @@ impl<'t> Parser<'t> {
             input,
             tokens,
             line,
-            types: Default::default(),
         })
     }
 
@@ -107,7 +103,6 @@ impl<'t> Parser<'t> {
         Ok(Program {
             input: self.input,
             elements,
-            types: self.types,
         })
     }
 
@@ -1834,12 +1829,6 @@ impl<'t> Parser<'t> {
         let rigz_type: RigzType = match next.kind {
             TokenKind::TypeValue(id) => match id.parse::<RigzType>() {
                 Ok(t) => {
-                    match self.types.entry(id.to_string()) {
-                        Entry::Occupied(e) => {}
-                        Entry::Vacant(v) => {
-                            v.insert(t.clone());
-                        }
-                    }
                     t
                 }
                 Err(e) => {

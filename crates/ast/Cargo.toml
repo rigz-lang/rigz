@@ -14,7 +14,6 @@ derive = ["dep:proc-macro2", "dep:quote", "rigz_core/derive"]
 format = []
 
 [dependencies]
-rustc-hash = "2.1.0"
 logos = "0.15"
 quote = { version = "1", optional = true }
 proc-macro2 = { version = "1.0", optional = true }
