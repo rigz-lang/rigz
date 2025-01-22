@@ -1894,6 +1894,8 @@ dependencies = [
  "rigz_core",
  "rigz_runtime",
  "rigz_vm",
+ "ring",
+ "rustls-pki-types",
  "scraper",
  "serde",
  "serde_json",
@@ -1986,6 +1988,9 @@ name = "rustls-pki-types"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2bf47e6ff922db3825eb750c4e2ff784c6ff8fb9e13046ef6a1d1c5401b0b37"
+dependencies = [
+ "web-time",
+]
 
 [[package]]
 name = "rustls-webpki"
