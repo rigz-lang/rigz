@@ -1229,6 +1229,30 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             Expression::Into { base, next } => {
                 self.parse_function(next.prepend(*base))?;
             }
+            Expression::Try(b) => {
+                if let Expression::Catch { .. } = b.as_ref() {
+                    return Err(ValidationError::InvalidType("Try/Catch cannot be part of the same expression, try will bubble up an error that can be caught".to_string()));
+                }
+                self.parse_expression(*b)?;
+                self.builder.add_try_instruction();
+            }
+            Expression::Catch { base, var, catch } => {
+                if let Expression::Try(_) = base.as_ref() {
+                    return Err(ValidationError::InvalidType("Try/Catch cannot be part of the same expression, try will bubble up an error that can be caught".to_string()));
+                }
+                self.parse_expression(*base)?;
+                let current = self.builder.current_scope();
+                let inner = self.builder.enter_scope(
+                    "catch".to_string(),
+                    var.map(|s| vec![(s, false)]).unwrap_or(vec![]),
+                    None,
+                );
+                for e in catch.elements {
+                    self.parse_element(e)?;
+                }
+                self.builder.exit_scope(current);
+                self.builder.add_catch_instruction(inner);
+            }
         }
         Ok(())
     }

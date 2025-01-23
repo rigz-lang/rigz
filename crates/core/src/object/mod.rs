@@ -27,6 +27,12 @@ pub enum ObjectValue {
     Object(Box<dyn Object>),
 }
 
+impl ObjectValue {
+    pub fn new(obj: impl Object) -> Self {
+        ObjectValue::Object(Box::new(obj))
+    }
+}
+
 impl Default for ObjectValue {
     fn default() -> Self {
         ObjectValue::Primitive(PrimitiveValue::default())
@@ -145,6 +151,11 @@ impl Display for ObjectValue {
 
 impl ObjectValue {
     #[inline]
+    pub fn is_error(&self) -> bool {
+        matches!(self, ObjectValue::Primitive(PrimitiveValue::Error(_)))
+    }
+
+    #[inline]
     pub fn map<F, T>(&self, map: F) -> Option<T>
     where
         F: FnOnce(&Self) -> T,
@@ -165,6 +176,30 @@ impl ObjectValue {
             None
         } else {
             Some(map(self))
+        }
+    }
+
+    #[inline]
+    pub fn maybe_map<F, T>(&self, map: F) -> Result<Option<T>, VMError>
+    where
+        F: FnOnce(&Self) -> Result<T, VMError>,
+    {
+        if let ObjectValue::Primitive(PrimitiveValue::None) = self {
+            Ok(None)
+        } else {
+            Ok(Some(map(self)?))
+        }
+    }
+
+    #[inline]
+    pub fn maybe_map_mut<F, T>(&mut self, map: F) -> Result<Option<T>, VMError>
+    where
+        F: FnOnce(&mut Self) -> Result<T, VMError>,
+    {
+        if let ObjectValue::Primitive(PrimitiveValue::None) = self {
+            Ok(None)
+        } else {
+            Ok(Some(map(self)?))
         }
     }
 

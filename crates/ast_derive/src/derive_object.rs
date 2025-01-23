@@ -1,4 +1,7 @@
-use crate::{convert_response, rigz_type_to_arg, rigz_type_to_return_type, setup_call_args};
+use crate::{
+    convert_response, convert_type_for_arg, rigz_type_to_arg, rigz_type_to_return_type,
+    setup_call_args,
+};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use rigz_ast::{FunctionDeclaration, FunctionType, ObjectDefinition, Parser, ParserOptions};
@@ -139,8 +142,8 @@ impl DeriveObject {
             quote! {
                 #base
 
-                impl Display for #id {
-                    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+                impl std::fmt::Display for #id {
+                    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                         write!(f, "{self:?}")
                     }
                 }
@@ -286,9 +289,34 @@ fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTra
             }));
 
             let (call_args, setup_args, var_args) = setup_call_args(sig);
-            if var_args.is_some() {
-                panic!("Var Args are not supported by objects yet {name}");
-            }
+            let base_args = match var_args {
+                None => quote! { let [#(#call_args)*] = args.take()?; },
+                Some(s) => {
+                    let (base, var) = call_args.split_at(s);
+                    let (_, var_args) = sig.arguments.split_at(s);
+                    let mut call_var = quote! {};
+                    for v in var_args {
+                        if v.function_type.rigz_type == RigzType::default() {
+                            continue;
+                        }
+                        let name = Ident::new(v.name.as_str(), Span::call_site());
+                        if let Some((v, _)) = convert_type_for_arg(
+                            quote! { n },
+                            &v.function_type.rigz_type,
+                            v.function_type.mutable,
+                        ) {
+                            call_var = quote! {
+                                #call_var
+                                let #name = #name.into_iter().map(|n| #v).collect();
+                            };
+                        }
+                    }
+                    quote! {
+                        let ([#(#base)*], [#(#var)*]) = args.var_args()?;
+                        #call_var
+                    }
+                }
+            };
 
             match &sig.self_type {
                 None => {
@@ -296,7 +324,7 @@ fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTra
                         convert_response(quote! { Self::#fn_name(#(#call_args)*) }, sig);
                     stat_funcs.push(quote! {
                         #name => {
-                            let [#(#call_args)*] = args.take()?;
+                            #base_args
                             #(#setup_args)*
                             #method_call
                         }
@@ -307,7 +335,7 @@ fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTra
                         convert_response(quote! { self.#fn_name(#(#call_args)*) }, sig);
                     mut_funcs.push(quote! {
                         #name => {
-                            let [#(#call_args)*] = args.take()?;
+                            #base_args
                             #(#setup_args)*
                             #method_call
                         }
@@ -318,7 +346,7 @@ fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTra
                         convert_response(quote! { self.#fn_name(#(#call_args)*) }, sig);
                     ext_funcs.push(quote! {
                         #name => {
-                            let [#(#call_args)*] = args.take()?;
+                            #base_args
                             #(#setup_args)*
                             #method_call
                         }

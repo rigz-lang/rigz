@@ -52,8 +52,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         self.register_module(UUIDModule)?;
         self.register_module(RandomModule)?;
         self.register_module(MathModule)?;
+        self.register_module(HtmlModule)?; // http module depends on html
         self.register_module(HttpModule::default())?;
-        self.register_module(HtmlModule)?;
         Ok(())
     }
 }

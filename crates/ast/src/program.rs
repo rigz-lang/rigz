@@ -276,6 +276,12 @@ pub enum Expression {
         next: FunctionExpression,
     },
     DoubleBang(Box<Expression>),
+    Try(Box<Expression>),
+    Catch {
+        base: Box<Expression>,
+        var: Option<String>,
+        catch: Scope,
+    },
 }
 
 impl From<Vec<Expression>> for Expression {

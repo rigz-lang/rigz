@@ -243,6 +243,23 @@ impl ToTokens for Expression {
                     Expression::DoubleBang(#b)
                 }
             }
+            Expression::Try(b) => {
+                let b = boxed(b);
+                quote! {
+                    Expression::Try(#b)
+                }
+            }
+            Expression::Catch { base, var, catch } => {
+                let b = boxed(base);
+                let v = option(var);
+                quote! {
+                    Expression::Catch {
+                        base: #b,
+                        var: #v.map(|s| s.to_string()),
+                        catch: #catch
+                    }
+                }
+            }
         };
         tokens.extend(t)
     }

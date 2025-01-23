@@ -737,6 +737,7 @@ impl<'t> Parser<'t> {
             },
             TokenKind::Pipe => self.parse_lambda(false)?,
             TokenKind::BinOp(BinaryOperation::Or) => self.parse_lambda(true)?,
+            TokenKind::Try => Expression::Try(Box::new(self.parse_expression()?)),
             _ => {
                 return Err(ParsingError::ParseError(format!(
                     "Invalid Token for Expression {:?}",
@@ -819,6 +820,35 @@ impl<'t> Parser<'t> {
                         }
                     }
                     Ok(base)
+                }
+                TokenKind::Catch => {
+                    self.consume_token(TokenKind::Catch)?;
+                    let t = self.peek_required_token("expression suffix - catch")?;
+                    let var = if let TokenKind::Pipe = t.kind {
+                        self.consume_token(t.kind)?;
+                        let t = self.peek_required_token("expression suffix - catch")?;
+                        let inner = match t.kind {
+                            TokenKind::Pipe => None,
+                            TokenKind::Identifier(id) => {
+                                self.consume_token(t.kind)?;
+                                Some(id.to_string())
+                            }
+                            _ => {
+                                return Err(ParsingError::ParseError(format!(
+                                    "Expected variable name or |, received {t:?}"
+                                )))
+                            }
+                        };
+                        self.consume_token(TokenKind::Pipe)?;
+                        inner
+                    } else {
+                        None
+                    };
+                    Ok(Expression::Catch {
+                        base: exp.into(),
+                        var,
+                        catch: self.parse_scope()?,
+                    })
                 }
                 _ => Ok(exp),
             },

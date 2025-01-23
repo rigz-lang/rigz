@@ -263,6 +263,8 @@ pub enum Instruction {
     Send(usize),
     Spawn(usize, bool),
     Receive(usize),
+    Try,
+    Catch(usize),
     /// Danger Zone, use these instructions at your own risk (sorted by risk)
     /// in the right situations these will be fantastic, otherwise avoid them
     Pop(usize),
@@ -534,6 +536,12 @@ impl Snapshot for Instruction {
                 res.extend(args.as_bytes());
                 res
             }
+            Instruction::Try => vec![51],
+            Instruction::Catch(scope) => {
+                let mut res = vec![52];
+                res.extend(scope.as_bytes());
+                res
+            }
         }
     }
 
@@ -660,6 +668,8 @@ impl Snapshot for Instruction {
                 func: Snapshot::from_bytes(bytes, location)?,
                 args: Snapshot::from_bytes(bytes, location)?,
             },
+            51 => Instruction::Try,
+            52 => Instruction::Catch(Snapshot::from_bytes(bytes, location)?),
             b => {
                 return Err(VMError::RuntimeError(format!(
                     "Illegal instruction byte {b} {location}"

@@ -765,6 +765,24 @@ pub trait Runner: ResolveValue {
                     self.store_value(v.into());
                 }
             }
+            Instruction::Try => {
+                let next = self.next_resolved_value("try");
+                if next.borrow().is_error() {
+                    return VMState::Ran(next);
+                } else {
+                    self.store_value(next.into())
+                }
+            }
+            Instruction::Catch(scope) => {
+                let next = self.next_resolved_value("catch");
+                if next.borrow().is_error() {
+                    if let Err(e) = self.call_frame(scope) {
+                        self.store_value(e.into())
+                    }
+                } else {
+                    self.store_value(next.into())
+                }
+            }
             ins => {
                 return VMError::todo(format!("Instruction is not supported yet {ins:?}")).into()
             }

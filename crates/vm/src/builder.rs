@@ -380,6 +380,16 @@ pub trait RigzBuilder: Debug + Default {
     fn add_sleep_instruction(&mut self) -> &mut Self {
         self.add_instruction(Instruction::Sleep)
     }
+
+    #[inline]
+    fn add_catch_instruction(&mut self, scope: usize) -> &mut Self {
+        self.add_instruction(Instruction::Catch(scope))
+    }
+
+    #[inline]
+    fn add_try_instruction(&mut self) -> &mut Self {
+        self.add_instruction(Instruction::Try)
+    }
 }
 
 #[macro_export]

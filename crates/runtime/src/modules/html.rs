@@ -1,12 +1,85 @@
 use rigz_ast::*;
-use rigz_ast_derive::derive_module;
+use rigz_ast_derive::{derive_module, derive_object};
 use rigz_core::*;
 use scraper::Selector;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+derive_object! {
+    "Html",
+    struct Fragment {
+        pub partial: String,
+    },
+    r#"object Fragment
+        Self(partial: String)
+        fn Self.to_html -> Html::Html
+    end"#
+}
+
+impl FragmentObject for Fragment {
+    fn to_html(&self) -> ObjectValue {
+        ObjectValue::new(Html {
+            document: self.partial.clone(),
+        })
+    }
+}
+
+impl AsPrimitive<ObjectValue> for Fragment {}
+
+impl CreateObject for Fragment {
+    fn create(args: RigzArgs) -> Result<Self, VMError>
+    where
+        Self: Sized,
+    {
+        let [html] = args.take()?;
+        let html = html.borrow();
+        Ok(Fragment {
+            partial: html.to_string(),
+        })
+    }
+}
+
+derive_object! {
+    "Html",
+    struct Html {
+        pub document: String,
+    },
+    r#"object Html
+        Self(document: String)
+
+        fn Self.element(selector: String) -> Html::Fragment?
+        fn Self.elements(var selector: String) -> Map
+    end"#
+}
+
+impl HtmlObject for Html {
+    fn element(&self, selector: String) -> Option<ObjectValue> {
+        todo!()
+    }
+
+    fn elements(&self, selector: String) -> IndexMap<ObjectValue, ObjectValue> {
+        todo!()
+    }
+}
+
+impl AsPrimitive<ObjectValue> for Html {}
+
+impl CreateObject for Html {
+    fn create(args: RigzArgs) -> Result<Self, VMError>
+    where
+        Self: Sized,
+    {
+        let [html] = args.take()?;
+        let html = html.borrow();
+        let document = html.to_string();
+        Ok(Html { document })
+    }
+}
+
 derive_module! {
+    [Fragment, Html],
     r#"trait Html
+    fn String.html -> Html::Html = Html::Html.new self
     fn String.elements(var id, selector: String) -> Map
 end"#
 }

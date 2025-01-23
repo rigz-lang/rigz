@@ -142,6 +142,16 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 // todo check base arg
                 self.function_type(next)?
             }
+            Expression::Try(e) => self.rigz_type(e)?,
+            Expression::Catch { base, catch, .. } => {
+                let base = self.rigz_type(base)?;
+                let catch = self.scope_type(catch)?;
+                if base == catch {
+                    base
+                } else {
+                    RigzType::Union(vec![base, catch])
+                }
+            }
         };
         Ok(t)
     }
