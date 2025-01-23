@@ -20,8 +20,6 @@ pub(crate) struct VMMessenger {}
 pub(crate) struct ProcessManager {
     #[cfg(feature = "threaded")]
     pub(crate) handle: tokio::runtime::Handle,
-    #[cfg(feature = "threaded")]
-    runtime: Option<tokio::runtime::Runtime>,
     processes: SpawnedProcesses,
     vm_messenger: Option<VMMessenger>,
 }
@@ -61,6 +59,24 @@ fn run_process(
     (id as i64).into()
 }
 
+#[cfg(feature = "threaded")]
+static TOKIO: std::sync::LazyLock<
+    Result<(tokio::runtime::Handle, Option<tokio::runtime::Runtime>), VMError>,
+> = std::sync::LazyLock::new(|| {
+    let (handle, runtime) = match tokio::runtime::Handle::try_current() {
+        Ok(r) => (r, None),
+        Err(_) => match tokio::runtime::Runtime::new() {
+            Ok(r) => (r.handle().clone(), Some(r)),
+            Err(e) => {
+                return Err(VMError::RuntimeError(format!(
+                    "Failed to create tokio runtime {e}"
+                )))
+            }
+        },
+    };
+    Ok((handle, runtime))
+});
+
 impl ProcessManager {
     #[cfg(not(feature = "threaded"))]
     pub(crate) fn new() -> Self {
@@ -72,21 +88,13 @@ impl ProcessManager {
 
     #[cfg(feature = "threaded")]
     pub(crate) fn create() -> Result<Self, VMError> {
-        let (handle, runtime) = match tokio::runtime::Handle::try_current() {
-            Ok(r) => (r, None),
-            Err(_) => match tokio::runtime::Runtime::new() {
-                Ok(r) => (r.handle().clone(), Some(r)),
-                Err(e) => {
-                    return Err(VMError::RuntimeError(format!(
-                        "Failed to create tokio runtime {e}"
-                    )))
-                }
-            },
+        let handle = match TOKIO.as_ref() {
+            Ok((h, _)) => h.clone(),
+            Err(e) => return Err(e.clone()),
         };
 
         Ok(Self {
             handle,
-            runtime,
             processes: Vec::new(),
             vm_messenger: None,
         })

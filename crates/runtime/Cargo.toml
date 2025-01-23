@@ -48,3 +48,7 @@ criterion = { version = "0.5", features = ["html_reports"] }
 [[bench]]
 name = "eval_benchmarks"
 harness = false
+
+[[bench]]
+name = "eval_defaults_benchmarks"
+harness = false
