@@ -107,6 +107,9 @@ pub mod runtime {
             end
             foo
             "# = VMError::RuntimeError("Stack overflow: exceeded 1024".to_string()))
+            try_fail(r#"
+            try raise "Failure"
+            "# = VMError::RuntimeError("Failure".to_string()))
         }
 
         run_error_starts_with! {
@@ -125,7 +128,7 @@ pub mod runtime {
 
     pub mod valid {
         use super::*;
-        use rigz_core::{IndexMap, ObjectValue};
+        use rigz_core::{IndexMap, ObjectValue, VMError};
 
         run_expected! {
             raw_value("'Hello World'" = "Hello World")
@@ -517,6 +520,15 @@ pub mod runtime {
 
             f = Foo.new 7
             f.square"# = 49)
+            try_success(r#"
+            try 29
+            "# = 29)
+            catch_success(r#"
+            fn foo = raise "Failure"
+            foo catch
+                22
+            end
+            "# = 22)
         }
     }
 

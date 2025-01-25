@@ -324,7 +324,9 @@ impl<'t> Parser<'t> {
                             }
                             .into()
                         }
-                        _ => self.parse_identifier_element(id)?.into(),
+                        _ => {
+                            self.parse_identifier_element(id)?.into()
+                        },
                     },
                 }
             }
@@ -509,7 +511,7 @@ impl<'t> Parser<'t> {
                     }
                     _ => {
                         let el = match assn {
-                            None => Element::Expression(exp),
+                            None => Element::Expression(self.parse_expression_suffix(exp)?),
                             Some((assn, op)) => match op {
                                 None => Statement::Assignment {
                                     lhs: assn,
@@ -1178,7 +1180,8 @@ impl<'t> Parser<'t> {
                     | TokenKind::Rbracket
                     | TokenKind::Assign // for maps
                     | TokenKind::Colon // named args
-                    | TokenKind::End => {
+                    | TokenKind::End
+                    | TokenKind::Catch => {
                         self.tokens.push_front(next);
                         break;
                     }
@@ -1422,6 +1425,7 @@ impl<'t> Parser<'t> {
                     | TokenKind::BinOp(_)
                     | TokenKind::Pipe
                     | TokenKind::And
+                    | TokenKind::Catch
                     | TokenKind::Minus => break,
                     TokenKind::Identifier(id) => {
                         self.consume_token(TokenKind::Identifier(id))?;
