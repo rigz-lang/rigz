@@ -16,6 +16,7 @@ dyn-clone = "1.0.17"
 indexmap = "2.7.0"
 itertools = "0.14.0"
 log.workspace = true
+mopa = "0.2.2"
 serde = {workspace = true, optional = true}
 proc-macro2 = { version = "1.0.93", optional = true }
 quote = { version = "1.0.38", optional = true }

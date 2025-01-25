@@ -321,7 +321,7 @@ fn convert_response(base_call: Tokens, function_signature: &FunctionSignature) -
                         if *can_return_error {
                             quote! {
                                 match #base_call {
-                                    Ok(Some(v)) => Ok(v),
+                                    Ok(Some(v)) => Ok(v.into()),
                                     Ok(None) => Ok(ObjectValue::default()),
                                     Err(e) => Err(e)
                                 }

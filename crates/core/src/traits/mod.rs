@@ -8,15 +8,16 @@ pub use as_primitive::{AsPrimitive, WithTypeInfo};
 use dyn_clone::DynClone;
 pub use dyn_traits::*;
 use log::{error, warn};
+use mopa::mopafy;
+#[cfg(feature = "snapshot")]
+pub use snapshot::Snapshot;
+use std::any::Any;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::vec::IntoIter;
-
-#[cfg(feature = "snapshot")]
-pub use snapshot::Snapshot;
 
 pub trait Definition {
     fn name() -> &'static str
@@ -99,7 +100,15 @@ pub trait CreateObject {
 #[allow(unused_variables)]
 #[cfg_attr(feature = "serde", typetag::serde)]
 pub trait Object:
-    DynCompare + DynClone + DynHash + AsPrimitive<ObjectValue> + CreateObject + Definition + Send + Sync
+    mopa::Any
+    + DynCompare
+    + DynClone
+    + DynHash
+    + AsPrimitive<ObjectValue>
+    + CreateObject
+    + Definition
+    + Send
+    + Sync
 {
     fn call(function: String, args: RigzArgs) -> Result<ObjectValue, VMError>
     where
@@ -128,6 +137,7 @@ pub trait Object:
     }
 }
 
+mopafy!(Object);
 dyn_clone::clone_trait_object!(Object);
 
 impl Hash for dyn Object {

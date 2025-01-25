@@ -279,13 +279,19 @@ fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTra
                 }
             };
 
+            let mut var_arg = false;
             args.extend(sig.arguments.iter().map(|arg| {
                 let ident = Ident::new(arg.name.as_str(), Span::call_site());
                 let rt = match rigz_type_to_return_type(&arg.function_type.rigz_type) {
                     None => quote! { ObjectValue },
                     Some(t) => quote! { #t },
                 };
-                quote! { #ident:  #rt }
+                var_arg |= arg.var_arg;
+                if var_arg {
+                    quote! { #ident: Vec<#rt> }
+                } else {
+                    quote! { #ident: #rt }
+                }
             }));
 
             let (call_args, setup_args, var_args) = setup_call_args(sig);

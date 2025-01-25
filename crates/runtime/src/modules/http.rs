@@ -1,6 +1,8 @@
+use log::warn;
 use rigz_ast::*;
 use rigz_ast_derive::{derive_module, derive_object};
 use rigz_core::*;
+use std::any::Any;
 use std::io::Error;
 use std::ops::Deref;
 use std::sync::{Arc, LockResult, RwLock};
@@ -9,12 +11,13 @@ derive_object! {
     "Http",
     struct Request {
         pub method: Option<String>,
+        pub path: String,
         pub body: Option<ObjectValue>,
         #[derivative(Hash="ignore", PartialEq="ignore", PartialOrd="ignore")]
         pub headers: Option<IndexMap<ObjectValue, ObjectValue>>,
     },
     r#"object Request
-        Self(method: String? = none, body: Any? = none, headers: Map? = none)
+        Self(path: String, method: String? = none, body: Any? = none, headers: Map? = none)
 
         fn Self.header(key) -> Any?
 
@@ -24,23 +27,81 @@ derive_object! {
     end"#
 }
 
+impl Request {
+    fn from_map(map: IndexMap<ObjectValue, ObjectValue>) -> Result<Self, VMError> {
+        let path = match map.get(&ObjectValue::Primitive(PrimitiveValue::String(
+            "path".to_string(),
+        ))) {
+            None => {
+                return Err(VMError::RuntimeError(format!(
+                    "Missing `path`, cannot create request from {map:?}"
+                )))
+            }
+            Some(p) => p.to_string(),
+        };
+
+        let method = map
+            .get(&ObjectValue::Primitive(PrimitiveValue::String(
+                "method".to_string(),
+            )))
+            .map(|o| o.to_string());
+        let body = map
+            .get(&ObjectValue::Primitive(PrimitiveValue::String(
+                "body".to_string(),
+            )))
+            .cloned();
+
+        let headers = match map.get(&ObjectValue::Primitive(PrimitiveValue::String(
+            "headers".to_string(),
+        ))) {
+            None => None,
+            Some(p) => match p {
+                ObjectValue::Map(m) => Some(m.clone()),
+                ObjectValue::Object(o) => Some(o.to_map()?),
+                o => {
+                    return Err(VMError::RuntimeError(format!(
+                        "Cannot convert {o} to Map<String, String>"
+                    )))
+                }
+            },
+        };
+
+        Ok(Request {
+            method,
+            path,
+            body,
+            headers,
+        })
+    }
+}
+
 impl AsPrimitive<ObjectValue> for Request {}
 
 impl RequestObject for Request {
     fn header(&self, key: ObjectValue) -> Option<ObjectValue> {
-        todo!()
+        self.headers.as_ref().map(|h| h.get(&key).cloned())?
     }
 
     fn mut_body(&mut self, body: ObjectValue) {
-        todo!()
+        self.body = Some(body);
     }
 
     fn mut_method(&mut self, method: String) {
-        todo!()
+        self.method = Some(method);
     }
 
-    fn mut_headers(&mut self, key: String, value: String) {
-        todo!()
+    fn mut_headers(&mut self, key: Vec<String>, value: Vec<String>) {
+        if self.headers.is_none() {
+            self.headers = Some(IndexMap::new());
+        }
+        match &mut self.headers {
+            None => unreachable!(),
+            Some(h) => {
+                for (k, v) in key.into_iter().zip(value) {
+                    h.insert(k.into(), v.into());
+                }
+            }
+        }
     }
 }
 
@@ -52,7 +113,7 @@ impl CreateObject for Request {
         if args.is_empty() {
             Ok(Self::default())
         } else {
-            let [method, body, headers] = args.take()?;
+            let [path, method, body, headers] = args.take()?;
             let headers = match headers.borrow().map(|o| o.to_map()) {
                 None => None,
                 Some(Ok(s)) => Some(s),
@@ -60,7 +121,9 @@ impl CreateObject for Request {
             };
             let method = method.borrow();
             let body = body.borrow();
+            let path = path.borrow();
             Ok(Self {
+                path: path.to_string(),
                 method: method.map(|o| o.to_string()),
                 body: body.map(|o| o.clone()),
                 headers,
@@ -149,11 +212,14 @@ derive_module! {
     [Request, Response],
     r#"trait Http
         fn request -> Http::Request = Http::Request.new
+        fn fetch(request: Http::Request) -> Http::Response!
+        fn head(path: String, headers: Map? = none) -> Http::Response!
         fn get(path: String, headers: Map? = none) -> Http::Response!
         fn delete(path: String, headers: Map? = none) -> Http::Response!
+        fn options(path: String, headers: Map? = none) -> Http::Response!
+        fn patch(path: String, body: Any? = none, headers: Map? = none) -> Http::Response!
         fn post(path: String, body: Any? = none, headers: Map? = none) -> Http::Response!
         fn put(path: String, body: Any? = none, headers: Map? = none) -> Http::Response!
-        fn fetch(request: Http::Request) -> Http::Response!
     end"#
 }
 
@@ -181,7 +247,75 @@ fn to_object(res: Result<ureq::Response, ureq::Error>) -> Result<ObjectValue, VM
     }
 }
 
+fn handle_body(mut req: ureq::Request, body: Option<ObjectValue>) -> Result<ObjectValue, VMError> {
+    let resp = match body {
+        None => req.call(),
+        Some(ObjectValue::Primitive(PrimitiveValue::String(body))) => req.send_string(&body),
+        // todo support form
+        // todo support bytes
+        Some(o) => {
+            // todo use json
+            req.send_string(&o.to_string())
+        }
+    };
+    to_object(resp)
+}
+
 impl RigzHttp for HttpModule {
+    fn fetch(&self, request: ObjectValue) -> Result<ObjectValue, VMError> {
+        let r: Request = match request {
+            ObjectValue::Map(m) => Request::from_map(m)?,
+            ObjectValue::Object(o) => match o.downcast_ref::<Request>() {
+                Some(r) => r.clone(),
+                None => {
+                    return Err(VMError::UnsupportedOperation(format!(
+                        "Cannot convert {o} to Http::Request"
+                    )))
+                }
+            },
+            o => return Err(VMError::todo(format!("`fetch` cannot be called with {o}"))),
+        };
+        match r.method {
+            None => {
+                if r.body.is_some() {
+                    warn!("Ignoring body for GET request - {:?}", r.body)
+                }
+                self.get(r.path, r.headers)
+            }
+            Some(s) => match s.to_lowercase().as_str() {
+                "get" => {
+                    if r.body.is_some() {
+                        warn!("Ignoring body for GET request - {:?}", r.body)
+                    }
+                    self.get(r.path, r.headers)
+                }
+                "delete" => {
+                    if r.body.is_some() {
+                        warn!("Ignoring body for DELETE request - {:?}", r.body)
+                    }
+                    self.delete(r.path, r.headers)
+                }
+                "post" => self.post(r.path, r.body, r.headers),
+                "put" => self.post(r.path, r.body, r.headers),
+                method => Err(VMError::RuntimeError(format!(
+                    "Invalid HTTP method {method}"
+                ))),
+            },
+        }
+    }
+
+    fn head(
+        &self,
+        path: String,
+        headers: Option<IndexMap<ObjectValue, ObjectValue>>,
+    ) -> Result<ObjectValue, VMError> {
+        let mut req = self.client.head(&path);
+        req = set_headers(req, headers);
+
+        let res = req.call();
+        to_object(res)
+    }
+
     fn get(
         &self,
         path: String,
@@ -206,6 +340,29 @@ impl RigzHttp for HttpModule {
         to_object(res)
     }
 
+    fn options(
+        &self,
+        path: String,
+        headers: Option<IndexMap<ObjectValue, ObjectValue>>,
+    ) -> Result<ObjectValue, VMError> {
+        let mut req = self.client.request("OPTIONS", &path);
+        req = set_headers(req, headers);
+
+        let res = req.call();
+        to_object(res)
+    }
+
+    fn patch(
+        &self,
+        path: String,
+        body: Option<ObjectValue>,
+        headers: Option<IndexMap<ObjectValue, ObjectValue>>,
+    ) -> Result<ObjectValue, VMError> {
+        let mut req = self.client.patch(&path);
+        req = set_headers(req, headers);
+        handle_body(req, body)
+    }
+
     fn post(
         &self,
         path: String,
@@ -214,17 +371,7 @@ impl RigzHttp for HttpModule {
     ) -> Result<ObjectValue, VMError> {
         let mut req = self.client.post(&path);
         req = set_headers(req, headers);
-        let resp = match body {
-            None => req.call(),
-            Some(ObjectValue::Primitive(PrimitiveValue::String(body))) => req.send_string(&body),
-            // todo support form
-            // todo support bytes
-            Some(o) => {
-                // todo use json
-                req.send_string(&o.to_string())
-            }
-        };
-        to_object(resp)
+        handle_body(req, body)
     }
 
     fn put(
@@ -235,22 +382,6 @@ impl RigzHttp for HttpModule {
     ) -> Result<ObjectValue, VMError> {
         let mut req = self.client.put(&path);
         req = set_headers(req, headers);
-        let resp = match body {
-            None => req.call(),
-            Some(ObjectValue::Primitive(PrimitiveValue::String(body))) => req.send_string(&body),
-            // todo support form
-            // todo support bytes
-            Some(o) => {
-                // todo use json
-                req.send_string(&o.to_string())
-            }
-        };
-        to_object(resp)
-    }
-
-    fn fetch(&self, request: ObjectValue) -> Result<ObjectValue, VMError> {
-        Err(VMError::todo(format!(
-            "`fetch` is not implemented, {request}"
-        )))
+        handle_body(req, body)
     }
 }
