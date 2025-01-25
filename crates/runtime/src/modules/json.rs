@@ -23,7 +23,12 @@ impl RigzJSON for JSONModule {
     #[inline]
     fn parse(&self, input: String) -> Result<ObjectValue, VMError> {
         match serde_json::from_str(input.as_str()) {
-            Ok(v) => Ok(v),
+            Ok(mut v) => {
+                if let ObjectValue::Object(o) = &mut v {
+                    o.post_deserialize();
+                }
+                Ok(v)
+            },
             Err(e) => Err(VMError::RuntimeError(format!("Failed to parse json - {e}"))),
         }
     }
