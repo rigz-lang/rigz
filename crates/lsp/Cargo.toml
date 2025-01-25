@@ -8,6 +8,8 @@ repository = "https://gitlab.com/inapinch/rigz/crates/lsp"
 keywords = ["rigz", "lsp"]
 
 [dependencies]
+dashmap = "6.1.0"
+ropey = "1.6.1"
 rigz_ast = {workspace = true, features = ["format"]}
 rigz_runtime.workspace = true
 tower-lsp = "0.20.0"
