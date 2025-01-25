@@ -15,9 +15,8 @@ use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
 
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(untagged))]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
 pub enum ObjectValue {
     Primitive(PrimitiveValue),
     // todo Lists, Maps, & Tuples should use Rc<RefCell<ObjectValue>> to make this language fully pass by reference

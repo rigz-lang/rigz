@@ -5,7 +5,6 @@ mod date;
 mod file;
 mod html;
 mod http;
-#[cfg(feature = "serde")]
 mod json;
 mod log;
 mod math;
@@ -24,7 +23,6 @@ pub use assertions::AssertionsModule;
 pub use collections::CollectionsModule;
 pub use date::DateModule;
 pub use file::FileModule;
-#[cfg(feature = "serde")]
 pub use json::JSONModule;
 pub use log::LogModule;
 pub use math::MathModule;
@@ -45,7 +43,6 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         self.register_module(StringModule)?;
         self.register_module(CollectionsModule)?;
         self.register_module(LogModule)?;
-        #[cfg(feature = "serde")]
         self.register_module(JSONModule)?;
         self.register_module(FileModule)?;
         self.register_module(DateModule)?;

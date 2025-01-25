@@ -1,14 +1,11 @@
 use crate::PrimitiveValue;
-#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-// Tagged to avoid confusion with string deserialization
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum VMError {
     TimeoutError(String),
     RuntimeError(String),

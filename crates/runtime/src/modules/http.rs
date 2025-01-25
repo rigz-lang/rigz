@@ -135,7 +135,7 @@ impl CreateObject for Request {
 derive_object! {
     "Http",
     struct Response {
-        #[cfg_attr(feature = "serde", serde(skip))]
+        #[serde(skip)]
         #[derivative(Debug="ignore", Hash="ignore", PartialEq="ignore", PartialOrd="ignore")]
         resp: Arc<RwLock<Option<ureq::Response>>>,
     },

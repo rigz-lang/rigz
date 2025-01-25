@@ -12,16 +12,14 @@ use std::cell::RefCell;
 
 use crate::{impl_from, AsPrimitive, Number, RigzType, WithTypeInfo};
 use indexmap::IndexMap;
-#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-#[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(untagged))]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum PrimitiveValue {
     #[default]
     None,

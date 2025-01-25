@@ -7,10 +7,9 @@ use std::fmt::{Debug, Display, Formatter};
 use std::ops::Deref;
 use std::sync::Arc;
 
-#[derive(Clone, Hash, PartialOrd, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Hash, PartialOrd, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RigzObject {
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[serde(skip)]
     pub rigz_type: Arc<RigzType>,
     pub values: Vec<ObjectValue>,
 }
@@ -175,7 +174,7 @@ impl Definition for RigzObject {
     }
 }
 
-#[cfg_attr(feature = "serde", typetag::serde)]
+#[typetag::serde]
 impl Object for RigzObject {}
 
 impl From<RigzObject> for ObjectValue {

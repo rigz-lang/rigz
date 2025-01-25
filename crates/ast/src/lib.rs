@@ -324,9 +324,7 @@ impl<'t> Parser<'t> {
                             }
                             .into()
                         }
-                        _ => {
-                            self.parse_identifier_element(id)?.into()
-                        },
+                        _ => self.parse_identifier_element(id)?.into(),
                     },
                 }
             }

@@ -13,16 +13,14 @@ mod shr;
 mod sub;
 
 use crate::{impl_from, impl_from_cast, VMError};
-#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
-#[derive(Copy, Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(untagged))]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum Number {
     Int(i64),
     Float(f64),

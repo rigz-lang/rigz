@@ -2,15 +2,13 @@ mod ops;
 
 use crate::{impl_from, PrimitiveValue};
 use indexmap::IndexMap;
-#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::ops::{Neg, Range};
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(untagged))]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum ValueRange {
     Int(Range<i64>),
     Char(Range<char>),

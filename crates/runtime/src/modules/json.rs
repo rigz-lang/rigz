@@ -28,7 +28,7 @@ impl RigzJSON for JSONModule {
                     o.post_deserialize();
                 }
                 Ok(v)
-            },
+            }
             Err(e) => Err(VMError::RuntimeError(format!("Failed to parse json - {e}"))),
         }
     }

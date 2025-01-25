@@ -30,6 +30,7 @@ rigz_ast_derive = {version = "0.6", path = "crates/ast_derive"}
 rigz_vm = {version = "0.37", path = "crates/vm", default-features = false}
 rigz_runtime = {version = "0.6", path = "crates/runtime", default-features = false}
 serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0" }
 typetag = { version = "0.2.19" }
 tree-sitter-rigz = { version = "0.6", path = "crates/tree-sitter" }
 web-sys = { version = "0.3.76", features = ["console"] }

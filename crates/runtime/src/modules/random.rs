@@ -12,7 +12,7 @@ derive_object! {
         pub seed: i64,
         stream: u64,
         offset: u128,
-        #[cfg_attr(feature = "serde", serde(skip))]
+        #[serde(skip)]
         #[derivative(Debug="ignore", Hash="ignore", PartialEq="ignore", PartialOrd="ignore")]
         rng: InnerRng,
     },

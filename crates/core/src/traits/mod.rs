@@ -98,7 +98,7 @@ pub trait CreateObject {
 }
 
 #[allow(unused_variables)]
-#[cfg_attr(feature = "serde", typetag::serde)]
+#[typetag::serde]
 pub trait Object:
     mopa::Any
     + DynCompare
@@ -174,12 +174,39 @@ impl PartialOrd<&Self> for Box<dyn Object> {
 #[cfg(feature = "snapshot")]
 impl Snapshot for Box<dyn Object + '_> {
     fn as_bytes(&self) -> Vec<u8> {
-        error!("Snapshot is not supported for Objects yet - {self:?}");
-        vec![]
+        match serde_json::to_string(self) {
+            Ok(v) => {
+                let mut bytes = vec![0];
+                bytes.extend(Snapshot::as_bytes(&v));
+                bytes
+            }
+            Err(e) => {
+                let mut bytes = vec![0];
+                bytes.extend(
+                    VMError::RuntimeError(format!("Failed to serialize {self:?} - {e}")).as_bytes(),
+                );
+                bytes
+            }
+        }
     }
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
-        Err(VMError::todo("Snapshot is not supported for Objects yet"))
+        match bytes.next() {
+            Some(0) => Err(Snapshot::from_bytes(bytes, location)?),
+            Some(1) => {
+                let str = String::from_bytes(bytes, location)?;
+                match serde_json::from_str::<Self>(&str) {
+                    Ok(mut v) => {
+                        v.post_deserialize();
+                        Ok(v)
+                    }
+                    Err(e) => Err(VMError::RuntimeError(format!(
+                        "Failed to deserialize object - {e}"
+                    ))),
+                }
+            }
+            o => Err(VMError::RuntimeError(format!("Illegal Object byte {o:?}"))),
+        }
     }
 }
 

@@ -1870,6 +1870,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "serde",
+ "serde_json",
  "typetag",
  "wasm-bindgen-test",
 ]
@@ -1902,7 +1903,6 @@ dependencies = [
  "rigz_ast",
  "rigz_ast_derive",
  "rigz_core",
- "rigz_runtime",
  "rigz_vm",
  "ring",
  "rustls-pki-types",

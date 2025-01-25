@@ -125,10 +125,9 @@ impl DeriveObject {
                 (
                     id,
                     quote! {
-                        #[derive(derivative::Derivative)]
+                        #[derive(derivative::Derivative, serde::Serialize, serde::Deserialize)]
                         #[derive(Clone)]
                         #[derivative(Debug, Default, Hash, PartialOrd, PartialEq)]
-                        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
                         pub #s
 
                         #type_info
@@ -200,7 +199,7 @@ fn impl_object(name: &Ident, object_definition: &ObjectDefinition) -> Tokens {
     } = custom_trait(name, object_definition);
 
     quote! {
-        #[cfg_attr(feature = "serde", typetag::serde)]
+        #[typetag::serde]
         impl rigz_core::Object for #name {
             #ext
 

@@ -3,13 +3,11 @@ mod snapshot;
 
 use crate::VMError;
 use itertools::Itertools;
-#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub enum RigzType {
     None,
     Any,
@@ -159,8 +157,7 @@ impl Display for RigzType {
     }
 }
 
-#[derive(Clone, Debug, PartialOrd, Ord, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub struct CustomType {
     pub name: String,
     pub fields: Vec<(String, RigzType)>,
