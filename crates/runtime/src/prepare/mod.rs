@@ -4,17 +4,17 @@ use crate::RuntimeError;
 use log::{error, warn, Level};
 pub use program::Program;
 use rigz_ast::*;
-use rigz_core::{
-    IndexMap, IndexMapEntry, Lifecycle, Number, ObjectValue, PrimitiveValue, RigzType,
-};
-use rigz_vm::{Instruction, LoadValue, RigzBuilder, VMBuilder, VM};
+use rigz_core::{EnumDeclaration, IndexMap, IndexMapEntry, Lifecycle, Number, ObjectValue, PrimitiveValue, RigzType};
+use rigz_vm::{Instruction, LoadValue, MatchArm, RigzBuilder, VMBuilder, VM};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::env;
 use std::fmt::Debug;
+use std::ops::Index;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
+use itertools::Itertools;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum CallSite {
@@ -174,6 +174,8 @@ pub(crate) struct ProgramParser<'vm, T: RigzBuilder> {
     // todo imports should be fully resolved path
     imports: HashMap<ImportPath, Imports>,
     objects: HashMap<String, Rc<ObjectDeclaration>>,
+    enums: HashMap<String, (usize, Arc<EnumDeclaration>)>,
+    enum_lookups: HashMap<usize, Arc<EnumDeclaration>>,
 }
 
 impl<T: RigzBuilder> Default for ProgramParser<'_, T> {
@@ -190,6 +192,8 @@ impl<T: RigzBuilder> Default for ProgramParser<'_, T> {
             parser_options: Default::default(),
             imports: Default::default(),
             objects: Default::default(),
+            enums: Default::default(),
+            enum_lookups: Default::default(),
         }
     }
 }
@@ -206,6 +210,8 @@ impl<'vm> ProgramParser<'vm, VMBuilder> {
             parser_options,
             imports,
             objects,
+            enums,
+            enum_lookups,
         } = self;
         ProgramParser {
             builder: builder.build(),
@@ -217,6 +223,8 @@ impl<'vm> ProgramParser<'vm, VMBuilder> {
             parser_options,
             imports,
             objects,
+            enums,
+            enum_lookups
         }
     }
 }
@@ -639,6 +647,15 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             }
             Statement::ObjectDefinition(definition) => {
                 self.parse_object_definition(definition, None)?
+            }
+            Statement::Enum(e) => {
+                if e.variants.iter().map(|v| &v.0).unique().count() != e.variants.len() {
+                    return Err(ValidationError::InvalidEnum(format!("Duplicate variants in {}", e.name)))
+                }
+                let e = Arc::new(e);
+                let index = self.builder.register_enum(e.clone());
+                self.enum_lookups.insert(index, e.clone());
+                self.enums.insert(e.name.clone(), (index, e));
             }
         }
         Ok(())
@@ -1252,6 +1269,92 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 }
                 self.builder.exit_scope(current);
                 self.builder.add_catch_instruction(inner);
+            }
+            Expression::Match { condition, variants } => {
+                let rt = self.rigz_type(&condition)?;
+                let var = variants.len();
+                let base = match rt {
+                    RigzType::Enum(i) => self.enum_lookups.get(&i).cloned(),
+                    _ => None
+                };
+                let mut match_arms = vec![];
+                for (index, v) in variants.into_iter().enumerate() {
+                    match (&base, v) {
+                        (None, MatchVariant::Enum { name, .. }) => {
+                            return Err(ValidationError::InvalidEnum(format!("Unknown enum match statement .{name} for {condition:?} ({rt:?})")))
+                        }
+                        (Some(en), MatchVariant::Enum { name, condition: cond, body, variables, }) => {
+                            match en.variants.iter().find_position(|(v, vt)| v == &name) {
+                                None => return Err(ValidationError::InvalidEnum(format!("Illegal enum match variant .{name} for {condition:?} ({rt:?})"))),
+                                Some((vi, (vname, vt))) => {
+                                    match cond {
+                                        MatchVariantCondition::None => {
+                                            let scope = self.parse_scope(body, vname)?;
+                                            match_arms.push(MatchArm::Enum(vi, scope));
+                                        },
+                                        // Todo all expressions will need to be processed or they'll hold over on stack
+                                        MatchVariantCondition::If(ex) => {
+                                            self.parse_expression(ex)?;
+                                            let scope = self.parse_scope(body, vname)?;
+                                            match_arms.push(MatchArm::If(vi, scope));
+                                        }
+                                        MatchVariantCondition::Unless(ex) => {
+                                            self.parse_expression(ex)?;
+                                            let scope = self.parse_scope(body, vname)?;
+                                            match_arms.push(MatchArm::Unless(vi, scope));
+                                        }
+                                    };
+                                }
+                            }
+                        }
+                        (_, MatchVariant::Else(scope)) => {
+                            if index + 1 != var {
+                                warn!("else arm should be last, remaining match arms will be skipped");
+                            }
+                            let scope = self.parse_scope(scope, "else")?;
+                            match_arms.push(MatchArm::Else(scope));
+                        }
+                    }
+                }
+                self.parse_expression(*condition)?;
+                self.builder.add_match_instruction(match_arms);
+            }
+            Expression::Enum(t, v, ex) => {
+                let (e_index, e) = match self.enums.get(&t) {
+                    None => return Err(ValidationError::InvalidEnum(format!("{t} does not exist"))),
+                    Some((e_index, e)) => (*e_index, e.clone()),
+                };
+                let pos = e.variants.iter().find_position(|(e, _)| {
+                    e == &v
+                });
+                let (index, ty) = match pos {
+                    None => return Err(ValidationError::InvalidEnum(format!("{t}.{v} does not exist"))),
+                    Some((i, v)) => (i, &v.1)
+                };
+                // todo type checking
+                let has_value = match (ty, ex) {
+                    (RigzType::None, None) => false,
+                    (RigzType::None, Some(e)) => {
+                        return Err(ValidationError::InvalidEnum(format!("{t}.{v}, expected no arguments, received {e:?}")))
+                    }
+                    (RigzType::Wrapper { base_type, optional, can_return_error }, ex) if *optional => {
+                        match ex {
+                            None => false,
+                            Some(e) => {
+                                self.parse_expression(*e)?;
+                                true
+                            }
+                        }
+                    }
+                    (rt, None) => {
+                        return Err(ValidationError::InvalidEnum(format!("{t}.{v}, expected {rt:?}, received none")))
+                    }
+                    (rt, Some(e)) => {
+                        self.parse_expression(*e)?;
+                        true
+                    }
+                };
+                self.builder.add_create_enum_instruction(e_index, index, has_value);
             }
         }
         Ok(())

@@ -32,6 +32,7 @@ pub enum RigzType {
     Union(Vec<RigzType>),
     Composite(Vec<RigzType>),
     Custom(CustomType),
+    Enum(usize),
 }
 
 impl Default for RigzType {
@@ -130,6 +131,7 @@ impl Display for RigzType {
             RigzType::This => write!(f, "Self"),
             RigzType::Range => write!(f, "Range"),
             RigzType::Type => write!(f, "Type"),
+            RigzType::Enum(i) => write!(f, "Enum {i}"),
             RigzType::Wrapper {
                 base_type,
                 optional,

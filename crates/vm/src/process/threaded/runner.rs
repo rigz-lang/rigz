@@ -5,7 +5,7 @@ use crate::{
     VMStack, VMState, Variable,
 };
 use log_derive::{logfn, logfn_inputs};
-use rigz_core::{MutableReference, ObjectValue, ResolveValue, RigzArgs, StackValue, VMError};
+use rigz_core::{EnumDeclaration, MutableReference, ObjectValue, ResolveValue, RigzArgs, StackValue, VMError};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Deref;
@@ -60,6 +60,10 @@ impl<'s> ProcessRunner<'s> {
 #[allow(unused_variables, unused_mut)]
 impl Runner for ProcessRunner<'_> {
     runner_common!();
+
+    fn find_enum(&mut self, enum_type: usize) -> Result<std::sync::Arc<EnumDeclaration>, VMError> {
+        Err(VMError::todo("Process does not implement `find_enum`"))
+    }
 
     fn update_scope<F>(&mut self, index: usize, mut update: F) -> Result<(), VMError>
     where

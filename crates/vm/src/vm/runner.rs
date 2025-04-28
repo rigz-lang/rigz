@@ -4,7 +4,7 @@ use crate::{
 };
 use itertools::Itertools;
 use log_derive::{logfn, logfn_inputs};
-use rigz_core::{Lifecycle, ObjectValue, ResolveValue, RigzArgs, StackValue, VMError};
+use rigz_core::{EnumDeclaration, Lifecycle, ObjectValue, ResolveValue, RigzArgs, StackValue, VMError};
 use std::fmt::Display;
 use std::ops::Deref;
 use std::thread;
@@ -23,6 +23,13 @@ impl Runner for VM {
                 "Scope {index} does not exist"
             ))),
             Some(s) => update(s),
+        }
+    }
+
+    fn find_enum(&mut self, enum_type: usize) -> Result<std::sync::Arc<EnumDeclaration>, VMError> {
+        match self.enums.read().expect("Failed to read enums").get(enum_type) {
+            None => Err(VMError::RuntimeError(format!("Enum {enum_type} doesn't exist"))),
+            Some(v) => Ok(v.clone())
         }
     }
 

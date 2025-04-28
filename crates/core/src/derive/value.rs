@@ -1,4 +1,4 @@
-use crate::derive::csv_vec;
+use crate::derive::{boxed, csv_vec};
 use crate::{Number, ObjectValue, PrimitiveValue, VMError, ValueRange};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
@@ -31,6 +31,13 @@ impl ToTokens for ObjectValue {
                 }
             }
             ObjectValue::Object(v) => todo!("Unable to convert {v:?} to tokens"),
+            ObjectValue::Enum(i, v, b) => match b {
+                None => quote! { ObjectValue::Enum(#i, #v, None) },
+                Some(b) => {
+                    let b = boxed(b);
+                    quote! { ObjectValue::Enum(#i, #v, Some(#b)) }
+                },
+            }
         };
         tokens.extend(t)
     }

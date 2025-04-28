@@ -10,7 +10,7 @@ use crate::{
 use itertools::Itertools;
 use std::cell::RefCell;
 use std::cmp::Ordering;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Error, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
@@ -19,11 +19,12 @@ use std::rc::Rc;
 #[serde(untagged)]
 pub enum ObjectValue {
     Primitive(PrimitiveValue),
-    // todo Lists, Maps, & Tuples should use Rc<RefCell<ObjectValue>> to make this language fully pass by reference
+    // todo Enum, Lists, Maps, & Tuples should use Rc<RefCell<ObjectValue>> to make this language fully pass by reference
     List(Vec<ObjectValue>),
     Map(IndexMap<ObjectValue, ObjectValue>),
     Tuple(Vec<ObjectValue>),
     Object(Box<dyn Object>),
+    Enum(usize, usize, Option<Box<ObjectValue>>)
 }
 
 impl ObjectValue {
@@ -51,6 +52,11 @@ impl Hash for ObjectValue {
             }
             ObjectValue::Tuple(t) => t.hash(state),
             ObjectValue::Object(o) => o.hash(state),
+            ObjectValue::Enum(e, i, v) => {
+                e.hash(state);
+                i.hash(state);
+                v.hash(state);
+            },
         }
     }
 }
@@ -78,6 +84,7 @@ impl PartialEq for ObjectValue {
             ) => left == right,
             (ObjectValue::Map(left), ObjectValue::Map(right)) => left == right,
             (ObjectValue::Object(left), ObjectValue::Object(right)) => left == right,
+            (ObjectValue::Enum(l_e, l_i, l_v), ObjectValue::Enum(r_e, r_i, r_v)) => l_e == r_e && l_i == r_i && l_v == r_v,
             _ => false,
         }
     }
@@ -143,6 +150,10 @@ impl Display for ObjectValue {
                     }
                 }
                 write!(f, "{{{}}}", values)
+            }
+            ObjectValue::Enum(_, _, _) => {
+                // todo need to figure this out
+                write!(f, "")
             }
         }
     }
@@ -405,6 +416,11 @@ impl WithTypeInfo for ObjectValue {
             ObjectValue::Map(_) => RigzType::Map(Box::default(), Box::default()),
             ObjectValue::Tuple(t) => RigzType::Tuple(t.iter().map(|i| i.rigz_type()).collect()),
             ObjectValue::Object(o) => o.rigz_type(),
+            // todo these should be updated
+            ObjectValue::Enum(i, _, v) => match v {
+                None => RigzType::Enum(*i),
+                Some(v) => v.rigz_type()
+            }
         }
     }
 }
@@ -446,6 +462,10 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
                 })
                 .collect()),
             ObjectValue::Object(m) => m.to_map(),
+            ObjectValue::Enum(e, i, value) => match value {
+                None => Err(VMError::UnsupportedOperation(format!("Cannot convert enum {e} to {i}"))),
+                Some(v) => v.to_map()
+            }
         }
     }
 
@@ -466,6 +486,10 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
             ObjectValue::Map(m) => !m.is_empty(),
             ObjectValue::Primitive(p) => p.to_bool(),
             ObjectValue::Object(o) => o.to_bool(),
+            ObjectValue::Enum(_, _, v) => match v {
+                None => true, // todo should variant 0 be false?
+                Some(e) => e.to_bool()
+            }
         }
     }
 }

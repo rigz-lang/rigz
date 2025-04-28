@@ -1,6 +1,6 @@
 use crate::prepare::{CallSignature, FunctionCallSignatures, ProgramParser};
 use itertools::Itertools;
-use rigz_ast::{Element, Expression, FunctionExpression, Scope, ValidationError};
+use rigz_ast::{Element, Expression, FunctionExpression, MatchVariant, Scope, ValidationError};
 use rigz_core::{PrimitiveValue, RigzType, UnaryOperation, ValueRange, WithTypeInfo};
 use rigz_vm::RigzBuilder;
 use std::cmp::Ordering;
@@ -152,6 +152,23 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     RigzType::Union(vec![base, catch])
                 }
             }
+            Expression::Match { variants, .. } => {
+                let mut res = Vec::with_capacity(variants.len());
+                for v in variants.iter().map(|v| match v {
+                    MatchVariant::Enum { body, .. } => self.scope_type(body),
+                    MatchVariant::Else(s) => self.scope_type(s),
+                }) {
+                    res.push(v?);
+                }
+                RigzType::Union(res.into_iter().unique().collect())
+            }
+            Expression::Enum(v, _, _) => {
+                let index = match self.enums.get(v) {
+                    None => return Err(ValidationError::InvalidEnum(format!("enum {v} does not exist"))),
+                    Some((v, _)) => *v,
+                };
+                RigzType::Enum(index)
+            }
         };
         Ok(t)
     }
@@ -181,6 +198,9 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             }
             RigzType::Custom(_) => RigzType::Any,
             RigzType::Wrapper { base_type, .. } => self.index_type(*base_type),
+            RigzType::Enum(i) => {
+                todo!()
+            }
         }
     }
 

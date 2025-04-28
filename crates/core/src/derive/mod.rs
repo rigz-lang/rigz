@@ -2,6 +2,7 @@ mod lifecycle;
 mod objects;
 mod operations;
 mod value;
+mod enum_value;
 
 use quote::{quote, ToTokens};
 

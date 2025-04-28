@@ -95,6 +95,18 @@ pub mod runtime {
             // last statement must be an expression
             assign("a = 3 * 2")
             var_once_in_fn_def("fn foo(var foo, var bar) = none")
+            duplicate_values_in_object(r#"
+                object Foo
+                    attr :bar
+                    attr :bar
+                end
+            "#)
+            duplicate_values_in_enum(r#"
+                enum Foo
+                    Bar,
+                    Bar
+                end
+            "#)
         }
 
         run_error! {
@@ -529,6 +541,25 @@ pub mod runtime {
                 22
             end
             "# = 22)
+            create_enum(r#"
+            enum Foo
+                Baz,
+                Bar
+            end
+
+            Foo.Bar
+            "# = ObjectValue::Enum(0, 1, None))
+            match_enum(r#"
+            enum Foo
+                Baz,
+                Bar
+            end
+
+            match Foo.Bar do
+                .Bar -> 42,
+                else -> 69
+            end
+            "# = 42)
         }
     }
 

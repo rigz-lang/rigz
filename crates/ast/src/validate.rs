@@ -13,6 +13,7 @@ pub enum ValidationError {
     NotImplemented(String),
     InvalidType(String),
     DownloadFailed(String),
+    InvalidEnum(String),
 }
 
 impl Error for ValidationError {}
@@ -28,6 +29,7 @@ impl Display for ValidationError {
             ValidationError::InvalidExport(e) => write!(f, "Invalid Export: {e}"),
             ValidationError::NotImplemented(e) => write!(f, "Not Implemented: {e}"),
             ValidationError::InvalidType(e) => write!(f, "Invalid Type: {e}"),
+            ValidationError::InvalidEnum(e) => write!(f, "Invalid Enum: {e}"),
             ValidationError::DownloadFailed(e) => write!(f, "Download Failed: {e}"),
         }
     }

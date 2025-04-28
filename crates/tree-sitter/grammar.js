@@ -25,6 +25,7 @@ module.exports = grammar({
             $.trait,
             $.object,
             $.impl,
+            $.enum,
         ), optional($._terminator))),
         type_definition: $ => choice(
             seq($._type, $.type_identifier, "=", $.type_object),
@@ -34,6 +35,7 @@ module.exports = grammar({
         object: $ => seq("object", $.type, repeat($.program), "end"),
         trait: $ => seq("trait", $.type, repeat(choice($.function_declaration, $.function_definition)), "end"),
         impl: $ => seq("impl", $.type, "for", $.type, repeat($.function_definition), "end"),
+        enum: $ => seq("enum", $.type_identifier, "do", $.type, repeat(seq($.type, ",")), optional($.type), "end"),
         _terminator: _ => choice(";", "\n"),
         _type: _ => "type",
         _let: _ => "let",
@@ -94,10 +96,33 @@ module.exports = grammar({
             $.for_list,
             $.for_map,
             $.tuple,
+            $.match,
+            seq("return", optional($.expression)),
             // todo support string interpolation
             seq("(", $.expression, ")")
             // todo into isn't quite right here foo 1, 2, 4 |> bar, as-is it will pass 4 into bar instead of foo 1, 2, 4
         ), optional(choice($.cast, $.unless_guard, $.if_guard, $.into, repeat1($.index))))),
+        match: $ => seq("match", $.expression, "do",
+            choice(repeat1($.match_variant),
+                choice(
+                    seq(
+                        choice($.identifier, "else"),
+                        choice(
+                            seq("=>", $.expression, optional(",")),
+                            $.match_variant_scope
+                        )
+                    ),
+                    seq($.match_variant_lhs, "=>", $.expression, optional(",")),
+                )
+            ),
+            "end"),
+        match_variant: $ => seq($.match_variant_lhs, $.match_variant_body),
+        match_variant_lhs: $ => seq(choice(
+            seq(".", choice($.identifier, $.type_identifier), optional($.expression)),
+            seq($.type_identifier, ".", choice($.identifier, $.type_identifier), optional($.expression)),
+        ), optional(choice($.unless_guard, $.if_guard))),
+        match_variant_body: $ => choice(seq("=>", $.expression, ","), $.match_variant_scope),
+        match_variant_scope: $ => choice(seq("=>", "{", repeat($.statement), $.expression, "}"), seq("do", repeat($.statement), $.expression, "end")),
         do_scope: $ => seq(optional($.lifecycle), "do", $.scope),
         index: $=> seq("[", $.expression, "]"),
         function_call: $ => choice(prec.right(seq(

@@ -179,6 +179,65 @@ impl From<LoadValue> for StackValue {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MatchArm {
+    Enum(usize, usize),
+    If(usize, usize),
+    Unless(usize, usize),
+    Else(usize),
+}
+
+impl Snapshot for MatchArm {
+    fn as_bytes(&self) -> Vec<u8> {
+        match self {
+            MatchArm::Enum(c, v) => {
+                let mut res = vec![0];
+                res.extend(c.as_bytes());
+                res.extend(v.as_bytes());
+                res
+            }
+            MatchArm::If(c, v) => {
+                let mut res = vec![1];
+                res.extend(c.as_bytes());
+                res.extend(v.as_bytes());
+                res
+            }
+            MatchArm::Unless(c, v) => {
+                let mut res = vec![2];
+                res.extend(c.as_bytes());
+                res.extend(v.as_bytes());
+                res
+            }
+            MatchArm::Else(v) => {
+                let mut res = vec![3];
+                res.extend(v.as_bytes());
+                res
+            }
+        }
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        let current = match bytes.next() {
+            None => {
+                return Err(VMError::RuntimeError(format!(
+                    "Missing match arm byte {location}"
+                )))
+            }
+            Some(b) => b,
+        };
+        let arm = match current {
+            0 => MatchArm::Enum(Snapshot::from_bytes(bytes, location)?, Snapshot::from_bytes(bytes, location)?),
+            1 => MatchArm::If(Snapshot::from_bytes(bytes, location)?, Snapshot::from_bytes(bytes, location)?),
+            2 => MatchArm::Unless(Snapshot::from_bytes(bytes, location)?, Snapshot::from_bytes(bytes, location)?),
+            3 => MatchArm::Else(Snapshot::from_bytes(bytes, location)?),
+            b => return Err(VMError::RuntimeError(format!(
+                "Illegal match arm byte {b} {location}"
+            )))
+        };
+        Ok(arm)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Instruction {
     Halt,
     HaltIfError,
@@ -197,6 +256,12 @@ pub enum Instruction {
     CallMatching(Vec<(Vec<VMArg>, VMCallSite)>),
     CallMatchingMemo(Vec<(Vec<VMArg>, VMCallSite)>),
     CreateObject(Arc<RigzType>),
+    CreateEnum {
+        enum_type: usize,
+        variant: usize,
+        has_expression: bool
+    },
+    Match(Vec<MatchArm>),
     Log(Level, String, usize),
     Puts(usize),
     CallEq(usize),
@@ -542,6 +607,20 @@ impl Snapshot for Instruction {
                 res.extend(scope.as_bytes());
                 res
             }
+            Instruction::CreateEnum {
+                enum_type, variant, has_expression
+            } => {
+                let mut res = vec![53];
+                res.extend(enum_type.as_bytes());
+                res.extend(variant.as_bytes());
+                res.extend(has_expression.as_bytes());
+                res
+            }
+            Instruction::Match(arms) => {
+                let mut res = vec![54];
+                res.extend(arms.as_bytes());
+                res
+            }
         }
     }
 
@@ -670,6 +749,12 @@ impl Snapshot for Instruction {
             },
             51 => Instruction::Try,
             52 => Instruction::Catch(Snapshot::from_bytes(bytes, location)?),
+            53 => Instruction::CreateEnum {
+                enum_type: Snapshot::from_bytes(bytes, location)?,
+                variant: Snapshot::from_bytes(bytes, location)?,
+                has_expression: Snapshot::from_bytes(bytes, location)?,
+            },
+            54 => Instruction::Match(Snapshot::from_bytes(bytes, location)?),
             b => {
                 return Err(VMError::RuntimeError(format!(
                     "Illegal instruction byte {b} {location}"

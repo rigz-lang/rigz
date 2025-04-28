@@ -1,14 +1,12 @@
-use crate::{err, errln, out, outln, CallFrame, Instruction, Scope, VMOptions, VMState};
+use crate::{err, errln, out, outln, CallFrame, Instruction, MatchArm, Scope, VMOptions, VMState};
 use log::log;
-use rigz_core::{
-    AsPrimitive, BinaryOperation, IndexMap, Logical, Module, ObjectValue, PrimitiveValue,
-    Reference, ResolveValue, Reverse, RigzArgs, RigzObject, StackValue, UnaryOperation, VMError,
-};
+use rigz_core::{AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, Logical, Module, ObjectValue, PrimitiveValue, Reference, ResolveValue, Reverse, RigzArgs, RigzObject, StackValue, UnaryOperation, VMError};
 use std::cell::{Ref, RefCell};
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::string::ToString;
+use std::sync::Arc;
 use std::time::Duration;
 
 #[macro_export]
@@ -362,6 +360,8 @@ pub trait Runner: ResolveValue {
     fn get_mutable_variable(&mut self, name: &str);
 
     fn get_variable_reference(&mut self, name: &str);
+
+    fn find_enum(&mut self, enum_type: usize) -> Result<Arc<EnumDeclaration>, VMError>;
 
     fn call(
         &mut self,
@@ -781,6 +781,54 @@ pub trait Runner: ResolveValue {
                     }
                 } else {
                     self.store_value(next.into())
+                }
+            }
+            Instruction::CreateEnum { enum_type, variant, has_expression } => {
+                let decl = match self.find_enum(enum_type) {
+                    Ok(v) => v,
+                    Err(e) => return e.into()
+                };
+                let value = if has_expression {
+                    Some(self.next_resolved_value("create_enum"))
+                } else {
+                    None
+                };
+                let name = match decl.variants.get(variant) {
+                    None => return VMError::RuntimeError(format!("Invalid enum variant {} for {}", variant, decl.name)).into(),
+                    Some((v, _)) => v.clone()
+                };
+                let value = StackValue::Value(Rc::new(RefCell::new(ObjectValue::Enum(enum_type, variant, value.map(|v| v.borrow().clone().into())))));
+                self.store_value(value)
+            }
+            Instruction::Match(arms) => {
+                let v = self.next_resolved_value("match");
+                let mut scope = None;
+                for arm in arms {
+                    match arm {
+                        MatchArm::Enum(va, sc) => {
+                            // todo support destructuring
+                            if let ObjectValue::Enum(_, ev, val) = v.borrow().deref() {
+                                // todo ensure enum types are the same
+                                if ev == &va {
+                                    scope = Some(sc);
+                                    break;
+                                }
+                            }
+                        }
+                        MatchArm::If(va, sc) => {}
+                        MatchArm::Unless(va, sc) => {}
+                        MatchArm::Else(s) => {
+                            scope = Some(s);
+                            break;
+                        }
+                    }
+                }
+                match scope {
+                    None => return VMError::RuntimeError("No value found for match expression".to_string()).into(),
+                    Some(s) => match self.call_frame(s) {
+                        Ok(_) => {}
+                        Err(e) => return e.into(),
+                    },
                 }
             }
             ins => {

@@ -8,14 +8,11 @@ use crate::{
     generate_builder, out, CallFrame, Instruction, RigzBuilder, Runner, Scope, VMStack, Variable,
 };
 pub use options::VMOptions;
-use rigz_core::{
-    Dependency, Lifecycle, Module, MutableReference, ObjectValue, PrimitiveValue, Snapshot,
-    StackValue, TestResults, VMError,
-};
+use rigz_core::{Dependency, EnumDeclaration, Lifecycle, Module, MutableReference, ObjectValue, PrimitiveValue, Snapshot, StackValue, TestResults, VMError};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 pub use values::*;
 
@@ -26,7 +23,7 @@ pub type ModulesMap =
 #[cfg(not(feature = "threaded"))]
 pub type ModulesMap = HashMap<&'static str, std::rc::Rc<dyn Module>>;
 
-pub type Dependencies = std::sync::RwLock<Vec<Arc<Dependency>>>;
+pub type Dependencies = RwLock<Vec<Arc<Dependency>>>;
 
 #[derive(Debug)]
 pub struct VM {
@@ -40,6 +37,7 @@ pub struct VM {
     pub lifecycles: Vec<Lifecycle>,
     pub constants: Vec<ObjectValue>,
     pub(crate) process_manager: MutableReference<ProcessManager>,
+    pub enums: RwLock<Vec<Arc<EnumDeclaration>>>,
 }
 
 impl RigzBuilder for VM {
@@ -63,6 +61,20 @@ impl RigzBuilder for VM {
             .push(dependency);
         dep
     }
+
+    #[inline]
+    fn register_enum(&mut self, decl: Arc<EnumDeclaration>) -> usize {
+        let dep = self
+            .enums
+            .read()
+            .expect("failed to read enums")
+            .len();
+        self.enums
+            .get_mut()
+            .expect("failed to lock enums")
+            .push(decl);
+        dep
+    }
 }
 
 impl Default for VM {
@@ -83,7 +95,8 @@ impl Default for VM {
                 .into(),
             #[cfg(not(feature = "threaded"))]
             process_manager: ProcessManager::new().into(),
-            dependencies: vec![].into(),
+            dependencies: Default::default(),
+            enums: Default::default(),
         }
     }
 }

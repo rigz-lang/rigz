@@ -2,11 +2,7 @@ use crate::program::{
     ArgType, AssignIndex, Constructor, FunctionExpression, ImportValue, ObjectAttr,
     ObjectDefinition, RigzArguments,
 };
-use crate::{
-    Assign, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration,
-    FunctionDefinition, FunctionSignature, FunctionType, ModuleTraitDefinition, Scope, Statement,
-    TraitDefinition,
-};
+use crate::{Assign, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration, FunctionDefinition, FunctionSignature, FunctionType, ModuleTraitDefinition, Scope, Statement, TraitDefinition};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use rigz_core::derive::{boxed, csv_vec, option};
@@ -63,6 +59,21 @@ impl ToTokens for Expression {
         let t = match self {
             Expression::This => quote! {
                 Expression::This
+            },
+            Expression::Enum(t, s, exp) => {
+                let exp = match exp {
+                    None => quote! { None },
+                    Some(e) => {
+                        let b = boxed(e);
+                        quote! { Some(#b) }
+                    }
+                };
+                quote! {
+                    Expression::Enum(#t.to_string(), #s.to_string(), #exp)
+                }
+            },
+            Expression::Match { condition, variants } => quote! {
+                Expression::Match { }
             },
             Expression::Value(v) => {
                 quote! {
@@ -435,6 +446,11 @@ impl ToTokens for Statement {
             Statement::ObjectDefinition(o) => {
                 quote! {
                     Statement::ObjectDefinition(#o)
+                }
+            }
+            Statement::Enum(e) => {
+                quote! {
+                    Statement::Enum(#e)
                 }
             }
         };

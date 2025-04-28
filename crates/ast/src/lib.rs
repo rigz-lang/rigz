@@ -18,6 +18,7 @@ pub use program::*;
 
 use rigz_core::*;
 use std::collections::VecDeque;
+use std::env::var;
 use std::fmt::Debug;
 use std::path::PathBuf;
 pub use token::ParsingError;
@@ -398,6 +399,10 @@ impl<'t> Parser<'t> {
             TokenKind::Object => {
                 Statement::ObjectDefinition(self.parse_object_definition()?).into()
             }
+            TokenKind::Enum => {
+                self.consume_token(TokenKind::Enum)?;
+                Statement::Enum(self.parse_enum()?).into()
+            }
             _ => self.parse_expression()?.into(),
         };
         match self.peek_token() {
@@ -409,6 +414,48 @@ impl<'t> Parser<'t> {
         }
 
         self.parse_element_suffix(ele)
+    }
+
+    fn parse_enum(&mut self) -> Result<EnumDeclaration, ParsingError> {
+        let next = self.next_required_token("parse_enum")?;
+        let name = if let TokenKind::TypeValue(name) = next.kind {
+            name.to_string()
+        } else {
+            return Err(ParsingError::ParseError(format!(
+                "Invalid enum, expected trait name received {:?}",
+                next
+            )));
+        };
+
+        let mut variants = vec![];
+        let mut was_comma = false;
+        loop {
+            let next = self.next_required_token("parse_enum_variant")?;
+
+            match next.kind {
+                TokenKind::End => break,
+                TokenKind::Identifier(v) | TokenKind::TypeValue(v) => {
+                    was_comma = false;
+                    let peek = self.peek_required_token_eat_newlines("enum_variable")?;
+                    let rigz_type = match peek.kind {
+                        TokenKind::Comma | TokenKind::End => RigzType::None,
+                        _ => self.parse_rigz_type(None, false)?
+                    };
+                    variants.push((v.to_string(), rigz_type));
+                }
+                TokenKind::Newline => continue,
+                TokenKind::Comma if !was_comma => {
+                    was_comma = true;
+                    continue
+                },
+                t => return Err(ParsingError::ParseError(format!("Invalid enum variant token - {name}::{t}")))
+            }
+        }
+
+        Ok(EnumDeclaration {
+            name,
+            variants,
+        })
     }
 
     fn parse_element_suffix(&mut self, element: Element) -> Result<Element, ParsingError> {
@@ -666,6 +713,87 @@ impl<'t> Parser<'t> {
                     branch,
                 }
             }
+            TokenKind::Match => {
+                let condition = Box::new(self.parse_expression()?);
+                self.consume_token(TokenKind::Do)?;
+                let mut variants = vec![];
+                loop {
+                    let next = self.next_required_token("match")?;
+                    match next.kind {
+                        TokenKind::End => {
+                            break
+                        }
+                        TokenKind::Else => {
+                            self.consume_token(TokenKind::Arrow)?;
+                            let var = self.peek_required_token("match_variant - else")?;
+                            let scope = match var.kind {
+                                TokenKind::Do => self.parse_scope()?,
+                                _ => Scope {
+                                    elements: vec![self.parse_expression()?.into()],
+                                }
+                            };
+                            variants.push(MatchVariant::Else(scope))
+                        }
+                        TokenKind::Period => {
+                            let next = self.next_required_token("enum_value")?;
+                            // todo support complex enums
+                            let name = match next.kind {
+                                TokenKind::Identifier(id) | TokenKind::TypeValue(id)  => {
+                                    id.to_string()
+                                }
+                                _ => return Err(ParsingError::ParseError(format!("Invalid match variant {next:?}, expected Type or identifier after .")))
+                            };
+                            let c_token = self.peek_required_token("match_variant - condition or arrow")?;
+                            let condition = match c_token.kind {
+                                TokenKind::Arrow => MatchVariantCondition::None,
+                                TokenKind::If => {
+                                    self.consume_token(c_token.kind)?;
+                                    MatchVariantCondition::If(self.parse_expression()?)
+                                }
+                                TokenKind::Unless => {
+                                    self.consume_token(c_token.kind)?;
+                                    MatchVariantCondition::Unless(self.parse_expression()?)
+                                }
+                                _ => return Err(ParsingError::ParseError(format!("Invalid match variant condition {c_token:?}, condition or =>")))
+
+                            };
+                            self.consume_token(TokenKind::Arrow)?;
+                            let var = self.peek_required_token("match_variant - enum")?;
+                            let scope = match var.kind {
+                                TokenKind::Do => self.parse_scope()?,
+                                _ => {
+                                    let exp = self.parse_expression()?;
+                                    let comma_or_end = self.peek_required_token_eat_newlines("match_variant - inline")?;
+                                    match comma_or_end.kind {
+                                        TokenKind::End => {}
+                                        TokenKind::Comma => {
+                                            self.consume_token(TokenKind::Comma)?;
+                                        }
+                                        _ => return Err(ParsingError::ParseError(format!("Invalid inline match variant {comma_or_end:?}, expected , or end")))
+                                    };
+                                    Scope {
+                                        elements: vec![exp.into()],
+                                    }
+                                }
+                            };
+                            variants.push(MatchVariant::Enum {
+                                name,
+                                condition,
+                                body: scope,
+                                variables: vec![],
+                            });
+                        }
+                        TokenKind::Newline => {
+                            continue
+                        }
+                        _ => return Err(ParsingError::ParseError(format!("Invalid match variant {next:?}, values not supported yet")))
+                    }
+                }
+                Expression::Match {
+                    condition,
+                    variants
+                }
+            }
             TokenKind::TypeValue(type_value) => {
                 let type_value = match type_value.parse() {
                     Ok(tv) => tv,
@@ -692,6 +820,7 @@ impl<'t> Parser<'t> {
                                         "Unexpected = after {args:?} - {t:?}"
                                     )));
                                 }
+                                // todo handle possibility of enum here
                                 FunctionExpression::TypeFunctionCall(
                                     type_value,
                                     func_name.to_string(),
@@ -708,6 +837,20 @@ impl<'t> Parser<'t> {
                                     )));
                                 }
                                 FunctionExpression::TypeConstructor(type_value, args).into()
+                            }
+                            TokenKind::TypeValue(name) => {
+                                let exp = match self.peek_token() {
+                                    None => None,
+                                    Some(t) if t.terminal() => {
+                                        self.consume_token(t.kind)?;
+                                        None
+                                    },
+                                    Some(t) if t.kind == TokenKind::Do => {
+                                        None
+                                    },
+                                    Some(_) => Some(self.parse_expression()?.into()),
+                                };
+                                Expression::Enum(type_value.to_string(), name.to_string(), exp)
                             }
                             _ => {
                                 return Err(ParsingError::ParseError(format!(

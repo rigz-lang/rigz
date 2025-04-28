@@ -1,4 +1,4 @@
-use rigz_core::{BinaryOperation, Lifecycle, PrimitiveValue, RigzType, UnaryOperation};
+use rigz_core::{BinaryOperation, EnumDeclaration, Lifecycle, PrimitiveValue, RigzType, UnaryOperation};
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Program {
@@ -123,6 +123,7 @@ pub enum Statement {
         definitions: Vec<FunctionDefinition>,
     },
     ObjectDefinition(ObjectDefinition),
+    Enum(EnumDeclaration)
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -229,6 +230,31 @@ impl From<FunctionExpression> for Box<Expression> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub enum MatchVariant {
+    Enum {
+        name: String,
+        condition: MatchVariantCondition,
+        body: Scope,
+        variables: Vec<MatchVariantVariable>
+    },
+    Else(Scope)
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum MatchVariantVariable {
+    Identifier(String),
+    Value(PrimitiveValue),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum MatchVariantCondition {
+    None,
+    If(Expression),
+    Unless(Expression),
+}
+
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Expression {
     This,
     Value(PrimitiveValue),
@@ -249,6 +275,11 @@ pub enum Expression {
     Unless {
         condition: Box<Expression>,
         then: Scope,
+    },
+    Enum(String, String, Option<Box<Expression>>),
+    Match {
+        condition: Box<Expression>,
+        variants: Vec<MatchVariant>,
     },
     Error(Box<Expression>),
     Return(Option<Box<Expression>>),

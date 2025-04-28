@@ -30,6 +30,13 @@ impl Snapshot for ObjectValue {
                 res.extend(v.as_bytes());
                 res
             }
+            ObjectValue::Enum(type_id, variant, value) => {
+                let mut res = vec![6];
+                res.extend(type_id.as_bytes());
+                res.extend(variant.as_bytes());
+                res.extend(value.as_bytes());
+                res
+            }
         }
     }
 
@@ -49,6 +56,7 @@ impl Snapshot for ObjectValue {
             3 => ObjectValue::Map(Snapshot::from_bytes(bytes, location)?),
             4 => ObjectValue::Tuple(Snapshot::from_bytes(bytes, location)?),
             5 => ObjectValue::Object(Snapshot::from_bytes(bytes, location)?),
+            6 => ObjectValue::Enum(Snapshot::from_bytes(bytes, location)?, Snapshot::from_bytes(bytes, location)?, Snapshot::from_bytes(bytes, location)?),
             b => {
                 return Err(VMError::RuntimeError(format!(
                     "Illegal byte {b} for ObjectValue {location}"

@@ -238,11 +238,14 @@ pub(crate) enum TokenKind<'lex> {
     Attr,
     #[token("new")]
     New,
-    // todo support zig style try / catch
     #[token("try")]
     Try,
     #[token("catch")]
     Catch,
+    #[token("enum")]
+    Enum,
+    #[token("match")]
+    Match,
 }
 
 impl Display for TokenKind<'_> {
@@ -307,6 +310,8 @@ impl Display for TokenKind<'_> {
             TokenKind::Object => write!(f, "object"),
             TokenKind::Attr => write!(f, "attr"),
             TokenKind::New => write!(f, "new"),
+            TokenKind::Enum => write!(f, "enum"),
+            TokenKind::Match => write!(f, "match"),
         }
     }
 }

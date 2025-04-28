@@ -14,6 +14,10 @@ impl Reverse for ObjectValue {
                 ObjectValue::Map(r)
             }
             ObjectValue::Object(o) => o.reverse().unwrap_or_else(|e| e.into()),
+            ObjectValue::Enum(e, v, value) => match value {
+                None => ObjectValue::Enum(*e, *v, None),
+                Some(val) => ObjectValue::Enum(*e, *v, Some(val.reverse().into())),
+            }
         }
     }
 }

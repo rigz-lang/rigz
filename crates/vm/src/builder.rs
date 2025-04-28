@@ -1,10 +1,8 @@
 use crate::vm::VMOptions;
-use crate::ModulesMap;
+use crate::{MatchArm, ModulesMap};
 use crate::{Instruction, LoadValue, Scope, VM};
 use log::Level;
-use rigz_core::{
-    BinaryOperation, Dependency, Lifecycle, Module, ObjectValue, RigzType, UnaryOperation,
-};
+use rigz_core::{BinaryOperation, Dependency, EnumDeclaration, Lifecycle, Module, MutableReference, ObjectValue, RigzType, UnaryOperation};
 use std::fmt::Debug;
 use std::sync::Arc;
 // todo use Rodeo (single threaded here + runtime), use Reference<(Threaded or not)Resolver> in VM
@@ -18,6 +16,7 @@ pub struct VMBuilder {
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
     pub constants: Vec<ObjectValue>,
+    pub enums: Vec<Arc<EnumDeclaration>>,
 }
 
 impl Default for VMBuilder {
@@ -31,6 +30,7 @@ impl Default for VMBuilder {
             options: Default::default(),
             lifecycles: Default::default(),
             constants: Default::default(),
+            enums: Default::default(),
         }
     }
 }
@@ -88,6 +88,8 @@ pub trait RigzBuilder: Debug + Default {
     fn convert_to_lazy_scope(&mut self, scope_id: usize, var: String) -> &mut Self;
 
     fn register_dependency(&mut self, dependency: Arc<Dependency>) -> usize;
+
+    fn register_enum(&mut self, dependency: Arc<EnumDeclaration>) -> usize;
 
     #[cfg(feature = "threaded")]
     fn register_module<M: Module + Send + Sync + 'static>(&mut self, module: M) -> &mut Self;
@@ -357,6 +359,18 @@ pub trait RigzBuilder: Debug + Default {
     }
 
     #[inline]
+    fn add_create_enum_instruction(&mut self, enum_type: usize, variant: usize, has_expression: bool) -> &mut Self {
+        self.add_instruction(Instruction::CreateEnum {
+            enum_type, variant, has_expression
+        })
+    }
+
+    #[inline]
+    fn add_match_instruction(&mut self, arms: Vec<MatchArm>) -> &mut Self {
+        self.add_instruction(Instruction::Match(arms))
+    }
+
+    #[inline]
     fn add_call_dependency_instruction(&mut self, args: usize, value: usize) -> &mut Self {
         self.add_instruction(Instruction::CreateDependency(args, value))
     }
@@ -492,6 +506,7 @@ impl RigzBuilder for VMBuilder {
             options: self.options,
             lifecycles: self.lifecycles,
             constants: self.constants,
+            enums: self.enums.into(),
             ..Default::default()
         }
     }
@@ -501,6 +516,12 @@ impl RigzBuilder for VMBuilder {
         let dep = self.dependencies.len();
         self.dependencies.push(dependency);
         dep
+    }
+
+    fn register_enum(&mut self, declaration: Arc<EnumDeclaration>) -> usize {
+        let index = self.enums.len();
+        self.enums.push(declaration);
+        index
     }
 }
 

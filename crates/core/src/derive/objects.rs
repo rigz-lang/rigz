@@ -18,6 +18,7 @@ impl ToTokens for RigzType {
             RigzType::This => quote! { RigzType::This },
             RigzType::Range => quote! { RigzType::Range },
             RigzType::Type => quote! { RigzType::Type },
+            RigzType::Enum(i) => quote! { RigzType::Enum(#i) },
             RigzType::List(t) => {
                 let t = boxed(t);
                 quote! { RigzType::List(#t) }

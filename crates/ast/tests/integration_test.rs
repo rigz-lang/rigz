@@ -144,6 +144,17 @@ pub mod valid {
         end
 
         Foo.new 7"#,
+        enum_definition r#"enum Foo
+            Bar,
+            Baz
+        end
+
+        Foo.Baz"#,
+        enum_match_definition r#"
+        match Foo.Baz do
+            .Bar -> bar,
+            .Baz -> baz
+        end"#,
     );
 }
 

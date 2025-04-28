@@ -491,6 +491,9 @@ fn rigz_type_to_arg(value: &RigzType, index: usize, offset: Option<usize>) -> To
             RigzType::Function(_, _) => {
                 todo!("Functions are not supported as module return values")
             }
+            RigzType::Enum(_) => {
+                todo!("Enums are not supported as module return values")
+            }
         };
         let id = match offset {
             None => Ident::new(format!("{id}{index}").as_str(), Span::call_site()),
