@@ -884,7 +884,37 @@ impl<'t> Parser<'t> {
             }
             TokenKind::Error => {
                 let ex = self.parse_expression()?;
-                Expression::Error(ex.into())
+                let value = match self.peek_token() {
+                    Some(t) if t.kind == TokenKind::Comma => {
+                        self.consume_token(t.kind)?;
+                        let mut args = vec![ex];
+                        let mut comma = true;
+                        loop {
+                            let next = self.peek_token();
+                            match next {
+                                None => break,
+                                Some(t) if t.terminal() => {
+                                    self.consume_token(t.kind)?;
+                                    break
+                                },
+                                Some(t) if t.kind == TokenKind::Comma => {
+                                    self.consume_token(TokenKind::Comma)?;
+                                    if comma {
+                                        return Err(ParsingError::ParseError(format!("Duplicate comma {:?}", t)))
+                                    }
+                                    comma = true;
+                                }
+                                Some(_) => {
+                                    args.push(self.parse_expression()?);
+                                    comma = false;
+                                }
+                            }
+                        }
+                        Expression::Tuple(args)
+                    }
+                    _ => ex
+                };
+                Expression::Error(value.into())
             }
             TokenKind::Return => match self.peek_token() {
                 None => Expression::Return(None),

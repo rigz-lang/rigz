@@ -91,7 +91,7 @@ pub mod runtime {
     pub mod invalid {
         use super::*;
         use rigz_ast::ValidationError;
-        use rigz_core::VMError;
+        use rigz_core::{ObjectValue, VMError};
 
         run_invalid! {
             // last statement must be an expression
@@ -124,6 +124,7 @@ pub mod runtime {
             try_fail(r#"
             try raise "Failure"
             "# = VMError::runtime("Failure".to_string()))
+            raise_args("raise 1, 2, 3" = VMError::RuntimeError(Box::new(ObjectValue::Tuple(vec![1.into(), 2.into(), 3.into()]))))
         }
 
         run_error_starts_with! {
