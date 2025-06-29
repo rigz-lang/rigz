@@ -183,7 +183,7 @@ impl Snapshot for Box<dyn Object + '_> {
             Err(e) => {
                 let mut bytes = vec![0];
                 bytes.extend(
-                    VMError::RuntimeError(format!("Failed to serialize {self:?} - {e}")).as_bytes(),
+                    VMError::runtime(format!("Failed to serialize {self:?} - {e}")).as_bytes(),
                 );
                 bytes
             }
@@ -200,12 +200,12 @@ impl Snapshot for Box<dyn Object + '_> {
                         v.post_deserialize();
                         Ok(v)
                     }
-                    Err(e) => Err(VMError::RuntimeError(format!(
+                    Err(e) => Err(VMError::runtime(format!(
                         "Failed to deserialize object - {e}"
                     ))),
                 }
             }
-            o => Err(VMError::RuntimeError(format!("Illegal Object byte {o:?}"))),
+            o => Err(VMError::runtime(format!("Illegal Object byte {o:?}"))),
         }
     }
 }

@@ -1,6 +1,10 @@
 use crate::{err, errln, out, outln, CallFrame, Instruction, MatchArm, Scope, VMOptions, VMState};
 use log::log;
-use rigz_core::{AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, Logical, Module, ObjectValue, PrimitiveValue, Reference, ResolveValue, Reverse, RigzArgs, RigzObject, StackValue, UnaryOperation, VMError};
+use rigz_core::{
+    AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, Logical, Module, ObjectValue,
+    PrimitiveValue, Reference, ResolveValue, Reverse, RigzArgs, RigzObject, StackValue,
+    UnaryOperation, VMError,
+};
 use std::cell::{Ref, RefCell};
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
@@ -85,9 +89,7 @@ macro_rules! runner_common {
 
             let mut frame = match owner {
                 None => {
-                    return Some(
-                        VMError::RuntimeError(format!("{var} not found in callstack")).into(),
-                    )
+                    return Some(VMError::runtime(format!("{var} not found in callstack")).into())
                 }
                 Some(None) => self.frames.current.borrow_mut(),
                 Some(Some(id)) => self.frames.frames[id].borrow_mut(),
@@ -101,15 +103,15 @@ macro_rules! runner_common {
         }
 
         #[inline]
-        fn load_mut(&mut self, name: String) -> Result<(), VMError> {
+        fn load_mut(&mut self, name: String, shadow: bool) -> Result<(), VMError> {
             let v = self.next_value(format!("load_mut - {name}"));
-            self.frames.load_mut(name, v)
+            self.frames.load_mut(name, v, shadow)
         }
 
         #[inline]
-        fn load_let(&mut self, name: String) -> Result<(), VMError> {
+        fn load_let(&mut self, name: String, shadow: bool) -> Result<(), VMError> {
             let v = self.next_value(format!("load_let - {name}"));
-            self.frames.load_let(name, v)
+            self.frames.load_let(name, v, shadow)
         }
 
         #[inline]
@@ -264,8 +266,8 @@ pub trait Runner: ResolveValue {
 
     fn get_module(&mut self, module: String) -> Option<ResolvedModule>;
 
-    fn load_mut(&mut self, name: String) -> Result<(), VMError>;
-    fn load_let(&mut self, name: String) -> Result<(), VMError>;
+    fn load_mut(&mut self, name: String, shadow: bool) -> Result<(), VMError>;
+    fn load_let(&mut self, name: String, shadow: bool) -> Result<(), VMError>;
 
     fn find_variable(
         &self,
@@ -278,9 +280,9 @@ pub trait Runner: ResolveValue {
     #[inline]
     fn set_this(&mut self, mutable: bool) -> Result<(), VMError> {
         if mutable {
-            self.load_mut("self".to_string())
+            self.load_mut("self".to_string(), false)
         } else {
-            self.load_let("self".to_string())
+            self.load_let("self".to_string(), false)
         }
     }
 
@@ -414,13 +416,13 @@ pub trait Runner: ResolveValue {
             Instruction::Load(r) => {
                 self.store_value(r.clone().into());
             }
-            Instruction::LoadLet(name) => {
-                if let Err(e) = self.load_let(name) {
+            Instruction::LoadLet(name, shadow) => {
+                if let Err(e) = self.load_let(name, shadow) {
                     return e.into();
                 }
             }
-            Instruction::LoadMut(name) => {
-                if let Err(e) = self.load_mut(name) {
+            Instruction::LoadMut(name, shadow) => {
+                if let Err(e) = self.load_mut(name, shadow) {
                     return e.into();
                 }
             }
@@ -773,9 +775,18 @@ pub trait Runner: ResolveValue {
                     self.store_value(next.into())
                 }
             }
-            Instruction::Catch(scope) => {
+            Instruction::Catch(scope, has_arg) => {
                 let next = self.next_resolved_value("catch");
                 if next.borrow().is_error() {
+                    let ObjectValue::Primitive(PrimitiveValue::Error(e)) = next.take() else {
+                        unreachable!("is_error check failed")
+                    };
+                    if has_arg {
+                        if has_arg {
+                            let v = e.extract_value();
+                            self.store_value(v.into());
+                        }
+                    }
                     if let Err(e) = self.call_frame(scope) {
                         self.store_value(e.into())
                     }
@@ -783,10 +794,14 @@ pub trait Runner: ResolveValue {
                     self.store_value(next.into())
                 }
             }
-            Instruction::CreateEnum { enum_type, variant, has_expression } => {
+            Instruction::CreateEnum {
+                enum_type,
+                variant,
+                has_expression,
+            } => {
                 let decl = match self.find_enum(enum_type) {
                     Ok(v) => v,
-                    Err(e) => return e.into()
+                    Err(e) => return e.into(),
                 };
                 let value = if has_expression {
                     Some(self.next_resolved_value("create_enum"))
@@ -794,10 +809,20 @@ pub trait Runner: ResolveValue {
                     None
                 };
                 let name = match decl.variants.get(variant) {
-                    None => return VMError::RuntimeError(format!("Invalid enum variant {} for {}", variant, decl.name)).into(),
-                    Some((v, _)) => v.clone()
+                    None => {
+                        return VMError::runtime(format!(
+                            "Invalid enum variant {} for {}",
+                            variant, decl.name
+                        ))
+                        .into()
+                    }
+                    Some((v, _)) => v.clone(),
                 };
-                let value = StackValue::Value(Rc::new(RefCell::new(ObjectValue::Enum(enum_type, variant, value.map(|v| v.borrow().clone().into())))));
+                let value = StackValue::Value(Rc::new(RefCell::new(ObjectValue::Enum(
+                    enum_type,
+                    variant,
+                    value.map(|v| v.borrow().clone().into()),
+                ))));
                 self.store_value(value)
             }
             Instruction::Match(arms) => {
@@ -824,7 +849,10 @@ pub trait Runner: ResolveValue {
                     }
                 }
                 match scope {
-                    None => return VMError::RuntimeError("No value found for match expression".to_string()).into(),
+                    None => {
+                        return VMError::runtime("No value found for match expression".to_string())
+                            .into()
+                    }
                     Some(s) => match self.call_frame(s) {
                         Ok(_) => {}
                         Err(e) => return e.into(),

@@ -31,11 +31,7 @@ impl Snapshot for Level {
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let next = match bytes.next() {
-            None => {
-                return Err(VMError::RuntimeError(format!(
-                    "Missing Level byte {location}"
-                )))
-            }
+            None => return Err(VMError::runtime(format!("Missing Level byte {location}"))),
             Some(b) => b,
         };
 
@@ -46,7 +42,7 @@ impl Snapshot for Level {
             3 => Level::Debug,
             4 => Level::Trace,
             b => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Illegal Level byte {b} {location}"
                 )))
             }
@@ -62,7 +58,7 @@ impl Snapshot for usize {
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         match bytes.next_array() {
-            None => Err(VMError::RuntimeError(format!("Missing {location} bytes"))),
+            None => Err(VMError::runtime(format!("Missing {location} bytes"))),
             Some(d) => Ok(u64::from_le_bytes(d) as usize),
         }
     }
@@ -145,11 +141,7 @@ impl<T: Snapshot> Snapshot for Option<T> {
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let next = match bytes.next() {
-            None => {
-                return Err(VMError::RuntimeError(format!(
-                    "Missing Option byte {location}"
-                )))
-            }
+            None => return Err(VMError::runtime(format!("Missing Option byte {location}"))),
             Some(b) => b,
         };
 
@@ -157,7 +149,7 @@ impl<T: Snapshot> Snapshot for Option<T> {
             0 => None,
             1 => Some(T::from_bytes(bytes, location)?),
             b => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Illegal Option byte {b} - {location}"
                 )))
             }
@@ -173,12 +165,10 @@ impl Snapshot for bool {
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         match bytes.next() {
-            None => Err(VMError::RuntimeError(format!(
-                "Missing bool byte {location}"
-            ))),
+            None => Err(VMError::runtime(format!("Missing bool byte {location}"))),
             Some(0) => Ok(false),
             Some(1) => Ok(true),
-            Some(b) => Err(VMError::RuntimeError(format!(
+            Some(b) => Err(VMError::runtime(format!(
                 "Illegal bool byte {b} - {location}"
             ))),
         }
@@ -236,9 +226,7 @@ impl Snapshot for i64 {
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         match bytes.next_array() {
-            None => Err(VMError::RuntimeError(format!(
-                "Missing i64 byte {location}"
-            ))),
+            None => Err(VMError::runtime(format!("Missing i64 byte {location}"))),
             Some(n) => Ok(i64::from_be_bytes(n)),
         }
     }
@@ -252,7 +240,7 @@ impl Snapshot for char {
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let v = Snapshot::from_bytes(bytes, location)?;
         match char::from_u32(v) {
-            None => Err(VMError::RuntimeError(format!(
+            None => Err(VMError::runtime(format!(
                 "{location} - Failed to convert {v} to char"
             ))),
             Some(c) => Ok(c),
@@ -267,9 +255,7 @@ impl Snapshot for u32 {
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         match bytes.next_array() {
-            None => Err(VMError::RuntimeError(format!(
-                "{location} - failed to read u32"
-            ))),
+            None => Err(VMError::runtime(format!("{location} - failed to read u32"))),
             Some(v) => Ok(u32::from_le_bytes(v)),
         }
     }
@@ -327,14 +313,14 @@ impl Snapshot for String {
         let bytes: Vec<_> = bytes.take(len).collect();
         let b = bytes.len();
         if b != len {
-            return Err(VMError::RuntimeError(format!(
+            return Err(VMError::runtime(format!(
                 "{location} String len {b} != {len}"
             )));
         }
         let s = match String::from_utf8(bytes) {
             Ok(s) => s,
             Err(e) => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "{location} Failed to create string: {e}"
                 )))
             }
@@ -364,7 +350,7 @@ impl Snapshot for ValueRange {
         let next = match bytes.next() {
             Some(b) => b,
             None => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Missing ValueRange byte {location}"
                 )))
             }
@@ -374,7 +360,7 @@ impl Snapshot for ValueRange {
             0 => ValueRange::Int(Snapshot::from_bytes(bytes, location)?),
             1 => ValueRange::Char(Snapshot::from_bytes(bytes, location)?),
             b => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Illegal ValueRange byte {b} - {location}"
                 )))
             }
@@ -442,12 +428,17 @@ impl Snapshot for VMError {
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let next = match bytes.next() {
             Some(s) => s,
-            None => return Err(VMError::RuntimeError(format!("Missing VMError {location}"))),
+            None => return Err(VMError::runtime(format!("Missing VMError {location}"))),
         };
+        if next == 1 {
+            return Ok(VMError::RuntimeError(Snapshot::from_bytes(
+                bytes,
+                &format!("VMError::Runtime - {location}"),
+            )?));
+        }
         let message = String::from_bytes(bytes, &format!("VMError - {location}"))?;
         let e = match next {
             0 => VMError::TimeoutError(message),
-            1 => VMError::RuntimeError(message),
             2 => VMError::EmptyStack(message),
             3 => VMError::ConversionError(message),
             4 => VMError::ScopeDoesNotExist(message),
@@ -457,7 +448,7 @@ impl Snapshot for VMError {
             8 => VMError::InvalidModuleFunction(message),
             9 => VMError::LifecycleError(message),
             b => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Illegal VMError byte {b} {location}"
                 )))
             }

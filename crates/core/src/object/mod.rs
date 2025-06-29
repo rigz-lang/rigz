@@ -7,10 +7,9 @@ mod snapshot;
 use crate::{
     AsPrimitive, IndexMap, Number, Object, PrimitiveValue, RigzType, VMError, WithTypeInfo,
 };
-use itertools::Itertools;
 use std::cell::RefCell;
 use std::cmp::Ordering;
-use std::fmt::{Display, Error, Formatter};
+use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
@@ -24,7 +23,7 @@ pub enum ObjectValue {
     Map(IndexMap<ObjectValue, ObjectValue>),
     Tuple(Vec<ObjectValue>),
     Object(Box<dyn Object>),
-    Enum(usize, usize, Option<Box<ObjectValue>>)
+    Enum(usize, usize, Option<Box<ObjectValue>>),
 }
 
 impl ObjectValue {
@@ -56,7 +55,7 @@ impl Hash for ObjectValue {
                 e.hash(state);
                 i.hash(state);
                 v.hash(state);
-            },
+            }
         }
     }
 }
@@ -84,7 +83,9 @@ impl PartialEq for ObjectValue {
             ) => left == right,
             (ObjectValue::Map(left), ObjectValue::Map(right)) => left == right,
             (ObjectValue::Object(left), ObjectValue::Object(right)) => left == right,
-            (ObjectValue::Enum(l_e, l_i, l_v), ObjectValue::Enum(r_e, r_i, r_v)) => l_e == r_e && l_i == r_i && l_v == r_v,
+            (ObjectValue::Enum(l_e, l_i, l_v), ObjectValue::Enum(r_e, r_i, r_v)) => {
+                l_e == r_e && l_i == r_i && l_v == r_v
+            }
             _ => false,
         }
     }
@@ -341,7 +342,7 @@ impl ObjectValue {
     #[inline]
     pub fn cast(&self, rigz_type: &RigzType) -> ObjectValue {
         match (self, rigz_type) {
-            (s, RigzType::Error) => VMError::RuntimeError(s.to_string()).into(),
+            (s, RigzType::Error) => VMError::RuntimeError(Box::new(s.clone())).into(),
             (_, RigzType::None) => ObjectValue::default(),
             (v, RigzType::Bool) => v.to_bool().into(),
             (v, RigzType::String) => v.to_string().into(),
@@ -419,8 +420,8 @@ impl WithTypeInfo for ObjectValue {
             // todo these should be updated
             ObjectValue::Enum(i, _, v) => match v {
                 None => RigzType::Enum(*i),
-                Some(v) => v.rigz_type()
-            }
+                Some(v) => v.rigz_type(),
+            },
         }
     }
 }
@@ -463,9 +464,11 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
                 .collect()),
             ObjectValue::Object(m) => m.to_map(),
             ObjectValue::Enum(e, i, value) => match value {
-                None => Err(VMError::UnsupportedOperation(format!("Cannot convert enum {e} to {i}"))),
-                Some(v) => v.to_map()
-            }
+                None => Err(VMError::UnsupportedOperation(format!(
+                    "Cannot convert enum {e} to {i}"
+                ))),
+                Some(v) => v.to_map(),
+            },
         }
     }
 
@@ -473,9 +476,7 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
         match self {
             ObjectValue::Primitive(p) => p.to_number(),
             ObjectValue::Object(m) => m.to_number(),
-            _ => Err(VMError::RuntimeError(format!(
-                "Cannot convert {self} to number"
-            ))),
+            _ => Err(VMError::runtime(format!("Cannot convert {self} to number"))),
         }
     }
 
@@ -488,8 +489,8 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
             ObjectValue::Object(o) => o.to_bool(),
             ObjectValue::Enum(_, _, v) => match v {
                 None => true, // todo should variant 0 be false?
-                Some(e) => e.to_bool()
-            }
+                Some(e) => e.to_bool(),
+            },
         }
     }
 }

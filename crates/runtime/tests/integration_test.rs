@@ -68,6 +68,7 @@ pub mod runtime {
                         assert!(false, "Unexpected result {v:?} for {}", $input);
                         return
                     };
+                    let e = e.to_string();
                     assert!(e.starts_with($expected), "Unexpected result {e:?} for {}", $input)
                 }
             )*
@@ -89,6 +90,7 @@ pub mod runtime {
 
     pub mod invalid {
         use super::*;
+        use rigz_ast::ValidationError;
         use rigz_core::VMError;
 
         run_invalid! {
@@ -112,16 +114,16 @@ pub mod runtime {
         run_error! {
             // todo better error message here, ideally this fails during validation
             import_required("1.to_json" = VMError::UnsupportedOperation("Cannot read to_json for 1".to_string()))
-            raise_error("raise 'something went wrong'" = VMError::RuntimeError("something went wrong".to_string()))
-            assert("assert_eq 1, 2" = VMError::RuntimeError("Assertion Failed\n\t\tLeft: 1\n\t\tRight: 2".to_string()))
+            raise_error("raise 'something went wrong'" = VMError::runtime("something went wrong".to_string()))
+            assert("assert_eq 1, 2" = VMError::runtime("Assertion Failed\n\t\tLeft: 1\n\t\tRight: 2".to_string()))
             stack_overflow(r#"fn foo
                 foo
             end
             foo
-            "# = VMError::RuntimeError("Stack overflow: exceeded 1024".to_string()))
+            "# = VMError::runtime("Stack overflow: exceeded 1024".to_string()))
             try_fail(r#"
             try raise "Failure"
-            "# = VMError::RuntimeError("Failure".to_string()))
+            "# = VMError::runtime("Failure".to_string()))
         }
 
         run_error_starts_with! {
@@ -541,6 +543,25 @@ pub mod runtime {
                 22
             end
             "# = 22)
+            try_catch_success(r#"
+            fn foo = raise "Failure"
+            try foo catch
+                22
+            end
+            "# = 22)
+            catch_lambda_success(r#"
+            fn foo = raise "Failure"
+            foo catch |e|
+                e.to_s + 22
+            end
+            "# = "Failure22")
+            catch_lambda_success_multi(r#"
+            fn foo = raise ("Failure", 42)
+            foo catch |err|
+                (e, v) = err
+                e.to_s + v + 22
+            end
+            "# = "Failure4222")
             create_enum(r#"
             enum Foo
                 Baz,
@@ -559,6 +580,11 @@ pub mod runtime {
                 .Bar -> 42,
                 else -> 69
             end
+            "# = 42)
+            let_shadowing(r#"
+            a = 37
+            let a = 42
+            a
             "# = 42)
         }
     }

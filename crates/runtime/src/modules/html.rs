@@ -23,7 +23,7 @@ impl HtmlObject for Html {
         let s = match Selector::parse(&selector) {
             Ok(s) => s,
             Err(e) => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Invalid selector {selector} - {e}"
                 )))
             }
@@ -78,7 +78,7 @@ fn html_elements(
                         _ => res.into(),
                     }
                 }
-                Err(e) => VMError::RuntimeError(format!("Invalid selector {selector}: {e}")).into(),
+                Err(e) => VMError::runtime(format!("Invalid selector {selector}: {e}")).into(),
             };
             (id, v)
         })

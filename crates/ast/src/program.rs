@@ -1,4 +1,6 @@
-use rigz_core::{BinaryOperation, EnumDeclaration, Lifecycle, PrimitiveValue, RigzType, UnaryOperation};
+use rigz_core::{
+    BinaryOperation, EnumDeclaration, Lifecycle, PrimitiveValue, RigzType, UnaryOperation,
+};
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Program {
@@ -123,7 +125,7 @@ pub enum Statement {
         definitions: Vec<FunctionDefinition>,
     },
     ObjectDefinition(ObjectDefinition),
-    Enum(EnumDeclaration)
+    Enum(EnumDeclaration),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -135,9 +137,18 @@ pub enum AssignIndex {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Assign {
     This,
-    Identifier(String, bool),
-    TypedIdentifier(String, bool, RigzType),
-    Tuple(Vec<(String, bool)>),
+    Identifier {
+        name: String,
+        mutable: bool,
+        shadow: bool,
+    },
+    TypedIdentifier {
+        name: String,
+        mutable: bool,
+        shadow: bool,
+        rigz_type: RigzType,
+    },
+    Tuple(Vec<(String, bool, bool)>),
     InstanceSet(Expression, Vec<AssignIndex>),
 }
 
@@ -235,9 +246,9 @@ pub enum MatchVariant {
         name: String,
         condition: MatchVariantCondition,
         body: Scope,
-        variables: Vec<MatchVariantVariable>
+        variables: Vec<MatchVariantVariable>,
     },
-    Else(Scope)
+    Else(Scope),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -252,7 +263,6 @@ pub enum MatchVariantCondition {
     If(Expression),
     Unless(Expression),
 }
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expression {

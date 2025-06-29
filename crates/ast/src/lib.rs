@@ -253,12 +253,12 @@ impl<'t> Parser<'t> {
         let ele = match token.kind {
             TokenKind::Let => {
                 self.consume_token(TokenKind::Let)?;
-                self.parse_assignment(false)?.into()
+                self.parse_assignment(false, true)?.into()
             }
             TokenKind::Import => self.parse_import()?.into(),
             TokenKind::Mut => {
                 self.consume_token(TokenKind::Mut)?;
-                self.parse_assignment(true)?.into()
+                self.parse_assignment(true, true)?.into()
             }
             TokenKind::Impl => {
                 self.consume_token(TokenKind::Impl)?;
@@ -296,12 +296,20 @@ impl<'t> Parser<'t> {
                 match self.peek_token() {
                     None => id.into(),
                     Some(t) => match t.kind {
-                        TokenKind::Assign => self.parse_assignment_definition(false, id)?.into(),
-                        TokenKind::Colon => self.parse_assignment_definition(false, id)?.into(),
+                        TokenKind::Assign => {
+                            self.parse_assignment_definition(false, id, false)?.into()
+                        }
+                        TokenKind::Colon => {
+                            self.parse_assignment_definition(false, id, false)?.into()
+                        }
                         TokenKind::Increment => {
                             self.consume_token(TokenKind::Increment)?;
                             Statement::BinaryAssignment {
-                                lhs: Assign::Identifier(id.to_string(), false),
+                                lhs: Assign::Identifier {
+                                    name: id.to_string(),
+                                    mutable: false,
+                                    shadow: false,
+                                },
                                 op: BinaryOperation::Add,
                                 expression: Expression::Value(1.into()),
                             }
@@ -310,7 +318,11 @@ impl<'t> Parser<'t> {
                         TokenKind::Decrement => {
                             self.consume_token(TokenKind::Decrement)?;
                             Statement::BinaryAssignment {
-                                lhs: Assign::Identifier(id.to_string(), false),
+                                lhs: Assign::Identifier {
+                                    name: id.to_string(),
+                                    mutable: false,
+                                    shadow: false,
+                                },
                                 op: BinaryOperation::Sub,
                                 expression: Expression::Value(1.into()),
                             }
@@ -319,7 +331,11 @@ impl<'t> Parser<'t> {
                         TokenKind::BinAssign(op) => {
                             self.consume_token(TokenKind::BinAssign(op))?;
                             Statement::BinaryAssignment {
-                                lhs: Assign::Identifier(id.to_string(), false),
+                                lhs: Assign::Identifier {
+                                    name: id.to_string(),
+                                    mutable: false,
+                                    shadow: false,
+                                },
                                 op,
                                 expression: self.parse_expression()?,
                             }
@@ -439,23 +455,24 @@ impl<'t> Parser<'t> {
                     let peek = self.peek_required_token_eat_newlines("enum_variable")?;
                     let rigz_type = match peek.kind {
                         TokenKind::Comma | TokenKind::End => RigzType::None,
-                        _ => self.parse_rigz_type(None, false)?
+                        _ => self.parse_rigz_type(None, false)?,
                     };
                     variants.push((v.to_string(), rigz_type));
                 }
                 TokenKind::Newline => continue,
                 TokenKind::Comma if !was_comma => {
                     was_comma = true;
-                    continue
-                },
-                t => return Err(ParsingError::ParseError(format!("Invalid enum variant token - {name}::{t}")))
+                    continue;
+                }
+                t => {
+                    return Err(ParsingError::ParseError(format!(
+                        "Invalid enum variant token - {name}::{t}"
+                    )))
+                }
             }
         }
 
-        Ok(EnumDeclaration {
-            name,
-            variants,
-        })
+        Ok(EnumDeclaration { name, variants })
     }
 
     fn parse_element_suffix(&mut self, element: Element) -> Result<Element, ParsingError> {
@@ -720,9 +737,7 @@ impl<'t> Parser<'t> {
                 loop {
                     let next = self.next_required_token("match")?;
                     match next.kind {
-                        TokenKind::End => {
-                            break
-                        }
+                        TokenKind::End => break,
                         TokenKind::Else => {
                             self.consume_token(TokenKind::Arrow)?;
                             let var = self.peek_required_token("match_variant - else")?;
@@ -730,7 +745,7 @@ impl<'t> Parser<'t> {
                                 TokenKind::Do => self.parse_scope()?,
                                 _ => Scope {
                                     elements: vec![self.parse_expression()?.into()],
-                                }
+                                },
                             };
                             variants.push(MatchVariant::Else(scope))
                         }
@@ -743,7 +758,8 @@ impl<'t> Parser<'t> {
                                 }
                                 _ => return Err(ParsingError::ParseError(format!("Invalid match variant {next:?}, expected Type or identifier after .")))
                             };
-                            let c_token = self.peek_required_token("match_variant - condition or arrow")?;
+                            let c_token =
+                                self.peek_required_token("match_variant - condition or arrow")?;
                             let condition = match c_token.kind {
                                 TokenKind::Arrow => MatchVariantCondition::None,
                                 TokenKind::If => {
@@ -754,8 +770,9 @@ impl<'t> Parser<'t> {
                                     self.consume_token(c_token.kind)?;
                                     MatchVariantCondition::Unless(self.parse_expression()?)
                                 }
-                                _ => return Err(ParsingError::ParseError(format!("Invalid match variant condition {c_token:?}, condition or =>")))
-
+                                _ => return Err(ParsingError::ParseError(format!(
+                                    "Invalid match variant condition {c_token:?}, condition or =>"
+                                ))),
                             };
                             self.consume_token(TokenKind::Arrow)?;
                             let var = self.peek_required_token("match_variant - enum")?;
@@ -763,7 +780,9 @@ impl<'t> Parser<'t> {
                                 TokenKind::Do => self.parse_scope()?,
                                 _ => {
                                     let exp = self.parse_expression()?;
-                                    let comma_or_end = self.peek_required_token_eat_newlines("match_variant - inline")?;
+                                    let comma_or_end = self.peek_required_token_eat_newlines(
+                                        "match_variant - inline",
+                                    )?;
                                     match comma_or_end.kind {
                                         TokenKind::End => {}
                                         TokenKind::Comma => {
@@ -783,15 +802,17 @@ impl<'t> Parser<'t> {
                                 variables: vec![],
                             });
                         }
-                        TokenKind::Newline => {
-                            continue
+                        TokenKind::Newline => continue,
+                        _ => {
+                            return Err(ParsingError::ParseError(format!(
+                                "Invalid match variant {next:?}, values not supported yet"
+                            )))
                         }
-                        _ => return Err(ParsingError::ParseError(format!("Invalid match variant {next:?}, values not supported yet")))
                     }
                 }
                 Expression::Match {
                     condition,
-                    variants
+                    variants,
                 }
             }
             TokenKind::TypeValue(type_value) => {
@@ -844,10 +865,8 @@ impl<'t> Parser<'t> {
                                     Some(t) if t.terminal() => {
                                         self.consume_token(t.kind)?;
                                         None
-                                    },
-                                    Some(t) if t.kind == TokenKind::Do => {
-                                        None
-                                    },
+                                    }
+                                    Some(t) if t.kind == TokenKind::Do => None,
                                     Some(_) => Some(self.parse_expression()?.into()),
                                 };
                                 Expression::Enum(type_value.to_string(), name.to_string(), exp)
@@ -998,14 +1017,14 @@ impl<'t> Parser<'t> {
         }
     }
 
-    fn parse_assignment(&mut self, mutable: bool) -> Result<Statement, ParsingError> {
+    fn parse_assignment(&mut self, mutable: bool, shadow: bool) -> Result<Statement, ParsingError> {
         let next = self
             .next_required_token("parse_assignment")
             .map_err(|e| ParsingError::ParseError(format!("Expected token for assignment: {e}")))?;
 
         match next.kind {
-            TokenKind::Identifier(id) => self.parse_assignment_definition(mutable, id),
-            TokenKind::Lparen => self.parse_tuple_assign(mutable),
+            TokenKind::Identifier(id) => self.parse_assignment_definition(mutable, id, shadow),
+            TokenKind::Lparen => self.parse_tuple_assign(mutable, shadow),
             _ => Err(ParsingError::ParseError(format!(
                 "Unexpected token for assignment {:?}",
                 next
@@ -1013,9 +1032,14 @@ impl<'t> Parser<'t> {
         }
     }
 
-    fn parse_tuple_assign(&mut self, mutable: bool) -> Result<Statement, ParsingError> {
+    fn parse_tuple_assign(
+        &mut self,
+        mutable: bool,
+        shadow: bool,
+    ) -> Result<Statement, ParsingError> {
         let mut tuple = vec![];
         let mut is_mut = mutable;
+        let mut can_shadow = shadow;
         let mut needs_id = false;
         loop {
             let next = self.next_required_token("parse_tuple_assign")?;
@@ -1034,15 +1058,18 @@ impl<'t> Parser<'t> {
                 }
                 TokenKind::Let => {
                     is_mut = false;
+                    can_shadow = true;
                     needs_id = true;
                 }
                 TokenKind::Mut => {
                     is_mut = true;
+                    can_shadow = true;
                     needs_id = true;
                 }
                 TokenKind::Identifier(id) => {
-                    tuple.push((id.to_string(), is_mut));
+                    tuple.push((id.to_string(), is_mut, can_shadow));
                     is_mut = mutable;
+                    is_mut = shadow;
                     needs_id = false
                 }
                 _ => {
@@ -1063,6 +1090,7 @@ impl<'t> Parser<'t> {
         &mut self,
         mutable: bool,
         id: &'t str,
+        shadow: bool,
     ) -> Result<Statement, ParsingError> {
         let token = self.peek_required_token("parse_assignment_definition")?;
         let rigz_type = match token.kind {
@@ -1074,8 +1102,17 @@ impl<'t> Parser<'t> {
         };
         self.consume_token(TokenKind::Assign)?;
         let lhs = match rigz_type {
-            None => Assign::Identifier(id.to_string(), mutable),
-            Some(rigz_type) => Assign::TypedIdentifier(id.to_string(), mutable, rigz_type),
+            None => Assign::Identifier {
+                name: id.to_string(),
+                mutable,
+                shadow,
+            },
+            Some(rigz_type) => Assign::TypedIdentifier {
+                name: id.to_string(),
+                mutable,
+                rigz_type,
+                shadow,
+            },
         };
         Ok(Statement::Assignment {
             lhs,
@@ -1243,7 +1280,7 @@ impl<'t> Parser<'t> {
                 TokenKind::Identifier(id) => {
                     assign = convert_to_assign(&mut tuple)?;
                     needs_id = false;
-                    assign.push((id.to_string(), is_mut));
+                    assign.push((id.to_string(), is_mut, false));
                     is_mut = false;
                 }
                 _ => {
@@ -2605,12 +2642,14 @@ impl<'t> Parser<'t> {
     }
 }
 
-fn convert_to_assign(tuple: &mut Vec<Expression>) -> Result<Vec<(String, bool)>, ParsingError> {
+fn convert_to_assign(
+    tuple: &mut Vec<Expression>,
+) -> Result<Vec<(String, bool, bool)>, ParsingError> {
     let mut results = Vec::with_capacity(tuple.len());
     for e in tuple.iter() {
         match e {
             Expression::Identifier(id) => {
-                results.push((id.to_string(), false));
+                results.push((id.to_string(), false, false));
             }
             Expression::Tuple(t) => {
                 return Err(ParsingError::ParseError(format!(

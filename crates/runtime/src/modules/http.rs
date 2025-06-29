@@ -33,7 +33,7 @@ impl Request {
             "path".to_string(),
         ))) {
             None => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Missing `path`, cannot create request from {map:?}"
                 )))
             }
@@ -59,7 +59,7 @@ impl Request {
                 ObjectValue::Map(m) => Some(m.clone()),
                 ObjectValue::Object(o) => Some(o.to_map()?),
                 o => {
-                    return Err(VMError::RuntimeError(format!(
+                    return Err(VMError::runtime(format!(
                         "Cannot convert {o} to Map<String, String>"
                     )))
                 }
@@ -174,19 +174,17 @@ impl ResponseObject for Response {
         let mut v = match self.resp.write() {
             Ok(v) => v,
             Err(e) => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Failed to get response value - {e}"
                 )))
             }
         };
 
         match v.take() {
-            None => Err(VMError::RuntimeError(
-                "Response has been consumed".to_string(),
-            )),
+            None => Err(VMError::runtime("Response has been consumed".to_string())),
             Some(r) => match r.into_string() {
                 Ok(s) => Ok(s),
-                Err(e) => Err(VMError::RuntimeError(format!(
+                Err(e) => Err(VMError::runtime(format!(
                     "Failed to convert response to string - {e}"
                 ))),
             },
@@ -243,7 +241,7 @@ fn to_object(res: Result<ureq::Response, ureq::Error>) -> Result<ObjectValue, VM
             let resp: Response = r.into();
             Ok(ObjectValue::new(resp))
         }
-        Err(e) => Err(VMError::RuntimeError(format!("Request Failed: {e}"))),
+        Err(e) => Err(VMError::runtime(format!("Request Failed: {e}"))),
     }
 }
 
@@ -297,9 +295,7 @@ impl RigzHttp for HttpModule {
                 }
                 "post" => self.post(r.path, r.body, r.headers),
                 "put" => self.post(r.path, r.body, r.headers),
-                method => Err(VMError::RuntimeError(format!(
-                    "Invalid HTTP method {method}"
-                ))),
+                method => Err(VMError::runtime(format!("Invalid HTTP method {method}"))),
             },
         }
     }

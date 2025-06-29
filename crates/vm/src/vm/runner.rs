@@ -4,7 +4,9 @@ use crate::{
 };
 use itertools::Itertools;
 use log_derive::{logfn, logfn_inputs};
-use rigz_core::{EnumDeclaration, Lifecycle, ObjectValue, ResolveValue, RigzArgs, StackValue, VMError};
+use rigz_core::{
+    EnumDeclaration, Lifecycle, ObjectValue, ResolveValue, RigzArgs, StackValue, VMError,
+};
 use std::fmt::Display;
 use std::ops::Deref;
 use std::thread;
@@ -27,9 +29,14 @@ impl Runner for VM {
     }
 
     fn find_enum(&mut self, enum_type: usize) -> Result<std::sync::Arc<EnumDeclaration>, VMError> {
-        match self.enums.read().expect("Failed to read enums").get(enum_type) {
-            None => Err(VMError::RuntimeError(format!("Enum {enum_type} doesn't exist"))),
-            Some(v) => Ok(v.clone())
+        match self
+            .enums
+            .read()
+            .expect("Failed to read enums")
+            .get(enum_type)
+        {
+            None => Err(VMError::runtime(format!("Enum {enum_type} doesn't exist"))),
+            Some(v) => Ok(v.clone()),
         }
     }
 
@@ -43,7 +50,7 @@ impl Runner for VM {
         }
 
         if self.frames.len() >= self.options.max_depth {
-            let err = VMError::RuntimeError(format!(
+            let err = VMError::runtime(format!(
                 "Stack overflow: exceeded {}",
                 self.options.max_depth
             ));
@@ -63,9 +70,9 @@ impl Runner for VM {
 
         for (arg, mutable) in self.scopes[scope_index].args.clone() {
             if mutable {
-                self.load_mut(arg)?;
+                self.load_mut(arg, false)?;
             } else {
-                self.load_let(arg)?;
+                self.load_let(arg, false)?;
             }
         }
         Ok(())
@@ -172,7 +179,7 @@ impl Runner for VM {
     ) -> Result<ObjectValue, VMError> {
         match self.dependencies.read() {
             Ok(deps) => match deps.get(dep) {
-                None => Err(VMError::RuntimeError(format!("Dependency not found {dep}"))),
+                None => Err(VMError::runtime(format!("Dependency not found {dep}"))),
                 Some(dep) => {
                     let res = match call_type {
                         CallType::Create => {
@@ -187,7 +194,7 @@ impl Runner for VM {
                     Ok(res)
                 }
             },
-            Err(e) => Err(VMError::RuntimeError(format!("Failed to get deps {e}"))),
+            Err(e) => Err(VMError::runtime(format!("Failed to get deps {e}"))),
         }
     }
 

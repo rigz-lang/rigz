@@ -220,7 +220,7 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
     } else {
         quote! {
             #(#match_arms)*
-            v => return Err(VMError::RuntimeError(format!("Cannot call {function} on {v}"))),
+            v => return Err(VMError::runtime(format!("Cannot call {function} on {v}"))),
         }
     };
 

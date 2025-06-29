@@ -164,7 +164,11 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             }
             Expression::Enum(v, _, _) => {
                 let index = match self.enums.get(v) {
-                    None => return Err(ValidationError::InvalidEnum(format!("enum {v} does not exist"))),
+                    None => {
+                        return Err(ValidationError::InvalidEnum(format!(
+                            "enum {v} does not exist"
+                        )))
+                    }
                     Some((v, _)) => *v,
                 };
                 RigzType::Enum(index)

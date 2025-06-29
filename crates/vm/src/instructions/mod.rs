@@ -43,7 +43,7 @@ impl Snapshot for VMCallSite {
         let next = match bytes.next() {
             Some(b) => b,
             None => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Missing VMCallSite byte {location}"
                 )))
             }
@@ -60,7 +60,7 @@ impl Snapshot for VMCallSite {
                 func: Snapshot::from_bytes(bytes, location)?,
             },
             b => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Invalid VMCallSite byte {b} - {location}"
                 )))
             }
@@ -94,18 +94,14 @@ impl Snapshot for VMArg {
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let next = match bytes.next() {
             Some(b) => b,
-            None => {
-                return Err(VMError::RuntimeError(format!(
-                    "Missing VMArg byte {location}"
-                )))
-            }
+            None => return Err(VMError::runtime(format!("Missing VMArg byte {location}"))),
         };
 
         let v = match next {
             0 => VMArg::Type(Snapshot::from_bytes(bytes, location)?),
             1 => VMArg::Value(Snapshot::from_bytes(bytes, location)?),
             b => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Invalid VMArg byte {b} - {location}"
                 )))
             }
@@ -143,7 +139,7 @@ impl Snapshot for LoadValue {
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let tv = match bytes.next() {
-            None => return Err(VMError::RuntimeError(format!("{location} LoadValue type"))),
+            None => return Err(VMError::runtime(format!("{location} LoadValue type"))),
             Some(b) => b,
         };
         let l = match tv {
@@ -151,7 +147,7 @@ impl Snapshot for LoadValue {
             1 => LoadValue::Value(Snapshot::from_bytes(bytes, location)?),
             2 => LoadValue::Constant(Snapshot::from_bytes(bytes, location)?),
             _ => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "{location} Invalid LoadValue type {tv}"
                 )))
             }
@@ -218,20 +214,31 @@ impl Snapshot for MatchArm {
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let current = match bytes.next() {
             None => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Missing match arm byte {location}"
                 )))
             }
             Some(b) => b,
         };
         let arm = match current {
-            0 => MatchArm::Enum(Snapshot::from_bytes(bytes, location)?, Snapshot::from_bytes(bytes, location)?),
-            1 => MatchArm::If(Snapshot::from_bytes(bytes, location)?, Snapshot::from_bytes(bytes, location)?),
-            2 => MatchArm::Unless(Snapshot::from_bytes(bytes, location)?, Snapshot::from_bytes(bytes, location)?),
+            0 => MatchArm::Enum(
+                Snapshot::from_bytes(bytes, location)?,
+                Snapshot::from_bytes(bytes, location)?,
+            ),
+            1 => MatchArm::If(
+                Snapshot::from_bytes(bytes, location)?,
+                Snapshot::from_bytes(bytes, location)?,
+            ),
+            2 => MatchArm::Unless(
+                Snapshot::from_bytes(bytes, location)?,
+                Snapshot::from_bytes(bytes, location)?,
+            ),
             3 => MatchArm::Else(Snapshot::from_bytes(bytes, location)?),
-            b => return Err(VMError::RuntimeError(format!(
-                "Illegal match arm byte {b} {location}"
-            )))
+            b => {
+                return Err(VMError::runtime(format!(
+                    "Illegal match arm byte {b} {location}"
+                )))
+            }
         };
         Ok(arm)
     }
@@ -259,7 +266,7 @@ pub enum Instruction {
     CreateEnum {
         enum_type: usize,
         variant: usize,
-        has_expression: bool
+        has_expression: bool,
     },
     Match(Vec<MatchArm>),
     Log(Level, String, usize),
@@ -280,8 +287,8 @@ pub enum Instruction {
     GetVariable(String),
     GetMutableVariable(String),
     GetVariableReference(String),
-    LoadLet(String),
-    LoadMut(String),
+    LoadLet(String, bool),
+    LoadMut(String, bool),
     PersistScope(String),
     // requires modules, enabled by default
     /// Module instructions will clone your module, ideally modules implement Copy + Clone
@@ -329,7 +336,7 @@ pub enum Instruction {
     Spawn(usize, bool),
     Receive(usize),
     Try,
-    Catch(usize),
+    Catch(usize, bool),
     /// Danger Zone, use these instructions at your own risk (sorted by risk)
     /// in the right situations these will be fantastic, otherwise avoid them
     Pop(usize),
@@ -464,14 +471,16 @@ impl Snapshot for Instruction {
                 res.extend(v.as_bytes());
                 res
             }
-            Instruction::LoadLet(v) => {
+            Instruction::LoadLet(v, shadow) => {
                 let mut res = vec![27];
                 res.extend(v.as_bytes());
+                res.extend(shadow.as_bytes());
                 res
             }
-            Instruction::LoadMut(v) => {
+            Instruction::LoadMut(v, shadow) => {
                 let mut res = vec![28];
                 res.extend(v.as_bytes());
+                res.extend(shadow.as_bytes());
                 res
             }
             Instruction::PersistScope(v) => {
@@ -602,13 +611,16 @@ impl Snapshot for Instruction {
                 res
             }
             Instruction::Try => vec![51],
-            Instruction::Catch(scope) => {
+            Instruction::Catch(scope, has_arg) => {
                 let mut res = vec![52];
                 res.extend(scope.as_bytes());
+                res.extend(has_arg.as_bytes());
                 res
             }
             Instruction::CreateEnum {
-                enum_type, variant, has_expression
+                enum_type,
+                variant,
+                has_expression,
             } => {
                 let mut res = vec![53];
                 res.extend(enum_type.as_bytes());
@@ -627,7 +639,7 @@ impl Snapshot for Instruction {
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let current = match bytes.next() {
             None => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Missing instruction byte {location}"
                 )))
             }
@@ -670,8 +682,14 @@ impl Snapshot for Instruction {
             24 => Instruction::GetVariable(Snapshot::from_bytes(bytes, location)?),
             25 => Instruction::GetMutableVariable(Snapshot::from_bytes(bytes, location)?),
             26 => Instruction::GetVariableReference(Snapshot::from_bytes(bytes, location)?),
-            27 => Instruction::LoadLet(Snapshot::from_bytes(bytes, location)?),
-            28 => Instruction::LoadMut(Snapshot::from_bytes(bytes, location)?),
+            27 => Instruction::LoadLet(
+                Snapshot::from_bytes(bytes, location)?,
+                bool::from_bytes(bytes, location)?,
+            ),
+            28 => Instruction::LoadMut(
+                Snapshot::from_bytes(bytes, location)?,
+                bool::from_bytes(bytes, location)?,
+            ),
             29 => Instruction::PersistScope(Snapshot::from_bytes(bytes, location)?),
             30 => Instruction::CallModule {
                 module: Snapshot::from_bytes(bytes, location)?,
@@ -748,7 +766,10 @@ impl Snapshot for Instruction {
                 args: Snapshot::from_bytes(bytes, location)?,
             },
             51 => Instruction::Try,
-            52 => Instruction::Catch(Snapshot::from_bytes(bytes, location)?),
+            52 => Instruction::Catch(
+                Snapshot::from_bytes(bytes, location)?,
+                Snapshot::from_bytes(bytes, location)?,
+            ),
             53 => Instruction::CreateEnum {
                 enum_type: Snapshot::from_bytes(bytes, location)?,
                 variant: Snapshot::from_bytes(bytes, location)?,
@@ -756,7 +777,7 @@ impl Snapshot for Instruction {
             },
             54 => Instruction::Match(Snapshot::from_bytes(bytes, location)?),
             b => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Illegal instruction byte {b} {location}"
                 )))
             }

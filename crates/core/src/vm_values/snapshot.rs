@@ -24,7 +24,7 @@ impl Snapshot for StackValue {
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let tv = match bytes.next() {
-            None => return Err(VMError::RuntimeError(format!("{location} StackValue type"))),
+            None => return Err(VMError::runtime(format!("{location} StackValue type"))),
             Some(b) => b,
         };
         let l = match tv {
@@ -35,7 +35,7 @@ impl Snapshot for StackValue {
             }
             2 => StackValue::Constant(Snapshot::from_bytes(bytes, location)?),
             _ => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "{location} Invalid StackValue type {tv}"
                 )))
             }

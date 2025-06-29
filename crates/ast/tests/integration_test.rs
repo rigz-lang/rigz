@@ -381,7 +381,7 @@ test_parse! {
         ],
     assign "a = 7 - 0" = vec![
             Element::Statement(Statement::Assignment {
-                lhs: Assign::Identifier("a".to_string(), false),
+                lhs: Assign::Identifier { name: "a".to_string(), mutable: false, shadow: false },
                 expression: Expression::BinExp(
                     Box::new(Expression::Value(PrimitiveValue::Number(7.into()))),
                     BinaryOperation::Sub,
@@ -415,7 +415,7 @@ test_parse! {
         ],
     union_type "a: String || Number || Bool = false" = vec![
             Statement::Assignment {
-                lhs: Assign::TypedIdentifier("a".to_string(), false, RigzType::Union(vec![RigzType::String, RigzType::Number, RigzType::Bool])),
+                lhs: Assign::TypedIdentifier { name: "a".to_string(), mutable: false, shadow: false, rigz_type: RigzType::Union(vec![RigzType::String, RigzType::Number, RigzType::Bool])},
                 expression: Expression::Value(false.into()),
             }.into()
         ],
@@ -441,13 +441,13 @@ test_parse! {
                 ],
             })).into(),
             Statement::Assignment {
-                lhs: Assign::TypedIdentifier("a".to_string(), false, RigzType::Composite(vec![RigzType::Custom(CustomType {
+                lhs: Assign::TypedIdentifier{ name: "a".to_string(), mutable: false, shadow: false, rigz_type: RigzType::Composite(vec![RigzType::Custom(CustomType {
                     name: "Foo".to_string(),
                     fields: vec![],
                 }), RigzType::Custom(CustomType {
                     name: "Bar".to_string(),
                     fields: vec![],
-                })])),
+                })])},
                 expression: Expression::Map(vec![
                     (Expression::Identifier("foo".to_string()), Expression::Value(1.into())),
                     (Expression::Identifier("bar".to_string()), Expression::Value(7.into())),
@@ -482,10 +482,10 @@ test_parse! {
                 })])
             ])).into(),
             Statement::Assignment {
-                lhs: Assign::TypedIdentifier("s".to_string(), true, RigzType::Custom(CustomType {
+                lhs: Assign::TypedIdentifier { name: "s".to_string(), mutable: true, shadow: true, rigz_type: RigzType::Custom(CustomType {
                     name: "Result".to_string(),
                     fields: vec![],
-                })),
+                })},
                 expression: Expression::Value("".into())
             }.into()
         ],
@@ -595,7 +595,7 @@ test_parse! {
                 }
             })),
             Element::Statement(Statement::Assignment {
-                lhs: Assign::Identifier("v".to_string(), false),
+                lhs: Assign::Identifier{ name: "v".to_string(), mutable: false, shadow: false },
                 expression: Expression::Map(vec![(Expression::Identifier("a".to_string()), Expression::Value(PrimitiveValue::Number(1.into()))), (Expression::Identifier("b".to_string()), Expression::Value(PrimitiveValue::Number(2.into()))), (Expression::Identifier("c".to_string()), Expression::Value(PrimitiveValue::Number(3.into())))]),
             }),
             Element::Expression(FunctionExpression::FunctionCall("add".to_string(), vec![Expression::Identifier("v".to_string())].into()).into())

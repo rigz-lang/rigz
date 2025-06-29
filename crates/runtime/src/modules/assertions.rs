@@ -21,7 +21,7 @@ impl RigzAssertions for AssertionsModule {
             } else {
                 format!("Assertion Failed: {message}")
             };
-            return Err(VMError::RuntimeError(message));
+            return Err(VMError::runtime(message));
         }
         Ok(())
     }
@@ -43,7 +43,7 @@ impl RigzAssertions for AssertionsModule {
             format!("Assertion Failed: {message}\n\t{base}")
         };
 
-        Err(VMError::RuntimeError(message))
+        Err(VMError::runtime(message))
     }
 
     fn assert_neq(
@@ -63,6 +63,6 @@ impl RigzAssertions for AssertionsModule {
             format!("Assertion Failed: {message}\n\t{base}")
         };
 
-        Err(VMError::RuntimeError(message))
+        Err(VMError::runtime(message))
     }
 }

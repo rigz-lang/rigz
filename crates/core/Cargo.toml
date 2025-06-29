@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = []
+default = ["snapshot"]
 colors = []
 derive = ["dep:proc-macro2", "dep:quote"]
 snapshot = []
@@ -22,14 +22,11 @@ proc-macro2 = { version = "1.0.95", optional = true }
 quote = { version = "1.0.40", optional = true }
 typetag.workspace = true
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "0.2.100"
-
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.6.0", features = ["html_reports"] }
 
 [[bench]]
 name = "number_benchmarks"

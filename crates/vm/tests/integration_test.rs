@@ -131,7 +131,7 @@ mod vm_test {
             .add_add_instruction()
             .exit_scope(0)
             .add_load_instruction(LoadValue::ScopeId(scope))
-            .add_load_let_instruction(a.clone())
+            .add_load_let_instruction(a.clone(), false)
             .add_get_variable_instruction(a)
             .add_load_instruction(2.into())
             .add_add_instruction()
@@ -180,7 +180,7 @@ mod vm_test {
         let a: String = "a".to_string();
         builder
             .add_load_instruction(3.into())
-            .add_load_mut_instruction(a.clone())
+            .add_load_mut_instruction(a.clone(), false)
             .add_get_mutable_variable_instruction(a.clone())
             .add_load_instruction(7.into())
             .add_binary_assign_instruction(BinaryOperation::Add)
@@ -197,7 +197,7 @@ mod vm_test {
             Scope {
                 instructions: vec![
                     Instruction::Load(2.into()),
-                    Instruction::LoadMut(a.clone()),
+                    Instruction::LoadMut(a.clone(), false),
                     Instruction::GetMutableVariable(a.clone()),
                     Instruction::Call(1),
                     Instruction::Call(1),
@@ -229,7 +229,7 @@ mod vm_test {
             Scope {
                 instructions: vec![
                     Instruction::Load(4.2.into()),
-                    Instruction::LoadMut(f.clone()),
+                    Instruction::LoadMut(f.clone(), false),
                     Instruction::GetMutableVariable(f.clone()),
                     Instruction::Call(1),
                     Instruction::GetMutableVariable(f.clone()),

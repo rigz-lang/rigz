@@ -182,25 +182,3 @@ impl From<RigzObject> for ObjectValue {
         ObjectValue::Object(Box::new(value))
     }
 }
-
-
-#[cfg(target_family = "wasm")]
-mod wasm_workaround {
-    extern "C" {
-        pub(super) fn __wasm_call_ctors();
-    }
-}
-
-// https://github.com/rustwasm/wasm-bindgen/issues/4446
-#[cfg(target_family = "wasm")]
-use wasm_bindgen::prelude::*;
-
-#[cfg(target_family = "wasm")]
-#[wasm_bindgen(start)]
-fn start() {
-
-    // fix:
-    // rigz_core::rigz_object::_::__ctor::h0eda6d1718dbd1e1: Read a negative address value from the stack. Did we run out of memory?
-    unsafe { wasm_workaround::__wasm_call_ctors()};
-
-}

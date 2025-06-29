@@ -2,6 +2,7 @@
 pub mod derive;
 
 mod args;
+mod enum_value;
 mod lifecycle;
 mod macros;
 mod number;
@@ -13,14 +14,13 @@ mod rigz_object;
 mod traits;
 mod types;
 mod vm_values;
-mod enum_value;
 
 pub type IndexMap<K, V> = indexmap::map::IndexMap<K, V>;
 pub type IndexMapEntry<'a, K, V> = indexmap::map::Entry<'a, K, V>;
 
 pub use args::RigzArgs;
-pub use lifecycle::*;
 pub use enum_value::*;
+pub use lifecycle::*;
 pub use number::*;
 pub use object::*;
 pub use operations::*;

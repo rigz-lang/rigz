@@ -21,7 +21,7 @@ impl RigzUUID for UUIDModule {
     fn from(&self, input: String) -> Result<String, VMError> {
         match Uuid::try_parse(input.as_str()) {
             Ok(s) => Ok(s.to_string()),
-            Err(e) => Err(VMError::RuntimeError(format!("Failed to parse uuid: {e}"))),
+            Err(e) => Err(VMError::runtime(format!("Failed to parse uuid: {e}"))),
         }
     }
 }

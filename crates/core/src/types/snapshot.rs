@@ -91,7 +91,7 @@ impl Snapshot for RigzType {
         let next = match bytes.next() {
             Some(b) => b,
             None => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Missing RigzType byte {location}"
                 )))
             }
@@ -129,7 +129,7 @@ impl Snapshot for RigzType {
             18 => RigzType::Custom(Snapshot::from_bytes(bytes, location)?),
             19 => RigzType::Enum(Snapshot::from_bytes(bytes, location)?),
             b => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Illegal RigzType byte {b} - {location}"
                 )))
             }

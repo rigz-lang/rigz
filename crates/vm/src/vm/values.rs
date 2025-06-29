@@ -53,7 +53,7 @@ impl ResolveValue for VM {
         match self.constants.get(index) {
             None => {
                 let o: ObjectValue =
-                    VMError::RuntimeError(format!("Constant {index} does not exist")).into();
+                    VMError::runtime(format!("Constant {index} does not exist")).into();
                 o.into()
             }
             Some(v) => v.clone().into(),

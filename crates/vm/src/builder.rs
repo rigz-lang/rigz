@@ -1,8 +1,11 @@
 use crate::vm::VMOptions;
-use crate::{MatchArm, ModulesMap};
 use crate::{Instruction, LoadValue, Scope, VM};
+use crate::{MatchArm, ModulesMap};
 use log::Level;
-use rigz_core::{BinaryOperation, Dependency, EnumDeclaration, Lifecycle, Module, MutableReference, ObjectValue, RigzType, UnaryOperation};
+use rigz_core::{
+    BinaryOperation, Dependency, EnumDeclaration, Lifecycle, Module, MutableReference, ObjectValue,
+    RigzType, UnaryOperation,
+};
 use std::fmt::Debug;
 use std::sync::Arc;
 // todo use Rodeo (single threaded here + runtime), use Reference<(Threaded or not)Resolver> in VM
@@ -319,13 +322,13 @@ pub trait RigzBuilder: Debug + Default {
     }
 
     #[inline]
-    fn add_load_let_instruction(&mut self, name: String) -> &mut Self {
-        self.add_instruction(Instruction::LoadLet(name))
+    fn add_load_let_instruction(&mut self, name: String, shadow: bool) -> &mut Self {
+        self.add_instruction(Instruction::LoadLet(name, shadow))
     }
 
     #[inline]
-    fn add_load_mut_instruction(&mut self, name: String) -> &mut Self {
-        self.add_instruction(Instruction::LoadMut(name))
+    fn add_load_mut_instruction(&mut self, name: String, shadow: bool) -> &mut Self {
+        self.add_instruction(Instruction::LoadMut(name, shadow))
     }
 
     #[inline]
@@ -359,9 +362,16 @@ pub trait RigzBuilder: Debug + Default {
     }
 
     #[inline]
-    fn add_create_enum_instruction(&mut self, enum_type: usize, variant: usize, has_expression: bool) -> &mut Self {
+    fn add_create_enum_instruction(
+        &mut self,
+        enum_type: usize,
+        variant: usize,
+        has_expression: bool,
+    ) -> &mut Self {
         self.add_instruction(Instruction::CreateEnum {
-            enum_type, variant, has_expression
+            enum_type,
+            variant,
+            has_expression,
         })
     }
 
@@ -396,8 +406,8 @@ pub trait RigzBuilder: Debug + Default {
     }
 
     #[inline]
-    fn add_catch_instruction(&mut self, scope: usize) -> &mut Self {
-        self.add_instruction(Instruction::Catch(scope))
+    fn add_catch_instruction(&mut self, scope: usize, has_arg: bool) -> &mut Self {
+        self.add_instruction(Instruction::Catch(scope, has_arg))
     }
 
     #[inline]

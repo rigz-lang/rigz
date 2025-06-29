@@ -10,7 +10,7 @@ impl Snapshot for BinaryOperation {
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let next = match bytes.next() {
             None => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Missing UnaryOperation byte {location}"
                 )))
             }
@@ -39,7 +39,7 @@ impl Snapshot for BinaryOperation {
             18 => BinaryOperation::Lte,
             19 => BinaryOperation::Elvis,
             b => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Illegal UnaryOperation byte {b} - {location}"
                 )))
             }
@@ -56,7 +56,7 @@ impl Snapshot for UnaryOperation {
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let next = match bytes.next() {
             None => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Missing UnaryOperation byte {location}"
                 )))
             }
@@ -72,7 +72,7 @@ impl Snapshot for UnaryOperation {
             5 => UnaryOperation::PrintLn,
             6 => UnaryOperation::EPrintLn,
             b => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Illegal UnaryOperation byte {b} - {location}"
                 )))
             }

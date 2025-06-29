@@ -36,7 +36,7 @@ impl Snapshot for Lifecycle {
         let next = match bytes.next() {
             Some(b) => b,
             None => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Missing Lifecycle byte {location}"
                 )))
             }
@@ -49,7 +49,7 @@ impl Snapshot for Lifecycle {
             3 => Lifecycle::Test(TestLifecycle),
             4 => Lifecycle::Composite(Snapshot::from_bytes(bytes, location)?),
             b => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Illegal Lifecycle byte {b} - {location}"
                 )))
             }
@@ -87,11 +87,7 @@ impl Snapshot for Stage {
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let next = match bytes.next() {
             Some(b) => b,
-            None => {
-                return Err(VMError::RuntimeError(format!(
-                    "Missing Stage byte {location}"
-                )))
-            }
+            None => return Err(VMError::runtime(format!("Missing Stage byte {location}"))),
         };
 
         let s = match next {
@@ -99,11 +95,7 @@ impl Snapshot for Stage {
             1 => Stage::Run,
             2 => Stage::Halt,
             3 => Stage::Custom(Snapshot::from_bytes(bytes, location)?),
-            b => {
-                return Err(VMError::RuntimeError(format!(
-                    "Illegal Stage {b} - {location}"
-                )))
-            }
+            b => return Err(VMError::runtime(format!("Illegal Stage {b} - {location}"))),
         };
         Ok(s)
     }

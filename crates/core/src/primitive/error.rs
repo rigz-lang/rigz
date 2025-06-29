@@ -1,4 +1,4 @@
-use crate::PrimitiveValue;
+use crate::{ObjectValue, PrimitiveValue};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::error::Error;
@@ -8,7 +8,7 @@ use std::rc::Rc;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum VMError {
     TimeoutError(String),
-    RuntimeError(String),
+    RuntimeError(Box<ObjectValue>),
     EmptyStack(String),
     ConversionError(String),
     ScopeDoesNotExist(String),
@@ -53,8 +53,28 @@ impl Display for VMError {
 }
 
 impl VMError {
+    pub fn runtime(value: String) -> Self {
+        VMError::RuntimeError(Box::new(value.into()))
+    }
+
     pub fn to_value(self) -> PrimitiveValue {
         PrimitiveValue::Error(self)
+    }
+
+    pub fn extract_value(self) -> ObjectValue {
+        let str = match self {
+            VMError::TimeoutError(s) => s,
+            VMError::RuntimeError(s) => return *s,
+            VMError::EmptyStack(s) => s,
+            VMError::ConversionError(s) => s,
+            VMError::ScopeDoesNotExist(s) => s,
+            VMError::UnsupportedOperation(s) => s,
+            VMError::VariableDoesNotExist(s) => s,
+            VMError::InvalidModule(s) => s,
+            VMError::InvalidModuleFunction(s) => s,
+            VMError::LifecycleError(s) => s,
+        };
+        ObjectValue::Primitive(PrimitiveValue::String(str))
     }
 
     pub fn invalid_function(func: &str) -> Self {

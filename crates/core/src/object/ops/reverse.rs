@@ -17,7 +17,7 @@ impl Reverse for ObjectValue {
             ObjectValue::Enum(e, v, value) => match value {
                 None => ObjectValue::Enum(*e, *v, None),
                 Some(val) => ObjectValue::Enum(*e, *v, Some(val.reverse().into())),
-            }
+            },
         }
     }
 }

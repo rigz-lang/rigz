@@ -44,7 +44,7 @@ impl Snapshot for ObjectValue {
         let next = match bytes.next() {
             Some(next) => next,
             None => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Missing byte for ObjectValue {location}"
                 )))
             }
@@ -56,9 +56,13 @@ impl Snapshot for ObjectValue {
             3 => ObjectValue::Map(Snapshot::from_bytes(bytes, location)?),
             4 => ObjectValue::Tuple(Snapshot::from_bytes(bytes, location)?),
             5 => ObjectValue::Object(Snapshot::from_bytes(bytes, location)?),
-            6 => ObjectValue::Enum(Snapshot::from_bytes(bytes, location)?, Snapshot::from_bytes(bytes, location)?, Snapshot::from_bytes(bytes, location)?),
+            6 => ObjectValue::Enum(
+                Snapshot::from_bytes(bytes, location)?,
+                Snapshot::from_bytes(bytes, location)?,
+                Snapshot::from_bytes(bytes, location)?,
+            ),
             b => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Illegal byte {b} for ObjectValue {location}"
                 )))
             }

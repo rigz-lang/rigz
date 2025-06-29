@@ -68,7 +68,7 @@ static TOKIO: std::sync::LazyLock<
         Err(_) => match tokio::runtime::Runtime::new() {
             Ok(r) => (r.handle().clone(), Some(r)),
             Err(e) => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Failed to create tokio runtime {e}"
                 )))
             }
@@ -151,7 +151,7 @@ impl ProcessManager {
             .collect();
 
         if res.is_empty() {
-            return Err(VMError::RuntimeError(format!(
+            return Err(VMError::runtime(format!(
                 "No process found matching '{message}'"
             )));
         }
@@ -205,12 +205,11 @@ impl ProcessManager {
     #[cfg(feature = "threaded")]
     fn handle_receive(&mut self, pid: usize, timeout: Option<usize>) -> ObjectValue {
         match self.processes.get_mut(pid) {
-            None => VMError::RuntimeError(format!("Process {pid} does not exist")).into(),
+            None => VMError::runtime(format!("Process {pid} does not exist")).into(),
             Some((p, t)) => {
                 let running = match t {
                     None => {
-                        return VMError::RuntimeError(format!("Process {pid} is not running"))
-                            .into()
+                        return VMError::runtime(format!("Process {pid} is not running")).into()
                     }
                     Some(t) => t,
                 };
@@ -226,7 +225,7 @@ impl ProcessManager {
                                 .await
                             {
                                 Ok(v) => v,
-                                Err(e) => Ok(VMError::RuntimeError(format!(
+                                Err(e) => Ok(VMError::runtime(format!(
                                     "`receive` timed out after {time}ms - {e}"
                                 ))
                                 .into()),
@@ -237,7 +236,7 @@ impl ProcessManager {
                 *t = None;
 
                 res.unwrap_or_else(|e| {
-                    VMError::RuntimeError(format!("Process {pid} failed: {e}")).into()
+                    VMError::runtime(format!("Process {pid} failed: {e}")).into()
                 })
             }
         }
@@ -261,7 +260,7 @@ impl ProcessManager {
                     Ok(v) => {
                         warn!("Orphaned value from Process {id} - {v}")
                     }
-                    Err(e) => errors.push(VMError::RuntimeError(format!(
+                    Err(e) => errors.push(VMError::runtime(format!(
                         "Failed to close process {id} - {e}"
                     ))),
                 },
@@ -283,7 +282,7 @@ impl ProcessManager {
                         }
                         res
                     });
-            VMError::RuntimeError(format!("Process Failures: {messages}")).into()
+            VMError::runtime(format!("Process Failures: {messages}")).into()
         }
     }
 

@@ -35,7 +35,7 @@ impl Snapshot for VMOptions {
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let byte = match bytes.next() {
             Some(b) => b,
-            None => return Err(VMError::RuntimeError(format!("Missing {location} byte"))),
+            None => return Err(VMError::runtime(format!("Missing {location} byte"))),
         };
         let max_depth = Snapshot::from_bytes(bytes, &format!("{location} max_depth"))?;
         Ok(VMOptions {

@@ -5,7 +5,9 @@ use crate::{
     VMStack, VMState, Variable,
 };
 use log_derive::{logfn, logfn_inputs};
-use rigz_core::{EnumDeclaration, MutableReference, ObjectValue, ResolveValue, RigzArgs, StackValue, VMError};
+use rigz_core::{
+    EnumDeclaration, MutableReference, ObjectValue, ResolveValue, RigzArgs, StackValue, VMError,
+};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Deref;
@@ -141,9 +143,9 @@ impl ProcessRunner<'_> {
     pub fn run(&mut self) -> ObjectValue {
         for (arg, mutable) in self.scope.args.clone() {
             let v = if mutable {
-                self.load_mut(arg)
+                self.load_mut(arg, false)
             } else {
-                self.load_let(arg)
+                self.load_let(arg, false)
             };
             if let Err(e) = v {
                 return e.into();
@@ -168,6 +170,6 @@ impl ProcessRunner<'_> {
                 VMState::Done(v) | VMState::Ran(v) => return v.borrow().clone(),
             }
         }
-        VMError::RuntimeError("No return found in scope".to_string()).into()
+        VMError::runtime("No return found in scope".to_string()).into()
     }
 }

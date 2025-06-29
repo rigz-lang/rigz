@@ -72,3 +72,24 @@ Usage: `rigz test <INPUT>`
 - `-h, --help`: Print help
 
 
+### WASM
+
+When running against a wasm target you'll need to do two things
+
+1. Use feature `js` to support some rigz library functions
+2. Add the following to your main method, this is done to support [inventory](https://docs.rs/inventory/0.3.20/inventory/index.html#webassembly-and-constructors) being used internally
+   - Rigz repl has an example as well
+   - ```rust
+     #[cfg(target_family = "wasm")]
+     unsafe extern "C" {
+         fn __wasm_call_ctors();
+     }
+   
+     fn main() {
+        #[cfg(target_family = "wasm")]
+        unsafe {
+         __wasm_call_ctors();
+        }
+     }
+     ```
+

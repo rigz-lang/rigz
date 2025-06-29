@@ -8,7 +8,10 @@ use crate::{
     generate_builder, out, CallFrame, Instruction, RigzBuilder, Runner, Scope, VMStack, Variable,
 };
 pub use options::VMOptions;
-use rigz_core::{Dependency, EnumDeclaration, Lifecycle, Module, MutableReference, ObjectValue, PrimitiveValue, Snapshot, StackValue, TestResults, VMError};
+use rigz_core::{
+    Dependency, EnumDeclaration, Lifecycle, Module, MutableReference, ObjectValue, PrimitiveValue,
+    Snapshot, StackValue, TestResults, VMError,
+};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -64,11 +67,7 @@ impl RigzBuilder for VM {
 
     #[inline]
     fn register_enum(&mut self, decl: Arc<EnumDeclaration>) -> usize {
-        let dep = self
-            .enums
-            .read()
-            .expect("failed to read enums")
-            .len();
+        let dep = self.enums.read().expect("failed to read enums").len();
         self.enums
             .get_mut()
             .expect("failed to lock enums")
@@ -242,7 +241,7 @@ impl VM {
         match self.process_instruction(instruction) {
             VMState::Ran(v) => {
                 return Some(
-                    VMError::RuntimeError(format!("Unexpected ran state: {}", v.borrow())).into(),
+                    VMError::runtime(format!("Unexpected ran state: {}", v.borrow())).into(),
                 )
             }
             VMState::Running => {}

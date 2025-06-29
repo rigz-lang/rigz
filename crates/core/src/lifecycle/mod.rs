@@ -72,9 +72,9 @@ impl Display for TestResults {
 
         let preamble = if success {
             if cfg!(feature = "colors") {
-                "test result: ok".to_string()
-            } else {
                 "test result: \x1b[32mok\x1b[0m".to_string()
+            } else {
+                "test result: ok".to_string()
             }
         } else {
             let mut result = "\nfailures:\n".to_string();
@@ -82,9 +82,9 @@ impl Display for TestResults {
                 result.push_str(format!("\t{name}: {reason}\n").as_str())
             }
             let res = if cfg!(feature = "colors") {
-                "\ntest result: FAILED"
-            } else {
                 "\ntest result: \x1b[31mFAILED\x1b[0m"
+            } else {
+                "\ntest result: FAILED"
             };
             result.push_str(res);
             result

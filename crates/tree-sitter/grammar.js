@@ -97,6 +97,8 @@ module.exports = grammar({
             $.for_map,
             $.tuple,
             $.match,
+            seq("try", $.expression),
+            seq($.expression, "catch", seq(optional(seq("|", $.identifier, "|")), choice(seq(repeat($.statement), $.expression, "end"), seq("=", $.expression)))),
             seq("return", optional($.expression)),
             // todo support string interpolation
             seq("(", $.expression, ")")

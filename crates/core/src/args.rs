@@ -55,7 +55,7 @@ impl RigzArgs {
     #[inline]
     pub fn first(self) -> Result<Rc<RefCell<ObjectValue>>, VMError> {
         if self.is_empty() {
-            return Err(VMError::RuntimeError(
+            return Err(VMError::runtime(
                 "Invalid args, expected 1 argument".to_string(),
             ));
         }
@@ -66,7 +66,7 @@ impl RigzArgs {
     #[inline]
     pub fn take<const N: usize>(self) -> Result<[Rc<RefCell<ObjectValue>>; N], VMError> {
         if self.len() < N {
-            return Err(VMError::RuntimeError(format!(
+            return Err(VMError::runtime(format!(
                 "Invalid args, expected {N} argument{}",
                 if N > 1 { "s" } else { "" }
             )));
@@ -84,7 +84,7 @@ impl RigzArgs {
         self,
     ) -> Result<VarArgs<START, COUNT>, VMError> {
         if self.len() < START {
-            return Err(VMError::RuntimeError(format!(
+            return Err(VMError::runtime(format!(
                 "Invalid args, expected {START} argument{}",
                 if START > 1 { "s" } else { "" }
             )));
@@ -103,7 +103,7 @@ impl RigzArgs {
                     var[i - START] = l;
                 }
                 Err(e) => {
-                    return Err(VMError::RuntimeError(format!(
+                    return Err(VMError::runtime(format!(
                         "Invalid Var Args at {i} - {v:?}: {e}"
                     )));
                 }
@@ -112,7 +112,7 @@ impl RigzArgs {
         let min = var[0].len();
         dbg!(&var, &results);
         if var.iter().any(|v| v.len() != min) {
-            Err(VMError::RuntimeError(format!(
+            Err(VMError::runtime(format!(
                 "Invalid var args, expected all args to contain {min}"
             )))
         } else {
@@ -125,7 +125,7 @@ impl RigzArgs {
         self,
     ) -> Result<VarArgsRc<START, COUNT>, VMError> {
         if self.len() < START {
-            return Err(VMError::RuntimeError(format!(
+            return Err(VMError::runtime(format!(
                 "Invalid args, expected {START} argument{}",
                 if START > 1 { "s" } else { "" }
             )));
@@ -147,7 +147,7 @@ impl RigzArgs {
                     var[i - START] = rc;
                 }
                 Err(e) => {
-                    return Err(VMError::RuntimeError(format!(
+                    return Err(VMError::runtime(format!(
                         "Invalid Var Args at {i} - {v:?}: {e}"
                     )));
                 }
@@ -155,7 +155,7 @@ impl RigzArgs {
         }
         let min = var_len[0];
         if var_len.iter().any(|v| *v != min) {
-            Err(VMError::RuntimeError(format!(
+            Err(VMError::runtime(format!(
                 "Invalid var args, expected all args to contain {min}"
             )))
         } else {

@@ -23,7 +23,7 @@ impl Mul for &PrimitiveValue {
             | (PrimitiveValue::String(b), PrimitiveValue::Number(a)) => match b.parse() {
                 Err(_) => {
                     if a.is_negative() {
-                        return VMError::RuntimeError(format!(
+                        return VMError::runtime(format!(
                             "Cannot multiply {} by negatives: {}",
                             b, a
                         ))

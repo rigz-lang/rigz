@@ -87,9 +87,7 @@ impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
         if let PrimitiveValue::Range(r) = self {
             Ok(r.to_list())
         } else {
-            Err(VMError::RuntimeError(format!(
-                "Cannot convert {self} to List"
-            )))
+            Err(VMError::runtime(format!("Cannot convert {self} to List")))
         }
     }
 
@@ -97,9 +95,7 @@ impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
         if let PrimitiveValue::Range(r) = self {
             Ok(r.to_map())
         } else {
-            Err(VMError::RuntimeError(format!(
-                "Cannot convert {self} to Map"
-            )))
+            Err(VMError::runtime(format!("Cannot convert {self} to Map")))
         }
     }
 

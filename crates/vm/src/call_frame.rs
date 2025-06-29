@@ -23,12 +23,12 @@ impl Snapshot for Variable {
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         match bytes.next() {
-            None => Err(VMError::RuntimeError(format!(
+            None => Err(VMError::runtime(format!(
                 "Missing Variable byte - {location}"
             ))),
             Some(0) => Ok(Variable::Let(Snapshot::from_bytes(bytes, location)?)),
             Some(1) => Ok(Variable::Mut(Snapshot::from_bytes(bytes, location)?)),
-            Some(b) => Err(VMError::RuntimeError(format!(
+            Some(b) => Err(VMError::runtime(format!(
                 "Illegal Variable byte {b} - {location}"
             ))),
         }
@@ -87,14 +87,18 @@ impl Frames {
     }
 
     #[inline]
-    #[logfn_inputs(Trace, fmt = "load_let(frames={:#?} name={}, value={:?})")]
-    pub fn load_let(&self, name: String, value: StackValue) -> Result<(), VMError> {
+    #[logfn_inputs(Trace, fmt = "load_let(frames={:#?} name={}, value={:?}, shadow={})")]
+    pub fn load_let(&self, name: String, value: StackValue, shadow: bool) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
-            IndexMapEntry::Occupied(v) => {
-                return Err(VMError::UnsupportedOperation(format!(
-                    "Cannot overwrite let variable: {}",
-                    *v.key()
-                )))
+            IndexMapEntry::Occupied(mut v) => {
+                if shadow {
+                    *v.get_mut() = Variable::Let(value);
+                } else {
+                    return Err(VMError::UnsupportedOperation(format!(
+                        "Cannot overwrite let variable: {}",
+                        *v.key()
+                    )));
+                }
             }
             IndexMapEntry::Vacant(e) => {
                 e.insert(Variable::Let(value));
@@ -116,18 +120,22 @@ impl Frames {
     }
 
     #[inline]
-    #[logfn_inputs(Trace, fmt = "load_mut(frames={:#?} name={}, value={:?})")]
-    pub fn load_mut(&self, name: String, value: StackValue) -> Result<(), VMError> {
+    #[logfn_inputs(Trace, fmt = "load_mut(frames={:#?} name={}, value={:?}, shadow={})")]
+    pub fn load_mut(&self, name: String, value: StackValue, shadow: bool) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
             IndexMapEntry::Occupied(mut var) => match var.get() {
                 Variable::Let(_) => {
-                    return Err(VMError::UnsupportedOperation(format!(
-                        "Cannot overwrite let variable: {}",
-                        *var.key()
-                    )))
+                    if shadow {
+                        *var.get_mut() = Variable::Mut(value);
+                    } else {
+                        return Err(VMError::UnsupportedOperation(format!(
+                            "Cannot overwrite let variable: {}",
+                            *var.key()
+                        )));
+                    }
                 }
                 Variable::Mut(_) => {
-                    var.insert(Variable::Mut(value));
+                    *var.get_mut() = Variable::Mut(value);
                 }
             },
             IndexMapEntry::Vacant(e) => {

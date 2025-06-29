@@ -36,8 +36,8 @@ impl ToTokens for ObjectValue {
                 Some(b) => {
                     let b = boxed(b);
                     quote! { ObjectValue::Enum(#i, #v, Some(#b)) }
-                },
-            }
+                }
+            },
         };
         tokens.extend(t)
     }
@@ -119,7 +119,7 @@ impl ToTokens for ValueRange {
 impl ToTokens for VMError {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
-            VMError::RuntimeError(s) => quote! { VMError::RuntimeError(#s.into()) },
+            VMError::RuntimeError(v) => quote! { VMError::RuntimeError(Box::new(#v.into())) },
             VMError::EmptyStack(s) => quote! { VMError::EmptyRegister(#s.into()) },
             VMError::ConversionError(s) => quote! { VMError::ConversionError(#s.into()) },
             VMError::ScopeDoesNotExist(s) => {

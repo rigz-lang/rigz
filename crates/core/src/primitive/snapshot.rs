@@ -45,11 +45,7 @@ impl Snapshot for PrimitiveValue {
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let next = match bytes.next() {
-            None => {
-                return Err(VMError::RuntimeError(format!(
-                    "Missing Value byte {location}"
-                )))
-            }
+            None => return Err(VMError::runtime(format!("Missing Value byte {location}"))),
             Some(s) => s,
         };
         let v = match next {
@@ -58,7 +54,7 @@ impl Snapshot for PrimitiveValue {
             2 => {
                 let b = match bytes.next_array() {
                     None => {
-                        return Err(VMError::RuntimeError(format!(
+                        return Err(VMError::runtime(format!(
                             "Missing Number::Int bytes {location}"
                         )))
                     }
@@ -69,7 +65,7 @@ impl Snapshot for PrimitiveValue {
             3 => {
                 let b = match bytes.next_array() {
                     None => {
-                        return Err(VMError::RuntimeError(format!(
+                        return Err(VMError::runtime(format!(
                             "Missing Number::Float bytes {location}"
                         )))
                     }
@@ -82,7 +78,7 @@ impl Snapshot for PrimitiveValue {
             6 => PrimitiveValue::Error(Snapshot::from_bytes(bytes, location)?),
             7 => PrimitiveValue::Type(Snapshot::from_bytes(bytes, location)?),
             b => {
-                return Err(VMError::RuntimeError(format!(
+                return Err(VMError::runtime(format!(
                     "Illegal Value byte {b} - {location}"
                 )))
             }

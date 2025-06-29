@@ -7,10 +7,13 @@ license = "MIT"
 repository = "https://gitlab.com/inapinch/rigz/crates/lsp"
 keywords = ["rigz", "lsp"]
 
+[features]
+default = ["rigz_ast/format"]
+
 [dependencies]
 dashmap = "6.1.0"
 ropey = "1.6.1"
-rigz_ast = {workspace = true, features = ["format"]}
+rigz_ast.workspace = true
 rigz_runtime.workspace = true
 tower-lsp = "0.20.0"
 tokio = { version = "1.43.0", features = ["io-std", "rt-multi-thread", "rt", "macros"] }

@@ -16,7 +16,7 @@ impl RigzJSON for JSONModule {
     fn any_to_json(&self, value: ObjectValue) -> Result<String, VMError> {
         match serde_json::to_string(&value) {
             Ok(s) => Ok(s),
-            Err(e) => Err(VMError::RuntimeError(format!("Failed to write json - {e}"))),
+            Err(e) => Err(VMError::runtime(format!("Failed to write json - {e}"))),
         }
     }
 
@@ -29,7 +29,7 @@ impl RigzJSON for JSONModule {
                 }
                 Ok(v)
             }
-            Err(e) => Err(VMError::RuntimeError(format!("Failed to parse json - {e}"))),
+            Err(e) => Err(VMError::runtime(format!("Failed to parse json - {e}"))),
         }
     }
 }

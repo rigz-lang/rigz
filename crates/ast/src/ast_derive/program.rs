@@ -2,7 +2,11 @@ use crate::program::{
     ArgType, AssignIndex, Constructor, FunctionExpression, ImportValue, ObjectAttr,
     ObjectDefinition, RigzArguments,
 };
-use crate::{Assign, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration, FunctionDefinition, FunctionSignature, FunctionType, ModuleTraitDefinition, Scope, Statement, TraitDefinition};
+use crate::{
+    Assign, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration,
+    FunctionDefinition, FunctionSignature, FunctionType, ModuleTraitDefinition, Scope, Statement,
+    TraitDefinition,
+};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use rigz_core::derive::{boxed, csv_vec, option};
@@ -71,8 +75,11 @@ impl ToTokens for Expression {
                 quote! {
                     Expression::Enum(#t.to_string(), #s.to_string(), #exp)
                 }
-            },
-            Expression::Match { condition, variants } => quote! {
+            }
+            Expression::Match {
+                condition,
+                variants,
+            } => quote! {
                 Expression::Match { }
             },
             Expression::Value(v) => {
@@ -315,16 +322,25 @@ impl ToTokens for Assign {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
             Assign::This => quote! { Assign::This },
-            Assign::Identifier(name, mutable) => {
-                quote! { Assign::Identifier(#name.to_string(), #mutable) }
+            Assign::Identifier {
+                name,
+                mutable,
+                shadow,
+            } => {
+                quote! { Assign::Identifier { name: #name.to_string(), mutable: #mutable, shadow: #shadow } }
             }
-            Assign::TypedIdentifier(n, mutable, rt) => {
-                quote! { Assign::TypedIdentifier(#n.to_string(), #mutable, #rt) }
+            Assign::TypedIdentifier {
+                name,
+                mutable,
+                shadow,
+                rigz_type,
+            } => {
+                quote! { Assign::TypedIdentifier { name: #name.to_string(), mutable: #mutable, shadow: #shadow, rigz_type: #rigz_type} }
             }
             Assign::Tuple(t) => {
                 let values: Vec<_> = t
                     .iter()
-                    .map(|(id, mutable)| quote! { (#id.to_string(), #mutable), })
+                    .map(|(id, mutable, shadow)| quote! { (#id.to_string(), #mutable, #shadow), })
                     .collect();
                 quote! { Assign::Tuple(vec![#(#values)*]) }
             }

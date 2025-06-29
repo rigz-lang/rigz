@@ -45,7 +45,7 @@ pub(crate) fn test(args: TestArgs) {
                     Err(e) => {
                         total.failure_messages.push((
                             format!("{} - Create Runtime Failed", path_to_string(&file)),
-                            VMError::RuntimeError(e.to_string()),
+                            VMError::runtime(e.to_string()),
                         ));
                     }
                 };
