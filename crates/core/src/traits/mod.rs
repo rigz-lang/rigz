@@ -7,11 +7,9 @@ use crate::{ObjectValue, RigzArgs, VMError};
 pub use as_primitive::{AsPrimitive, WithTypeInfo};
 use dyn_clone::DynClone;
 pub use dyn_traits::*;
-use log::{error, warn};
 use mopa::mopafy;
 #[cfg(feature = "snapshot")]
 pub use snapshot::Snapshot;
-use std::any::Any;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};

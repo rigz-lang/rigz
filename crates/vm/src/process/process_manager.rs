@@ -2,7 +2,7 @@ use crate::process::Process;
 use crate::{ModulesMap, Scope, VMOptions, VM};
 use log::warn;
 use rigz_core::{
-    AsPrimitive, Lifecycle, MutableReference, ObjectValue, PrimitiveValue, Reference, VMError,
+    AsPrimitive, Lifecycle, MutableReference, ObjectValue, Reference, VMError,
 };
 use std::cell::RefCell;
 use std::fmt::Debug;

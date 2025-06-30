@@ -3,7 +3,7 @@ use crate::{Instruction, LoadValue, Scope, VM};
 use crate::{MatchArm, ModulesMap};
 use log::Level;
 use rigz_core::{
-    BinaryOperation, Dependency, EnumDeclaration, Lifecycle, Module, MutableReference, ObjectValue,
+    BinaryOperation, Dependency, EnumDeclaration, Lifecycle, Module, ObjectValue,
     RigzType, UnaryOperation,
 };
 use std::fmt::Debug;

@@ -18,7 +18,6 @@ pub use program::*;
 
 use rigz_core::*;
 use std::collections::VecDeque;
-use std::env::var;
 use std::fmt::Debug;
 use std::path::PathBuf;
 pub use token::ParsingError;

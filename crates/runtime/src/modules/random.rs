@@ -3,7 +3,6 @@ use rand_chacha::ChaCha8Rng;
 use rigz_ast::*;
 use rigz_ast_derive::{derive_module, derive_object};
 use rigz_core::*;
-use std::fmt::{Display, Formatter};
 use std::ops::Deref;
 
 derive_object! {

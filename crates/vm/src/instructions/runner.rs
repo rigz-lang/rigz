@@ -5,7 +5,7 @@ use rigz_core::{
     PrimitiveValue, Reference, ResolveValue, Reverse, RigzArgs, RigzObject, StackValue,
     UnaryOperation, VMError,
 };
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;

@@ -90,7 +90,7 @@ pub mod runtime {
 
     pub mod invalid {
         use super::*;
-        use rigz_ast::ValidationError;
+        
         use rigz_core::{ObjectValue, VMError};
 
         run_invalid! {
@@ -143,7 +143,7 @@ pub mod runtime {
 
     pub mod valid {
         use super::*;
-        use rigz_core::{IndexMap, ObjectValue, VMError};
+        use rigz_core::{IndexMap, ObjectValue};
 
         run_expected! {
             raw_value("'Hello World'" = "Hello World")

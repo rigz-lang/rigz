@@ -2,10 +2,8 @@ use log::warn;
 use rigz_ast::*;
 use rigz_ast_derive::{derive_module, derive_object};
 use rigz_core::*;
-use std::any::Any;
-use std::io::Error;
 use std::ops::Deref;
-use std::sync::{Arc, LockResult, RwLock};
+use std::sync::{Arc, RwLock};
 
 derive_object! {
     "Http",
@@ -222,7 +220,7 @@ derive_module! {
 }
 
 fn set_headers(
-    mut request: ureq::Request,
+    request: ureq::Request,
     headers: Option<IndexMap<ObjectValue, ObjectValue>>,
 ) -> ureq::Request {
     let mut request = request;
@@ -245,7 +243,7 @@ fn to_object(res: Result<ureq::Response, ureq::Error>) -> Result<ObjectValue, VM
     }
 }
 
-fn handle_body(mut req: ureq::Request, body: Option<ObjectValue>) -> Result<ObjectValue, VMError> {
+fn handle_body(req: ureq::Request, body: Option<ObjectValue>) -> Result<ObjectValue, VMError> {
     let resp = match body {
         None => req.call(),
         Some(ObjectValue::Primitive(PrimitiveValue::String(body))) => req.send_string(&body),

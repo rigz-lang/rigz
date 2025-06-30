@@ -12,7 +12,6 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::thread;
 use std::time::Duration;
 
 pub(crate) struct ProcessRunner<'s> {
@@ -136,7 +135,7 @@ impl Runner for ProcessRunner<'_> {
             .apply(move |pm| pm.handle.block_on(tokio::time::sleep(duration)));
 
         #[cfg(not(feature = "threaded"))]
-        thread::sleep(duration)
+        std::thread::sleep(duration)
     }
 }
 

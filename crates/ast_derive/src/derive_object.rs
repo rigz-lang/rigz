@@ -1,13 +1,12 @@
 use crate::{
-    convert_response, convert_type_for_arg, rigz_type_to_arg, rigz_type_to_return_type,
+    convert_response, convert_type_for_arg, rigz_type_to_return_type,
     setup_call_args,
 };
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
-use rigz_ast::{FunctionDeclaration, FunctionType, ObjectDefinition, Parser, ParserOptions};
+use rigz_ast::{FunctionDeclaration, ObjectDefinition, Parser, ParserOptions};
 use rigz_core::derive::Tokens;
 use rigz_core::RigzType;
-use std::slice::Iter;
 use syn::parse::{Parse, ParseStream};
 use syn::{token, ItemStruct, LitStr, Token, Type, Visibility};
 
