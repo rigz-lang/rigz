@@ -500,16 +500,6 @@ pub mod runtime {
             pids = send 'message', 21
             receive pids.0
             "# = 42)
-            on_works_multi_message(r#"
-            @on("message")
-            fn foo(a, b) = a * b
-
-            @on("message")
-            fn bar(a, b) = a - b
-
-            pids = send 'message', 21, 12
-            receive pids
-            "# = vec![252, 9])
             to_bits(
                 "2.to_bits" = vec![true, false]
             )
@@ -598,6 +588,16 @@ pub mod runtime {
                 mut rand = Random.create 49
                 rand.next_int
             "# = -8718902610742086980i64)
+            on_works_multi_message(r#"
+            @on("message")
+            fn foo(a, b) = a * b
+
+            @on("message")
+            fn bar(a, b) = a - b
+
+            pids = send 'message', 21, 12
+            receive pids
+            "# = vec![252, 9])
         }
     }
 

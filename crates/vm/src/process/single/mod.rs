@@ -1,14 +1,16 @@
-use crate::process::ProcessManager;
+use crate::process::{ProcessManager, ProcessRunner};
 use crate::{ModulesMap, Scope, VMOptions};
 use rigz_core::{Lifecycle, MutableReference, ObjectValue, VMError};
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Process {
     pub scope: Scope,
     options: VMOptions,
     modules: ModulesMap,
-    timeout: Option<usize>,
+    pub(crate) timeout: Option<usize>,
     process_manager: MutableReference<ProcessManager>,
+    pub(crate) requests: Vec<Vec<ObjectValue>>,
 }
 
 impl Process {
@@ -25,36 +27,30 @@ impl Process {
             modules,
             timeout,
             process_manager,
+            requests: vec![],
         }
     }
 
-    pub fn spawn(
-        scope: Scope,
-        options: VMOptions,
-        modules: ModulesMap,
-        timeout: Option<usize>,
-        process_manager: MutableReference<ProcessManager>,
-    ) -> Self {
-        Self::new(scope, options, modules, timeout, process_manager)
+    pub fn receive(&mut self, timeout: Option<usize>) -> ObjectValue {
+        if self.requests.is_empty() {
+            return VMError::runtime(format!("No requests for process {:?}", self.scope)).into();
+        }
+        let args = self.requests.remove(0);
+        let mut runner = ProcessRunner::new(
+            &self.scope,
+            args,
+            &self.options,
+            self.modules.clone(),
+            self.process_manager.clone(),
+        );
+        match timeout {
+            None => runner.run(),
+            Some(t) => runner.run_within(t),
+        }
     }
 
-    pub fn lifecycle(&self) -> Option<&Lifecycle> {
-        self.scope.lifecycle.as_ref()
-    }
-
-    pub fn close(self) -> Result<(), VMError> {
-        Err(VMError::todo(
-            "`close` is not implemented for Single Threaded Process".to_string(),
-        ))
-    }
-
-    pub fn receive(&self, timeout: Option<usize>) -> ObjectValue {
-        VMError::todo("`receive` is not implemented for Single Threaded Process".to_string()).into()
-    }
-
-    pub fn send(&self, args: Vec<ObjectValue>) -> Result<(), VMError> {
-        Err(VMError::todo(
-            "`send` is not implemented for Single Threaded Process".to_string(),
-        ))
+    pub fn send(&mut self, args: Vec<ObjectValue>) -> Result<(), VMError> {
+        self.requests.push(args);
+        Ok(())
     }
 }

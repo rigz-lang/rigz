@@ -70,6 +70,14 @@ impl<T: Debug> MutableReference<T> {
     }
 
     #[cfg(not(feature = "threaded"))]
+    pub fn apply_mut<F, R>(&self, mut f: F) -> R
+    where
+        F: FnMut(&mut T) -> R,
+    {
+        f(self.0.borrow_mut().deref_mut())
+    }
+
+    #[cfg(not(feature = "threaded"))]
     pub fn update<F, R>(&self, f: F) -> R
     where
         F: FnOnce(&mut T) -> R,

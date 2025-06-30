@@ -1327,9 +1327,11 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                             },
                         ) => {
                             match en.variants.iter().find_position(|(v, vt)| v == &name) {
-                                None => return Err(ValidationError::InvalidEnum(format!(
+                                None => {
+                                    return Err(ValidationError::InvalidEnum(format!(
                                     "Illegal enum match variant .{name} for {condition:?} ({rt:?})"
-                                ))),
+                                )))
+                                }
                                 Some((vi, (vname, vt))) => {
                                     match cond {
                                         MatchVariantCondition::None => {

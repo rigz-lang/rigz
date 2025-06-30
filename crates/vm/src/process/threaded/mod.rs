@@ -1,9 +1,6 @@
-mod runner;
-
-use crate::process::ProcessManager;
+use crate::process::{ProcessManager, ProcessRunner};
 use crate::{ModulesMap, Scope, VMOptions};
 use rigz_core::{MutableReference, ObjectValue};
-use runner::ProcessRunner;
 
 #[derive(Debug)]
 pub(crate) struct Process {

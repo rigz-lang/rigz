@@ -1,7 +1,9 @@
 use crate::process::Process;
 use crate::{ModulesMap, Scope, VMOptions, VM};
 use log::warn;
-use rigz_core::{AsPrimitive, Lifecycle, MutableReference, ObjectValue, Reference, VMError};
+use rigz_core::{
+    AsPrimitive, Lifecycle, MutableReference, ObjectValue, PrimitiveValue, Reference, VMError,
+};
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
@@ -31,7 +33,7 @@ pub(crate) type SpawnedProcesses = Vec<(
 )>;
 
 #[cfg(not(feature = "threaded"))]
-pub(crate) type SpawnedProcesses = Vec<Reference<Process>>;
+pub(crate) type SpawnedProcesses = Vec<MutableReference<Process>>;
 
 #[cfg(feature = "threaded")]
 fn run_process(
@@ -114,10 +116,10 @@ impl ProcessManager {
         process_manager: MutableReference<ProcessManager>,
     ) -> Result<usize, VMError> {
         let pid = self.processes.len();
-        let p: Reference<Process> =
-            Process::new(scope, options, modules, timeout, process_manager).into();
+        let p = Process::new(scope, options, modules, timeout, process_manager);
         #[cfg(feature = "threaded")]
         {
+            let p: Reference<Process> = p.into();
             let arc = p.clone();
             let t = self.handle.spawn_blocking(move || arc.run(args));
             self.processes.push((p, Some(t)));
@@ -125,7 +127,9 @@ impl ProcessManager {
 
         #[cfg(not(feature = "threaded"))]
         {
-            self.processes.push(p);
+            let mut p = p;
+            p.requests.push(args);
+            self.processes.push(p.into());
         }
         Ok(pid)
     }
@@ -164,9 +168,34 @@ impl ProcessManager {
         &mut self,
         args: Vec<Rc<RefCell<ObjectValue>>>,
     ) -> Result<ObjectValue, VMError> {
-        Err(VMError::todo(
-            "send is not implemented for single threaded processes",
-        ))
+        let mut args = args.into_iter().map(|v| v.borrow().clone());
+        // todo message or pid
+        let message = args.next().unwrap().to_string();
+        let args = Vec::from_iter(args);
+        let res: Vec<Result<ObjectValue, VMError>> = self
+            .processes
+            .iter_mut()
+            .enumerate()
+            .filter(|(_, p)| {
+                p.apply(|p| match p.scope.lifecycle.as_ref() {
+                    Some(Lifecycle::On(e)) => e.event == message,
+                    _ => false,
+                })
+            })
+            .map(|(id, running)| {
+                running
+                    .apply_mut(|r| r.send(args.clone()))
+                    .map(|_| (id as i64).into())
+            })
+            .collect();
+
+        if res.is_empty() {
+            return Err(VMError::runtime(format!(
+                "No process found matching '{message}'"
+            )));
+        }
+
+        Ok(res.into())
     }
 
     pub(crate) fn receive(
@@ -244,10 +273,16 @@ impl ProcessManager {
 
     #[cfg(not(feature = "threaded"))]
     fn handle_receive(&mut self, pid: usize, timeout: Option<usize>) -> ObjectValue {
-        VMError::todo(format!(
-            "receive is not implemented for single threaded processes - {pid}"
-        ))
-        .into()
+        match self.processes.get(pid) {
+            None => VMError::runtime(format!("Process {pid} does not exist")).into(),
+            Some(p) => p.apply_mut(|p| {
+                let timeout = match timeout {
+                    None => p.timeout,
+                    Some(s) => Some(s),
+                };
+                p.receive(timeout)
+            }),
+        }
     }
 
     #[cfg(feature = "threaded")]
@@ -288,10 +323,42 @@ impl ProcessManager {
 
     #[cfg(not(feature = "threaded"))]
     pub(crate) fn close(&mut self, result: ObjectValue) -> ObjectValue {
-        result
+        let mut errors: Vec<VMError> = vec![];
+        for (id, p) in self.processes.drain(..).enumerate() {
+            p.apply_mut(|p| {
+                let runs = p.requests.len();
+                for _ in 0..runs {
+                    let v = p.receive(None);
+                    if v.is_error() {
+                        errors.push(VMError::runtime(format!(
+                            "Failed to close process {id} - {v}"
+                        )));
+                    } else {
+                        warn!("Orphaned value from Process {id} - {v}");
+                    }
+                }
+            });
+        }
+
+        if errors.is_empty() {
+            result
+        } else {
+            let len = errors.len() - 1;
+            let messages =
+                errors
+                    .iter()
+                    .enumerate()
+                    .fold(String::new(), |mut res, (index, next)| {
+                        res.push_str(next.to_string().as_str());
+                        if index != len {
+                            res.push_str(", ");
+                        }
+                        res
+                    });
+            VMError::runtime(format!("Process Failures: {messages}")).into()
+        }
     }
 
-    // todo return channel
     pub(crate) fn create_on_processes(vm: &VM) -> SpawnedProcesses {
         let scopes = vm
             .scopes

@@ -28,18 +28,6 @@ impl Runner for VM {
         }
     }
 
-    fn find_enum(&mut self, enum_type: usize) -> Result<std::sync::Arc<EnumDeclaration>, VMError> {
-        match self
-            .enums
-            .read()
-            .expect("Failed to read enums")
-            .get(enum_type)
-        {
-            None => Err(VMError::runtime(format!("Enum {enum_type} doesn't exist"))),
-            Some(v) => Ok(v.clone()),
-        }
-    }
-
     #[inline]
     fn call_frame(&mut self, scope_index: usize) -> Result<(), VMError> {
         if self.scopes.len() <= scope_index {
@@ -234,6 +222,18 @@ impl Runner for VM {
             .update_with_ref(move |p, pm| p.spawn(scope, vec![], options, m, timeout, pm))?;
         self.store_value((pid as i64).into());
         Ok(())
+    }
+
+    fn find_enum(&mut self, enum_type: usize) -> Result<std::sync::Arc<EnumDeclaration>, VMError> {
+        match self
+            .enums
+            .read()
+            .expect("Failed to read enums")
+            .get(enum_type)
+        {
+            None => Err(VMError::runtime(format!("Enum {enum_type} doesn't exist"))),
+            Some(v) => Ok(v.clone()),
+        }
     }
     //
     // fn vm_extension(

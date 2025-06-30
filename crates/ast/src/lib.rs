@@ -770,9 +770,11 @@ impl<'t> Parser<'t> {
                                     self.consume_token(c_token.kind)?;
                                     MatchVariantCondition::Unless(self.parse_expression()?)
                                 }
-                                _ => return Err(ParsingError::ParseError(format!(
+                                _ => {
+                                    return Err(ParsingError::ParseError(format!(
                                     "Invalid match variant condition {c_token:?}, condition or =>"
-                                ))),
+                                )))
+                                }
                             };
                             self.consume_token(TokenKind::Arrow)?;
                             let var = self.peek_required_token("match_variant - enum")?;
@@ -895,12 +897,15 @@ impl<'t> Parser<'t> {
                                 None => break,
                                 Some(t) if t.terminal() => {
                                     self.consume_token(t.kind)?;
-                                    break
-                                },
+                                    break;
+                                }
                                 Some(t) if t.kind == TokenKind::Comma => {
                                     self.consume_token(TokenKind::Comma)?;
                                     if comma {
-                                        return Err(ParsingError::ParseError(format!("Duplicate comma {:?}", t)))
+                                        return Err(ParsingError::ParseError(format!(
+                                            "Duplicate comma {:?}",
+                                            t
+                                        )));
                                     }
                                     comma = true;
                                 }
@@ -912,7 +917,7 @@ impl<'t> Parser<'t> {
                         }
                         Expression::Tuple(args)
                     }
-                    _ => ex
+                    _ => ex,
                 };
                 Expression::Error(value.into())
             }
