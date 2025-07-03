@@ -1,0 +1,21 @@
+{
+  "name": "@rigz-lang/highlight.js",
+  "version": "0.6.1",
+  "private": false,
+  "description": "Highlight rigz with highlight.js",
+  "keywords": [
+    "rigz"
+  ],
+  "license": "ISC",
+  "author": "magicfoodhand",
+  "type": "module",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitlab.com/rigz_lang/rigz.git",
+    "directory": "npm/rigz-highlight.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
