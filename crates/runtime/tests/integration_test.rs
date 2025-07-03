@@ -567,7 +567,9 @@ pub mod runtime {
                 Bar
             end
 
-            match Foo.Bar do
+            foo = Foo.Bar
+
+            match foo on
                 .Bar -> 42,
                 else -> 69
             end

@@ -731,7 +731,7 @@ impl<'t> Parser<'t> {
             }
             TokenKind::Match => {
                 let condition = Box::new(self.parse_expression()?);
-                self.consume_token(TokenKind::Do)?;
+                self.consume_token(TokenKind::On)?;
                 let mut variants = vec![];
                 loop {
                     let next = self.next_required_token("match")?;

@@ -151,7 +151,7 @@ pub mod valid {
 
         Foo.Baz"#,
         enum_match_definition r#"
-        match Foo.Baz do
+        match Foo.Baz on
             .Bar -> bar,
             .Baz -> baz
         end"#,
