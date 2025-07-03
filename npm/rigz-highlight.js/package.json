@@ -1,6 +1,6 @@
 {
   "name": "@rigz-lang/highlight.js",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "private": false,
   "description": "Highlight rigz with highlight.js",
   "keywords": [
@@ -10,6 +10,7 @@
   "author": "magicfoodhand",
   "type": "module",
   "main": "index.js",
+  "homepage": "https://gitlab.com/rigz_lang/rigz/-/blob/main/npm/rigz-highlight.js/README.md",
   "repository": {
     "type": "git",
     "url": "git+https://gitlab.com/rigz_lang/rigz.git",
