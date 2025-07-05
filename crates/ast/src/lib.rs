@@ -867,7 +867,7 @@ impl<'t> Parser<'t> {
                                         self.consume_token(t.kind)?;
                                         None
                                     }
-                                    Some(t) if t.kind == TokenKind::Do => None,
+                                    Some(t) if t.kind == TokenKind::On => None,
                                     Some(_) => Some(self.parse_expression()?.into()),
                                 };
                                 Expression::Enum(type_value.to_string(), name.to_string(), exp)
@@ -1393,6 +1393,7 @@ impl<'t> Parser<'t> {
                     | TokenKind::Assign // for maps
                     | TokenKind::Colon // named args
                     | TokenKind::End
+                    | TokenKind::On
                     | TokenKind::Catch => {
                         self.tokens.push_front(next);
                         break;

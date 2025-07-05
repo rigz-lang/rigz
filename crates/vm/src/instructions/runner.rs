@@ -232,7 +232,13 @@ pub fn eval_binary_operation(
         BinaryOperation::Gte => (lhs >= rhs).into(),
         BinaryOperation::Lt => (lhs < rhs).into(),
         BinaryOperation::Lte => (lhs <= rhs).into(),
-        BinaryOperation::Elvis => lhs.or(rhs),
+        BinaryOperation::Elvis => {
+            if lhs.is_value() {
+                lhs.clone()
+            } else {
+                rhs.clone()
+            }.into()
+        },
     }
 }
 

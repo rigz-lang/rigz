@@ -129,6 +129,10 @@ impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
         self.as_number()
     }
 
+    fn is_value(&self) -> bool {
+        !matches!(self, PrimitiveValue::Error(_) | PrimitiveValue::None)
+    }
+    
     fn to_bool(&self) -> bool {
         match self {
             PrimitiveValue::None => false,

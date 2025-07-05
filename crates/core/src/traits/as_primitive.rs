@@ -61,6 +61,10 @@ pub trait AsPrimitive<T: Clone + AsPrimitive<T> + Default + Sized>:
         )))
     }
 
+    fn is_value(&self) -> bool {
+        true
+    }
+
     fn as_string(&mut self) -> Result<&mut String, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "Cannot convert {self:?} to mut String"
