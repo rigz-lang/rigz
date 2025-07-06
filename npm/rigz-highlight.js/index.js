@@ -31,7 +31,8 @@ export function rigz(hljs) {
             "as",
             "import",
             "trait",
-            "on"
+            "on",
+            "mod"
         ],
         built_in: [
             "raise",

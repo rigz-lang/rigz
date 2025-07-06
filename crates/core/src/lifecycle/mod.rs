@@ -50,6 +50,12 @@ pub struct TestResults {
     pub duration: Duration,
 }
 
+impl TestResults {
+    pub fn success(&self) -> bool {
+        self.failed == 0 && self.failure_messages.is_empty()
+    }
+}
+
 impl AddAssign for TestResults {
     fn add_assign(&mut self, rhs: Self) {
         self.passed += rhs.passed;
@@ -68,7 +74,7 @@ impl PartialEq for TestResults {
 
 impl Display for TestResults {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let success = self.failed == 0 && self.failure_messages.is_empty();
+        let success = self.success();
 
         let preamble = if success {
             if cfg!(feature = "colors") {
