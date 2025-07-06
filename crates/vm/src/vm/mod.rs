@@ -239,13 +239,8 @@ impl VM {
         };
 
         match self.process_instruction(instruction) {
-            VMState::Ran(v) => {
-                return Some(
-                    VMError::runtime(format!("Unexpected ran state: {}", v.borrow())).into(),
-                )
-            }
             VMState::Running => {}
-            VMState::Done(v) => return Some(v.borrow().clone()),
+            VMState::Ran(v) | VMState::Done(v) => return Some(v.borrow().clone()),
         };
         None
     }
