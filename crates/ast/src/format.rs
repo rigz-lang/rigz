@@ -31,6 +31,10 @@ impl<'l> Formmatter<'l> {
                     self.last = TokenKind::Newline;
                     self.result.push('\n');
                 }
+                
+                if token == TokenKind::Assign {
+                    self.indent = self.indent.saturating_sub(1);
+                }
                 self.needs_args = false;
             }
 
@@ -117,4 +121,5 @@ test_format! {
     multi_line_fn_id: "fn foo\nbar+baz\nend" = "fn foo\n  bar + baz\nend";
     preserve_new_lines_comment: "\n\n\n\n#hello world\n\n\n" = "\n\n\n\n#hello world\n\n\n";
     eat_whitespace: "     " = "";
+    revert_indent_after_single_fn: "fn foo = 123\nfn bar = baz" = "fn foo = 123\nfn bar = baz";
 }
