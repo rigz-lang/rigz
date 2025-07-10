@@ -1,139 +1,120 @@
 use crate::token::TokenKind;
-use logos::Logos;
+use logos::{Lexer, Logos};
 
-pub fn format(input: String) -> String {
-    let read = input.as_str().trim();
-
-    if read.is_empty() {
-        return input;
-    }
-
-    let mut result = String::with_capacity(read.len());
-    let mut tokens = TokenKind::lexer(read);
-    let mut indent = 0;
-    let mut function_scope = false;
-    let mut last = TokenKind::Newline;
-
-    while let Some(next) = tokens.next() {
-        let token = match next {
-            Ok(t) => t,
-            Err(_) => {
-                // Include invalid output unchanged
-                result.push_str(tokens.slice());
-                continue;
-            }
-        };
-
-        match &token {
-            TokenKind::Newline => {
-                result.push('\n');
-            }
-            TokenKind::Value(v) => {
-                if matches!(
-                    last,
-                    TokenKind::Assign | TokenKind::BinOp(_) | TokenKind::Colon
-                ) {
-                    result.push(' ');
-                }
-                if last == TokenKind::Newline {
-                    result.push_str("  ".repeat(indent).as_str());
-                }
-                if function_scope && matches!(last, TokenKind::Identifier(_)) {
-                    result.push('\n');
-                    result.push_str("  ".repeat(indent).as_str());
-                }
-                result.push_str(v.to_string().as_str());
-            }
-            TokenKind::Assign => {
-                result.push_str(" = ");
-            }
-            TokenKind::Semi => {
-                result.push(';');
-                result.push('\n');
-            }
-            TokenKind::Colon => {
-                result.push(':');
-            }
-            TokenKind::Arrow => {
-                result.push_str(" -> ");
-            }
-            TokenKind::Let => {
-                result.push_str("let ");
-            }
-            TokenKind::Mut => {
-                result.push_str("mut ");
-            }
-            TokenKind::BinOp(op) => {
-                result.push(' ');
-                result.push_str(op.to_string().as_str());
-                result.push(' ');
-            }
-            TokenKind::FunctionDef => {
-                result.push_str("fn ");
-                function_scope = true;
-                indent += 1;
-            }
-            TokenKind::If | TokenKind::Unless => {
-                result.push_str(token.to_string().as_str());
-                result.push(' ');
-                indent += 1;
-            }
-            TokenKind::Else => {
-                result.push_str("else ");
-            }
-            TokenKind::Do => {
-                result.push_str("do\n");
-                indent += 1;
-                result.push_str(" ".repeat(indent * 2).as_str());
-            }
-            TokenKind::Rcurly | TokenKind::Rparen | TokenKind::Rbracket => {
-                result.push_str(token.to_string().as_str());
-            }
-            TokenKind::Lcurly | TokenKind::Lparen | TokenKind::Lbracket => {
-                result.push_str(token.to_string().as_str());
-            }
-            TokenKind::Comment => {
-                result.push('\n');
-                result.push_str(" ".repeat(indent * 2).as_str());
-                result.push_str(tokens.slice());
-            }
-            TokenKind::End => {
-                indent = indent.saturating_sub(1);
-                if last != TokenKind::Newline {
-                    result.push('\n');
-                    result.push_str("  ".repeat(indent).as_str());
-                }
-                result.push_str("end");
-                function_scope = false;
-            }
-            _ => {
-                result.push_str(token.to_string().as_str());
-            }
-        }
-        last = token;
-    }
-
-    result.trim().to_string()
+struct Formmatter<'l> {
+    result: String,
+    indent: usize,
+    last: TokenKind<'l>,
+    needs_args: bool
 }
 
-#[cfg(test)]
-pub mod tests {
-    use crate::format;
-    use wasm_bindgen_test::wasm_bindgen_test;
-
-    #[wasm_bindgen_test(unsupported = test)]
-    fn test_format() {
-        let input = r#"fn foo
-            123
-        end"#;
-        let formatted = format(input.to_string());
-        assert_eq!(formatted, "fn foo\n  123\nend");
+impl<'l> Formmatter<'l> {
+    fn new(len: usize) -> Self {
+        Self {
+            result: String::with_capacity(len),
+            indent: 0,
+            last: TokenKind::Newline,
+            needs_args: false
+        }
     }
 
-    #[wasm_bindgen_test(unsupported = test)]
-    fn test_format_one_line() {
-        let input = r#"fn foo 123 end"#;
-        let formatted = format(input.to_string());
-        assert_eq!(formatted, "fn foo\n  123\nend");
+    fn format(mut self, mut tokens: Lexer<'l, TokenKind<'l>>) -> String {
+        while let Some(next) = tokens.next() {
+            let Ok(token) = next else {
+                // Include invalid output unchanged
+                self.result.push_str(tokens.slice());
+                continue;
+            };
+
+            if self.needs_args {
+                if !matches!(token, TokenKind::Lparen | TokenKind::Assign | TokenKind::Newline) {
+                    self.last = TokenKind::Newline;
+                    self.result.push('\n');
+                }
+                self.needs_args = false;
+            }
+
+            if token == TokenKind::Newline {
+                self.result.push('\n')
+            } else {
+                self.new_indent(token);
+                self.leading_spaces(token);
+                if token == TokenKind::Comment {
+                    self.result.push_str(tokens.slice())
+                } else {
+                    self.result.push_str(token.to_string().as_str())
+                }
+            }
+            self.last = token;
+        }
+        self.result
     }
+
+    fn leading_spaces(&mut self, next: TokenKind<'l>) {
+        if matches!(
+            next,
+            TokenKind::Comma | TokenKind::Lparen | TokenKind::Rparen | TokenKind::Lbracket | TokenKind::Rbracket
+        ) || matches!(self.last, TokenKind::Lparen | TokenKind::Lbracket)
+        {
+            return;
+        }
+
+        if self.last == TokenKind::Newline {
+            self.result.push_str(" ".repeat(self.indent * 2).as_str());
+            return;
+        }
+
+        let char = if next == TokenKind::End { '\n' } else { ' ' };
+        self.result.push(char)
+    }
+
+    fn new_indent(&mut self, next: TokenKind<'l>) {
+        match next {
+            TokenKind::Identifier(_) if self.last == TokenKind::FunctionDef => {
+                self.needs_args = true;
+                self.indent += 1
+            },
+            TokenKind::Do => self.indent += 1,
+            TokenKind::End => self.indent = self.indent.saturating_sub(1),
+            _ => {}
+        }
+    }
+}
+
+pub fn format(input: String) -> String {
+    let read = input.as_str();
+
+    Formmatter::new(read.len()).format(TokenKind::lexer(read))
+}
+
+macro_rules! test_format {
+    ($($id: ident: $input: literal = $output: literal;)*) => {
+        #[cfg(test)]
+        pub mod formatting {
+            use wasm_bindgen_test::wasm_bindgen_test;
+
+            $(
+                #[wasm_bindgen_test(unsupported = test)]
+                fn $id() {
+                    assert_eq!(crate::format($input.to_string()), $output.to_string())
+                }
+            )*
+        }
+    };
+}
+
+test_format! {
+    basic: "2 + 2" = "2 + 2";
+    incomplete: "2 +" = "2 +";
+    single_line_if: "foo if bar" = "foo if bar";
+    single_line_if_spaces: "foo      unless      bar" = "foo unless bar";
+    single_line_fn: "fn foo 123 end" = "fn foo\n  123\nend";
+    single_line_fn_eq: "fn foo = 123" = "fn foo = 123";
+    single_line_fn_eq_args: "fn foo(a,b,c)=a+b+c" = "fn foo(a, b, c) = a + b + c";
+    list: "[1,2,3]" = "[1, 2, 3]";
+    map: "{1,2,3}" = "{ 1, 2, 3 }";
+    multi_line_fn: "fn foo\n123+bar\nend" = "fn foo\n  123 + bar\nend";
+    multi_line_fn_id: "fn foo\nbar+baz\nend" = "fn foo\n  bar + baz\nend";
+    preserve_new_lines_comment: "\n\n\n\n#hello world\n\n\n" = "\n\n\n\n#hello world\n\n\n";
+    eat_whitespace: "     " = "";
 }
