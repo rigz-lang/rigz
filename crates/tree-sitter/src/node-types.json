@@ -105,7 +105,7 @@
     }
   },
   {
-    "type": "error",
+    "type": "enum",
     "named": true,
     "fields": {},
     "children": {
@@ -113,11 +113,26 @@
       "required": true,
       "types": [
         {
-          "type": "expression",
+          "type": "type",
           "named": true
         },
         {
-          "type": "lambda",
+          "type": "type_identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "error",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
           "named": true
         }
       ]
@@ -129,7 +144,7 @@
     "fields": {},
     "children": {
       "multiple": true,
-      "required": true,
+      "required": false,
       "types": [
         {
           "type": "binary",
@@ -160,6 +175,10 @@
           "named": true
         },
         {
+          "type": "identifier",
+          "named": true
+        },
+        {
           "type": "if_else",
           "named": true
         },
@@ -168,11 +187,23 @@
           "named": true
         },
         {
+          "type": "index",
+          "named": true
+        },
+        {
           "type": "into",
           "named": true
         },
         {
+          "type": "match",
+          "named": true
+        },
+        {
           "type": "self",
+          "named": true
+        },
+        {
+          "type": "statement",
           "named": true
         },
         {
@@ -421,7 +452,53 @@
       "required": true,
       "types": [
         {
+          "type": "string",
+          "named": true
+        },
+        {
           "type": "type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "index",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "instance_set",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "index",
+          "named": true
+        },
+        {
+          "type": "int",
           "named": true
         }
       ]
@@ -515,7 +592,145 @@
     }
   },
   {
+    "type": "match",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "match_variant",
+          "named": true
+        },
+        {
+          "type": "match_variant_lhs",
+          "named": true
+        },
+        {
+          "type": "match_variant_scope",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "match_variant",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "match_variant_body",
+          "named": true
+        },
+        {
+          "type": "match_variant_lhs",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "match_variant_body",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        },
+        {
+          "type": "match_variant_scope",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "match_variant_lhs",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "if_guard",
+          "named": true
+        },
+        {
+          "type": "type_identifier",
+          "named": true
+        },
+        {
+          "type": "unless_guard",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "match_variant_scope",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        },
+        {
+          "type": "statement",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "mod",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "program",
+          "named": true
+        },
+        {
+          "type": "type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "object",
     "named": true,
     "fields": {},
     "children": {
@@ -600,6 +815,10 @@
           "named": true
         },
         {
+          "type": "enum",
+          "named": true
+        },
+        {
           "type": "expression",
           "named": true
         },
@@ -616,7 +835,15 @@
           "named": true
         },
         {
+          "type": "instance_set",
+          "named": true
+        },
+        {
           "type": "mod",
+          "named": true
+        },
+        {
+          "type": "object",
           "named": true
         },
         {
@@ -877,6 +1104,10 @@
     "named": false
   },
   {
+    "type": "::",
+    "named": false
+  },
+  {
     "type": ";",
     "named": false
   },
@@ -894,6 +1125,10 @@
   },
   {
     "type": "=",
+    "named": false
+  },
+  {
+    "type": "=>",
     "named": false
   },
   {
@@ -981,6 +1216,10 @@
     "named": false
   },
   {
+    "type": "catch",
+    "named": false
+  },
+  {
     "type": "comment",
     "named": true
   },
@@ -994,6 +1233,10 @@
   },
   {
     "type": "end",
+    "named": false
+  },
+  {
+    "type": "enum",
     "named": false
   },
   {
@@ -1029,7 +1272,15 @@
     "named": false
   },
   {
+    "type": "int",
+    "named": true
+  },
+  {
     "type": "let",
+    "named": false
+  },
+  {
+    "type": "match",
     "named": false
   },
   {
@@ -1049,7 +1300,15 @@
     "named": true
   },
   {
+    "type": "object",
+    "named": false
+  },
+  {
     "type": "raise",
+    "named": false
+  },
+  {
+    "type": "return",
     "named": false
   },
   {
@@ -1062,6 +1321,10 @@
   },
   {
     "type": "true",
+    "named": false
+  },
+  {
+    "type": "try",
     "named": false
   },
   {

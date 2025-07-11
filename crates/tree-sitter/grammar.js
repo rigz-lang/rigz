@@ -84,7 +84,7 @@ module.exports = grammar({
         function_arg: $ => prec(2, seq(
             $.identifier, optional(seq(":", optional($._mut), $.type))
         )),
-        expression: $ => prec.right(seq(choice(
+        expression: $ => prec.right(1, seq(choice(
             $.value,
             $.function_call,
             $.unary,
@@ -119,12 +119,12 @@ module.exports = grammar({
             ),
             "end"),
         match_variant: $ => seq($.match_variant_lhs, $.match_variant_body),
-        match_variant_lhs: $ => seq(choice(
+        match_variant_lhs: $ => prec.left(seq(choice(
             seq(".", choice($.identifier, $.type_identifier), optional($.expression)),
             seq($.type_identifier, ".", choice($.identifier, $.type_identifier), optional($.expression)),
-        ), optional(choice($.unless_guard, $.if_guard))),
-        match_variant_body: $ => choice(seq("=>", $.expression, ","), $.match_variant_scope),
-        match_variant_scope: $ => choice(seq("=>", "{", repeat($.statement), $.expression, "}"), seq("do", repeat($.statement), $.expression, "end")),
+        ), optional(choice($.unless_guard, $.if_guard)))),
+        match_variant_body: $ => prec.left(choice(seq("=>", $.expression, ","), $.match_variant_scope)),
+        match_variant_scope: $ => prec.left(1, choice(seq("=>", "{", repeat($.statement), $.expression, "}"), seq("do", repeat($.statement), $.expression, "end"))),
         do_scope: $ => seq(optional($.lifecycle), "do", $.scope),
         index: $=> seq("[", $.expression, "]"),
         function_call: $ => choice(prec.right(seq(
@@ -152,8 +152,8 @@ module.exports = grammar({
             seq("{", "for", $.identifier, optional(seq(",", $.identifier)), "in", $.expression, ":", choice(seq($.expression, ",", $.expression), $.expression), "}"),
         if_guard: $ => prec.right(seq($._if, $.expression)),
         unless_guard: $ => prec.right(seq($._unless, $.expression)),
-        if_else: $ => prec.right(seq("if", $.expression, choice($.scope, seq("else", $.scope)))),
-        unless: $ => prec.right(seq("unless", $.expression, $.scope)),
+        if_else: $ => prec.right(1, seq("if", $.expression, choice($.scope, seq("else", $.scope)))),
+        unless: $ => prec.right(1, seq("unless", $.expression, $.scope)),
         value: $ => choice(
             $.none,
             $.bool,
@@ -180,7 +180,7 @@ module.exports = grammar({
             $._double_quoted_string,
             $._backtick_string
         ),
-        list: $ => seq("[", $.expression, repeat(seq(',', $.expression)), optional(','), "]"),
+        list: $ => prec(1, seq("[", $.expression, repeat(seq(',', $.expression)), optional(','), "]")),
         map: $ => seq("{", $._attribute, repeat(seq(',', $._attribute)), optional(','), "}"),
         _attribute: $ => choice(
             seq($.identifier, "=", $.expression),
@@ -208,10 +208,11 @@ module.exports = grammar({
         _single_quoted_string: $ => /'([^'\\]|\\[\s\S])*'/,
         _double_quoted_string: $ => /"([^"\\]|\\[\s\S])*"/,
         _backtick_string: $ => /`([^`\\]|\\[\s\S])*`/,
-        error: $ => seq("raise", $._args),
+        // todo support args for raise, right now tuples are required
+        error: $ => prec.right(seq("raise", $.expression)),
         cast: $ => seq("as", $.type),
         lifecycle: $ => seq("@", $.identifier),
-        function_identifier: $ => prec.left(choice(seq($.type, ".", $.identifier), $.identifier)),
+        function_identifier: $ => prec.left(1, choice(seq($.type, ".", $.identifier), $.identifier)),
         comment: $ => token(choice(
             seq('#', /[^\n]*/),
             seq('/*', /[^*]*\*+([^/*][^*]*\*+)*/, '/')
