@@ -42,6 +42,19 @@ pub const INJECTIONS_QUERY: &str = include_str!("../../queries/injections.scm");
 pub const LOCALS_QUERY: &str = include_str!("../../queries/locals.scm");
 pub const TAGS_QUERY: &str = include_str!("../../queries/tags.scm");
 
+pub const NAMES: [&str; 10] = [
+    "comment",
+    "number",
+    "string",
+    "variable",
+    "punctuation.delimiter",
+    "punctuation.bracket",
+    "operator",
+    "keyword",
+    "function.method",
+    "constant.builtin",
+];
+
 #[cfg(test)]
 mod tests {
     #[test]

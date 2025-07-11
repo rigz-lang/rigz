@@ -16,19 +16,6 @@ pub struct ReplArgs {
     save_history: bool,
 }
 
-static NAMES: [&str; 10] = [
-    "comment",
-    "number",
-    "string",
-    "variable",
-    "punctuation.delimiter",
-    "punctuation.bracket",
-    "operator",
-    "keyword",
-    "function.method",
-    "constant.builtin",
-];
-
 struct RigzHelper<'r> {
     highlighter: RefCell<Highlighter>,
     config: &'r HighlightConfiguration,
@@ -74,7 +61,7 @@ pub(crate) fn repl(args: ReplArgs) {
     )
     .unwrap();
 
-    rigz_config.configure(&NAMES);
+    rigz_config.configure(&tree_sitter_rigz::NAMES);
 
     let rigz_helper = RigzHelper {
         highlighter: RefCell::new(Highlighter::new()),
