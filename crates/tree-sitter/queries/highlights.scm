@@ -12,6 +12,7 @@
 
 [
   "do"
+  "if"
   "else"
   "end"
   "fn"
@@ -20,6 +21,11 @@
   "mut"
   "raise"
   "unless"
+  "try"
+  "catch"
+  "match"
+  "enum"
+  "object"
 ] @keyword
 
 [
@@ -42,6 +48,7 @@
   ">"
   ">="
   "?:"
+  "|>"
 ] @operator
 
 [
