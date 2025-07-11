@@ -131,7 +131,7 @@ pub mod runtime {
             on_timeout_works(r#"
             @on("message")
             fn foo(a)
-                sleep 1
+                sleep 1000
                 a * 2
             end
 
