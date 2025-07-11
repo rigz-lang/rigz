@@ -1,5 +1,5 @@
 use clap::Args;
-use rigz_core::{ObjectValue, VMError};
+use rigz_core::{ObjectValue, PrimitiveValue, VMError};
 use rigz_runtime::{Runtime, RuntimeError};
 use rustyline::completion::Completer;
 use rustyline::hint::Hinter;
@@ -137,7 +137,12 @@ fn highlight_value(
     value: ObjectValue,
 ) {
     print!("=> ");
-    let r = highlight(highlighter, rigz_config, value.to_string().as_bytes());
+    let str = if matches!(value, ObjectValue::Primitive(PrimitiveValue::String(_))) { 
+        format!("'{value}'")
+    } else {
+        value.to_string()
+    };
+    let r = highlight(highlighter, rigz_config, str.as_bytes());
     println!("{r}")
 }
 
