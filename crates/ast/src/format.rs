@@ -36,6 +36,8 @@ impl<'l> Formmatter<'l> {
                     self.indent = self.indent.saturating_sub(1);
                 }
                 self.needs_args = false;
+            } else if matches!(self.last, TokenKind::Do | TokenKind::Catch) && token == TokenKind::Assign {
+                self.indent = self.indent.saturating_sub(1);
             }
 
             if token == TokenKind::Newline {
