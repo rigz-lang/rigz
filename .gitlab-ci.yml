@@ -16,6 +16,9 @@ stages:
 
 test:
   stage: test
+  cache:
+    <<: *global_cache
+    policy: pull-push
   script:
     - cargo test --workspace
 
@@ -27,24 +30,70 @@ tree-sitter test:
     - cd crates/tree-sitter
     - tree-sitter test
 
-#benchmarks:
-#  stage: test
-#  cache:
-#    <<: *global_cache
-#    policy: pull-push
-#  script:
-#    - cargo bench
+benchmarks:
+  stage: test
+  cache:
+    <<: *global_cache
+    policy: pull-push
+  script:
+    - cargo bench --workspace
 
-publish:
+publish (core):
   stage: publish
   script:
+    - cd crates/core
     - cargo publish
   rules:
     - if: $CI_COMMIT_TAG
 
-publish dry run:
+publish (ast):
+  stage: publish
+  needs: ["publish (core)"]
+  script:
+    - cd crates/ast
+    - cargo publish
+  rules:
+    - if: $CI_COMMIT_TAG
+
+publish (ast_derive):
+  stage: publish
+  needs: ["publish (ast)"]
+  script:
+    - cd crates/ast_derive
+    - cargo publish
+  rules:
+    - if: $CI_COMMIT_TAG
+
+publish (vm):
+  stage: publish
+  needs: ["publish (ast_derive)"]
+  script:
+    - cd crates/vm
+    - cargo publish
+  rules:
+    - if: $CI_COMMIT_TAG
+
+publish (runtime):
+  stage: publish
+  needs: ["publish (vm)"]
+  script:
+    - cd crates/runtime
+    - cargo publish
+  rules:
+    - if: $CI_COMMIT_TAG
+
+publish (tree-sitter):
   stage: publish
   script:
-    - cargo publish --dry-run
+    - cd crates/tree-sitter
+    - cargo publish
   rules:
-    - if: '$CI_COMMIT_TAG == null'
+    - if: $CI_COMMIT_TAG
+
+publish:
+  stage: publish
+  needs: ["publish (runtime)", "publish (tree-sitter)"]
+  script:
+    - cargo publish
+  rules:
+    - if: $CI_COMMIT_TAG
