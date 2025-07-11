@@ -254,6 +254,8 @@ impl Display for TokenKind<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             TokenKind::Newline => write!(f, "\\n"),
+            // todo need to preserve quotes
+            TokenKind::Value(TokenValue::String(s)) => write!(f, "'{s}'"),
             TokenKind::Value(v) => write!(f, "{}", v),
             TokenKind::Assign => write!(f, "="),
             TokenKind::Semi => write!(f, ";"),

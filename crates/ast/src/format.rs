@@ -78,7 +78,8 @@ impl<'l> Formmatter<'l> {
                 self.needs_args = true;
                 self.indent += 1
             },
-            TokenKind::Do => self.indent += 1,
+            // todo handle if/unless/else
+            TokenKind::Do | TokenKind::Catch => self.indent += 1,
             TokenKind::End => self.indent = self.indent.saturating_sub(1),
             _ => {}
         }
