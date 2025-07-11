@@ -19,6 +19,14 @@ test:
   script:
     - cargo test --workspace
 
+tree-sitter test:
+  stage: test
+  before_script:
+    - cargo install tree-sitter-cli --locked
+  script:
+    - cd crates/tree-sitter
+    - tree-sitter test
+
 #benchmarks:
 #  stage: test
 #  cache:
