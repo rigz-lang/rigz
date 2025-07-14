@@ -418,6 +418,32 @@ impl<'t> Parser<'t> {
                 self.consume_token(TokenKind::Enum)?;
                 Statement::Enum(self.parse_enum()?).into()
             }
+            TokenKind::Loop => {
+                self.consume_token(TokenKind::Loop)?;
+                let mut elements = vec![];
+                loop {
+                    let next = self.peek_required_token_eat_newlines("expression - loop")?;
+                    if next.kind == TokenKind::End {
+                        self.consume_token(next.kind)?;
+                        break;
+                    }
+                    elements.push(self.parse_element()?);
+                }
+                Statement::Loop(Scope {
+                    elements,
+                }).into()
+            }
+            TokenKind::For => {
+                self.consume_token(TokenKind::For)?;
+                let each = self.parse_each()?;
+                let expression = self.parse_expression()?;
+                let body = self.parse_scope()?;
+                Statement::For {
+                    each,
+                    expression,
+                    body,
+                }.into()
+            }
             _ => self.parse_expression()?.into(),
         };
         match self.peek_token() {
@@ -429,6 +455,73 @@ impl<'t> Parser<'t> {
         }
 
         self.parse_element_suffix(ele)
+    }
+
+    fn parse_each(&mut self) -> Result<Each, ParsingError> {
+        let first = self.next_required_token("each")?;
+        let each = match first.kind {
+            TokenKind::Identifier(id) => {
+                let peek = self.peek_required_token("each")?;
+                if peek.kind == TokenKind::Colon {
+                    self.consume_token(TokenKind::Colon)?;
+                    let rigz_type = self.parse_rigz_type(None, false)?;
+                    Each::TypedIdentifier {
+                        name: id.to_string(),
+                        mutable: false,
+                        shadow: false,
+                        rigz_type,
+                    }
+                } else {
+                    Each::Identifier {
+                        name: id.to_string(),
+                        mutable: false,
+                        shadow: false,
+                    }
+                }
+            }
+            _ => return Err(ParsingError::ParseError(format!("Invalid token in each - {first:?}")))
+        };
+
+        let peek = self.peek_required_token("each - in or comma")?;
+
+        let each = if peek.kind == TokenKind::Comma {
+            self.consume_token(TokenKind::Comma)?;
+            let first = match each {
+                Each::Identifier { name, mutable, shadow } => {
+                    (name, mutable, shadow)
+                }
+                Each::TypedIdentifier { name, mutable, shadow, rigz_type } => {
+                    (name, mutable, shadow)
+                }
+                Each::Tuple(_) => unreachable!(),
+            };
+            let mut parts = vec![first];
+            let mut comma = true;
+            loop {
+                let peek = self.peek_required_token("each in or id")?;
+                match peek.kind {
+                    TokenKind::In => break,
+                    TokenKind::Identifier(id) if comma => {
+                        self.consume_token(TokenKind::Identifier(id))?;
+                        parts.push((id.to_string(), false, false));
+                        comma = false;
+                    }
+                    TokenKind::Comma if !comma => {
+                        self.consume_token(TokenKind::Comma)?;
+                        comma = true;
+                    }
+                    _ => {
+                        return Err(ParsingError::ParseError(format!("Invalid Token in each {peek:?} {}", if comma { "expected comma"} else { "expected identifier" })))
+                    }
+                }
+            }
+            Each::Tuple(parts)
+        } else {
+          each
+        };
+
+        self.consume_token(TokenKind::In)?;
+        Ok(each)
     }
 
     fn parse_enum(&mut self) -> Result<EnumDeclaration, ParsingError> {
@@ -920,6 +1013,8 @@ impl<'t> Parser<'t> {
                 };
                 Expression::Error(value.into())
             }
+            TokenKind::Break => Expression::Break,
+            TokenKind::Next => Expression::Next,
             TokenKind::Return => match self.peek_token() {
                 None => Expression::Return(None),
                 Some(t) => {
@@ -927,7 +1022,31 @@ impl<'t> Parser<'t> {
                         self.consume_token(t.kind)?;
                         Expression::Return(None)
                     } else {
-                        Expression::Return(Some(Box::new(self.parse_expression()?)))
+                        let exp = self.parse_expression()?;
+                        match exp {
+                            Expression::If { condition, mut then, branch } if branch.is_none() => {
+                                let Some(Element::Expression(last)) = then.elements.last_mut() else {
+                                    return Err(ParsingError::ParseError(format!("Invalid if expression for return {t:?}, scope: {then:?}")))
+                                };
+                                *last = Expression::Return(Some(last.clone().into()));
+                                Expression::If {
+                                    condition,
+                                    branch: None,
+                                    then
+                                }
+                            }
+                            Expression::Unless { condition, mut then } => {
+                                let Some(Element::Expression(last)) = then.elements.last_mut() else {
+                                    return Err(ParsingError::ParseError(format!("Invalid unless expression for return {t:?}, scope: {then:?}")))
+                                };
+                                *last = Expression::Return(Some(last.clone().into()));
+                                Expression::Unless {
+                                    condition,
+                                    then
+                                }
+                            }
+                            _ => Expression::Return(Some(Box::new(exp))),
+                        }
                     }
                 }
             },

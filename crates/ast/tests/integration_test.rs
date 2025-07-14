@@ -155,6 +155,22 @@ pub mod valid {
             .Bar -> bar,
             .Baz -> baz
         end"#,
+        loop_parse r#"
+        mut a = 0
+        loop
+            a += 1
+            break if a == 10
+        end
+        a
+        "#,
+        map_sum r#"
+        fn Map.sum -> Number
+            mut result = 0
+            for k, v in self
+                result += v
+            end
+            result
+        end"#,
     );
 }
 

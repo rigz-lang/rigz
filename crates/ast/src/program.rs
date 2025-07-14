@@ -126,6 +126,12 @@ pub enum Statement {
     },
     ObjectDefinition(ObjectDefinition),
     Enum(EnumDeclaration),
+    For {
+        each: Each,
+        expression: Expression,
+        body: Scope,
+    },
+    Loop(Scope),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -323,6 +329,24 @@ pub enum Expression {
         var: Option<String>,
         catch: Scope,
     },
+    Break,
+    Next,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Each {
+    Identifier {
+        name: String,
+        mutable: bool,
+        shadow: bool,
+    },
+    TypedIdentifier {
+        name: String,
+        mutable: bool,
+        shadow: bool,
+        rigz_type: RigzType,
+    },
+    Tuple(Vec<(String, bool, bool)>),
 }
 
 impl From<Vec<Expression>> for Expression {

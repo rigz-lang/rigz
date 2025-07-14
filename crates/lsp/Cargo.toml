@@ -15,5 +15,7 @@ dashmap = "6.1.0"
 ropey = "1.6.1"
 rigz_ast.workspace = true
 rigz_runtime.workspace = true
+tree-sitter-highlight = "0.24"
+tree-sitter-rigz.workspace = true
 tower-lsp = "0.20.0"
 tokio = { version = "1.43.0", features = ["io-std", "rt-multi-thread", "rt", "macros"] }

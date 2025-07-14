@@ -15,6 +15,9 @@ export function rigz(hljs) {
             "let",
             "mut",
             "for",
+            "next",
+            "break",
+            "loop",
             "do",
             "end",
             "match",
@@ -41,6 +44,7 @@ export function rigz(hljs) {
             "receive",
             "log",
             "format",
+            "not",
             "print",
             "printf",
             "puts",
@@ -131,7 +135,7 @@ export function rigz(hljs) {
 
     const operators = {
         scope: 'operator',
-        match: /(\?:|\|>|\+\+|--)|(([!+\-*/=<>%^]|&&?|\|\|?|>>|<<)=?)/
+        match: /(\?:|\|>|\+\+|--|\.\.)|(([!+\-*/=<>%^]|&&?|\|\|?|>>|<<)=?)/
     }
 
     const contains = [

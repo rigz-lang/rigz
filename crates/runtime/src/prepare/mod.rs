@@ -178,6 +178,7 @@ pub(crate) struct ProgramParser<'vm, T: RigzBuilder> {
     objects: HashMap<String, Rc<ObjectDeclaration>>,
     enums: HashMap<String, (usize, Arc<EnumDeclaration>)>,
     enum_lookups: HashMap<usize, Arc<EnumDeclaration>>,
+    in_loop: bool
 }
 
 impl<T: RigzBuilder> Default for ProgramParser<'_, T> {
@@ -196,6 +197,7 @@ impl<T: RigzBuilder> Default for ProgramParser<'_, T> {
             objects: Default::default(),
             enums: Default::default(),
             enum_lookups: Default::default(),
+            in_loop: false,
         }
     }
 }
@@ -214,6 +216,7 @@ impl<'vm> ProgramParser<'vm, VMBuilder> {
             objects,
             enums,
             enum_lookups,
+            in_loop
         } = self;
         ProgramParser {
             builder: builder.build(),
@@ -227,6 +230,7 @@ impl<'vm> ProgramParser<'vm, VMBuilder> {
             objects,
             enums,
             enum_lookups,
+            in_loop
         }
     }
 }
@@ -671,6 +675,55 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 self.enum_lookups.insert(index, e.clone());
                 self.enums.insert(e.name.clone(), (index, e));
             }
+            Statement::Loop(s) => {
+                let in_loop = self.in_loop;
+                self.in_loop = true;
+                let scope = self.parse_scope(s, "loop")?;
+                self.builder.add_loop_instruction(scope);
+                self.in_loop = in_loop;
+            }
+            Statement::For { each, expression, body } => {
+                let identifiers = self.identifiers.clone();
+                let current = self.builder.current_scope();
+                let args = match each {
+                    Each::Identifier { name, mutable, shadow } => {
+                        self.identifiers.insert(name.clone(), FunctionType {
+                            rigz_type: RigzType::Any,
+                            mutable,
+                        });
+                        vec![(name, mutable)]
+                    }
+                    Each::TypedIdentifier {  name, mutable, shadow, rigz_type } => {
+                        self.identifiers.insert(name.clone(), FunctionType {
+                            rigz_type,
+                            mutable,
+                        });
+                        vec![(name, mutable)]
+                    }
+                    Each::Tuple(v) => {
+                        let mut res = Vec::with_capacity(v.len());
+                        for (name, mutable, shadow) in v {
+                            self.identifiers.insert(name.clone(), FunctionType {
+                                rigz_type: RigzType::Any,
+                                mutable,
+                            });
+                            res.push((name, mutable))
+                        }
+                        res
+                    }
+                };
+                let in_loop = self.in_loop;
+                self.in_loop = true;
+                let new = self.builder.enter_scope("for".to_string(), args, None);
+                for element in body.elements {
+                    self.parse_element(element)?;
+                }
+                self.builder.exit_scope(current);
+                self.in_loop = in_loop;
+                self.parse_expression(expression)?;
+                self.builder.add_for_instruction(new);
+                self.identifiers = identifiers;
+            }
         }
         Ok(())
     }
@@ -1085,6 +1138,18 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             }
             Expression::This => {
                 self.this();
+            }
+            Expression::Break => {
+                if !self.in_loop {
+                    return Err(ValidationError::InvalidType("break cannot be used outside of loop".to_string()))
+                }
+                self.builder.add_break_instruction();
+            }
+            Expression::Next => {
+                if !self.in_loop {
+                    return Err(ValidationError::InvalidType("next cannot be used outside of loop".to_string()))
+                }
+                self.builder.add_next_instruction();
             }
             Expression::Error(e) => {
                 self.parse_expression(*e)?;

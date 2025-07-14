@@ -7,12 +7,22 @@ use std::rc::Rc;
 
 derive_module! {
     r#"import trait Collections
+        fn List.each(func: |Any| -> Any)
+            for v in self = func v
+            none
+        end
+
         fn List.filter(func: |Any| -> Bool) -> List
             [for v in self: v if func v]
         end
 
         fn List.map(func: |Any| -> Any) -> List
             [for v in self: func v]
+        end
+
+        fn Map.each(func: |Any, Any| -> (Any, Any))
+            for k, v in self = func k, v
+            none
         end
 
         fn Map.filter(func: |Any, Any| -> Bool) -> Map
@@ -42,14 +52,13 @@ derive_module! {
                 init
             else
                 (first, rest) = self.split_first
-                next = func init, first
-                puts first, init, next, self
-                rest.reduce next, func
+                res = func init, first
+                rest.reduce res, func
             end
         end
 
         fn List.sum -> Number
-            self.reduce(0, |res, next| res + next)
+            self.reduce(0, |prev, res| prev + res)
         end
 
         fn Map.reduce(init: Any, func: |Any, Any, Any| -> Any) -> Any
@@ -58,13 +67,13 @@ derive_module! {
             else
                 (k, rest) = self.split_first
                 (key, first) = k
-                next = func key, init, first
-                rest.reduce next, func
+                nxt = func init, key, first
+                rest.reduce nxt, func
             end
         end
 
         fn Map.sum -> Number
-            self.reduce(0, |res, _, next| res + next)
+            self.reduce(0, |res, _, nxt| res + nxt)
         end
 
         fn List.empty = self.to_bool
@@ -83,7 +92,7 @@ derive_module! {
         fn mut Map.insert(key, value)
         fn Map.with(var key, value) -> Map
         fn Map.concat(value: Map) -> Map
-        fn Map.entries -> List
+        fn Map.entries = self.to_list
         fn Map.keys -> List
         fn Map.values -> List
     end"#
@@ -263,12 +272,6 @@ impl RigzCollections for CollectionsModule {
         let mut this = this;
         this.extend(value);
         this
-    }
-
-    fn map_entries(&self, this: IndexMap<ObjectValue, ObjectValue>) -> Vec<ObjectValue> {
-        this.into_iter()
-            .map(|(k, v)| ObjectValue::Tuple(vec![k, v]))
-            .collect()
     }
 
     fn map_keys(&self, this: IndexMap<ObjectValue, ObjectValue>) -> Vec<ObjectValue> {

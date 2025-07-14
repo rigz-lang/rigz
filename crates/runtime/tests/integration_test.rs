@@ -150,7 +150,6 @@ pub mod runtime {
             addition("2 + 2" = 4)
             list_index("[1, 2, 3][2]" = 3)
             list_index_getter("[1, 2, 3].2" = 3)
-            map_sum("{1, 2, 3}.sum" = 6)
             split_first("[1, 2, 3].split_first" = ObjectValue::Tuple(vec![1.into(), vec![2, 3].into()]))
             split_first_map("{1, 2, 3}.split_first" = ObjectValue::Tuple(vec![ObjectValue::Tuple(vec![1.into(), 1.into()].into()), ObjectValue::Map(IndexMap::from([(2.into(), 2.into()), (3.into(), 3.into())]))]))
             split_first_assign("(first, rest) = [1, 2, 3].split_first; first + rest" = vec![1, 2, 3])
@@ -250,6 +249,7 @@ pub mod runtime {
                 14
             end"# = 14)
             trailing_if(r#"v = 42; v if v.is_num"# = 42)
+            trailing_if_eq(r#"v = 42; v if v == 42"# = 42)
             instance_trailing_if_in_func(r#"
                 fn foo(a)
                     a.to_i if a.is_num
@@ -348,10 +348,10 @@ pub mod runtime {
             a
             "# = vec![1, 2, 3, 1, 2, 3])
             map_filter_reduce(r#"
-                [1, 37, '4', 'a'].filter { |v| v.is_num }.map { |v| v.to_i }.reduce(0, |res, next| res + next)
+                [1, 37, '4', 'a'].filter { |v| v.is_num }.map { |v| v.to_i }.reduce(0, |prev, res| prev + res)
             "# = 42)
             map_filter_reduce_subtract(r#"
-                [1, 37, '4', 'a'].filter { |v| v.is_num }.map { |v| v.to_i }.reduce(100, |res, next| res - next)
+                [1, 37, '4', 'a'].filter { |v| v.is_num }.map { |v| v.to_i }.reduce(100, |prev, res| prev - res)
             "# = 58)
             map_filter_reduce_func_ref(r#"
                 fn foo(c, d)
@@ -579,12 +579,47 @@ pub mod runtime {
             let a = 42
             a
             "# = 42)
-        }
-    }
-
-    pub mod debug {
-        use super::*;
-        run_debug_vm! {
+            for_loop(r#"
+            mut a = 0
+            for v in [1, 2, 3, 4]
+                a += v
+            end
+            a
+            "# = 10)
+            for_loop_id(r#"
+            mut a = 0
+            list = [1, 2, 3, 4]
+            for v in list
+                a += v
+            end
+            a
+            "# = 10)
+            for_loop_map(r#"
+            mut a = 0
+            b = {a = 1, b = 2, c = 3, d = 4}
+            for k, v in b
+                a += v
+            end
+            a
+            "# = 10)
+            for_loop_map_break(r#"
+            mut a = 0
+            b = {a = 1, b = 2, c = 3, d = 4}
+            for k, v in b
+                break if v == 4
+                a += v
+            end
+            a
+            "# = 6)
+            for_loop_map_next(r#"
+            mut a = 0
+            b = {a = 1, b = 2, c = 3, d = 4}
+            for k, v in b
+                next if v % 2 == 0
+                a += v
+            end
+            a
+            "# = 4)
             random_object(r#"
                 import Random
                 mut rand = Random.create 49
@@ -600,6 +635,62 @@ pub mod runtime {
             pids = send 'message', 21, 12
             receive pids
             "# = vec![252, 9])
+            looping(r#"
+            mut a = 0
+            loop
+                a += 1
+                break if a == 10
+            end
+            a
+            "# = 10)
+            looping_next(r#"
+            mut a = 0
+            loop
+                a += 1
+                next unless a == 10
+                break
+            end
+            a
+            "# = 10)
+            map_sum("{1, 2, 3}.sum" = 6)
+            looping_return(r#"
+            fn foo
+                mut a = 0
+                loop
+                    a += 1
+                    return 42
+                end
+                a
+            end
+            foo
+            "# = 42)
+            looping_early_return(r#"
+            fn foo
+                mut a = 0
+                loop
+                    a += 1
+                    return 42 if a == 10
+                end
+                a
+            end
+            foo
+            "# = 42)
+            for_loop_early_return(r#"
+            mut a = 0
+            b = [1, 2, 3, 4, 'a']
+            for v in b
+                return 42 if v == 'a'
+                a += v
+            end
+            a
+            "# = 42)
+        }
+    }
+
+    pub mod debug {
+        use super::*;
+        run_debug_vm! {
+
         }
     }
 

@@ -22,6 +22,11 @@ test:
   script:
     - cargo test --workspace
 
+integration test:
+  stage: test
+  script:
+    - cargo run -- test rigz_tests
+
 tree-sitter test:
   stage: test
   before_script:

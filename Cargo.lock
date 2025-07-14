@@ -1880,6 +1880,8 @@ dependencies = [
  "ropey",
  "tokio",
  "tower-lsp",
+ "tree-sitter-highlight",
+ "tree-sitter-rigz",
 ]
 
 [[package]]

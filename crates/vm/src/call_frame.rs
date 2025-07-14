@@ -220,6 +220,10 @@ impl CallFrame {
             },
         }
     }
+
+    pub(crate) fn clear_variables(&mut self) {
+        self.variables.clear();
+    }
 }
 
 impl CallFrame {

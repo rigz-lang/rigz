@@ -1,10 +1,6 @@
 use crate::{err, errln, out, outln, CallFrame, Instruction, MatchArm, Scope, VMOptions, VMState};
 use log::log;
-use rigz_core::{
-    AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, Logical, Module, ObjectValue,
-    PrimitiveValue, Reference, ResolveValue, Reverse, RigzArgs, RigzObject, StackValue,
-    UnaryOperation, VMError,
-};
+use rigz_core::{AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, Logical, Module, ObjectValue, PrimitiveValue, Reference, ResolveValue, ResolvedValue, Reverse, RigzArgs, RigzObject, StackValue, UnaryOperation, VMError};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
@@ -148,7 +144,7 @@ macro_rules! runner_common {
         fn get_variable_reference(&mut self, name: &str) {
             let r = self.frames.get_variable(name);
             let v = match r {
-                None => VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))
+                None => VMError::VariableDoesNotExist(format!("Variable Reference {} does not exist", name))
                     .into(),
                 Some(v) => v,
             };
@@ -392,6 +388,10 @@ pub trait Runner: ResolveValue {
         args: usize,
     ) -> Result<Option<ObjectValue>, VMError>;
 
+    fn call_loop(&mut self, scope_id: usize) -> Option<VMState>;
+
+    fn call_for(&mut self, scope_id: usize) -> Option<VMState>;
+
     // fn vm_extension(
     //     &mut self,
     //     module: ResolvedModule,
@@ -509,13 +509,20 @@ pub trait Runner: ResolveValue {
                 } else {
                     else_scope
                 };
-                let v = self.handle_scope(scope);
-                self.store_value(v.into());
+                match self.handle_scope(scope) {
+                    ResolvedValue::Break => return VMState::Break,
+                    ResolvedValue::Next => return VMState::Next,
+                    ResolvedValue::Value(v) => self.store_value(v.into())
+                };
             }
             Instruction::If(if_scope) => {
                 let truthy = self.next_resolved_value("if");
                 let v = if truthy.borrow().to_bool() {
-                    self.handle_scope(if_scope)
+                    match self.handle_scope(if_scope) {
+                        ResolvedValue::Break => return VMState::Break,
+                        ResolvedValue::Next => return VMState::Next,
+                        ResolvedValue::Value(v) => v
+                    }
                 } else {
                     ObjectValue::default().into()
                 };
@@ -524,7 +531,11 @@ pub trait Runner: ResolveValue {
             Instruction::Unless(unless_scope) => {
                 let truthy = self.next_resolved_value("unless");
                 let v = if !truthy.borrow().to_bool() {
-                    self.handle_scope(unless_scope)
+                    match self.handle_scope(unless_scope) {
+                        ResolvedValue::Break => return VMState::Break,
+                        ResolvedValue::Next => return VMState::Next,
+                        ResolvedValue::Value(v) => v
+                    }
                 } else {
                     ObjectValue::default().into()
                 };
@@ -655,10 +666,15 @@ pub trait Runner: ResolveValue {
                     self.store_value(value.into());
                     // todo ideally this doesn't need a call frame per intermediate, it should be possible to reuse the current scope/fram
                     // the process_ret instruction for the scope is the reason this is needed
-                    let value = self.handle_scope(scope);
-                    let value = value.borrow().clone();
-                    if value != ObjectValue::default() {
-                        result.push(value)
+                    match self.handle_scope(scope) {
+                        ResolvedValue::Break => return VMState::Break,
+                        ResolvedValue::Next => return VMState::Next,
+                        ResolvedValue::Value(value) => {
+                            let value = value.borrow().clone();
+                            if value != ObjectValue::default() {
+                                result.push(value)
+                            }
+                        }
                     }
                 }
                 self.store_value(result.into());
@@ -672,7 +688,11 @@ pub trait Runner: ResolveValue {
                 for (k, v) in this {
                     self.store_value(v.into());
                     self.store_value(k.into());
-                    let value = self.handle_scope(scope);
+                    let value = match self.handle_scope(scope) {
+                        ResolvedValue::Break => return VMState::Break,
+                        ResolvedValue::Next => return VMState::Next,
+                        ResolvedValue::Value(v) => v
+                    };
                     let value = value.borrow().clone();
                     match value {
                         ObjectValue::Primitive(PrimitiveValue::None) => {}
@@ -689,7 +709,7 @@ pub trait Runner: ResolveValue {
                             let e: ObjectValue = VMError::UnsupportedOperation(format!(
                                 "Invalid args in for-map {value}"
                             ))
-                            .into();
+                                .into();
                             result.insert(e.clone(), e);
                         }
                     }
@@ -864,6 +884,22 @@ pub trait Runner: ResolveValue {
                         Err(e) => return e.into(),
                     },
                 }
+            }
+            Instruction::Loop(scope_id) => {
+                if let Some(e) = self.call_loop(scope_id) {
+                    return e
+                }
+            },
+            Instruction::For { scope } => {
+                if let Some(e) = self.call_for(scope) {
+                    return e
+                }
+            }
+            Instruction::Break => {
+                return VMState::Break
+            }
+            Instruction::Next => {
+                return VMState::Next
             }
             ins => {
                 return VMError::todo(format!("Instruction is not supported yet {ins:?}")).into()

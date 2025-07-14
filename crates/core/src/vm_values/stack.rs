@@ -23,10 +23,25 @@ impl From<Rc<RefCell<ObjectValue>>> for StackValue {
     }
 }
 
+pub enum ResolvedValue {
+    Break,
+    Next,
+    Value(Rc<RefCell<ObjectValue>>)
+}
+
+impl ResolvedValue {
+    pub fn unwrap_or_default(self) -> Rc<RefCell<ObjectValue>> {
+        let Self::Value(v) = self else {
+            return ObjectValue::default().into()
+        };
+        v
+    }
+}
+
 pub trait ResolveValue {
     fn location(&self) -> &'static str;
 
-    fn handle_scope(&mut self, scope: usize) -> Rc<RefCell<ObjectValue>>;
+    fn handle_scope(&mut self, scope: usize) -> ResolvedValue;
 
     fn get_constant(&self, constant_id: usize) -> Rc<RefCell<ObjectValue>>;
 }
@@ -34,7 +49,7 @@ pub trait ResolveValue {
 impl StackValue {
     pub fn resolve<T: ResolveValue + ?Sized>(&self, vm: &mut T) -> Rc<RefCell<ObjectValue>> {
         match self {
-            &StackValue::ScopeId(scope) => vm.handle_scope(scope),
+            &StackValue::ScopeId(scope) => vm.handle_scope(scope).unwrap_or_default(),
             StackValue::Value(v) => v.clone(),
             &StackValue::Constant(c) => vm.get_constant(c),
         }

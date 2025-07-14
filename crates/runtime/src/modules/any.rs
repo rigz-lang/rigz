@@ -27,9 +27,25 @@ derive_module! {
         fn Any.type -> String
         fn Any.get(index) -> Any!?
 
+        fn Any.add(other) = self + other
+        fn Any.sub(other) = self - other
+        fn Any.mul(other) = self * other
+        fn Any.div(other) = self / other
+        fn Any.shr(other) = self >> other
+        fn Any.shl(other) = self << other
+        fn Any.modulo(other) = self % other
+        fn Any.and(other) = self && other
+        fn Any.or(other) = self || other
+        fn Any.bit_and(other) = self & other
+        fn Any.bit_or(other) = self | other
+        fn Any.xor(other) = self ^ other
+        fn Any.eq(other) = self == other
+        fn Any.neq(other) = self != other
+
         fn format(template: String, var args) -> String
         fn print(var args) -> None
         fn printf(template: String, var args) -> None
+        fn not(any) = !any
     end
 "#
 }

@@ -1,11 +1,13 @@
 use crate::vm::VM;
 use crate::Runner;
-use rigz_core::{ObjectValue, ResolveValue, VMError};
+use rigz_core::{ObjectValue, ResolveValue, ResolvedValue, VMError};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 pub enum VMState {
     Running,
+    Break,
+    Next,
     Done(Rc<RefCell<ObjectValue>>),
     Ran(Rc<RefCell<ObjectValue>>),
 }
@@ -24,26 +26,34 @@ impl ResolveValue for VM {
     }
 
     #[inline]
-    fn handle_scope(&mut self, scope: usize) -> Rc<RefCell<ObjectValue>> {
+    fn handle_scope(&mut self, scope: usize) -> ResolvedValue {
         let current = self.sp;
-        match self.call_frame(scope) {
-            Ok(_) => {}
-            Err(e) => {
-                let o: ObjectValue = e.into();
-                return o.into();
-            }
+        if let Err(e) = self.call_frame(scope) {
+            let o: ObjectValue = e.into();
+            return ResolvedValue::Value(o.into());
         };
+
         let mut v = match self.run_scope() {
+            VMState::Break => {
+                return ResolvedValue::Break
+            },
+            VMState::Next => {
+                return ResolvedValue::Next
+            },
             VMState::Running => unreachable!(),
-            VMState::Done(v) => return v,
-            VMState::Ran(v) => v,
+            VMState::Done(v) => return ResolvedValue::Value(v),
+            VMState::Ran(v) => ResolvedValue::Value(v),
         };
         while current != self.sp {
-            self.stack.push(v.into());
+            if let ResolvedValue::Value(v) = v {
+                self.stack.push(v.into());   
+            }
             v = match self.run_scope() {
+                VMState::Break => return ResolvedValue::Break,
+                VMState::Next => return ResolvedValue::Next,
                 VMState::Running => unreachable!(),
-                VMState::Done(v) => return v,
-                VMState::Ran(v) => v,
+                VMState::Done(v) => return ResolvedValue::Value(v),
+                VMState::Ran(v) => ResolvedValue::Value(v),
             };
         }
         v

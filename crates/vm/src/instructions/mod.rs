@@ -331,12 +331,18 @@ pub enum Instruction {
     ForMap {
         scope: usize,
     },
+    For {
+        scope: usize,
+    },
     Sleep,
     Send(usize),
     Spawn(usize, bool),
     Receive(usize),
     Try,
     Catch(usize, bool),
+    Break,
+    Next,
+    Loop(usize),
     /// Danger Zone, use these instructions at your own risk (sorted by risk)
     /// in the right situations these will be fantastic, otherwise avoid them
     Pop(usize),
@@ -633,6 +639,22 @@ impl Snapshot for Instruction {
                 res.extend(arms.as_bytes());
                 res
             }
+            Instruction::Break => {
+                vec![55]
+            }
+            Instruction::Loop(scope) => {
+                let mut res = vec![56];
+                res.extend(scope.as_bytes());
+                res
+            }
+            Instruction::Next => {
+                vec![57]
+            }
+            Instruction::For { scope } => {
+                let mut res = vec![58];
+                res.extend(scope.as_bytes());
+                res
+            }
         }
     }
 
@@ -776,6 +798,10 @@ impl Snapshot for Instruction {
                 has_expression: Snapshot::from_bytes(bytes, location)?,
             },
             54 => Instruction::Match(Snapshot::from_bytes(bytes, location)?),
+            55 => Instruction::Break,
+            56 => Instruction::Loop(Snapshot::from_bytes(bytes, location)?),
+            57 => Instruction::Next,
+            58 => Instruction::For { scope: Snapshot::from_bytes(bytes, location)? },
             b => {
                 return Err(VMError::runtime(format!(
                     "Illegal instruction byte {b} {location}"

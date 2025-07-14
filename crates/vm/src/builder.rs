@@ -134,6 +134,26 @@ pub trait RigzBuilder: Debug + Default {
     }
 
     #[inline]
+    fn add_break_instruction(&mut self) -> &mut Self {
+        self.add_instruction(Instruction::Break)
+    }
+
+    #[inline]
+    fn add_next_instruction(&mut self) -> &mut Self {
+        self.add_instruction(Instruction::Next)
+    }
+
+    #[inline]
+    fn add_loop_instruction(&mut self, scope_id: usize) -> &mut Self {
+        self.add_instruction(Instruction::Loop(scope_id))
+    }
+
+    #[inline]
+    fn add_for_instruction(&mut self, scope: usize) -> &mut Self {
+        self.add_instruction(Instruction::For { scope })
+    }
+
+    #[inline]
     fn add_for_list_instruction(&mut self, scope: usize) -> &mut Self {
         self.add_instruction(Instruction::ForList { scope })
     }

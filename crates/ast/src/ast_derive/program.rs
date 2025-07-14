@@ -2,11 +2,7 @@ use crate::program::{
     ArgType, AssignIndex, Constructor, FunctionExpression, ImportValue, ObjectAttr,
     ObjectDefinition, RigzArguments,
 };
-use crate::{
-    Assign, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration,
-    FunctionDefinition, FunctionSignature, FunctionType, ModuleTraitDefinition, Scope, Statement,
-    TraitDefinition,
-};
+use crate::{Assign, Each, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration, FunctionDefinition, FunctionSignature, FunctionType, MatchVariant, MatchVariantCondition, MatchVariantVariable, ModuleTraitDefinition, Scope, Statement, TraitDefinition};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use rigz_core::derive::{boxed, csv_vec, option};
@@ -64,6 +60,12 @@ impl ToTokens for Expression {
             Expression::This => quote! {
                 Expression::This
             },
+            Expression::Break => quote! {
+                Expression::Break
+            },
+            Expression::Next => quote! {
+                Expression::Next
+            },
             Expression::Enum(t, s, exp) => {
                 let exp = match exp {
                     None => quote! { None },
@@ -79,8 +81,15 @@ impl ToTokens for Expression {
             Expression::Match {
                 condition,
                 variants,
-            } => quote! {
-                Expression::Match { }
+            } => {
+                let cond = boxed(condition);
+                let var = csv_vec(variants);
+                quote! {
+                    Expression::Match {
+                        condition: #cond,
+                        variants: #var
+                    }
+                }
             },
             Expression::Value(v) => {
                 quote! {
@@ -283,6 +292,57 @@ impl ToTokens for Expression {
     }
 }
 
+impl ToTokens for MatchVariant {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let t = match self {
+            MatchVariant::Enum { name, condition, body, variables } => {
+                let var = csv_vec(variables);
+                quote! {
+                    MatchVariant::Enum {
+                        name: #name.to_string(),
+                        condition: #condition,
+                        body: #body,
+                        variables: #var
+                    }
+                }
+            }
+            MatchVariant::Else(s) => quote! {
+                MatchVariant::Else(#s)
+            }
+        };
+        tokens.extend(t);
+    }
+}
+
+impl ToTokens for MatchVariantCondition {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let t = match self {
+            MatchVariantCondition::None => quote! { MatchVariantCondition::None },
+            MatchVariantCondition::If(ex) => quote! {
+                MatchVariantCondition::If(#ex)
+            },
+            MatchVariantCondition::Unless(ex) => quote! {
+                MatchVariantCondition::Unless(#ex)
+            }
+        };
+        tokens.extend(t);
+    }
+}
+
+impl ToTokens for MatchVariantVariable {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let t = match self {
+            MatchVariantVariable::Identifier(id) => quote! {
+                MatchVariantVariable::Identifier(#id.to_string())
+            },
+            MatchVariantVariable::Value(v) => quote! {
+                MatchVariantVariable::Value(#v)
+            },
+        };
+        tokens.extend(t)
+    }
+}
+
 impl ToTokens for RigzArguments {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
@@ -315,6 +375,36 @@ impl ToTokens for RigzArguments {
             }
         };
         tokens.extend(t);
+    }
+}
+
+impl ToTokens for Each {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let t = match self {
+            Each::Identifier {
+                name,
+                mutable,
+                shadow,
+            } => {
+                quote! { Each::Identifier { name: #name.to_string(), mutable: #mutable, shadow: #shadow } }
+            }
+            Each::TypedIdentifier {
+                name,
+                mutable,
+                shadow,
+                rigz_type,
+            } => {
+                quote! { Each::TypedIdentifier { name: #name.to_string(), mutable: #mutable, shadow: #shadow, rigz_type: #rigz_type} }
+            }
+            Each::Tuple(t) => {
+                let values: Vec<_> = t
+                    .iter()
+                    .map(|(id, mutable, shadow)| quote! { (#id.to_string(), #mutable, #shadow), })
+                    .collect();
+                quote! { Each::Tuple(vec![#(#values)*]) }
+            }
+        };
+        tokens.extend(t)
     }
 }
 
@@ -414,9 +504,9 @@ impl ToTokens for Statement {
             } => {
                 quote! {
                     Statement::BinaryAssignment {
-                        lhs = #lhs,
-                        op = #op,
-                        expression = #expression
+                        lhs: #lhs,
+                        op: #op,
+                        expression: #expression
                     }
                 }
             }
@@ -467,6 +557,20 @@ impl ToTokens for Statement {
             Statement::Enum(e) => {
                 quote! {
                     Statement::Enum(#e)
+                }
+            }
+            Statement::Loop(s) => {
+                quote! {
+                    Statement::Loop(#s)
+                }
+            }
+            Statement::For { body, each, expression } => {
+                quote! {
+                    Statement::For {
+                        body: #body,
+                        each: #each,
+                        expression: #expression
+                    }
                 }
             }
         };

@@ -230,6 +230,12 @@ pub(crate) enum TokenKind<'lex> {
     DoubleBang,
     #[token("for")]
     For,
+    #[token("loop")]
+    Loop,
+    #[token("break")]
+    Break,
+    #[token("next")]
+    Next,
     #[token("in")]
     In,
     #[token("object")]
@@ -299,6 +305,9 @@ impl Display for TokenKind<'_> {
             TokenKind::Module => write!(f, "mod"),
             TokenKind::Error => write!(f, "raise"),
             TokenKind::For => write!(f, "for"),
+            TokenKind::Loop => write!(f, "loop"),
+            TokenKind::Break => write!(f, "break"),
+            TokenKind::Next => write!(f, "next"),
             TokenKind::In => write!(f, "in"),
             TokenKind::Try => write!(f, "try"),
             TokenKind::Catch => write!(f, "catch"),
