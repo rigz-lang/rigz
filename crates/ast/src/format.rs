@@ -90,7 +90,8 @@ impl<'l> Formmatter<'l> {
                 self.indent += 1
             }
             // todo handle if/unless/else
-            TokenKind::Do | TokenKind::Catch => self.indent += 1,
+            TokenKind::Do | TokenKind::Catch | TokenKind::Loop => self.indent += 1,
+            TokenKind::For if !matches!(self.last, TokenKind::Lbracket | TokenKind::Lcurly) => self.indent += 1,
             TokenKind::End => self.indent = self.indent.saturating_sub(1),
             _ => {}
         }

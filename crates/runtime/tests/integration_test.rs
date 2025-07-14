@@ -686,6 +686,7 @@ pub mod runtime {
             end
             a
             "# = 42)
+            multiple_ors("a = 1; a == 'b' || a == 1 || a == 'f'" = true)
         }
     }
 
