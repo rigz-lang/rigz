@@ -94,8 +94,8 @@ pub(crate) enum TokenKind<'lex> {
     #[token("none", |_| TokenValue::None)]
     #[token("false", |_| TokenValue::Bool(false))]
     #[token("true", |_| TokenValue::Bool(true))]
-    #[regex("-?[0-9][0-9_]*\\.[0-9][0-9_]*", |lex| TokenValue::Number(lex.slice().parse().unwrap()))]
-    #[regex("-?[0-9][0-9_]*", |lex| TokenValue::Number(lex.slice().parse().unwrap()))]
+    #[regex("-?[0-9][0-9_]*\\.[0-9][0-9_]*f?", |lex| TokenValue::Number(lex.slice().parse().unwrap()))]
+    #[regex("-?[0-9][0-9_]*f?", |lex| TokenValue::Number(lex.slice().parse().unwrap()))]
     // todo special logic to support string escape expressions, probably as dedicated tokens
     #[regex("('[^'\n\r]*')|(\"[^\"\n\r]*\")|(`[^`\n\r]*`)", |lex| { let s = lex.slice(); TokenValue::String(&s[1..s.len()-1]) })]
     Value(TokenValue<'lex>),

@@ -55,7 +55,7 @@ impl Display for Number {
                 write!(f, "{}", i)
             }
             Number::Float(v) => {
-                write!(f, "{}", v)
+                write!(f, "{:?}", v)
             }
         }
     }
@@ -98,6 +98,10 @@ impl FromStr for Number {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = s.replace("_", "");
         match s {
+            _ if s.ends_with('f') => match s[0..s.len()-1].parse::<f64>() {
+                Ok(f) => Ok(f.into()),
+                Err(e) => Err(e.to_string()),
+            },
             _ if s.contains('.') => match s.parse::<f64>() {
                 Ok(f) => Ok(f.into()),
                 Err(e) => Err(e.to_string()),
@@ -322,7 +326,7 @@ pub mod number_tests {
 
     #[wasm_bindgen_test(unsupported = test)]
     fn to_s() {
-        assert_eq!(Number::Float(1.0).to_string(), "1".to_string());
+        assert_eq!(Number::Float(1.0).to_string(), "1.0".to_string());
         assert_eq!(Number::Float(1.2).to_string(), "1.2".to_string());
     }
 }

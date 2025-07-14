@@ -1,4 +1,4 @@
-use crate::token::TokenKind;
+use crate::token::{TokenKind, TokenValue};
 use logos::{Lexer, Logos};
 
 struct Formmatter<'l> {
@@ -51,10 +51,27 @@ impl<'l> Formmatter<'l> {
             } else {
                 self.new_indent(token);
                 self.leading_spaces(token);
-                if token == TokenKind::Comment {
-                    self.result.push_str(tokens.slice())
-                } else {
-                    self.result.push_str(token.to_string().as_str())
+                match token {
+                    TokenKind::Comment => {
+                        self.result.push_str(tokens.slice())
+                    }
+                    TokenKind::Value(TokenValue::String(s)) => {
+                        let single = s.contains('\'');
+                        let double = s.contains('\"');
+                        let lead = if single && double {
+                            '`'
+                        } else if single {
+                            '"'
+                        } else {
+                            '\''
+                        };
+                        self.result.push(lead);
+                        self.result.push_str(s);
+                        self.result.push(lead);
+                    }
+                    _ => {
+                        self.result.push_str(token.to_string().as_str())
+                    }
                 }
             }
             self.last = token;
@@ -143,10 +160,14 @@ test_format! {
     multi_line_fn: "fn foo\n123+bar\nend" = "fn foo\n  123 + bar\nend";
     multi_line_fn_id: "fn foo\nbar+baz\nend" = "fn foo\n  bar + baz\nend";
     preserve_new_lines_comment: "\n\n\n\n#hello world\n\n\n" = "\n\n\n\n#hello world\n\n\n";
+    preserve_new_lines_c_style_comment: "\n\n\n\n/* hello world\n\n*/\n" = "\n\n\n\n/* hello world\n\n*/\n";
     eat_whitespace: "     " = "";
     revert_indent_after_single_fn: "fn foo = 123\nfn bar = baz" = "fn foo = 123\nfn bar = baz";
     looping: "loop\n1 + 2\nend" = "loop\n  1 + 2\nend";
     scope: "do\n1 + 2\nend" = "do\n  1 + 2\nend";
     semi: "a=1+2;a" = "a = 1 + 2; a";
     semi_newline: "a=1+2;\na" = "a = 1 + 2;\na";
+    single_quote_string: "'a'" = "'a'";
+    double_quote_string: r#""'hello'""# = r#""'hello'""#;
+    backticks_quote_string: r#"`"'hello'"`"# = r#"`"'hello'"`"#;
 }
