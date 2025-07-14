@@ -137,7 +137,7 @@ fn highlight_value(
     value: ObjectValue,
 ) {
     print!("=> ");
-    let str = if matches!(value, ObjectValue::Primitive(PrimitiveValue::String(_))) { 
+    let str = if matches!(value, ObjectValue::Primitive(PrimitiveValue::String(_))) {
         format!("'{value}'")
     } else {
         value.to_string()

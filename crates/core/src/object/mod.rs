@@ -438,7 +438,10 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
     fn to_list(&self) -> Result<Vec<ObjectValue>, VMError> {
         match self {
             ObjectValue::Tuple(v) | ObjectValue::List(v) => Ok(v.clone()),
-            ObjectValue::Map(m) => Ok(m.iter().map(|(k, v)| ObjectValue::Tuple(vec![k.clone(), v.clone()])).collect()),
+            ObjectValue::Map(m) => Ok(m
+                .iter()
+                .map(|(k, v)| ObjectValue::Tuple(vec![k.clone(), v.clone()]))
+                .collect()),
             _ => Err(VMError::UnsupportedOperation(format!(
                 "Cannot convert {self} to List"
             ))),

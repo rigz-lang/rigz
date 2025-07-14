@@ -240,10 +240,14 @@ impl VM {
 
         match self.process_instruction(instruction) {
             VMState::Break => {
-                return Some(VMError::UnsupportedOperation("Invalid break instruction".to_string()).into())
+                return Some(
+                    VMError::UnsupportedOperation("Invalid break instruction".to_string()).into(),
+                )
             }
             VMState::Next => {
-                return Some(VMError::UnsupportedOperation("Invalid next instruction".to_string()).into())
+                return Some(
+                    VMError::UnsupportedOperation("Invalid next instruction".to_string()).into(),
+                )
             }
             VMState::Running => {}
             VMState::Ran(v) | VMState::Done(v) => return Some(v.borrow().clone()),

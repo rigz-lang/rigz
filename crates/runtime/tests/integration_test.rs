@@ -90,7 +90,7 @@ pub mod runtime {
 
     pub mod invalid {
         use super::*;
-        
+
         use rigz_core::{ObjectValue, VMError};
 
         run_invalid! {
@@ -689,9 +689,7 @@ pub mod runtime {
 
     pub mod debug {
         use super::*;
-        run_debug_vm! {
-
-        }
+        run_debug_vm! {}
     }
 
     pub mod recursive {

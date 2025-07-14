@@ -34,19 +34,15 @@ impl ResolveValue for VM {
         };
 
         let mut v = match self.run_scope() {
-            VMState::Break => {
-                return ResolvedValue::Break
-            },
-            VMState::Next => {
-                return ResolvedValue::Next
-            },
+            VMState::Break => return ResolvedValue::Break,
+            VMState::Next => return ResolvedValue::Next,
             VMState::Running => unreachable!(),
             VMState::Done(v) => return ResolvedValue::Value(v),
             VMState::Ran(v) => ResolvedValue::Value(v),
         };
         while current != self.sp {
             if let ResolvedValue::Value(v) = v {
-                self.stack.push(v.into());   
+                self.stack.push(v.into());
             }
             v = match self.run_scope() {
                 VMState::Break => return ResolvedValue::Break,

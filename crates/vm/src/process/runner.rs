@@ -5,7 +5,10 @@ use crate::{
     VMStack, VMState, Variable,
 };
 use log_derive::{logfn, logfn_inputs};
-use rigz_core::{EnumDeclaration, MutableReference, ObjectValue, ResolveValue, ResolvedValue, RigzArgs, StackValue, VMError};
+use rigz_core::{
+    EnumDeclaration, MutableReference, ObjectValue, ResolveValue, ResolvedValue, RigzArgs,
+    StackValue, VMError,
+};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Deref;
@@ -71,11 +74,11 @@ impl Runner for ProcessRunner<'_> {
     fn call_frame(&mut self, scope_index: usize) -> Result<(), VMError> {
         Err(VMError::todo("Process does not implement `call_frame`"))
     }
-    
+
     fn call_loop(&mut self, scope_index: usize) -> Option<VMState> {
         Some(VMError::todo("Process does not implement `call_loop`").into())
     }
-    
+
     fn call_for(&mut self, scope_index: usize) -> Option<VMState> {
         Some(VMError::todo("Process does not implement `call_for`").into())
     }
@@ -169,8 +172,12 @@ impl ProcessRunner<'_> {
         };
 
         match state {
-            VMState::Break => Some(VMError::UnsupportedOperation("Invalid break instruction".to_string()).into()),
-            VMState::Next => Some(VMError::UnsupportedOperation("Invalid next instruction".to_string()).into()),
+            VMState::Break => {
+                Some(VMError::UnsupportedOperation("Invalid break instruction".to_string()).into())
+            }
+            VMState::Next => {
+                Some(VMError::UnsupportedOperation("Invalid next instruction".to_string()).into())
+            }
             VMState::Running => None,
             VMState::Done(v) | VMState::Ran(v) => Some(v.borrow().clone()),
         }

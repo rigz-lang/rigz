@@ -26,13 +26,13 @@ impl From<Rc<RefCell<ObjectValue>>> for StackValue {
 pub enum ResolvedValue {
     Break,
     Next,
-    Value(Rc<RefCell<ObjectValue>>)
+    Value(Rc<RefCell<ObjectValue>>),
 }
 
 impl ResolvedValue {
     pub fn unwrap_or_default(self) -> Rc<RefCell<ObjectValue>> {
         let Self::Value(v) = self else {
-            return ObjectValue::default().into()
+            return ObjectValue::default().into();
         };
         v
     }

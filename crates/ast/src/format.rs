@@ -5,7 +5,7 @@ struct Formmatter<'l> {
     result: String,
     indent: usize,
     last: TokenKind<'l>,
-    needs_args: bool
+    needs_args: bool,
 }
 
 impl<'l> Formmatter<'l> {
@@ -14,7 +14,7 @@ impl<'l> Formmatter<'l> {
             result: String::with_capacity(len),
             indent: 0,
             last: TokenKind::Newline,
-            needs_args: false
+            needs_args: false,
         }
     }
 
@@ -27,16 +27,21 @@ impl<'l> Formmatter<'l> {
             };
 
             if self.needs_args {
-                if !matches!(token, TokenKind::Lparen | TokenKind::Assign | TokenKind::Newline) {
+                if !matches!(
+                    token,
+                    TokenKind::Lparen | TokenKind::Assign | TokenKind::Newline
+                ) {
                     self.last = TokenKind::Newline;
                     self.result.push('\n');
                 }
-                
+
                 if token == TokenKind::Assign {
                     self.indent = self.indent.saturating_sub(1);
                 }
                 self.needs_args = false;
-            } else if matches!(self.last, TokenKind::Do | TokenKind::Catch) && token == TokenKind::Assign {
+            } else if matches!(self.last, TokenKind::Do | TokenKind::Catch)
+                && token == TokenKind::Assign
+            {
                 self.indent = self.indent.saturating_sub(1);
             }
 
@@ -59,7 +64,11 @@ impl<'l> Formmatter<'l> {
     fn leading_spaces(&mut self, next: TokenKind<'l>) {
         if matches!(
             next,
-            TokenKind::Comma | TokenKind::Lparen | TokenKind::Rparen | TokenKind::Lbracket | TokenKind::Rbracket
+            TokenKind::Comma
+                | TokenKind::Lparen
+                | TokenKind::Rparen
+                | TokenKind::Lbracket
+                | TokenKind::Rbracket
         ) || matches!(self.last, TokenKind::Lparen | TokenKind::Lbracket)
         {
             return;
@@ -79,7 +88,7 @@ impl<'l> Formmatter<'l> {
             TokenKind::Identifier(_) if self.last == TokenKind::FunctionDef => {
                 self.needs_args = true;
                 self.indent += 1
-            },
+            }
             // todo handle if/unless/else
             TokenKind::Do | TokenKind::Catch => self.indent += 1,
             TokenKind::End => self.indent = self.indent.saturating_sub(1),

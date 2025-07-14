@@ -4,8 +4,7 @@ use ropey::Rope;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
-use tree_sitter_rigz::{NAMES, HIGHLIGHTS_QUERY, INJECTIONS_QUERY, LANGUAGE};
-use tree_sitter_highlight::{};
+use tree_sitter_rigz::{HIGHLIGHTS_QUERY, INJECTIONS_QUERY, LANGUAGE, NAMES};
 
 #[derive(Debug)]
 struct Backend {

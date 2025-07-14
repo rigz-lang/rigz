@@ -429,9 +429,7 @@ impl<'t> Parser<'t> {
                     }
                     elements.push(self.parse_element()?);
                 }
-                Statement::Loop(Scope {
-                    elements,
-                }).into()
+                Statement::Loop(Scope { elements }).into()
             }
             TokenKind::For => {
                 self.consume_token(TokenKind::For)?;
@@ -442,7 +440,8 @@ impl<'t> Parser<'t> {
                     each,
                     expression,
                     body,
-                }.into()
+                }
+                .into()
             }
             _ => self.parse_expression()?.into(),
         };
@@ -479,7 +478,11 @@ impl<'t> Parser<'t> {
                     }
                 }
             }
-            _ => return Err(ParsingError::ParseError(format!("Invalid token in each - {first:?}")))
+            _ => {
+                return Err(ParsingError::ParseError(format!(
+                    "Invalid token in each - {first:?}"
+                )))
+            }
         };
 
         let peek = self.peek_required_token("each - in or comma")?;
@@ -487,12 +490,17 @@ impl<'t> Parser<'t> {
         let each = if peek.kind == TokenKind::Comma {
             self.consume_token(TokenKind::Comma)?;
             let first = match each {
-                Each::Identifier { name, mutable, shadow } => {
-                    (name, mutable, shadow)
-                }
-                Each::TypedIdentifier { name, mutable, shadow, rigz_type } => {
-                    (name, mutable, shadow)
-                }
+                Each::Identifier {
+                    name,
+                    mutable,
+                    shadow,
+                } => (name, mutable, shadow),
+                Each::TypedIdentifier {
+                    name,
+                    mutable,
+                    shadow,
+                    rigz_type,
+                } => (name, mutable, shadow),
                 Each::Tuple(_) => unreachable!(),
             };
             let mut parts = vec![first];
@@ -511,13 +519,20 @@ impl<'t> Parser<'t> {
                         comma = true;
                     }
                     _ => {
-                        return Err(ParsingError::ParseError(format!("Invalid Token in each {peek:?} {}", if comma { "expected comma"} else { "expected identifier" })))
+                        return Err(ParsingError::ParseError(format!(
+                            "Invalid Token in each {peek:?} {}",
+                            if comma {
+                                "expected comma"
+                            } else {
+                                "expected identifier"
+                            }
+                        )))
                     }
                 }
             }
             Each::Tuple(parts)
         } else {
-          each
+            each
         };
 
         self.consume_token(TokenKind::In)?;
@@ -1015,41 +1030,49 @@ impl<'t> Parser<'t> {
             }
             TokenKind::Break => Expression::Break,
             TokenKind::Next => Expression::Next,
-            TokenKind::Return => match self.peek_token() {
-                None => Expression::Return(None),
-                Some(t) => {
-                    if t.terminal() {
-                        self.consume_token(t.kind)?;
-                        Expression::Return(None)
-                    } else {
-                        let exp = self.parse_expression()?;
-                        match exp {
-                            Expression::If { condition, mut then, branch } if branch.is_none() => {
-                                let Some(Element::Expression(last)) = then.elements.last_mut() else {
-                                    return Err(ParsingError::ParseError(format!("Invalid if expression for return {t:?}, scope: {then:?}")))
-                                };
-                                *last = Expression::Return(Some(last.clone().into()));
+            TokenKind::Return => {
+                match self.peek_token() {
+                    None => Expression::Return(None),
+                    Some(t) => {
+                        if t.terminal() {
+                            self.consume_token(t.kind)?;
+                            Expression::Return(None)
+                        } else {
+                            let exp = self.parse_expression()?;
+                            match exp {
                                 Expression::If {
                                     condition,
-                                    branch: None,
-                                    then
+                                    mut then,
+                                    branch,
+                                } if branch.is_none() => {
+                                    let Some(Element::Expression(last)) = then.elements.last_mut()
+                                    else {
+                                        return Err(ParsingError::ParseError(format!("Invalid if expression for return {t:?}, scope: {then:?}")));
+                                    };
+                                    *last = Expression::Return(Some(last.clone().into()));
+                                    Expression::If {
+                                        condition,
+                                        branch: None,
+                                        then,
+                                    }
                                 }
-                            }
-                            Expression::Unless { condition, mut then } => {
-                                let Some(Element::Expression(last)) = then.elements.last_mut() else {
-                                    return Err(ParsingError::ParseError(format!("Invalid unless expression for return {t:?}, scope: {then:?}")))
-                                };
-                                *last = Expression::Return(Some(last.clone().into()));
                                 Expression::Unless {
                                     condition,
-                                    then
+                                    mut then,
+                                } => {
+                                    let Some(Element::Expression(last)) = then.elements.last_mut()
+                                    else {
+                                        return Err(ParsingError::ParseError(format!("Invalid unless expression for return {t:?}, scope: {then:?}")));
+                                    };
+                                    *last = Expression::Return(Some(last.clone().into()));
+                                    Expression::Unless { condition, then }
                                 }
+                                _ => Expression::Return(Some(Box::new(exp))),
                             }
-                            _ => Expression::Return(Some(Box::new(exp))),
                         }
                     }
                 }
-            },
+            }
             TokenKind::Pipe => self.parse_lambda(false)?,
             TokenKind::BinOp(BinaryOperation::Or) => self.parse_lambda(true)?,
             TokenKind::Try => Expression::Try(Box::new(self.parse_expression()?)),

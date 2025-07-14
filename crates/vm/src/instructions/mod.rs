@@ -801,7 +801,9 @@ impl Snapshot for Instruction {
             55 => Instruction::Break,
             56 => Instruction::Loop(Snapshot::from_bytes(bytes, location)?),
             57 => Instruction::Next,
-            58 => Instruction::For { scope: Snapshot::from_bytes(bytes, location)? },
+            58 => Instruction::For {
+                scope: Snapshot::from_bytes(bytes, location)?,
+            },
             b => {
                 return Err(VMError::runtime(format!(
                     "Illegal instruction byte {b} {location}"

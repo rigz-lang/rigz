@@ -2,7 +2,11 @@ use crate::program::{
     ArgType, AssignIndex, Constructor, FunctionExpression, ImportValue, ObjectAttr,
     ObjectDefinition, RigzArguments,
 };
-use crate::{Assign, Each, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration, FunctionDefinition, FunctionSignature, FunctionType, MatchVariant, MatchVariantCondition, MatchVariantVariable, ModuleTraitDefinition, Scope, Statement, TraitDefinition};
+use crate::{
+    Assign, Each, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration,
+    FunctionDefinition, FunctionSignature, FunctionType, MatchVariant, MatchVariantCondition,
+    MatchVariantVariable, ModuleTraitDefinition, Scope, Statement, TraitDefinition,
+};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use rigz_core::derive::{boxed, csv_vec, option};
@@ -90,7 +94,7 @@ impl ToTokens for Expression {
                         variants: #var
                     }
                 }
-            },
+            }
             Expression::Value(v) => {
                 quote! {
                     Expression::Value(#v)
@@ -295,7 +299,12 @@ impl ToTokens for Expression {
 impl ToTokens for MatchVariant {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
-            MatchVariant::Enum { name, condition, body, variables } => {
+            MatchVariant::Enum {
+                name,
+                condition,
+                body,
+                variables,
+            } => {
                 let var = csv_vec(variables);
                 quote! {
                     MatchVariant::Enum {
@@ -308,7 +317,7 @@ impl ToTokens for MatchVariant {
             }
             MatchVariant::Else(s) => quote! {
                 MatchVariant::Else(#s)
-            }
+            },
         };
         tokens.extend(t);
     }
@@ -323,7 +332,7 @@ impl ToTokens for MatchVariantCondition {
             },
             MatchVariantCondition::Unless(ex) => quote! {
                 MatchVariantCondition::Unless(#ex)
-            }
+            },
         };
         tokens.extend(t);
     }
@@ -564,7 +573,11 @@ impl ToTokens for Statement {
                     Statement::Loop(#s)
                 }
             }
-            Statement::For { body, each, expression } => {
+            Statement::For {
+                body,
+                each,
+                expression,
+            } => {
                 quote! {
                     Statement::For {
                         body: #body,

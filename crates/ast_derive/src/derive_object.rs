@@ -1,7 +1,4 @@
-use crate::{
-    convert_response, convert_type_for_arg, rigz_type_to_return_type,
-    setup_call_args,
-};
+use crate::{convert_response, convert_type_for_arg, rigz_type_to_return_type, setup_call_args};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use rigz_ast::{FunctionDeclaration, ObjectDefinition, Parser, ParserOptions};

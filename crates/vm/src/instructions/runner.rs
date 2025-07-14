@@ -1,6 +1,10 @@
 use crate::{err, errln, out, outln, CallFrame, Instruction, MatchArm, Scope, VMOptions, VMState};
 use log::log;
-use rigz_core::{AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, Logical, Module, ObjectValue, PrimitiveValue, Reference, ResolveValue, ResolvedValue, Reverse, RigzArgs, RigzObject, StackValue, UnaryOperation, VMError};
+use rigz_core::{
+    AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, Logical, Module, ObjectValue,
+    PrimitiveValue, Reference, ResolveValue, ResolvedValue, Reverse, RigzArgs, RigzObject,
+    StackValue, UnaryOperation, VMError,
+};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
@@ -144,8 +148,11 @@ macro_rules! runner_common {
         fn get_variable_reference(&mut self, name: &str) {
             let r = self.frames.get_variable(name);
             let v = match r {
-                None => VMError::VariableDoesNotExist(format!("Variable Reference {} does not exist", name))
-                    .into(),
+                None => VMError::VariableDoesNotExist(format!(
+                    "Variable Reference {} does not exist",
+                    name
+                ))
+                .into(),
                 Some(v) => v,
             };
             self.store_value(v);
@@ -228,13 +235,12 @@ pub fn eval_binary_operation(
         BinaryOperation::Gte => (lhs >= rhs).into(),
         BinaryOperation::Lt => (lhs < rhs).into(),
         BinaryOperation::Lte => (lhs <= rhs).into(),
-        BinaryOperation::Elvis => {
-            if lhs.is_value() {
-                lhs.clone()
-            } else {
-                rhs.clone()
-            }.into()
-        },
+        BinaryOperation::Elvis => if lhs.is_value() {
+            lhs.clone()
+        } else {
+            rhs.clone()
+        }
+        .into(),
     }
 }
 
@@ -512,7 +518,7 @@ pub trait Runner: ResolveValue {
                 match self.handle_scope(scope) {
                     ResolvedValue::Break => return VMState::Break,
                     ResolvedValue::Next => return VMState::Next,
-                    ResolvedValue::Value(v) => self.store_value(v.into())
+                    ResolvedValue::Value(v) => self.store_value(v.into()),
                 };
             }
             Instruction::If(if_scope) => {
@@ -521,7 +527,7 @@ pub trait Runner: ResolveValue {
                     match self.handle_scope(if_scope) {
                         ResolvedValue::Break => return VMState::Break,
                         ResolvedValue::Next => return VMState::Next,
-                        ResolvedValue::Value(v) => v
+                        ResolvedValue::Value(v) => v,
                     }
                 } else {
                     ObjectValue::default().into()
@@ -534,7 +540,7 @@ pub trait Runner: ResolveValue {
                     match self.handle_scope(unless_scope) {
                         ResolvedValue::Break => return VMState::Break,
                         ResolvedValue::Next => return VMState::Next,
-                        ResolvedValue::Value(v) => v
+                        ResolvedValue::Value(v) => v,
                     }
                 } else {
                     ObjectValue::default().into()
@@ -691,7 +697,7 @@ pub trait Runner: ResolveValue {
                     let value = match self.handle_scope(scope) {
                         ResolvedValue::Break => return VMState::Break,
                         ResolvedValue::Next => return VMState::Next,
-                        ResolvedValue::Value(v) => v
+                        ResolvedValue::Value(v) => v,
                     };
                     let value = value.borrow().clone();
                     match value {
@@ -709,7 +715,7 @@ pub trait Runner: ResolveValue {
                             let e: ObjectValue = VMError::UnsupportedOperation(format!(
                                 "Invalid args in for-map {value}"
                             ))
-                                .into();
+                            .into();
                             result.insert(e.clone(), e);
                         }
                     }
@@ -887,20 +893,16 @@ pub trait Runner: ResolveValue {
             }
             Instruction::Loop(scope_id) => {
                 if let Some(e) = self.call_loop(scope_id) {
-                    return e
+                    return e;
                 }
-            },
+            }
             Instruction::For { scope } => {
                 if let Some(e) = self.call_for(scope) {
-                    return e
+                    return e;
                 }
             }
-            Instruction::Break => {
-                return VMState::Break
-            }
-            Instruction::Next => {
-                return VMState::Next
-            }
+            Instruction::Break => return VMState::Break,
+            Instruction::Next => return VMState::Next,
             ins => {
                 return VMError::todo(format!("Instruction is not supported yet {ins:?}")).into()
             }

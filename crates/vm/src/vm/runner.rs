@@ -1,7 +1,13 @@
-use crate::{runner_common, CallFrame, CallType, Instruction, ModulesMap, ResolvedModule, Runner, Scope, VMOptions, VMState, Variable, VM};
+use crate::{
+    runner_common, CallFrame, CallType, Instruction, ModulesMap, ResolvedModule, Runner, Scope,
+    VMOptions, VMState, Variable, VM,
+};
 use itertools::Itertools;
 use log_derive::{logfn, logfn_inputs};
-use rigz_core::{AsPrimitive, EnumDeclaration, Lifecycle, ObjectValue, ResolveValue, RigzArgs, StackValue, VMError};
+use rigz_core::{
+    AsPrimitive, EnumDeclaration, Lifecycle, ObjectValue, ResolveValue, RigzArgs, StackValue,
+    VMError,
+};
 use std::fmt::Display;
 use std::ops::Deref;
 use std::thread;
@@ -257,25 +263,31 @@ impl Runner for VM {
         if let Err(s) = self.call_frame(scope_id) {
             return Some(s.into());
         }
-        let mut result : Option<VMState> = None;
+        let mut result: Option<VMState> = None;
         loop {
             let instruction = match self.next_instruction() {
-                None => { // for manual calls to build a loop instruction without a ret
+                None => {
+                    // for manual calls to build a loop instruction without a ret
                     if self.sp == scope_id {
                         self.frames.current.borrow_mut().pc = 0;
-                        continue
+                        continue;
                     }
-                    break
+                    break;
                 }
                 Some(Instruction::Ret) => {
-                    if self.sp == scope_id && self.scopes[self.sp].instructions.len() == self.frames.current.borrow().pc {
+                    if self.sp == scope_id
+                        && self.scopes[self.sp].instructions.len()
+                            == self.frames.current.borrow().pc
+                    {
                         self.frames.current.borrow_mut().pc = 0;
-                        continue
+                        continue;
                     } else {
-                        result = Some(VMState::Done(self.next_resolved_value("for ret".to_string())));
+                        result = Some(VMState::Done(
+                            self.next_resolved_value("for ret".to_string()),
+                        ));
                         break;
                     }
-                },
+                }
                 Some(s) => s,
             };
 
@@ -285,31 +297,37 @@ impl Runner for VM {
                     while self.frames.len() > current + 1 {
                         let frame = match self.frames.pop() {
                             None => {
-                                return Some(VMError::EmptyStack("loop processed empty frame - next".to_string()).into())
+                                return Some(
+                                    VMError::EmptyStack(
+                                        "loop processed empty frame - next".to_string(),
+                                    )
+                                    .into(),
+                                )
                             }
-                            Some(frame) => frame
+                            Some(frame) => frame,
                         };
                         self.frames.current.swap(&frame);
                     }
                     self.frames.current.borrow_mut().pc = 0;
                     self.sp = scope_id;
                 }
-                VMState::Break => {
-                    break
-                }
+                VMState::Break => break,
                 s => {
                     result = Some(s);
                     break;
-                },
+                }
             };
         }
         self.sp = sp;
         while self.frames.len() > current {
             let frame = match self.frames.pop() {
                 None => {
-                    return Some(VMError::EmptyStack("loop processed empty frame - break".to_string()).into())
+                    return Some(
+                        VMError::EmptyStack("loop processed empty frame - break".to_string())
+                            .into(),
+                    )
                 }
-                Some(frame) => frame
+                Some(frame) => frame,
             };
             self.frames.current.swap(&frame);
         }
@@ -320,25 +338,35 @@ impl Runner for VM {
         let sp = self.sp;
         let current = self.frames.len();
         let Some(value) = self.pop() else {
-            return Some(VMError::runtime(format!("No object passed into for loop - {scope_id}")).into())
+            return Some(
+                VMError::runtime(format!("No object passed into for loop - {scope_id}")).into(),
+            );
         };
         let value = match value.resolve(self).borrow().to_list() {
             Ok(v) => v,
             Err(e) => {
-                return Some(VMError::runtime(format!("Invalid object passed into for loop - {scope_id}, {value:?}")).into())
+                return Some(
+                    VMError::runtime(format!(
+                        "Invalid object passed into for loop - {scope_id}, {value:?}"
+                    ))
+                    .into(),
+                )
             }
         };
 
         let args = match self.scopes.get(scope_id) {
             None => {
-                return Some(VMError::runtime(format!("Scope does not exist in for loop - {scope_id}")).into())
+                return Some(
+                    VMError::runtime(format!("Scope does not exist in for loop - {scope_id}"))
+                        .into(),
+                )
             }
-            Some(v) => {
-                v.args.clone()
-            }
+            Some(v) => v.args.clone(),
         };
         if args.is_empty() {
-            return Some(VMError::runtime(format!("No args for scope in for loop- {scope_id}")).into())
+            return Some(
+                VMError::runtime(format!("No args for scope in for loop- {scope_id}")).into(),
+            );
         }
         let new_frame = CallFrame::child(scope_id, self.frames.len());
         let old = self.frames.current.replace(new_frame);
@@ -376,17 +404,22 @@ impl Runner for VM {
                         }
                         break 'outer;
                     }
-                    Some(Instruction::Ret)  => {
-                        if self.sp == scope_id && self.scopes[self.sp].instructions.len() == self.frames.current.borrow().pc {
+                    Some(Instruction::Ret) => {
+                        if self.sp == scope_id
+                            && self.scopes[self.sp].instructions.len()
+                                == self.frames.current.borrow().pc
+                        {
                             self.frames.current.borrow_mut().pc = 0;
                             self.frames.current.borrow_mut().clear_variables();
                             break;
                         } else {
-                            result = Some(VMState::Done(self.next_resolved_value("for ret".to_string())));
+                            result = Some(VMState::Done(
+                                self.next_resolved_value("for ret".to_string()),
+                            ));
                             break 'outer;
                         }
                     }
-                    Some(i) => i
+                    Some(i) => i,
                 };
                 match self.process_instruction(ins) {
                     VMState::Running => {}
@@ -396,7 +429,9 @@ impl Runner for VM {
                     VMState::Next => {
                         while self.frames.len() > current + 1 {
                             let Some(next) = self.frames.pop() else {
-                                return Some(VMError::runtime("Missing call frame".to_string()).into());
+                                return Some(
+                                    VMError::runtime("Missing call frame".to_string()).into(),
+                                );
                             };
                             self.frames.current.swap(&next);
                         }
