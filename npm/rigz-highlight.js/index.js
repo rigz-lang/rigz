@@ -22,6 +22,7 @@ export function rigz(hljs) {
             "end",
             "match",
             "in",
+            "var",
             "try",
             "catch",
             "return",

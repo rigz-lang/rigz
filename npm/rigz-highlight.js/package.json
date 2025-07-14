@@ -1,6 +1,6 @@
 {
   "name": "@rigz-lang/highlight.js",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "private": false,
   "description": "Highlight rigz with highlight.js",
   "keywords": [

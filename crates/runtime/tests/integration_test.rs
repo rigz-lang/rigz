@@ -303,8 +303,10 @@ pub mod runtime {
             a
             "# = 42)
             for_list(r#"[for v in [1, 2, 3]: v * v]"# = vec![1, 4, 9])
+            for_list_assign(r#"a = [for v in [1, 2, 3]: v * v]; a"# = vec![1, 4, 9])
             for_list_exclude_nones(r#"[for v in [1, 2, 3, 'a', 'b']: v if v.is_num]"# = vec![1, 2, 3])
             for_map(r#"{for k, v in {1, 2, 3}: k, v if k % 2 == 0}"# = IndexMap::from([(2, 2)]))
+            for_map_assign(r#"val = {for k, v in {1, 2, 3}: k, v if k % 2 == 0}; val"# = IndexMap::from([(2, 2)]))
             lambda_in_for_list_if_expression(r#"
             func = |v| v if v.is_num
             [for a in ['a', 'b', 'c', 1, 2, 3]: func a]

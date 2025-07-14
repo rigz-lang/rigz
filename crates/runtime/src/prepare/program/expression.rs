@@ -101,8 +101,9 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 Some(e) => self.rigz_type(e)?,
             },
             Expression::Lambda { body, .. } => self.rigz_type(body)?,
-            Expression::ForList { body, .. } => RigzType::List(self.rigz_type(body)?.into()),
-            Expression::ForMap { key, value, .. } => match value {
+            // todo parse_expression should return type instead of calling this function for assignments
+            Expression::ForList { /* body */ .. } =>  RigzType::List(RigzType::Any.into()) /* RigzType::List(self.rigz_type(body)?.into()) */,
+            Expression::ForMap { /* key, value, */ .. } => RigzType::Map(RigzType::Any.into(), RigzType::Any.into()) /* match value {
                 None => {
                     let key = self.rigz_type(key)?;
                     let value = match &key {
@@ -118,7 +119,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 Some(value) => {
                     RigzType::Map(self.rigz_type(key)?.into(), self.rigz_type(value)?.into())
                 }
-            },
+            }*/,
             Expression::Tuple(e) => {
                 let mut result = Vec::with_capacity(e.len());
                 for ex in e {
