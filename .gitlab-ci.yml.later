@@ -1,0 +1,104 @@
+default:
+  image: rust:1.88
+  cache: &global_cache
+    policy: pull
+    unprotect: true
+    key:
+      files:
+        - Cargo.lock
+    paths:
+      - target/
+    when: on_success
+
+stages:
+  - test
+  - publish
+
+test:
+  stage: test
+  cache:
+    <<: *global_cache
+    policy: pull-push
+  script:
+    - cargo test --workspace
+
+integration test:
+  stage: test
+  script:
+    - cargo run -- test rigz_tests
+
+tree-sitter test:
+  stage: test
+  before_script:
+    - cargo install tree-sitter-cli --locked
+  script:
+    - cd crates/tree-sitter
+    - tree-sitter test
+
+benchmarks:
+  stage: test
+  cache:
+    <<: *global_cache
+    policy: pull-push
+  script:
+    - cargo bench --workspace
+
+publish (core):
+  stage: publish
+  script:
+    - cd crates/core
+    - cargo publish
+  rules:
+    - if: $CI_COMMIT_TAG
+
+publish (ast):
+  stage: publish
+  needs: ["publish (core)"]
+  script:
+    - cd crates/ast
+    - cargo publish
+  rules:
+    - if: $CI_COMMIT_TAG
+
+publish (ast_derive):
+  stage: publish
+  needs: ["publish (ast)"]
+  script:
+    - cd crates/ast_derive
+    - cargo publish
+  rules:
+    - if: $CI_COMMIT_TAG
+
+publish (vm):
+  stage: publish
+  needs: ["publish (ast_derive)"]
+  script:
+    - cd crates/vm
+    - cargo publish
+  rules:
+    - if: $CI_COMMIT_TAG
+
+publish (runtime):
+  stage: publish
+  needs: ["publish (vm)"]
+  script:
+    - cd crates/runtime
+    - cargo publish
+  rules:
+    - if: $CI_COMMIT_TAG
+
+publish (tree-sitter):
+  stage: publish
+  script:
+    - cd crates/tree-sitter
+    - cargo publish
+  rules:
+    - if: $CI_COMMIT_TAG
+
+publish:
+  stage: publish
+  needs: ["publish (runtime)", "publish (tree-sitter)"]
+  script:
+    - cargo publish
+  rules:
+    - if: $CI_COMMIT_TAG

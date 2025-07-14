@@ -46,6 +46,7 @@ impl<'l> Formmatter<'l> {
             }
 
             if token == TokenKind::Newline {
+
                 self.result.push('\n')
             } else {
                 self.new_indent(token);
@@ -75,11 +76,20 @@ impl<'l> Formmatter<'l> {
         }
 
         if self.last == TokenKind::Newline {
-            self.result.push_str(" ".repeat(self.indent * 2).as_str());
+            let mut indent = self.indent;
+            if matches!(next, TokenKind::Loop | TokenKind::Do | TokenKind::If | TokenKind::Unless | TokenKind::For) {
+                indent -= 1;
+            }
+            self.result.push_str(" ".repeat(indent * 2).as_str());
             return;
         }
 
-        let char = if next == TokenKind::End { '\n' } else { ' ' };
+        let char = match next {
+            TokenKind::End => '\n',
+            TokenKind::Period => '.',
+            TokenKind::Semi => return,
+            _ => ' ',
+        };
         self.result.push(char)
     }
 
@@ -89,11 +99,12 @@ impl<'l> Formmatter<'l> {
                 self.needs_args = true;
                 self.indent += 1
             }
-            // todo handle if/unless/else
-            TokenKind::Do | TokenKind::Catch | TokenKind::Loop => self.indent += 1,
-            TokenKind::For if !matches!(self.last, TokenKind::Lbracket | TokenKind::Lcurly) => self.indent += 1,
             TokenKind::End => self.indent = self.indent.saturating_sub(1),
-            _ => {}
+            TokenKind::If | TokenKind::Unless if self.last == TokenKind::Newline => self.indent += 1,
+            TokenKind::Do | TokenKind::Catch | TokenKind::Loop | TokenKind::Else => self.indent += 1,
+            TokenKind::For if !matches!(self.last, TokenKind::Lbracket | TokenKind::Lcurly) => self.indent += 1,
+            _ => {
+            }
         }
     }
 }
@@ -135,4 +146,8 @@ test_format! {
     preserve_new_lines_comment: "\n\n\n\n#hello world\n\n\n" = "\n\n\n\n#hello world\n\n\n";
     eat_whitespace: "     " = "";
     revert_indent_after_single_fn: "fn foo = 123\nfn bar = baz" = "fn foo = 123\nfn bar = baz";
+    looping: "loop\n1 + 2\nend" = "loop\n  1 + 2\nend";
+    scope: "do\n1 + 2\nend" = "do\n  1 + 2\nend";
+    semi: "a=1+2;a" = "a = 1 + 2; a";
+    semi_newline: "a=1+2;\na" = "a = 1 + 2;\na";
 }
