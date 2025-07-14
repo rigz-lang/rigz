@@ -86,8 +86,7 @@ impl<'l> Formmatter<'l> {
 
         let char = match next {
             TokenKind::End => '\n',
-            TokenKind::Period => '.',
-            TokenKind::Semi => return,
+            TokenKind::Period | TokenKind::Semi => return,
             _ => ' ',
         };
         self.result.push(char)
