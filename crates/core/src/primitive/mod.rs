@@ -317,7 +317,7 @@ impl PartialEq for PrimitiveValue {
             (PrimitiveValue::None, PrimitiveValue::Bool(false)) => true,
             (PrimitiveValue::None, PrimitiveValue::Number(n)) => n.is_zero(),
             (PrimitiveValue::Bool(false), PrimitiveValue::Number(n)) => n.is_zero(),
-            (PrimitiveValue::None, PrimitiveValue::String(s)) => s.is_empty() || s.eq("none"),
+            (PrimitiveValue::None, PrimitiveValue::String(s)) => s.is_empty(),
             (PrimitiveValue::Bool(false), PrimitiveValue::String(s)) => {
                 s.is_empty() || s.eq("false")
             }
@@ -327,7 +327,7 @@ impl PartialEq for PrimitiveValue {
             (&PrimitiveValue::Bool(a), &PrimitiveValue::Bool(b)) => a == b,
             (PrimitiveValue::Number(n), PrimitiveValue::None) => n.is_zero(),
             (PrimitiveValue::Number(n), PrimitiveValue::Bool(false)) => n.is_zero(),
-            (PrimitiveValue::String(s), PrimitiveValue::None) => s.is_empty() || s.eq("none"),
+            (PrimitiveValue::String(s), PrimitiveValue::None) => s.is_empty(),
             (PrimitiveValue::String(s), PrimitiveValue::Bool(false)) => {
                 s.is_empty() || s.eq("false")
             }
