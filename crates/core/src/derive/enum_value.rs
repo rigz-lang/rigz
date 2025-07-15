@@ -1,7 +1,7 @@
+use crate::derive::{csv_tuple_vec, csv_vec};
 use crate::EnumDeclaration;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use crate::derive::{csv_tuple_vec, csv_vec};
 
 impl ToTokens for EnumDeclaration {
     fn to_tokens(&self, tokens: &mut TokenStream) {

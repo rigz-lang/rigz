@@ -209,7 +209,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             RigzType::Enum(i) => {
                 todo!()
             }
-            RigzType::Never => RigzType::Never
+            RigzType::Never => RigzType::Never,
         }
     }
 

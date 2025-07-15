@@ -1045,7 +1045,10 @@ impl<'t> Parser<'t> {
         self.parse_expression_suffix(exp)
     }
 
-    fn parse_guard<F>(&mut self, create: F) -> Result<Expression, ParsingError> where F: FnOnce(Option<Box<Expression>>) -> Expression {
+    fn parse_guard<F>(&mut self, create: F) -> Result<Expression, ParsingError>
+    where
+        F: FnOnce(Option<Box<Expression>>) -> Expression,
+    {
         let exp = match self.peek_token() {
             None => create(None),
             Some(t) if t.terminal() => {
@@ -1060,9 +1063,10 @@ impl<'t> Parser<'t> {
                         mut then,
                         branch,
                     } if branch.is_none() => {
-                        let Some(Element::Expression(last)) = then.elements.last_mut()
-                        else {
-                            return Err(ParsingError::ParseError(format!("Invalid if expression for return {t:?}, scope: {then:?}")));
+                        let Some(Element::Expression(last)) = then.elements.last_mut() else {
+                            return Err(ParsingError::ParseError(format!(
+                                "Invalid if expression for return {t:?}, scope: {then:?}"
+                            )));
                         };
                         *last = create(Some(last.clone().into()));
                         Expression::If {
@@ -1075,9 +1079,10 @@ impl<'t> Parser<'t> {
                         condition,
                         mut then,
                     } => {
-                        let Some(Element::Expression(last)) = then.elements.last_mut()
-                        else {
-                            return Err(ParsingError::ParseError(format!("Invalid unless expression for return {t:?}, scope: {then:?}")));
+                        let Some(Element::Expression(last)) = then.elements.last_mut() else {
+                            return Err(ParsingError::ParseError(format!(
+                                "Invalid unless expression for return {t:?}, scope: {then:?}"
+                            )));
                         };
                         *last = create(Some(last.clone().into()));
                         Expression::Unless { condition, then }

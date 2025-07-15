@@ -98,7 +98,7 @@ impl FromStr for Number {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = s.replace("_", "");
         match s {
-            _ if s.ends_with('f') => match s[0..s.len()-1].parse::<f64>() {
+            _ if s.ends_with('f') => match s[0..s.len() - 1].parse::<f64>() {
                 Ok(f) => Ok(f.into()),
                 Err(e) => Err(e.to_string()),
             },

@@ -46,15 +46,12 @@ impl<'l> Formmatter<'l> {
             }
 
             if token == TokenKind::Newline {
-
                 self.result.push('\n')
             } else {
                 self.new_indent(token);
                 self.leading_spaces(token);
                 match token {
-                    TokenKind::Comment => {
-                        self.result.push_str(tokens.slice())
-                    }
+                    TokenKind::Comment => self.result.push_str(tokens.slice()),
                     TokenKind::Value(TokenValue::String(s)) => {
                         let single = s.contains('\'');
                         let double = s.contains('\"');
@@ -69,9 +66,7 @@ impl<'l> Formmatter<'l> {
                         self.result.push_str(s);
                         self.result.push(lead);
                     }
-                    _ => {
-                        self.result.push_str(token.to_string().as_str())
-                    }
+                    _ => self.result.push_str(token.to_string().as_str()),
                 }
             }
             self.last = token;
@@ -94,7 +89,14 @@ impl<'l> Formmatter<'l> {
 
         if self.last == TokenKind::Newline {
             let mut indent = self.indent;
-            if matches!(next, TokenKind::Loop | TokenKind::Do | TokenKind::If | TokenKind::Unless | TokenKind::For) {
+            if matches!(
+                next,
+                TokenKind::Loop
+                    | TokenKind::Do
+                    | TokenKind::If
+                    | TokenKind::Unless
+                    | TokenKind::For
+            ) {
                 indent -= 1;
             }
             self.result.push_str(" ".repeat(indent * 2).as_str());
@@ -116,11 +118,16 @@ impl<'l> Formmatter<'l> {
                 self.indent += 1
             }
             TokenKind::End => self.indent = self.indent.saturating_sub(1),
-            TokenKind::If | TokenKind::Unless if self.last == TokenKind::Newline => self.indent += 1,
-            TokenKind::Do | TokenKind::Catch | TokenKind::Loop | TokenKind::Else => self.indent += 1,
-            TokenKind::For if !matches!(self.last, TokenKind::Lbracket | TokenKind::Lcurly) => self.indent += 1,
-            _ => {
+            TokenKind::If | TokenKind::Unless if self.last == TokenKind::Newline => {
+                self.indent += 1
             }
+            TokenKind::Do | TokenKind::Catch | TokenKind::Loop | TokenKind::Else => {
+                self.indent += 1
+            }
+            TokenKind::For if !matches!(self.last, TokenKind::Lbracket | TokenKind::Lcurly) => {
+                self.indent += 1
+            }
+            _ => {}
         }
     }
 }
