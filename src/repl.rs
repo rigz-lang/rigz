@@ -136,14 +136,12 @@ fn highlight_value(
     rigz_config: &HighlightConfiguration,
     value: ObjectValue,
 ) {
-    print!("=> ");
     let str = if matches!(value, ObjectValue::Primitive(PrimitiveValue::String(_))) {
         format!("'{value}'")
     } else {
         value.to_string()
     };
-    let r = highlight(highlighter, rigz_config, str.as_bytes());
-    println!("{r}")
+    println!("=> {}", highlight(highlighter, rigz_config, str.as_bytes()))
 }
 
 fn highlight(

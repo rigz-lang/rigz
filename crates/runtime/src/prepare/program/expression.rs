@@ -96,6 +96,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             Expression::Unless { then, .. } => self.scope_type(then)?,
             Expression::Break => RigzType::None,
             Expression::Next => RigzType::None,
+            Expression::Exit(_) => RigzType::Never,
             Expression::Return(e) => match e {
                 None => RigzType::None,
                 Some(e) => self.rigz_type(e)?,
@@ -208,6 +209,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             RigzType::Enum(i) => {
                 todo!()
             }
+            RigzType::Never => RigzType::Never
         }
     }
 

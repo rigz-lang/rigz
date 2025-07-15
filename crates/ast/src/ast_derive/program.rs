@@ -189,6 +189,13 @@ impl ToTokens for Expression {
                     quote! { Expression::Return(Some(#b)) }
                 }
             },
+            Expression::Exit(ret) => match ret {
+                None => quote! { Expression::Exit(None) },
+                Some(b) => {
+                    let b = boxed(b);
+                    quote! { Expression::Exit(Some(#b)) }
+                }
+            },
             Expression::Lambda {
                 arguments,
                 var_args_start,

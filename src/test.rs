@@ -6,6 +6,7 @@ use rigz_runtime::Runtime;
 use std::fs::read_to_string;
 use std::path::PathBuf;
 use std::process::exit;
+use rigz_runtime::runtime::RuntimeOptions;
 
 #[derive(Args)]
 pub struct TestArgs {
@@ -26,7 +27,7 @@ pub(crate) fn test(args: TestArgs) {
         };
         match read_to_string(&file) {
             Ok(s) => {
-                match Runtime::create_unverified_with_options(s, parser_options) {
+                match Runtime::create_with_options(s, RuntimeOptions::default(), parser_options) {
                     Ok(mut r) => {
                         if r.vm()
                             .scopes

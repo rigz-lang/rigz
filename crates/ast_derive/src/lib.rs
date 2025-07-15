@@ -470,6 +470,7 @@ fn rigz_type_to_arg(value: &RigzType, index: usize, offset: Option<usize>) -> To
     } else {
         let id = match value {
             RigzType::None => "none",
+            RigzType::Never => panic!("Never cannot be used as argument type"),
             RigzType::Any
             | RigzType::Custom(_)
             | RigzType::Composite(_)

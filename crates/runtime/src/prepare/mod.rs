@@ -1344,6 +1344,18 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 };
                 self.builder.add_ret_instruction();
             }
+            Expression::Exit(ret) => {
+                match ret {
+                    None => {
+                        let zero = self.find_or_create_constant(0.into());
+                        self.builder.add_load_instruction(LoadValue::Constant(zero));
+                    }
+                    Some(e) => {
+                        self.parse_expression(*e)?;
+                    }
+                };
+                self.builder.add_exit_instruction();
+            }
             Expression::Into { base, next } => {
                 self.parse_function(next.prepend(*base))?;
             }

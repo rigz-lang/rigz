@@ -10,6 +10,7 @@ use std::str::FromStr;
 #[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub enum RigzType {
     None,
+    Never,
     Any,
     Bool,
     Int,
@@ -71,6 +72,7 @@ impl FromStr for RigzType {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let rigz_type = match s {
             "None" => RigzType::None,
+            "Never" => RigzType::Never,
             "Any" => RigzType::Any,
             "Bool" => RigzType::Bool,
             "Float" => RigzType::Float,
@@ -118,6 +120,7 @@ impl FromStr for RigzType {
 impl Display for RigzType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            RigzType::Never => write!(f, "Never"),
             RigzType::None => write!(f, "None"),
             RigzType::Any => write!(f, "Any"),
             RigzType::Bool => write!(f, "Bool"),

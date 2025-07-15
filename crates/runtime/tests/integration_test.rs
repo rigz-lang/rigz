@@ -95,7 +95,6 @@ pub mod runtime {
 
         run_invalid! {
             // last statement must be an expression
-            assign("a = 3 * 2")
             var_once_in_fn_def("fn foo(var foo, var bar) = none")
             duplicate_values_in_object(r#"
                 object Foo
@@ -146,6 +145,7 @@ pub mod runtime {
         use rigz_core::{IndexMap, ObjectValue};
 
         run_expected! {
+            statement_only("a = 3 * 2" = PrimitiveValue::None)
             raw_value("'Hello World'" = "Hello World")
             addition("2 + 2" = 4)
             list_index("[1, 2, 3][2]" = 3)
@@ -687,6 +687,12 @@ pub mod runtime {
             a
             "# = 42)
             multiple_ors("a = 1; a == 'b' || a == 1 || a == 'f'" = true)
+            multiple_ors_commutative("a = 1; (a == 'b' || a == 1 || a == 'f') == ('b' == a || 1 == a || 'f' == a)" = true)
+            exit(r#"
+            a = 42
+            exit if a == 42
+            a
+            "# = 0)
         }
     }
 

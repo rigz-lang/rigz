@@ -8,6 +8,7 @@ impl ToTokens for RigzType {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let t = match self {
             RigzType::None => quote! { RigzType::None },
+            RigzType::Never => quote! { RigzType::Never },
             RigzType::Any => quote! { RigzType::Any },
             RigzType::Bool => quote! { RigzType::Bool },
             RigzType::Int => quote! { RigzType::Int },

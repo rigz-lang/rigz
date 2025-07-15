@@ -254,6 +254,8 @@ pub(crate) enum TokenKind<'lex> {
     Match,
     #[token("on")]
     On,
+    #[token("exit")]
+    Exit,
 }
 
 impl Display for TokenKind<'_> {
@@ -326,6 +328,7 @@ impl Display for TokenKind<'_> {
             TokenKind::Enum => write!(f, "enum"),
             TokenKind::Match => write!(f, "match"),
             TokenKind::On => write!(f, "on"),
+            TokenKind::Exit => write!(f, "exit"),
         }
     }
 }

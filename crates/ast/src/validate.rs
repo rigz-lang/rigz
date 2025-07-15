@@ -34,19 +34,3 @@ impl Display for ValidationError {
         }
     }
 }
-
-impl Program {
-    pub fn validate(&self) -> Result<(), ValidationError> {
-        match self.elements.last() {
-            None => Err(ValidationError::MissingExpression(
-                "Invalid Program, no elements".to_string(),
-            )),
-            Some(e) => match e {
-                Element::Statement(s) => Err(ValidationError::MissingExpression(format!(
-                    "Invalid Program, must end with expression, received statement {s:?}",
-                ))),
-                Element::Expression(_) => Ok(()),
-            },
-        }
-    }
-}

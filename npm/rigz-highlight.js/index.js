@@ -50,6 +50,7 @@ export function rigz(hljs) {
             "printf",
             "puts",
             "attr",
+            "exit",
             "assert",
             "assert_eq",
             "assert_neq",

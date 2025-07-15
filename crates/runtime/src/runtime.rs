@@ -119,7 +119,6 @@ impl Runtime<'_> {
     pub fn create(input: String) -> Result<Self, RuntimeError> {
         let parser = Parser::prepare(&input, ParserOptions::default()).map_err(|e| e.into())?;
         let program = parser.parse().map_err(|e| e.into())?;
-        program.validate().map_err(|e| e.into())?;
         let program: Program = program.into();
         program.create_runtime()
     }
@@ -131,7 +130,6 @@ impl Runtime<'_> {
     ) -> Result<Self, RuntimeError> {
         let parser = Parser::prepare(&input, ParserOptions::default()).map_err(|e| e.into())?;
         let program = parser.parse().map_err(|e| e.into())?;
-        program.validate().map_err(|e| e.into())?;
         let program: Program = program.into();
         let mut runtime = program.create_runtime_with_options(parser_options)?;
         runtime.runtime_options = runtime_options;
@@ -142,31 +140,7 @@ impl Runtime<'_> {
     pub fn create_without_modules(input: String) -> Result<Self, RuntimeError> {
         let parser = Parser::prepare(&input, ParserOptions::default()).map_err(|e| e.into())?;
         let program = parser.parse().map_err(|e| e.into())?;
-        program.validate().map_err(|e| e.into())?;
         let program: Program = program.into();
-        program.create_runtime_without_modules()
-    }
-
-    /// Meant for REPL, skips requirement that programs must end in expression
-    pub fn create_unverified(input: String) -> Result<Self, RuntimeError> {
-        let parser = Parser::prepare(&input, ParserOptions::default()).map_err(|e| e.into())?;
-        let program: Program = parser.parse().map_err(|e| e.into())?.into();
-        program.create_runtime()
-    }
-
-    pub fn create_unverified_with_options(
-        input: String,
-        parser_options: ParserOptions,
-    ) -> Result<Self, RuntimeError> {
-        let parser = Parser::prepare(&input, parser_options.clone()).map_err(|e| e.into())?;
-        let program: Program = parser.parse().map_err(|e| e.into())?.into();
-        program.create_runtime_with_options(parser_options)
-    }
-
-    /// Use register_module to add modules, meant for repl
-    pub fn create_unverified_without_modules(input: String) -> Result<Self, RuntimeError> {
-        let parser = Parser::prepare(&input, ParserOptions::default()).map_err(|e| e.into())?;
-        let program: Program = parser.parse().map_err(|e| e.into())?.into();
         program.create_runtime_without_modules()
     }
 

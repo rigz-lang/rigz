@@ -299,6 +299,7 @@ pub enum Expression {
     },
     Error(Box<Expression>),
     Return(Option<Box<Expression>>),
+    Exit(Option<Box<Expression>>),
     Index(Box<Expression>, Box<Expression>),
     Tuple(Vec<Expression>),
     Lambda {
