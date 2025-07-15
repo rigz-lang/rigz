@@ -38,7 +38,7 @@ impl From<&VMError> for PrimitiveValue {
 impl Display for VMError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            VMError::RuntimeError(m) => write!(f, "{m}"),
+            VMError::RuntimeError(m) => write!(f, "Error: {m}"),
             VMError::EmptyStack(m) => write!(f, "Empty Register: {m}"),
             VMError::ConversionError(m) => write!(f, "Conversion Error: {m}"),
             VMError::ScopeDoesNotExist(m) => write!(f, "Scope Does Not Exist: {m}"),

@@ -283,14 +283,13 @@ impl PrimitiveValue {
 impl Display for PrimitiveValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            PrimitiveValue::None => write!(f, "none"),
-            // todo dedicated to_string instead of debug
-            PrimitiveValue::Error(e) => write!(f, "Error({})", e),
-            PrimitiveValue::Type(e) => write!(f, "{}", e),
-            PrimitiveValue::Bool(v) => write!(f, "{}", v),
-            PrimitiveValue::Number(v) => write!(f, "{}", v),
-            PrimitiveValue::String(v) => write!(f, "{}", v),
-            PrimitiveValue::Range(v) => write!(f, "{}", v),
+            PrimitiveValue::None => write!(f, ""),
+            PrimitiveValue::Error(e) => write!(f, "{e}"),
+            PrimitiveValue::Type(e) => write!(f, "{e}"),
+            PrimitiveValue::Bool(v) => write!(f, "{v}"),
+            PrimitiveValue::Number(v) => write!(f, "{v}"),
+            PrimitiveValue::String(v) => write!(f, "{v}"),
+            PrimitiveValue::Range(v) => write!(f, "{v}"),
         }
     }
 }
