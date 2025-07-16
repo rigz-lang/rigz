@@ -1059,13 +1059,13 @@ impl<'t> Parser<'t> {
                 self.consume_token(t.kind)?;
                 let condition = self.parse_expression()?.into();
                 let exp = Scope {
-                    elements: vec![create(None).into()]
+                    elements: vec![create(None).into()],
                 };
                 if t.kind == TokenKind::If {
                     Expression::If {
                         condition,
                         then: exp,
-                        branch: None
+                        branch: None,
                     }
                 } else {
                     Expression::Unless {

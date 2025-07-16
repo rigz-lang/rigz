@@ -1225,26 +1225,25 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 self.builder.add_unless_instruction(unless);
             }
             Expression::Ternary {
-                condition, then, branch
+                condition,
+                then,
+                branch,
             } => {
                 self.parse_expression(*condition)?;
                 let then = Scope {
-                    elements: vec![(*then).into()]
+                    elements: vec![(*then).into()],
                 };
                 let if_output = self.parse_scope(then, "if")?;
                 let branch = Scope {
-                    elements: vec![(*branch).into()]
+                    elements: vec![(*branch).into()],
                 };
                 let else_output = self.parse_scope(branch, "else")?;
                 self.builder.add_if_else_instruction(if_output, else_output);
             }
-            Expression::IfGuard {
-                condition,
-                then,
-            } => {
+            Expression::IfGuard { condition, then } => {
                 self.parse_expression(*condition)?;
                 let then = Scope {
-                    elements: vec![(*then).into()]
+                    elements: vec![(*then).into()],
                 };
                 let if_output = self.parse_scope(then, "if")?;
                 self.builder.add_if_instruction(if_output);
@@ -1252,7 +1251,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             Expression::UnlessGuard { condition, then } => {
                 self.parse_expression(*condition)?;
                 let then = Scope {
-                    elements: vec![(*then).into()]
+                    elements: vec![(*then).into()],
                 };
                 let unless = self.parse_scope(then, "unless")?;
                 self.builder.add_unless_instruction(unless);

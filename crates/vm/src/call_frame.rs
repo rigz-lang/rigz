@@ -231,7 +231,7 @@ impl CallFrame {
     pub fn main() -> Self {
         Self::default()
     }
-    
+
     #[inline]
     pub fn exit(scope_id: usize) -> Self {
         Self {

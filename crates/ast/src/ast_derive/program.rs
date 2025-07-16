@@ -198,10 +198,7 @@ impl ToTokens for Expression {
                     }
                 }
             }
-            Expression::IfGuard {
-                condition,
-                then,
-            } => {
+            Expression::IfGuard { condition, then } => {
                 let c = boxed(condition);
                 let then = boxed(then);
                 quote! {
