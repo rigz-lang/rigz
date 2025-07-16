@@ -693,6 +693,8 @@ pub mod runtime {
             exit if a == 42
             a
             "# = 0)
+            ternary_true("1 ? 42 : 37" = 42)
+            ternary_false("none ? 'z' : 'a'" = "a")
         }
     }
 

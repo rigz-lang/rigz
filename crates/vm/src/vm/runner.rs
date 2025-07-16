@@ -236,16 +236,6 @@ impl Runner for VM {
             Some(v) => Ok(v.clone()),
         }
     }
-    //
-    // fn vm_extension(
-    //     &mut self,
-    //     module: ResolvedModule,
-    //     func: String,
-    //     args: usize,
-    // ) -> Result<ObjectValue, VMError> {
-    //     let args = self.resolve_args(args).into();
-    //     module.vm_extension(self, func, args)
-    // }
 
     fn call(
         &mut self,
@@ -256,6 +246,16 @@ impl Runner for VM {
         let args = self.resolve_args(args).into();
         module.call(func, args)
     }
+    //
+    // fn vm_extension(
+    //     &mut self,
+    //     module: ResolvedModule,
+    //     func: String,
+    //     args: usize,
+    // ) -> Result<ObjectValue, VMError> {
+    //     let args = self.resolve_args(args).into();
+    //     module.vm_extension(self, func, args)
+    // }
 
     fn call_loop(&mut self, scope_id: usize) -> Option<VMState> {
         let sp = self.sp;
@@ -459,5 +459,23 @@ impl Runner for VM {
 
     fn sleep(&self, duration: Duration) {
         thread::sleep(duration);
+    }
+
+    fn exit<V>(&mut self, value: V)
+    where
+        V: Into<StackValue>,
+    {
+        let v = value.into();
+        let scope_id = self.scopes.len();
+        self.scopes.push(Scope {
+            args: vec![],
+            named: "exit".to_string(),
+            instructions: vec![Instruction::Halt],
+            lifecycle: None,
+            set_self: None
+        });
+        let current = self.frames.current.replace(CallFrame::exit(scope_id));
+        self.frames.push(current);
+        self.stack.push(v);
     }
 }

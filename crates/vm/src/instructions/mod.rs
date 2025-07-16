@@ -284,7 +284,6 @@ pub enum Instruction {
         rigz_type: RigzType,
     },
     Ret,
-    Exit,
     GetVariable(String),
     GetMutableVariable(String),
     GetVariableReference(String),
@@ -656,9 +655,6 @@ impl Snapshot for Instruction {
                 res.extend(scope.as_bytes());
                 res
             }
-            Instruction::Exit => {
-                vec![59]
-            }
         }
     }
 
@@ -808,7 +804,6 @@ impl Snapshot for Instruction {
             58 => Instruction::For {
                 scope: Snapshot::from_bytes(bytes, location)?,
             },
-            59 => Instruction::Exit,
             b => {
                 return Err(VMError::runtime(format!(
                     "Illegal instruction byte {b} {location}"

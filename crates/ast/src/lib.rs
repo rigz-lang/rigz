@@ -1055,6 +1055,25 @@ impl<'t> Parser<'t> {
                 self.consume_token(t.kind)?;
                 create(None)
             }
+            Some(t) if matches!(t.kind, TokenKind::If | TokenKind::Unless) => {
+                self.consume_token(t.kind)?;
+                let condition = self.parse_expression()?.into();
+                let exp = Scope {
+                    elements: vec![create(None).into()]
+                };
+                if t.kind == TokenKind::If {
+                    Expression::If {
+                        condition,
+                        then: exp,
+                        branch: None
+                    }
+                } else {
+                    Expression::Unless {
+                        condition,
+                        then: exp,
+                    }
+                }
+            }
             Some(t) => {
                 let exp = self.parse_expression()?;
                 match exp {
@@ -1167,6 +1186,19 @@ impl<'t> Parser<'t> {
                     }
                     Ok(base)
                 }
+                TokenKind::Optional => {
+                    self.consume_token(TokenKind::Optional)?;
+                    let then = self.parse_expression()?.into();
+                    self.consume_token(TokenKind::Colon)?;
+                    let branch = self.parse_expression()?.into();
+                    Ok(Expression::Ternary {
+                        condition: exp.into(),
+                        then,
+                        branch,
+                    })
+                }
+                // Support foo!!
+                // TokenKind::DoubleBang => {}
                 TokenKind::Catch => {
                     self.consume_token(TokenKind::Catch)?;
                     let t = self.peek_required_token("expression suffix - catch")?;
@@ -1543,12 +1575,11 @@ impl<'t> Parser<'t> {
                     | TokenKind::Assign // for maps
                     | TokenKind::Colon // named args
                     | TokenKind::End
-                    | TokenKind::On
-                    | TokenKind::Catch => {
+                    | TokenKind::On => {
                         self.tokens.push_front(next);
                         break;
                     }
-                    TokenKind::If | TokenKind::Unless => {
+                    TokenKind::Catch | TokenKind::Optional | TokenKind::If | TokenKind::Unless => {
                         self.tokens.push_front(next);
                         res = self.parse_expression_suffix(res)?;
                     }

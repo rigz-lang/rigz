@@ -182,6 +182,45 @@ impl ToTokens for Expression {
                     }
                 }
             }
+            Expression::Ternary {
+                condition,
+                then,
+                branch,
+            } => {
+                let c = boxed(condition);
+                let then = boxed(then);
+                let branch = boxed(branch);
+                quote! {
+                    Expression::Ternary {
+                        condition: #c,
+                        then: #then
+                        branch: #branch
+                    }
+                }
+            }
+            Expression::IfGuard {
+                condition,
+                then,
+            } => {
+                let c = boxed(condition);
+                let then = boxed(then);
+                quote! {
+                    Expression::IfGuard {
+                        condition: #c,
+                        then: #then
+                    }
+                }
+            }
+            Expression::UnlessGuard { condition, then } => {
+                let c = boxed(condition);
+                let then = boxed(then);
+                quote! {
+                    Expression::UnlessGuard {
+                        condition: #c,
+                        then: #then
+                    }
+                }
+            }
             Expression::Return(ret) => match ret {
                 None => quote! { Expression::Return(None) },
                 Some(b) => {

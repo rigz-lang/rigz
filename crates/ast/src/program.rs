@@ -288,9 +288,22 @@ pub enum Expression {
         then: Scope,
         branch: Option<Scope>,
     },
+    Ternary {
+        condition: Box<Expression>,
+        then: Box<Expression>,
+        branch: Box<Expression>,
+    },
     Unless {
         condition: Box<Expression>,
         then: Scope,
+    },
+    IfGuard {
+        condition: Box<Expression>,
+        then: Box<Expression>,
+    },
+    UnlessGuard {
+        condition: Box<Expression>,
+        then: Box<Expression>,
     },
     Enum(String, String, Option<Box<Expression>>),
     Match {

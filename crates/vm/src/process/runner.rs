@@ -75,14 +75,6 @@ impl Runner for ProcessRunner<'_> {
         Err(VMError::todo("Process does not implement `call_frame`"))
     }
 
-    fn call_loop(&mut self, scope_index: usize) -> Option<VMState> {
-        Some(VMError::todo("Process does not implement `call_loop`").into())
-    }
-
-    fn call_for(&mut self, scope_index: usize) -> Option<VMState> {
-        Some(VMError::todo("Process does not implement `call_for`").into())
-    }
-
     fn call_frame_memo(&mut self, scope_index: usize) -> Result<(), VMError> {
         Err(VMError::todo(
             "Process does not implement `call_frame_memo`",
@@ -120,15 +112,6 @@ impl Runner for ProcessRunner<'_> {
         Err(VMError::todo("Process does not implement `find_enum`"))
     }
 
-    // fn vm_extension(
-    //     &mut self,
-    //     module: ResolvedModule,
-    //     func: String,
-    //     args: usize,
-    // ) -> Result<ObjectValue, VMError> {
-    //     Err(VMError::todo("Process does not implement `vm_extension`"))
-    // }
-
     fn call(
         &mut self,
         module: ResolvedModule,
@@ -138,6 +121,23 @@ impl Runner for ProcessRunner<'_> {
         Err(VMError::todo("Process does not implement `call`"))
     }
 
+    fn call_loop(&mut self, scope_index: usize) -> Option<VMState> {
+        Some(VMError::todo("Process does not implement `call_loop`").into())
+    }
+
+    fn call_for(&mut self, scope_index: usize) -> Option<VMState> {
+        Some(VMError::todo("Process does not implement `call_for`").into())
+    }
+
+    // fn vm_extension(
+    //     &mut self,
+    //     module: ResolvedModule,
+    //     func: String,
+    //     args: usize,
+    // ) -> Result<ObjectValue, VMError> {
+    //     Err(VMError::todo("Process does not implement `vm_extension`"))
+    // }
+
     fn sleep(&self, duration: Duration) {
         #[cfg(feature = "threaded")]
         self.process_manager
@@ -145,6 +145,14 @@ impl Runner for ProcessRunner<'_> {
 
         #[cfg(not(feature = "threaded"))]
         std::thread::sleep(duration)
+    }
+
+    fn exit<V>(&mut self, value: V)
+    where
+        V: Into<StackValue>,
+    {
+        self.stack.push(value.into());
+        self.frames.current.borrow_mut().pc = self.scope.instructions.len() - 1;
     }
 }
 

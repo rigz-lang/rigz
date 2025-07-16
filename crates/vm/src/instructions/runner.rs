@@ -408,6 +408,8 @@ pub trait Runner: ResolveValue {
     // todo this should always be interruptible (if called by run_within, amount of time slept should be removed)
     fn sleep(&self, duration: Duration);
 
+    fn exit<V>(&mut self, value: V) where V: Into<StackValue>;
+
     #[allow(unused_variables)]
     #[inline]
     #[log_derive::logfn_inputs(Debug, fmt = "process_instruction(vm={:#p}, instruction={:?})")]

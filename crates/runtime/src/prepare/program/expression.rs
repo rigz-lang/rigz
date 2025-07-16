@@ -82,18 +82,57 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             Expression::Function(fe) => self.function_type(fe)?,
             Expression::Symbol(_) => RigzType::String,
             Expression::If { then, branch, .. } => match branch {
-                None => self.scope_type(then)?,
+                None => {
+                    let st = self.scope_type(then)?;
+                    if st == RigzType::None {
+                        st
+                    } else {
+                        RigzType::Union(vec![RigzType::None, st])
+                    }
+                },
                 Some(branch) => {
                     let then = self.scope_type(then)?;
                     let branch = self.scope_type(branch)?;
                     if then == branch {
                         then
                     } else {
-                        RigzType::Composite(vec![then, branch])
+                        RigzType::Union(vec![then, branch])
                     }
                 }
             },
-            Expression::Unless { then, .. } => self.scope_type(then)?,
+            Expression::Unless { then, .. } => {
+                let st = self.scope_type(then)?;
+                if st == RigzType::None {
+                    st
+                } else {
+                    RigzType::Union(vec![RigzType::None, st])
+                }
+            },
+            Expression::Ternary { then, branch, .. } => {
+                let then = self.rigz_type(then)?;
+                let branch = self.rigz_type(branch)?;
+                if then == branch {
+                    then
+                } else {
+                    RigzType::Union(vec![then, branch])
+                }
+            },
+            Expression::IfGuard { then, .. } => {
+                let st = self.rigz_type(then)?;
+                if st == RigzType::None {
+                    st
+                } else {
+                    RigzType::Union(vec![RigzType::None, st])
+                }
+            },
+            Expression::UnlessGuard { then, .. } => {
+                let st = self.rigz_type(then)?;
+                if st == RigzType::None {
+                    st
+                } else {
+                    RigzType::Union(vec![RigzType::None, st])
+                }
+            },
             Expression::Break => RigzType::None,
             Expression::Next => RigzType::None,
             Expression::Exit(_) => RigzType::Never,

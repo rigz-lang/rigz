@@ -231,6 +231,14 @@ impl CallFrame {
     pub fn main() -> Self {
         Self::default()
     }
+    
+    #[inline]
+    pub fn exit(scope_id: usize) -> Self {
+        Self {
+            scope_id,
+            ..Self::default()
+        }
+    }
 
     #[inline]
     pub fn child(scope_id: usize, call_frame_id: usize) -> Self {
