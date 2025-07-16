@@ -87,9 +87,13 @@ impl<'l> Formmatter<'l> {
             return;
         }
 
-        if self.last == TokenKind::Newline {
-            let mut indent = self.indent;
-            if matches!(
+        match self.last {
+            TokenKind::Colon => {
+                self.result.push(' ');
+            }
+            TokenKind::Newline => {
+                let mut indent = self.indent;
+                if matches!(
                 next,
                 TokenKind::Loop
                     | TokenKind::Do
@@ -97,18 +101,19 @@ impl<'l> Formmatter<'l> {
                     | TokenKind::Unless
                     | TokenKind::For
             ) {
-                indent -= 1;
+                    indent -= 1;
+                }
+                self.result.push_str(" ".repeat(indent * 2).as_str());
             }
-            self.result.push_str(" ".repeat(indent * 2).as_str());
-            return;
+            _ => {
+                let char = match next {
+                    TokenKind::End => '\n',
+                    TokenKind::Period | TokenKind::Semi => return,
+                    _ => ' ',
+                };
+                self.result.push(char)
+            }
         }
-
-        let char = match next {
-            TokenKind::End => '\n',
-            TokenKind::Period | TokenKind::Semi => return,
-            _ => ' ',
-        };
-        self.result.push(char)
     }
 
     fn new_indent(&mut self, next: TokenKind<'l>) {
@@ -177,4 +182,5 @@ test_format! {
     single_quote_string: "'a'" = "'a'";
     double_quote_string: r#""'hello'""# = r#""'hello'""#;
     backticks_quote_string: r#"`"'hello'"`"# = r#"`"'hello'"`"#;
+    ternary: "1?2:3" = "1 ? 2 : 3";
 }

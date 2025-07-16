@@ -45,6 +45,8 @@ derive_module! {
         fn format(template: String, var args) -> String
         fn print(var args) -> None
         fn printf(template: String, var args) -> None
+        fn any(var values) -> Bool
+        fn all(var values) -> Bool
         fn not(any) = !any
     end
 "#
@@ -181,5 +183,13 @@ impl RigzAny for AnyModule {
 
     fn printf(&self, template: String, args: Vec<ObjectValue>) {
         outln!("{}", self.format(template, args))
+    }
+
+    fn any(&self, values: Vec<ObjectValue>) -> bool {
+        values.iter().any(|v| v.to_bool())
+    }
+
+    fn all(&self, values: Vec<ObjectValue>) -> bool {
+        values.iter().all(|v| v.to_bool())
     }
 }

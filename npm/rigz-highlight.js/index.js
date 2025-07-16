@@ -45,6 +45,8 @@ export function rigz(hljs) {
             "receive",
             "log",
             "format",
+            "any",
+            "all",
             "not",
             "print",
             "printf",

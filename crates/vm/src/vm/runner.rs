@@ -294,7 +294,7 @@ impl Runner for VM {
             match self.process_instruction(instruction) {
                 VMState::Running => {}
                 VMState::Next => {
-                    while self.frames.len() > current + 1 {
+                    while self.frames.len() > current + 1 && self.frames.current.borrow().parent.is_some() {
                         let frame = match self.frames.pop() {
                             None => {
                                 return Some(
@@ -448,7 +448,7 @@ impl Runner for VM {
             }
         }
         self.sp = sp;
-        while self.frames.len() > current {
+        while self.frames.len() > current && self.frames.current.borrow().parent.is_some() {
             let Some(next) = self.frames.pop() else {
                 return Some(VMError::runtime("Missing call frame".to_string()).into());
             };

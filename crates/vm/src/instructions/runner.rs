@@ -417,10 +417,16 @@ pub trait Runner: ResolveValue {
     #[log_derive::logfn_inputs(Debug, fmt = "process_instruction(vm={:#p}, instruction={:?})")]
     fn process_core_instruction(&mut self, instruction: Instruction) -> VMState {
         match instruction {
-            Instruction::Halt => return VMState::Done(self.next_resolved_value("halt")),
+            Instruction::Halt => {
+                let v = self.next_resolved_value("halt");
+                self.exit(v.clone());
+                return VMState::Done(v)
+            },
             Instruction::HaltIfError => {
                 let value = self.next_resolved_value("halt if error");
                 if let ObjectValue::Primitive(PrimitiveValue::Error(e)) = value.borrow().deref() {
+                    let err = e.clone();
+                    self.exit(err);
                     return e.clone().into();
                 };
                 let s: StackValue = value.into();

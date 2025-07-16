@@ -162,7 +162,7 @@ pub(crate) enum TokenKind<'lex> {
     #[regex("\\$[a-z_]?[A-Za-z0-9_]*", |lex| lex.slice())]
     #[regex("[a-z_][A-Za-z0-9_]*", |lex| lex.slice())]
     Identifier(&'lex str),
-    #[regex(":[A-Za-z0-9_]+", |lex| { let s = lex.slice(); Symbol(&s[1..]) })]
+    #[regex(":[A-Za-z_][A-Za-z0-9_]*", |lex| { let s = lex.slice(); Symbol(&s[1..]) })]
     Symbol(Symbol<'lex>),
     #[regex("@[a-z_][A-Za-z0-9_]*", |lex| { let s = lex.slice(); &s[1..] })]
     Lifecycle(&'lex str),

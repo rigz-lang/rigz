@@ -146,6 +146,7 @@ pub mod runtime {
 
         run_expected! {
             statement_only("a = 3 * 2" = PrimitiveValue::None)
+            exp_statement("42; a = 3 * 2" = PrimitiveValue::None)
             raw_value("'Hello World'" = "Hello World")
             addition("2 + 2" = 4)
             list_index("[1, 2, 3][2]" = 3)
