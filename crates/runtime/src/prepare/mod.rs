@@ -324,6 +324,17 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         }
         Ok(())
     }
+    
+    fn parse_elements_pop_all_expressions(&mut self, elements: Vec<Element>) -> Result<(), ValidationError> {
+        for element in elements {
+            let needs_pop = matches!(element, Element::Expression(_));
+            self.parse_element(element)?;
+            if needs_pop {
+                self.builder.add_pop_instruction(1);
+            }
+        }
+        Ok(())
+    }
 
     pub(crate) fn parse_scoped_program(
         &mut self,
@@ -692,7 +703,10 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             Statement::Loop(s) => {
                 let in_loop = self.in_loop;
                 self.in_loop = true;
-                let scope = self.parse_scope(s, "loop")?;
+                let current = self.builder.current_scope();
+                let scope = self.builder.enter_scope("loop".to_string(), vec![], None);
+                self.parse_elements_pop_all_expressions(s.elements)?;
+                self.builder.exit_scope(current);
                 self.builder.add_loop_instruction(scope);
                 self.in_loop = in_loop;
             }
@@ -746,7 +760,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 let in_loop = self.in_loop;
                 self.in_loop = true;
                 let new = self.builder.enter_scope("for".to_string(), args, None);
-                self.parse_elements(body.elements)?;
+                self.parse_elements_pop_all_expressions(body.elements)?;
                 self.builder.exit_scope(current);
                 self.in_loop = in_loop;
                 self.parse_expression(expression)?;
