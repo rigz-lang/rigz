@@ -1403,7 +1403,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                         self.parse_expression(*e)?;
                     }
                 };
-                self.builder.add_halt_instruction();
+                self.builder.add_exit_instruction();
             }
             Expression::Into { base, next } => {
                 self.parse_function(next.prepend(*base))?;

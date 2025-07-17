@@ -419,14 +419,16 @@ pub trait Runner: ResolveValue {
         match instruction {
             Instruction::Halt => {
                 let v = self.pop().map(|e| e.resolve(self)).unwrap_or_else(|| ObjectValue::default().into());
+                return VMState::Done(v)
+            },
+            Instruction::Exit => {
+                let v = self.pop().map(|e| e.resolve(self)).unwrap_or_else(|| ObjectValue::default().into());
                 self.exit(v.clone());
                 return VMState::Done(v)
             },
             Instruction::HaltIfError => {
                 let value = self.pop().map(|e| e.resolve(self)).unwrap_or_else(|| ObjectValue::default().into());
                 if let ObjectValue::Primitive(PrimitiveValue::Error(e)) = value.borrow().deref() {
-                    let err = e.clone();
-                    self.exit(err);
                     return e.clone().into();
                 };
                 let s: StackValue = value.into();

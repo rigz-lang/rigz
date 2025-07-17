@@ -262,6 +262,10 @@ pub trait RigzBuilder: Debug + Default {
     fn add_ret_instruction(&mut self) -> &mut Self {
         self.add_instruction(Instruction::Ret)
     }
+    
+    fn add_exit_instruction(&mut self) -> &mut Self {
+        self.add_instruction(Instruction::Exit)
+    }
 
     #[inline]
     fn add_call_instruction(&mut self, scope: usize) -> &mut Self {

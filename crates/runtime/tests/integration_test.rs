@@ -389,16 +389,6 @@ pub mod runtime {
 
             37
             "# = 42)
-            func_early_return(r#"
-            fn foo
-                if true
-                    return 42
-                end
-                30
-            end
-
-            foo + 37
-            "# = 79)
             func_early_return_trailing(r#"
             fn foo
                 return 42 unless false
@@ -697,12 +687,23 @@ pub mod runtime {
             "# = 0)
             ternary_true("1 ? 42 : 37" = 42)
             ternary_false("none ? 'z' : 'a'" = "a")
+            func_early_return(r#"
+            fn foo
+                if true
+                    return 42
+                end
+                30
+            end
+
+            foo + 37
+            "# = 79)
         }
     }
 
     pub mod debug {
         use super::*;
-        run_debug_vm! {}
+        run_debug_vm! {
+        }
     }
 
     pub mod recursive {
