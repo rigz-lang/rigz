@@ -309,14 +309,28 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         self.parse_scoped_program(program, None)
     }
 
+    fn parse_elements(&mut self, elements: Vec<Element>) -> Result<(), ValidationError> {
+        if elements.is_empty() {
+            return Ok(())
+        }
+
+        let last = elements.len() - 1;
+        for (index, element) in elements.into_iter().enumerate() {
+            let needs_pop = matches!(element, Element::Expression(_)) && index != last;
+            self.parse_element(element)?;
+            if needs_pop {
+                self.builder.add_pop_instruction(1);
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn parse_scoped_program(
         &mut self,
         program: Program,
         current: Option<usize>,
     ) -> Result<(), ValidationError> {
-        for element in program.elements {
-            self.parse_element(element)?;
-        }
+        self.parse_elements(program.elements)?;
         match current {
             None => {
                 self.builder.add_halt_instruction();
@@ -732,9 +746,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 let in_loop = self.in_loop;
                 self.in_loop = true;
                 let new = self.builder.enter_scope("for".to_string(), args, None);
-                for element in body.elements {
-                    self.parse_element(element)?;
-                }
+                self.parse_elements(body.elements)?;
                 self.builder.exit_scope(current);
                 self.in_loop = in_loop;
                 self.parse_expression(expression)?;
@@ -912,9 +924,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         );
         self.builder
             .add_load_mut_instruction("self".to_string(), false);
-        for e in body.elements {
-            self.parse_element(e)?;
-        }
+        self.parse_elements(body.elements)?;
         self.builder.add_get_self_instruction();
         self.builder.exit_scope(current);
         self.identifiers = current_vars;
@@ -1024,15 +1034,22 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         if let Some(t) = &self_type {
             self.identifiers.insert("self".to_string(), t.clone());
         };
-        for e in body.elements {
-            match e {
-                Element::Expression(Expression::This) => match &self_type {
-                    Some(t) if t.mutable => {
-                        self.mutable_this();
-                    }
-                    _ => self.parse_element(e)?,
-                },
-                e => self.parse_element(e)?,
+        if !body.elements.is_empty() {
+            let max = body.elements.len() - 1;
+            for (index, e) in body.elements.into_iter().enumerate() {
+                let needs_pop = matches!(e, Element::Expression(_)) && max != index;
+                match e {
+                    Element::Expression(Expression::This) => match &self_type {
+                        Some(t) if t.mutable => {
+                            self.mutable_this();
+                        }
+                        _ => self.parse_element(e)?,
+                    },
+                    e => self.parse_element(e)?,
+                }
+                if needs_pop {
+                    self.builder.add_pop_instruction(1);
+                }
             }
         }
         self.builder.exit_scope(current_scope);
@@ -1421,9 +1438,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     var.map(|s| vec![(s, false)]).unwrap_or(vec![]),
                     None,
                 );
-                for e in catch.elements {
-                    self.parse_element(e)?;
-                }
+                self.parse_elements(catch.elements)?;
                 self.builder.exit_scope(current);
                 old.map(|v| v.map(|(k, v)| self.identifiers.insert(k, v)));
                 self.builder.add_catch_instruction(inner, has_arg);
@@ -2543,9 +2558,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         let current = self.builder.current_scope();
         self.builder.enter_scope(named.to_string(), vec![], None);
         let res = self.builder.current_scope();
-        for e in scope.elements {
-            self.parse_element(e)?;
-        }
+        self.parse_elements(scope.elements)?;
         self.builder.exit_scope(current);
         self.identifiers = current_vars;
         Ok(res)
@@ -2591,9 +2604,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 )
             })
             .collect();
-        for exp in s.elements {
-            self.parse_element(exp)?;
-        }
+        self.parse_elements(s.elements)?;
         old.into_iter().for_each(|(name, rt)| match rt {
             None => {
                 self.identifiers.remove(&name);

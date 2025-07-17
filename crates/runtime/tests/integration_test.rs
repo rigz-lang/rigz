@@ -689,6 +689,7 @@ pub mod runtime {
             "# = 42)
             multiple_ors("a = 1; a == 'b' || a == 1 || a == 'f'" = true)
             multiple_ors_commutative("a = 1; (a == 'b' || a == 1 || a == 'f') == ('b' == a || 1 == a || 'f' == a)" = true)
+            multiple_ors_any("a = 1; (any a == 'b', a == 1, a == 'f') == (('b' == a) || (1 == a) || ('f' == a))" = true)
             exit(r#"
             a = 42
             exit if a == 42
