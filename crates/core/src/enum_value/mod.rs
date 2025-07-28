@@ -1,5 +1,5 @@
-use std::fmt::{Display, Formatter};
 use crate::RigzType;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct EnumDeclaration {

@@ -136,8 +136,11 @@ impl VM {
                     let sp = self.sp;
                     let scope = &self.scopes[sp];
                     let len = scope.instructions.len();
-                    let propagate =
-                        len != pc && matches!(scope.named.as_str(), "if" | "unless" | "else" | "loop" | "for");
+                    let propagate = len != pc
+                        && matches!(
+                            scope.named.as_str(),
+                            "if" | "unless" | "else" | "loop" | "for"
+                        );
                     if propagate {
                         match self.frames.pop() {
                             None => {

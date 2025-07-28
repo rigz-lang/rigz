@@ -418,16 +418,25 @@ pub trait Runner: ResolveValue {
     fn process_core_instruction(&mut self, instruction: Instruction) -> VMState {
         match instruction {
             Instruction::Halt => {
-                let v = self.pop().map(|e| e.resolve(self)).unwrap_or_else(|| ObjectValue::default().into());
-                return VMState::Done(v)
-            },
+                let v = self
+                    .pop()
+                    .map(|e| e.resolve(self))
+                    .unwrap_or_else(|| ObjectValue::default().into());
+                return VMState::Done(v);
+            }
             Instruction::Exit => {
-                let v = self.pop().map(|e| e.resolve(self)).unwrap_or_else(|| ObjectValue::default().into());
+                let v = self
+                    .pop()
+                    .map(|e| e.resolve(self))
+                    .unwrap_or_else(|| ObjectValue::default().into());
                 self.exit(v.clone());
-                return VMState::Done(v)
-            },
+                return VMState::Done(v);
+            }
             Instruction::HaltIfError => {
-                let value = self.pop().map(|e| e.resolve(self)).unwrap_or_else(|| ObjectValue::default().into());
+                let value = self
+                    .pop()
+                    .map(|e| e.resolve(self))
+                    .unwrap_or_else(|| ObjectValue::default().into());
                 if let ObjectValue::Primitive(PrimitiveValue::Error(e)) = value.borrow().deref() {
                     return e.clone().into();
                 };

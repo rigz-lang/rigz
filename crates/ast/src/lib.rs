@@ -36,7 +36,7 @@ pub struct ParserOptions {
 #[derive(Debug, PartialEq, Clone)]
 pub struct ParseError {
     span: Range<usize>,
-    error: ParsingError
+    error: ParsingError,
 }
 
 impl<'t> From<TokenValue<'t>> for Expression {
@@ -79,7 +79,7 @@ pub struct Parser<'t> {
     input: &'t str,
     parser_options: ParserOptions,
     tokens: VecDeque<Token<'t>>,
-    errors: Vec<ParseError>
+    errors: Vec<ParseError>,
 }
 
 // TODO better error messages
@@ -106,9 +106,9 @@ impl<'t> Parser<'t> {
                         error: ParsingError::ParseError(format!(
                             "Invalid input: {e}, {}",
                             lexer.slice(),
-                        ))
+                        )),
                     });
-                    continue
+                    continue;
                 }
             };
 
@@ -133,10 +133,9 @@ impl<'t> Parser<'t> {
         Ok(Program {
             input: self.input.to_string(),
             elements,
-            errors: self.errors
+            errors: self.errors,
         })
     }
-
 
     pub fn parse_module_trait_definition(&mut self) -> Result<ModuleTraitDefinition, ParsingError> {
         let mut next = self.next_required_token_eat_newlines("parse_module_trait_definition")?;
@@ -274,15 +273,15 @@ impl<'t> Parser<'t> {
                 "type"
             }
             TokenKind::Identifier(name)
-            if matches!(
+                if matches!(
                     name,
                     "send" | "receive" | "log" | "puts" | "spawn" | "broadcast" | "sleep"
                 ) =>
-                {
-                    return Err(ParsingError::ParseError(format!(
-                        "{name} is a reserved function name and cannot be overwritten"
-                    )))
-                }
+            {
+                return Err(ParsingError::ParseError(format!(
+                    "{name} is a reserved function name and cannot be overwritten"
+                )))
+            }
             TokenKind::Identifier(name) => name,
             // todo support nested types, Module.CustomType
             _ => {
@@ -557,9 +556,9 @@ impl<'t> Parser<'t> {
         if let Some(t) = t {
             if t.kind == TokenKind::Newline {
                 self.next_token();
-                return self.peek_token_eat_newlines()
+                return self.peek_token_eat_newlines();
             }
-            return Some(t.clone())
+            return Some(t.clone());
         }
         None
     }
@@ -590,7 +589,10 @@ impl<'t> Parser<'t> {
         }
     }
 
-    fn next_required_token_eat_newlines(&mut self, caller: &'static str) -> Result<Token<'t>, ParsingError> {
+    fn next_required_token_eat_newlines(
+        &mut self,
+        caller: &'static str,
+    ) -> Result<Token<'t>, ParsingError> {
         match self.next_token() {
             None => Err(Self::eoi_error("next_required_token_eat_newlines", caller)),
             Some(t) if t.kind == TokenKind::Newline => {
@@ -627,7 +629,10 @@ impl<'t> Parser<'t> {
         ParsingError::Eoi(format!("{location} - {caller}"))
     }
 
-    fn eoi_error_string<M>(message: M) -> ParsingError where M: Display{
+    fn eoi_error_string<M>(message: M) -> ParsingError
+    where
+        M: Display,
+    {
         ParsingError::Eoi(format!("{message}"))
     }
 
@@ -666,7 +671,7 @@ impl<'t> Parser<'t> {
                     concrete,
                     definitions,
                 }
-                    .into()
+                .into()
             }
             TokenKind::Lparen => {
                 self.next_token();
@@ -699,7 +704,7 @@ impl<'t> Parser<'t> {
                                 op: BinaryOperation::Add,
                                 expression: Expression::Value(1.into()),
                             }
-                                .into()
+                            .into()
                         }
                         TokenKind::Decrement => {
                             self.next_token();
@@ -712,7 +717,7 @@ impl<'t> Parser<'t> {
                                 op: BinaryOperation::Sub,
                                 expression: Expression::Value(1.into()),
                             }
-                                .into()
+                            .into()
                         }
                         TokenKind::BinAssign(op) => {
                             self.next_token();
@@ -725,7 +730,7 @@ impl<'t> Parser<'t> {
                                 op,
                                 expression: self.parse_expression(0)?,
                             }
-                                .into()
+                            .into()
                         }
                         TokenKind::Period => {
                             self.next_token();
@@ -749,7 +754,7 @@ impl<'t> Parser<'t> {
                         name.to_string(),
                         self.parse_rigz_type(Some(name), false)?,
                     )
-                        .into()
+                    .into()
                 } else {
                     return Err(ParsingError::ParseError(format!(
                         "Invalid type definition expected TypeValue, received {:?}",
@@ -770,7 +775,7 @@ impl<'t> Parser<'t> {
                                 op: BinaryOperation::Add,
                                 expression: Expression::Value(1.into()),
                             }
-                                .into()
+                            .into()
                         }
                         TokenKind::Decrement => {
                             self.next_token();
@@ -779,7 +784,7 @@ impl<'t> Parser<'t> {
                                 op: BinaryOperation::Sub,
                                 expression: Expression::Value(1.into()),
                             }
-                                .into()
+                            .into()
                         }
                         TokenKind::BinAssign(op) => {
                             self.next_token();
@@ -788,7 +793,7 @@ impl<'t> Parser<'t> {
                                 op,
                                 expression: self.parse_expression(0)?,
                             }
-                                .into()
+                            .into()
                         }
                         TokenKind::Period => {
                             self.next_token();
@@ -846,7 +851,7 @@ impl<'t> Parser<'t> {
                     expression,
                     body,
                 }
-                    .into()
+                .into()
             }
             _ => self.parse_expression(0)?.into(),
         };
@@ -870,7 +875,7 @@ impl<'t> Parser<'t> {
             TokenKind::Comma => self.parse_tuple(expr),
             _ => Err(ParsingError::ParseError(format!(
                 "Invalid paren expression {t:?}"
-            )))
+            ))),
         }
     }
 
@@ -975,10 +980,13 @@ impl<'t> Parser<'t> {
                     Ok(Expression::Into {
                         base: fe.into(),
                         next: next.into(),
-                    }.into())
+                    }
+                    .into())
                 } else {
-                    Err(ParsingError::ParseError(format!("Invalid |> expression {next:?}")))
-                }
+                    Err(ParsingError::ParseError(format!(
+                        "Invalid |> expression {next:?}"
+                    )))
+                };
             }
         }
         Ok(fe.into())
@@ -1371,7 +1379,6 @@ impl<'t> Parser<'t> {
         Ok(EnumDeclaration { name, variants })
     }
 
-
     fn parse_scope(&mut self) -> Result<Scope, ParsingError> {
         let mut elements = vec![];
         loop {
@@ -1596,7 +1603,7 @@ impl<'t> Parser<'t> {
                                         calls,
                                         vec![].into(),
                                     )
-                                        .into()
+                                    .into()
                                 } else {
                                     lhs.into()
                                 };
@@ -1634,7 +1641,7 @@ impl<'t> Parser<'t> {
                         ),
                         expression: self.parse_expression(0)?,
                     }
-                        .into())
+                    .into())
                 } else {
                     Err(ParsingError::ParseError(format!(
                         "Unexpected = after args in instance call - {lhs:?}.{} ({args:?})",
@@ -1648,18 +1655,22 @@ impl<'t> Parser<'t> {
         }
     }
 
-    fn parse_unary_expression(&mut self, op: UnaryOperation, priority: u8) -> Result<Expression, ParsingError> {
+    fn parse_unary_expression(
+        &mut self,
+        op: UnaryOperation,
+        priority: u8,
+    ) -> Result<Expression, ParsingError> {
         let token = self.peek_required_token("unary")?;
         let exp = match token.kind {
             TokenKind::Value(v) => {
                 self.consume_token(TokenKind::Value(v))?;
                 v.into()
-            },
+            }
             TokenKind::Identifier(id) => {
                 self.consume_token(TokenKind::Identifier(id))?;
                 self.parse_identifier_expression(id)?
-            },
-            _ => self.parse_expression(priority)?
+            }
+            _ => self.parse_expression(priority)?,
         };
         Ok(Expression::unary(op, exp))
     }
@@ -1769,11 +1780,9 @@ impl<'t> Parser<'t> {
                                     self.consume_token(c_token.kind)?;
                                     MatchVariantCondition::Unless(self.parse_expression(priority)?)
                                 }
-                                _ => {
-                                    return Err(ParsingError::ParseError(format!(
-                                        "Invalid match variant condition {c_token:?}, condition or =>"
-                                    )))
-                                }
+                                _ => return Err(ParsingError::ParseError(format!(
+                                    "Invalid match variant condition {c_token:?}, condition or =>"
+                                ))),
                             };
                             self.consume_token(TokenKind::Arrow)?;
                             let var = self.peek_required_token("match_variant - enum")?;
@@ -1848,7 +1857,7 @@ impl<'t> Parser<'t> {
                                     func_name.to_string(),
                                     args,
                                 )
-                                    .into()
+                                .into()
                             }
                             TokenKind::New => {
                                 let (args, assign) = self.parse_args()?;
@@ -1928,9 +1937,9 @@ impl<'t> Parser<'t> {
             TokenKind::Pipe => self.parse_lambda(false),
             TokenKind::BinOp(BinaryOperation::Or) => self.parse_lambda(true),
             TokenKind::Try => Ok(Expression::Try(Box::new(self.parse_expression(0)?))),
-            _ => {
-                Err(ParsingError::ParseError(format!("Invalid Expression Token {token:?}")))
-            }
+            _ => Err(ParsingError::ParseError(format!(
+                "Invalid Expression Token {token:?}"
+            ))),
         }
     }
 
@@ -2203,20 +2212,22 @@ impl<'t> Parser<'t> {
         Ok(Expression::Map(args))
     }
 
-    fn parse_inline_expression(&mut self, lhs: Expression, priority: u8) -> Result<Expression, ParsingError> {
+    fn parse_inline_expression(
+        &mut self,
+        lhs: Expression,
+        priority: u8,
+    ) -> Result<Expression, ParsingError> {
         let mut lhs = lhs;
 
         if matches!(lhs, Expression::Lambda { .. }) {
-            return Ok(lhs)
+            return Ok(lhs);
         }
 
         loop {
-            let Some(next) = self.peek_token() else {
-                break
-            };
+            let Some(next) = self.peek_token() else { break };
 
             if next.terminal() || matches!(next.kind, TokenKind::Comma) {
-                break
+                break;
             }
 
             if let Some((lp, rp)) = next.infix_priority() {
@@ -2240,32 +2251,32 @@ impl<'t> Parser<'t> {
                     TokenKind::BinOp(op) => {
                         self.consume_token(TokenKind::BinOp(op))?;
                         Expression::binary(lhs, op, self.parse_expression(rp)?)
-                    },
+                    }
                     TokenKind::Minus => {
                         self.consume_token(TokenKind::Minus)?;
                         Expression::binary(lhs, BinaryOperation::Sub, self.parse_expression(rp)?)
-                    },
+                    }
                     TokenKind::Pipe => {
                         self.consume_token(TokenKind::Pipe)?;
                         Expression::binary(lhs, BinaryOperation::BitOr, self.parse_expression(rp)?)
-                    },
+                    }
                     TokenKind::And => {
                         self.consume_token(TokenKind::And)?;
                         Expression::binary(lhs, BinaryOperation::BitAnd, self.parse_expression(rp)?)
-                    },
+                    }
                     TokenKind::As => {
                         self.consume_token(TokenKind::As)?;
                         Expression::Cast(lhs.into(), self.parse_rigz_type(None, false)?)
-                    },
+                    }
                     TokenKind::Period => {
                         self.consume_token(TokenKind::Period)?;
                         self.parse_instance_call(lhs)?
-                    },
+                    }
                     TokenKind::Into => {
                         self.consume_token(TokenKind::Into)?;
                         let exp = self.parse_expression(0)?;
                         let Expression::Function(f) = exp else {
-                            return Err(ParsingError::ParseError(format!("Invalid |> {next:?}")))
+                            return Err(ParsingError::ParseError(format!("Invalid |> {next:?}")));
                         };
                         Expression::Into {
                             base: lhs.into(),
@@ -2344,13 +2355,13 @@ impl<'t> Parser<'t> {
                     _ => unreachable!("infix_priority includes unsupported token {next:?}"),
                 };
             } else {
-                break
+                break;
             }
         }
 
-        Ok(lhs) 
-    } 
-    
+        Ok(lhs)
+    }
+
     fn parse_expression(&mut self, priority: u8) -> Result<Expression, ParsingError> {
         let exp = self.parse_expression_start(priority)?;
         self.parse_inline_expression(exp, priority)
@@ -2647,7 +2658,6 @@ impl<'t> Parser<'t> {
         }
         Ok(complex)
     }
-
 }
 
 fn convert_to_assign(

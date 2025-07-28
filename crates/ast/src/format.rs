@@ -94,13 +94,13 @@ impl<'l> Formmatter<'l> {
             TokenKind::Newline => {
                 let mut indent = self.indent;
                 if matches!(
-                next,
-                TokenKind::Loop
-                    | TokenKind::Do
-                    | TokenKind::If
-                    | TokenKind::Unless
-                    | TokenKind::For
-            ) {
+                    next,
+                    TokenKind::Loop
+                        | TokenKind::Do
+                        | TokenKind::If
+                        | TokenKind::Unless
+                        | TokenKind::For
+                ) {
                     indent -= 1;
                 }
                 self.result.push_str(" ".repeat(indent * 2).as_str());

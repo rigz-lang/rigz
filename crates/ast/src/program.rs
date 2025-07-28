@@ -1,9 +1,9 @@
+use crate::ParseError;
 use itertools::Itertools;
-use std::fmt::{Display, Formatter};
 use rigz_core::{
     BinaryOperation, EnumDeclaration, Lifecycle, PrimitiveValue, RigzType, UnaryOperation,
 };
-use crate::ParseError;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Program {
@@ -14,7 +14,11 @@ pub struct Program {
 
 impl Display for Program {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.elements.iter().map(|e| e.to_string()).join("\n"))
+        write!(
+            f,
+            "{}",
+            self.elements.iter().map(|e| e.to_string()).join("\n")
+        )
     }
 }
 
@@ -107,7 +111,11 @@ pub struct Scope {
 
 impl Display for Scope {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.elements.iter().map(|e| e.to_string()).join("\n"))
+        write!(
+            f,
+            "{}",
+            self.elements.iter().map(|e| e.to_string()).join("\n")
+        )
     }
 }
 
@@ -197,17 +205,33 @@ impl Display for Statement {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Statement::Assignment { lhs, expression } => write!(f, "{lhs} = {expression}"),
-            Statement::BinaryAssignment { lhs, op, expression } => write!(f, "{lhs} {op}= {expression}"),
+            Statement::BinaryAssignment {
+                lhs,
+                op,
+                expression,
+            } => write!(f, "{lhs} {op}= {expression}"),
             Statement::FunctionDefinition(func) => write!(f, "{func}"),
             Statement::Trait(t) => write!(f, "{t}"),
             Statement::Import(s) => write!(f, "import {s}"),
             Statement::Export(e) => write!(f, "export {e}"),
             Statement::TypeDefinition(t, def) => write!(f, "type {t} = {def}"),
-            Statement::TraitImpl { base_trait, concrete, definitions } => write!(f, "impl {base_trait} for {concrete}\n{}\nend", definitions.iter().map(|d| d.to_string()).join("\n")),
+            Statement::TraitImpl {
+                base_trait,
+                concrete,
+                definitions,
+            } => write!(
+                f,
+                "impl {base_trait} for {concrete}\n{}\nend",
+                definitions.iter().map(|d| d.to_string()).join("\n")
+            ),
             Statement::ObjectDefinition(obj) => write!(f, "{obj}"),
             Statement::Enum(en) => write!(f, "{en}"),
-            Statement::For { each, expression, body } => write!(f, "for {each} in {expression} do \n{body}\nend"),
-            Statement::Loop(body) => write!(f, "loop\n{body}\nend")
+            Statement::For {
+                each,
+                expression,
+                body,
+            } => write!(f, "for {each} in {expression} do \n{body}\nend"),
+            Statement::Loop(body) => write!(f, "loop\n{body}\nend"),
         }
     }
 }
@@ -252,19 +276,39 @@ impl Display for Assign {
             Assign::Identifier { name, mutable, .. } if *mutable => write!(f, "mut {name}"),
             Assign::Identifier { name, shadow, .. } if *shadow => write!(f, "let {name}"),
             Assign::Identifier { name, .. } => write!(f, "{name}"),
-            Assign::TypedIdentifier { name, mutable, rigz_type, .. } if *mutable => write!(f, "mut {name}: {rigz_type}"),
-            Assign::TypedIdentifier { name, shadow, rigz_type, .. } if *shadow => write!(f, "let {name}: {rigz_type}"),
-            Assign::TypedIdentifier { name, rigz_type, .. } => write!(f, "{name}: {rigz_type}"),
-            Assign::Tuple(v) => write!(f, "({})", v.iter().map(|v| {
-                if v.1 {
-                    format!("mut {}", v.0)
-                } else if v.2 {
-                    format!("let {}", v.0)
-                } else {
-                    v.0.to_string()
-                }
-            }).join(", ")),
-            Assign::InstanceSet(e, index) => write!(f, "{e}{}", index.iter().map(|v| v.to_string()).join(".")),
+            Assign::TypedIdentifier {
+                name,
+                mutable,
+                rigz_type,
+                ..
+            } if *mutable => write!(f, "mut {name}: {rigz_type}"),
+            Assign::TypedIdentifier {
+                name,
+                shadow,
+                rigz_type,
+                ..
+            } if *shadow => write!(f, "let {name}: {rigz_type}"),
+            Assign::TypedIdentifier {
+                name, rigz_type, ..
+            } => write!(f, "{name}: {rigz_type}"),
+            Assign::Tuple(v) => write!(
+                f,
+                "({})",
+                v.iter()
+                    .map(|v| {
+                        if v.1 {
+                            format!("mut {}", v.0)
+                        } else if v.2 {
+                            format!("let {}", v.0)
+                        } else {
+                            v.0.to_string()
+                        }
+                    })
+                    .join(", ")
+            ),
+            Assign::InstanceSet(e, index) => {
+                write!(f, "{e}{}", index.iter().map(|v| v.to_string()).join("."))
+            }
         }
     }
 }
@@ -286,8 +330,17 @@ impl Display for RigzArguments {
                     write!(f, "")
                 }
             }
-            RigzArguments::Mixed(m, n) => write!(f, " {}, {}", m.iter().map(|f| f.to_string()).join(", "), n.iter().map(|(k, v)| format!("{k}: {v}")).join(", ")),
-            RigzArguments::Named(n) => write!(f, " {}", n.iter().map(|(k, v)| format!("{k}: {v}")).join(", ")),
+            RigzArguments::Mixed(m, n) => write!(
+                f,
+                " {}, {}",
+                m.iter().map(|f| f.to_string()).join(", "),
+                n.iter().map(|(k, v)| format!("{k}: {v}")).join(", ")
+            ),
+            RigzArguments::Named(n) => write!(
+                f,
+                " {}",
+                n.iter().map(|(k, v)| format!("{k}: {v}")).join(", ")
+            ),
         }
     }
 }
@@ -348,7 +401,9 @@ impl Display for FunctionExpression {
             FunctionExpression::FunctionCall(n, a) => write!(f, "{n}{a}"),
             FunctionExpression::TypeFunctionCall(t, n, a) => write!(f, "{t}.{n}{a}"),
             FunctionExpression::TypeConstructor(n, a) => write!(f, "{n}{a}"),
-            FunctionExpression::InstanceFunctionCall(ex, n, a) => write!(f, "{ex}.{}{a}", n.join(".")),
+            FunctionExpression::InstanceFunctionCall(ex, n, a) => {
+                write!(f, "{ex}.{}{a}", n.join("."))
+            }
         }
     }
 }
@@ -497,8 +552,12 @@ impl Display for Expression {
             Expression::This => write!(f, "self"),
             Expression::Value(PrimitiveValue::String(s)) => write!(f, "'{s}'"),
             Expression::Value(v) => write!(f, "{v}"),
-            Expression::List(v) =>  write!(f, "[{}]", v.iter().map(|v| v.to_string()).join(", ")),
-            Expression::Map(m) => write!(f, "{{{}}}", m.iter().map(|(k, v)| format!("{k} = {v}")).join(", ")),
+            Expression::List(v) => write!(f, "[{}]", v.iter().map(|v| v.to_string()).join(", ")),
+            Expression::Map(m) => write!(
+                f,
+                "{{{}}}",
+                m.iter().map(|(k, v)| format!("{k} = {v}")).join(", ")
+            ),
             Expression::Identifier(id) => write!(f, "{id}"),
             Expression::BinExp(lhs, op, rhs) => write!(f, "({lhs} {op} {rhs})"),
             Expression::UnaryExp(op, exp) => write!(f, "{op}{exp}"),
@@ -506,17 +565,32 @@ impl Display for Expression {
             Expression::Scope(s) => write!(f, "do\n{s}\nend"),
             Expression::Cast(ex, rt) => write!(f, "{ex} as {rt}"),
             Expression::Symbol(s) => write!(f, ":{s}"),
-            Expression::If { condition, then, branch } => match branch {
+            Expression::If {
+                condition,
+                then,
+                branch,
+            } => match branch {
                 None => write!(f, "if {condition}\n{then}\nend"),
                 Some(branch) => write!(f, "if {condition}\n{then}\nelse\n{branch}\nend"),
             },
-            Expression::Ternary { condition, then, branch } => write!(f, "{condition} ? {then} : {branch}"),
+            Expression::Ternary {
+                condition,
+                then,
+                branch,
+            } => write!(f, "{condition} ? {then} : {branch}"),
             Expression::Unless { condition, then } => write!(f, "unless {condition}\n{then}\nend"),
             Expression::IfGuard { condition, then } => write!(f, "{condition} if {then}"),
             Expression::UnlessGuard { condition, then } => write!(f, "{condition} unless {then}"),
             Expression::Enum(e, v, None) => write!(f, "{e}.{v}"),
             Expression::Enum(e, v, Some(exp)) => write!(f, "{e}.{v}({exp})"),
-            Expression::Match { condition, variants } => write!(f, "match {condition}\n{}\nend", variants.iter().map(|v| v.to_string()).join("\n")),
+            Expression::Match {
+                condition,
+                variants,
+            } => write!(
+                f,
+                "match {condition}\n{}\nend",
+                variants.iter().map(|v| v.to_string()).join("\n")
+            ),
             Expression::Error(e) => write!(f, "raise {e}"),
             Expression::Return(None) => write!(f, "return"),
             Expression::Exit(None) => write!(f, "exit"),
@@ -524,9 +598,23 @@ impl Display for Expression {
             Expression::Exit(Some(e)) => write!(f, "exit {e}"),
             Expression::Index(b, i) => write!(f, "{b}[{i}]"),
             Expression::Tuple(t) => write!(f, "({})", t.iter().map(|v| v.to_string()).join(", ")),
-            Expression::Lambda { arguments, var_args_start, body } => write!(f, ""),
-            Expression::ForList { var, expression, body } => write!(f, ""),
-            Expression::ForMap { k_var, v_var, expression, key, value } => write!(f, ""),
+            Expression::Lambda {
+                arguments,
+                var_args_start,
+                body,
+            } => write!(f, ""),
+            Expression::ForList {
+                var,
+                expression,
+                body,
+            } => write!(f, ""),
+            Expression::ForMap {
+                k_var,
+                v_var,
+                expression,
+                key,
+                value,
+            } => write!(f, ""),
             Expression::Into { base, next } => write!(f, "{base} |> {next}"),
             Expression::DoubleBang(ex) => write!(f, "{ex}!!"),
             Expression::Try(exp) => write!(f, "try {exp}"),
@@ -562,18 +650,36 @@ impl Display for Each {
             Each::Identifier { name, mutable, .. } if *mutable => write!(f, "mut {name}"),
             Each::Identifier { name, shadow, .. } if *shadow => write!(f, "let {name}"),
             Each::Identifier { name, .. } => write!(f, "{name}"),
-            Each::TypedIdentifier { name, mutable, rigz_type, .. } if *mutable => write!(f, "mut {name}: {rigz_type}"),
-            Each::TypedIdentifier { name, shadow, rigz_type, .. } if *shadow => write!(f, "let {name}: {rigz_type}"),
-            Each::TypedIdentifier { name, rigz_type, .. } => write!(f, "{name}: {rigz_type}"),
-            Each::Tuple(v) => write!(f, "({})", v.iter().map(|v| {
-                if v.1 {
-                    format!("mut {}", v.0)
-                } else if v.2 {
-                    format!("let {}", v.0)
-                } else {
-                    v.0.to_string()
-                }
-            }).join(", ")),
+            Each::TypedIdentifier {
+                name,
+                mutable,
+                rigz_type,
+                ..
+            } if *mutable => write!(f, "mut {name}: {rigz_type}"),
+            Each::TypedIdentifier {
+                name,
+                shadow,
+                rigz_type,
+                ..
+            } if *shadow => write!(f, "let {name}: {rigz_type}"),
+            Each::TypedIdentifier {
+                name, rigz_type, ..
+            } => write!(f, "{name}: {rigz_type}"),
+            Each::Tuple(v) => write!(
+                f,
+                "({})",
+                v.iter()
+                    .map(|v| {
+                        if v.1 {
+                            format!("mut {}", v.0)
+                        } else if v.2 {
+                            format!("let {}", v.0)
+                        } else {
+                            v.0.to_string()
+                        }
+                    })
+                    .join(", ")
+            ),
         }
     }
 }
@@ -615,8 +721,11 @@ pub enum FunctionDeclaration {
 impl Display for FunctionDeclaration {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            FunctionDeclaration::Declaration { name, type_definition } => write!(f, "fn {name}{type_definition}"),
-            FunctionDeclaration::Definition(def) => write!(f, "{def}")
+            FunctionDeclaration::Declaration {
+                name,
+                type_definition,
+            } => write!(f, "fn {name}{type_definition}"),
+            FunctionDeclaration::Definition(def) => write!(f, "{def}"),
         }
     }
 }
@@ -628,7 +737,12 @@ pub struct TraitDefinition {
 
 impl Display for TraitDefinition {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "trait {}\n{}\nend", self.name, self.functions.iter().map(|f| f.to_string()).join(", "))
+        write!(
+            f,
+            "trait {}\n{}\nend",
+            self.name,
+            self.functions.iter().map(|f| f.to_string()).join(", ")
+        )
     }
 }
 

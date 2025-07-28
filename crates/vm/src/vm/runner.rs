@@ -294,7 +294,9 @@ impl Runner for VM {
             match self.process_instruction(instruction) {
                 VMState::Running => {}
                 VMState::Next => {
-                    while self.frames.len() > current + 1 && self.frames.current.borrow().parent.is_some() {
+                    while self.frames.len() > current + 1
+                        && self.frames.current.borrow().parent.is_some()
+                    {
                         let frame = match self.frames.pop() {
                             None => {
                                 return Some(

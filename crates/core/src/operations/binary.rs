@@ -27,9 +27,13 @@ pub enum BinaryOperation {
 impl BinaryOperation {
     pub fn infix_priority(&self) -> (u8, u8) {
         match self {
-            BinaryOperation::Eq | BinaryOperation::Neq |
-            BinaryOperation::Gte | BinaryOperation::Gt |
-            BinaryOperation::Lt | BinaryOperation::Lte | BinaryOperation::Elvis => (10, 9),
+            BinaryOperation::Eq
+            | BinaryOperation::Neq
+            | BinaryOperation::Gte
+            | BinaryOperation::Gt
+            | BinaryOperation::Lt
+            | BinaryOperation::Lte
+            | BinaryOperation::Elvis => (10, 9),
             BinaryOperation::Rem => (12, 11),
             BinaryOperation::Or | BinaryOperation::Shr | BinaryOperation::Shl => (6, 5),
             BinaryOperation::And | BinaryOperation::Xor => (7, 8),

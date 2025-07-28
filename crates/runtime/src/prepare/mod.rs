@@ -311,7 +311,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
 
     fn parse_elements(&mut self, elements: Vec<Element>) -> Result<(), ValidationError> {
         if elements.is_empty() {
-            return Ok(())
+            return Ok(());
         }
 
         let last = elements.len() - 1;
@@ -325,7 +325,10 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         Ok(())
     }
 
-    fn parse_elements_pop_all_expressions(&mut self, elements: Vec<Element>) -> Result<(), ValidationError> {
+    fn parse_elements_pop_all_expressions(
+        &mut self,
+        elements: Vec<Element>,
+    ) -> Result<(), ValidationError> {
         for element in elements {
             let needs_pop = matches!(element, Element::Expression(_));
             self.parse_element(element)?;
