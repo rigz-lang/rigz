@@ -28,11 +28,12 @@ pub use log::LogModule;
 pub use math::MathModule;
 pub use number::NumberModule;
 pub use random::RandomModule;
-use rigz_ast::ValidationError;
-use rigz_vm::RigzBuilder;
 pub use string::StringModule;
 pub use uuid::UUIDModule;
 // pub use vm::VMModule;
+
+use rigz_ast::ValidationError;
+use rigz_vm::RigzBuilder;
 
 impl<T: RigzBuilder> ProgramParser<'_, T> {
     pub fn add_default_modules(&mut self) -> Result<(), ValidationError> {

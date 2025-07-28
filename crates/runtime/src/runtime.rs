@@ -117,7 +117,7 @@ impl Runtime<'_> {
     }
 
     pub fn create(input: String) -> Result<Self, RuntimeError> {
-        let parser = Parser::prepare(&input, ParserOptions::default()).map_err(|e| e.into())?;
+        let parser = Parser::prepare(&input, ParserOptions::default());
         let program = parser.parse().map_err(|e| e.into())?;
         let program: Program = program.into();
         program.create_runtime()
@@ -128,7 +128,7 @@ impl Runtime<'_> {
         runtime_options: RuntimeOptions,
         parser_options: ParserOptions,
     ) -> Result<Self, RuntimeError> {
-        let parser = Parser::prepare(&input, ParserOptions::default()).map_err(|e| e.into())?;
+        let parser = Parser::prepare(&input, ParserOptions::default());
         let program = parser.parse().map_err(|e| e.into())?;
         let program: Program = program.into();
         let mut runtime = program.create_runtime_with_options(parser_options)?;
@@ -138,7 +138,7 @@ impl Runtime<'_> {
 
     /// Use register_module to add modules
     pub fn create_without_modules(input: String) -> Result<Self, RuntimeError> {
-        let parser = Parser::prepare(&input, ParserOptions::default()).map_err(|e| e.into())?;
+        let parser = Parser::prepare(&input, ParserOptions::default());
         let program = parser.parse().map_err(|e| e.into())?;
         let program: Program = program.into();
         program.create_runtime_without_modules()

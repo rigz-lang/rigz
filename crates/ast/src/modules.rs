@@ -28,10 +28,7 @@ pub trait ParsedModule: Module + Send + Sync {
     where
         Self: Sized,
     {
-        let mut parser = match Parser::prepare(Self::trait_definition(), ParserOptions::default()) {
-            Ok(p) => p,
-            Err(e) => panic!("Failed to setup parser {} - {e}", Self::name()),
-        };
+        let mut parser = Parser::prepare(Self::trait_definition(), ParserOptions::default());
         match parser.parse_module_trait_definition() {
             Ok(m) => m,
             Err(e) => panic!("Failed to parse {} - {e}", Self::name()),
@@ -44,10 +41,7 @@ pub trait ParsedObject: Object {
     where
         Self: Sized,
     {
-        let mut parser = match Parser::prepare(Self::trait_definition(), ParserOptions::default()) {
-            Ok(p) => p,
-            Err(e) => panic!("Failed to setup parser {} - {e}", Self::name()),
-        };
+        let mut parser = Parser::prepare(Self::trait_definition(), ParserOptions::default());
         match parser.parse_object_definition() {
             Ok(m) => m,
             Err(e) => panic!("Failed to parse {} - {e}", Self::name()),

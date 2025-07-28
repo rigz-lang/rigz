@@ -23,6 +23,7 @@ debug = true
 [workspace.dependencies]
 itertools = "0.14.0"
 log = { version = "0.4", features = [] }
+pretty_assertions = "1.4"
 rand = { version = "0.8.5" }
 rigz_core = {version = "0.1", path = "crates/core"}
 rigz_ast = {version = "0.6", path = "crates/ast", default-features = false}

@@ -57,8 +57,7 @@ impl ToTokens for DeriveModule {
         let input = self.literal.value();
 
         let input = &input;
-        let mut parser =
-            Parser::prepare(input, ParserOptions::default()).expect("Failed to setup parser");
+        let mut parser = Parser::prepare(input, ParserOptions::default());
         let module = parser
             .parse_module_trait_definition()
             .expect("Failed to parse input");

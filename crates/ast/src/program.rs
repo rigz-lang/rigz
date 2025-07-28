@@ -1,11 +1,21 @@
+use itertools::Itertools;
+use std::fmt::{Display, Formatter};
 use rigz_core::{
     BinaryOperation, EnumDeclaration, Lifecycle, PrimitiveValue, RigzType, UnaryOperation,
 };
+use crate::ParseError;
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Program {
-    pub input: Option<String>,
+    pub input: String,
     pub elements: Vec<Element>,
+    pub errors: Vec<ParseError>,
+}
+
+impl Display for Program {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.elements.iter().map(|e| e.to_string()).join("\n"))
+    }
 }
 
 impl Program {
@@ -33,12 +43,24 @@ pub struct FunctionSignature {
     pub arg_type: ArgType,
 }
 
+impl Display for FunctionSignature {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDefinition {
     pub name: String,
     pub type_definition: FunctionSignature,
     pub body: Scope,
     pub lifecycle: Option<Lifecycle>,
+}
+
+impl Display for FunctionDefinition {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -83,10 +105,26 @@ pub struct Scope {
     pub elements: Vec<Element>,
 }
 
+impl Display for Scope {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.elements.iter().map(|e| e.to_string()).join("\n"))
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Element {
     Statement(Statement),
     Expression(Expression),
+}
+
+impl Display for Element {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Element::Statement(s) => s.to_string(),
+            Element::Expression(e) => e.to_string(),
+        };
+        write!(f, "{s}")
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -97,10 +135,31 @@ pub enum ImportValue {
     // todo support tree shaking?
 }
 
+impl Display for ImportValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            ImportValue::TypeValue(s) => s,
+            ImportValue::FilePath(s) => s,
+            ImportValue::UrlPath(s) => s,
+        };
+        write!(f, "{s}")
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Exposed {
     TypeValue(String),
     Identifier(String),
+}
+
+impl Display for Exposed {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Exposed::TypeValue(s) => s,
+            Exposed::Identifier(s) => s,
+        };
+        write!(f, "{s}")
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -134,10 +193,38 @@ pub enum Statement {
     Loop(Scope),
 }
 
+impl Display for Statement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Statement::Assignment { lhs, expression } => write!(f, "{lhs} = {expression}"),
+            Statement::BinaryAssignment { lhs, op, expression } => write!(f, "{lhs} {op}= {expression}"),
+            Statement::FunctionDefinition(func) => write!(f, "{func}"),
+            Statement::Trait(t) => write!(f, "{t}"),
+            Statement::Import(s) => write!(f, "import {s}"),
+            Statement::Export(e) => write!(f, "export {e}"),
+            Statement::TypeDefinition(t, def) => write!(f, "type {t} = {def}"),
+            Statement::TraitImpl { base_trait, concrete, definitions } => write!(f, "impl {base_trait} for {concrete}\n{}\nend", definitions.iter().map(|d| d.to_string()).join("\n")),
+            Statement::ObjectDefinition(obj) => write!(f, "{obj}"),
+            Statement::Enum(en) => write!(f, "{en}"),
+            Statement::For { each, expression, body } => write!(f, "for {each} in {expression} do \n{body}\nend"),
+            Statement::Loop(body) => write!(f, "loop\n{body}\nend")
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum AssignIndex {
     Identifier(String),
     Index(Expression),
+}
+
+impl Display for AssignIndex {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AssignIndex::Identifier(id) => write!(f, "{id}"),
+            AssignIndex::Index(idx) => write!(f, "[{idx}]"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -158,11 +245,51 @@ pub enum Assign {
     InstanceSet(Expression, Vec<AssignIndex>),
 }
 
+impl Display for Assign {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Assign::This => write!(f, "self"),
+            Assign::Identifier { name, mutable, .. } if *mutable => write!(f, "mut {name}"),
+            Assign::Identifier { name, shadow, .. } if *shadow => write!(f, "let {name}"),
+            Assign::Identifier { name, .. } => write!(f, "{name}"),
+            Assign::TypedIdentifier { name, mutable, rigz_type, .. } if *mutable => write!(f, "mut {name}: {rigz_type}"),
+            Assign::TypedIdentifier { name, shadow, rigz_type, .. } if *shadow => write!(f, "let {name}: {rigz_type}"),
+            Assign::TypedIdentifier { name, rigz_type, .. } => write!(f, "{name}: {rigz_type}"),
+            Assign::Tuple(v) => write!(f, "({})", v.iter().map(|v| {
+                if v.1 {
+                    format!("mut {}", v.0)
+                } else if v.2 {
+                    format!("let {}", v.0)
+                } else {
+                    v.0.to_string()
+                }
+            }).join(", ")),
+            Assign::InstanceSet(e, index) => write!(f, "{e}{}", index.iter().map(|v| v.to_string()).join(".")),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum RigzArguments {
     Positional(Vec<Expression>),
     Mixed(Vec<Expression>, Vec<(String, Expression)>),
     Named(Vec<(String, Expression)>),
+}
+
+impl Display for RigzArguments {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RigzArguments::Positional(p) => {
+                if !p.is_empty() {
+                    write!(f, " {}", p.iter().map(|f| f.to_string()).join(", "))
+                } else {
+                    write!(f, "")
+                }
+            }
+            RigzArguments::Mixed(m, n) => write!(f, " {}, {}", m.iter().map(|f| f.to_string()).join(", "), n.iter().map(|(k, v)| format!("{k}: {v}")).join(", ")),
+            RigzArguments::Named(n) => write!(f, " {}", n.iter().map(|(k, v)| format!("{k}: {v}")).join(", ")),
+        }
+    }
 }
 
 impl RigzArguments {
@@ -215,6 +342,17 @@ pub enum FunctionExpression {
     InstanceFunctionCall(Box<Expression>, Vec<String>, RigzArguments),
 }
 
+impl Display for FunctionExpression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FunctionExpression::FunctionCall(n, a) => write!(f, "{n}{a}"),
+            FunctionExpression::TypeFunctionCall(t, n, a) => write!(f, "{t}.{n}{a}"),
+            FunctionExpression::TypeConstructor(n, a) => write!(f, "{n}{a}"),
+            FunctionExpression::InstanceFunctionCall(ex, n, a) => write!(f, "{ex}.{}{a}", n.join(".")),
+        }
+    }
+}
+
 impl FunctionExpression {
     pub fn prepend(self, expression: Expression) -> Self {
         match self {
@@ -255,6 +393,12 @@ pub enum MatchVariant {
         variables: Vec<MatchVariantVariable>,
     },
     Else(Scope),
+}
+
+impl Display for MatchVariant {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -347,6 +491,55 @@ pub enum Expression {
     Next,
 }
 
+impl Display for Expression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expression::This => write!(f, "self"),
+            Expression::Value(PrimitiveValue::String(s)) => write!(f, "'{s}'"),
+            Expression::Value(v) => write!(f, "{v}"),
+            Expression::List(v) =>  write!(f, "[{}]", v.iter().map(|v| v.to_string()).join(", ")),
+            Expression::Map(m) => write!(f, "{{{}}}", m.iter().map(|(k, v)| format!("{k} = {v}")).join(", ")),
+            Expression::Identifier(id) => write!(f, "{id}"),
+            Expression::BinExp(lhs, op, rhs) => write!(f, "({lhs} {op} {rhs})"),
+            Expression::UnaryExp(op, exp) => write!(f, "{op}{exp}"),
+            Expression::Function(func) => write!(f, "{func}"),
+            Expression::Scope(s) => write!(f, "do\n{s}\nend"),
+            Expression::Cast(ex, rt) => write!(f, "{ex} as {rt}"),
+            Expression::Symbol(s) => write!(f, ":{s}"),
+            Expression::If { condition, then, branch } => match branch {
+                None => write!(f, "if {condition}\n{then}\nend"),
+                Some(branch) => write!(f, "if {condition}\n{then}\nelse\n{branch}\nend"),
+            },
+            Expression::Ternary { condition, then, branch } => write!(f, "{condition} ? {then} : {branch}"),
+            Expression::Unless { condition, then } => write!(f, "unless {condition}\n{then}\nend"),
+            Expression::IfGuard { condition, then } => write!(f, "{condition} if {then}"),
+            Expression::UnlessGuard { condition, then } => write!(f, "{condition} unless {then}"),
+            Expression::Enum(e, v, None) => write!(f, "{e}.{v}"),
+            Expression::Enum(e, v, Some(exp)) => write!(f, "{e}.{v}({exp})"),
+            Expression::Match { condition, variants } => write!(f, "match {condition}\n{}\nend", variants.iter().map(|v| v.to_string()).join("\n")),
+            Expression::Error(e) => write!(f, "raise {e}"),
+            Expression::Return(None) => write!(f, "return"),
+            Expression::Exit(None) => write!(f, "exit"),
+            Expression::Return(Some(e)) => write!(f, "return {e}"),
+            Expression::Exit(Some(e)) => write!(f, "exit {e}"),
+            Expression::Index(b, i) => write!(f, "{b}[{i}]"),
+            Expression::Tuple(t) => write!(f, "({})", t.iter().map(|v| v.to_string()).join(", ")),
+            Expression::Lambda { arguments, var_args_start, body } => write!(f, ""),
+            Expression::ForList { var, expression, body } => write!(f, ""),
+            Expression::ForMap { k_var, v_var, expression, key, value } => write!(f, ""),
+            Expression::Into { base, next } => write!(f, "{base} |> {next}"),
+            Expression::DoubleBang(ex) => write!(f, "{ex}!!"),
+            Expression::Try(exp) => write!(f, "try {exp}"),
+            Expression::Catch { base, var, catch } => match var {
+                None => write!(f, "{base} catch\n{catch}\nend"),
+                Some(v) => write!(f, "{base} catch |{v}|\n{catch}\nend"),
+            },
+            Expression::Break => write!(f, "break"),
+            Expression::Next => write!(f, "next"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Each {
     Identifier {
@@ -361,6 +554,28 @@ pub enum Each {
         rigz_type: RigzType,
     },
     Tuple(Vec<(String, bool, bool)>),
+}
+
+impl Display for Each {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Each::Identifier { name, mutable, .. } if *mutable => write!(f, "mut {name}"),
+            Each::Identifier { name, shadow, .. } if *shadow => write!(f, "let {name}"),
+            Each::Identifier { name, .. } => write!(f, "{name}"),
+            Each::TypedIdentifier { name, mutable, rigz_type, .. } if *mutable => write!(f, "mut {name}: {rigz_type}"),
+            Each::TypedIdentifier { name, shadow, rigz_type, .. } if *shadow => write!(f, "let {name}: {rigz_type}"),
+            Each::TypedIdentifier { name, rigz_type, .. } => write!(f, "{name}: {rigz_type}"),
+            Each::Tuple(v) => write!(f, "({})", v.iter().map(|v| {
+                if v.1 {
+                    format!("mut {}", v.0)
+                } else if v.2 {
+                    format!("let {}", v.0)
+                } else {
+                    v.0.to_string()
+                }
+            }).join(", ")),
+        }
+    }
 }
 
 impl From<Vec<Expression>> for Expression {
@@ -396,10 +611,25 @@ pub enum FunctionDeclaration {
     },
     Definition(FunctionDefinition),
 }
+
+impl Display for FunctionDeclaration {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FunctionDeclaration::Declaration { name, type_definition } => write!(f, "fn {name}{type_definition}"),
+            FunctionDeclaration::Definition(def) => write!(f, "{def}")
+        }
+    }
+}
 #[derive(Debug, PartialEq, Clone)]
 pub struct TraitDefinition {
     pub name: String,
     pub functions: Vec<FunctionDeclaration>,
+}
+
+impl Display for TraitDefinition {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "trait {}\n{}\nend", self.name, self.functions.iter().map(|f| f.to_string()).join(", "))
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -415,6 +645,12 @@ pub struct ObjectDefinition {
     pub fields: Vec<ObjectAttr>,
     pub constructor: Constructor,
     pub functions: Vec<FunctionDeclaration>,
+}
+
+impl Display for ObjectDefinition {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]

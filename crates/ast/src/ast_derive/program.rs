@@ -2,11 +2,7 @@ use crate::program::{
     ArgType, AssignIndex, Constructor, FunctionExpression, ImportValue, ObjectAttr,
     ObjectDefinition, RigzArguments,
 };
-use crate::{
-    Assign, Each, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration,
-    FunctionDefinition, FunctionSignature, FunctionType, MatchVariant, MatchVariantCondition,
-    MatchVariantVariable, ModuleTraitDefinition, Scope, Statement, TraitDefinition,
-};
+use crate::{Assign, Each, Element, Exposed, Expression, FunctionArgument, FunctionDeclaration, FunctionDefinition, FunctionSignature, FunctionType, MatchVariant, MatchVariantCondition, MatchVariantVariable, ModuleTraitDefinition, Scope, Statement, TraitDefinition};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use rigz_core::derive::{boxed, csv_vec, option};

@@ -226,8 +226,6 @@ pub(crate) enum TokenKind<'lex> {
     RangeInclusive,
     #[token("?")]
     Optional,
-    #[token("!!")]
-    DoubleBang,
     #[token("for")]
     For,
     #[token("loop")]
@@ -316,7 +314,6 @@ impl Display for TokenKind<'_> {
             TokenKind::Range => write!(f, ".."),
             TokenKind::RangeInclusive => write!(f, "..="),
             TokenKind::Optional => write!(f, "?"),
-            TokenKind::DoubleBang => write!(f, "!!"),
             TokenKind::Comment => write!(f, "# comment"),
             TokenKind::This => write!(f, "self"),
             TokenKind::Arg(a) => write!(f, "${}", a),
@@ -337,7 +334,6 @@ impl Display for TokenKind<'_> {
 pub(crate) struct Token<'lex> {
     pub(crate) kind: TokenKind<'lex>,
     pub(crate) span: Span,
-    pub(crate) line: usize,
 }
 
 // todo custom debug impl
@@ -345,6 +341,25 @@ pub(crate) struct Token<'lex> {
 impl Token<'_> {
     pub(crate) fn terminal(&self) -> bool {
         self.kind == TokenKind::Newline || self.kind == TokenKind::Semi
+    }
+
+    pub(crate) fn infix_priority(&self) -> Option<(u8, u8)> {
+        let p = match self.kind {
+            TokenKind::BinOp(op) => op.infix_priority(),
+            TokenKind::Minus => (1, 2),
+            TokenKind::Pipe => (1, 2),
+            TokenKind::And => (7, 8),
+            TokenKind::As => (4, 3),
+            TokenKind::Catch => (4, 3),
+            TokenKind::If => (4, 3),
+            TokenKind::Unless => (4, 3),
+            TokenKind::Period => (12, 11),
+            TokenKind::Into => (14, 13),
+            TokenKind::Optional => (4, 3),
+            TokenKind::Lbracket => (12, 11),
+            _ => return None,
+        };
+        Some(p)
     }
 }
 

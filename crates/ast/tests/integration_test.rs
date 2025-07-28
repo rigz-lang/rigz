@@ -1,6 +1,8 @@
 use rigz_ast::*;
 use rigz_core::{BinaryOperation, CustomType, PrimitiveValue, RigzType};
 use wasm_bindgen_test::*;
+#[cfg(test)]
+use pretty_assertions::{assert_eq, assert_ne};
 
 macro_rules! test_parse {
     ($($name:ident $input:literal = $expected:expr,)*) => {
@@ -10,6 +12,19 @@ macro_rules! test_parse {
                 let input = $input;
                 let v = parse(input, ParserOptions::default()).and_then(|p| Ok(p.elements));
                 assert_eq!(v, Ok($expected), "Failed to parse input: {}", input)
+            }
+        )*
+    };
+}
+
+macro_rules! test_parse_to_s {
+    ($($name:ident $input:literal = $expected:expr,)*) => {
+        $(
+            #[wasm_bindgen_test(unsupported = test)]
+            fn $name() {
+                let input = $input;
+                let v = parse(input, ParserOptions::default()).and_then(|p| Ok(p.to_string()));
+                assert_eq!(v, Ok($expected.to_string()), "Failed to parse input: {}", input)
             }
         )*
     };
@@ -60,6 +75,7 @@ macro_rules! test_parse_invalid {
 }
 
 pub mod invalid {
+    use pretty_assertions::{assert_eq, assert_ne};
     use super::*;
 
     test_parse_invalid!(
@@ -76,6 +92,7 @@ pub mod invalid {
 }
 
 pub mod valid {
+    use pretty_assertions::{assert_eq, assert_ne};
     use super::*;
 
     test_parse_valid!(
@@ -288,6 +305,13 @@ test_parse_equivalent! {
         ];
 }
 
+test_parse_to_s! {
+    ors r#"a == 'b' || a == 1 || a == 'f'"# = r#"((a == 'b') || ((a == 1) || (a == 'f')))"# ,
+    parens r#"(a == 'b' || a == 1 || a == 'f') == ('b' == a || 1 == a || 'f' == a)"# = r#"(((a == 'b') || ((a == 1) || (a == 'f'))) == (('b' == a) || ((1 == a) || ('f' == a))))"#,
+    inline_binary_exp r#"e.to_s + v + 22"# = r#"((e.to_s + v) + 22)"#,
+    multi_complex_parens "1 + (2 * (2 - 4)) / 4" = "((1 + (2 * (2 - 4))) / 4)",
+}
+
 test_parse! {
     symbols "foo :hello" = vec![
         Element::Expression(FunctionExpression::FunctionCall("foo".to_string(), vec![Expression::Symbol("hello".to_string())].into()).into())
@@ -404,30 +428,6 @@ test_parse! {
                     Box::new(Expression::Value(PrimitiveValue::Number(0.into())))
                 ),
             })
-        ],
-    multi_complex_parens "1 + (2 * (2 - 4)) / 4" = vec![
-            Element::Expression(
-                Expression::BinExp(
-                    Box::new(Expression::BinExp(
-                    Box::new(Expression::Value(PrimitiveValue::Number(1.into()))),
-                    BinaryOperation::Add,
-                    Box::new(Expression::BinExp(
-                        Box::new(Expression::Value(PrimitiveValue::Number(2.into()))),
-                        BinaryOperation::Mul,
-                        Box::new(Expression::BinExp(
-                                Box::new(Expression::Value(PrimitiveValue::Number(2.into()))),
-                                BinaryOperation::Sub,
-                                Box::new(Expression::Value(PrimitiveValue::Number(4.into()))))
-                            ))
-                        )
-                    )
-                ),
-                    BinaryOperation::Div,
-                    Box::new(
-                        Expression::Value(PrimitiveValue::Number(4.into()))
-                    )
-                )
-            )
         ],
     union_type "a: String || Number || Bool = false" = vec![
             Statement::Assignment {

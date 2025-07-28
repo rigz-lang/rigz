@@ -148,8 +148,7 @@ impl DeriveObject {
         };
 
         let name = id.to_string();
-        let mut obj_def = Parser::prepare(lit.as_str(), ParserOptions::default())
-            .expect("failed to setup object definition parser");
+        let mut obj_def = Parser::prepare(lit.as_str(), ParserOptions::default());
         let obj_def = obj_def
             .parse_object_definition()
             .expect("failed to parse object definition");

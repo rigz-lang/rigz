@@ -324,7 +324,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         }
         Ok(())
     }
-    
+
     fn parse_elements_pop_all_expressions(&mut self, elements: Vec<Element>) -> Result<(), ValidationError> {
         for element in elements {
             let needs_pop = matches!(element, Element::Expression(_));
@@ -2423,14 +2423,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         path: P,
     ) -> Result<usize, ValidationError> {
         let input = contents.as_str();
-        let parser = match Parser::prepare(input, self.parser_options.clone()) {
-            Ok(p) => p,
-            Err(e) => {
-                return Err(ValidationError::InvalidImport(format!(
-                    "Failed to setup parser {path:?} - {e}"
-                )))
-            }
-        };
+        let parser = Parser::prepare(input, self.parser_options.clone());
 
         let program = match parser.parse() {
             Ok(p) => p.into(),
