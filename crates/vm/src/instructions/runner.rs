@@ -118,8 +118,10 @@ macro_rules! runner_common {
         fn get_variable(&mut self, name: &str) {
             let r = self.frames.get_variable(name);
             let v = match r {
-                None => VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))
-                    .into(),
+                None => {
+                    VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))
+                    .into()
+                }
                 Some(v) => v.resolve(self).into(),
             };
             self.store_value(v);
@@ -540,6 +542,7 @@ pub trait Runner: ResolveValue {
                     ResolvedValue::Break => return VMState::Break,
                     ResolvedValue::Next => return VMState::Next,
                     ResolvedValue::Value(v) => self.store_value(v.into()),
+                    ResolvedValue::Done(v) => return VMState::Done(v),
                 };
             }
             Instruction::If(if_scope) => {
@@ -549,6 +552,7 @@ pub trait Runner: ResolveValue {
                         ResolvedValue::Break => return VMState::Break,
                         ResolvedValue::Next => return VMState::Next,
                         ResolvedValue::Value(v) => v,
+                        ResolvedValue::Done(v) => return VMState::Done(v),
                     }
                 } else {
                     ObjectValue::default().into()
@@ -562,6 +566,7 @@ pub trait Runner: ResolveValue {
                         ResolvedValue::Break => return VMState::Break,
                         ResolvedValue::Next => return VMState::Next,
                         ResolvedValue::Value(v) => v,
+                        ResolvedValue::Done(v) => return VMState::Done(v),
                     }
                 } else {
                     ObjectValue::default().into()
@@ -702,6 +707,7 @@ pub trait Runner: ResolveValue {
                                 result.push(value)
                             }
                         }
+                        ResolvedValue::Done(v) => return VMState::Done(v),
                     }
                 }
                 self.store_value(result.into());
@@ -719,6 +725,7 @@ pub trait Runner: ResolveValue {
                         ResolvedValue::Break => return VMState::Break,
                         ResolvedValue::Next => return VMState::Next,
                         ResolvedValue::Value(v) => v,
+                        ResolvedValue::Done(v) => return VMState::Done(v),
                     };
                     let value = value.borrow().clone();
                     match value {

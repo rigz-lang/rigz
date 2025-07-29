@@ -657,6 +657,18 @@ pub mod runtime {
             end
             foo
             "# = 42)
+            unary_neg_values("-3 + 4" = 1)
+            unary_neg_expression("a = 3; -a + 4" = 1)
+            multiple_ors("a = 1; a == 'b' || a == 1 || a == 'f'" = true)
+            multiple_ors_commutative("a = 1; (a == 'b' || a == 1 || a == 'f') == ('b' == a || 1 == a || 'f' == a)" = true)
+            multiple_ors_any("a = 1; (any a == 'b', a == 1, a == 'f') == (('b' == a) || (1 == a) || ('f' == a))" = true)
+            exit(r#"
+            a = 42
+            exit if a == 42
+            a
+            "# = 0)
+            ternary_true("1 ? 42 : 37" = 42)
+            ternary_false("none ? 'z' : 'a'" = "a")
             looping_early_return(r#"
             fn foo
                 mut a = 0
@@ -677,18 +689,12 @@ pub mod runtime {
             end
             a
             "# = 42)
-            unary_neg_values("-3 + 4" = 1)
-            unary_neg_expression("a = 3; -a + 4" = 1)
-            multiple_ors("a = 1; a == 'b' || a == 1 || a == 'f'" = true)
-            multiple_ors_commutative("a = 1; (a == 'b' || a == 1 || a == 'f') == ('b' == a || 1 == a || 'f' == a)" = true)
-            multiple_ors_any("a = 1; (any a == 'b', a == 1, a == 'f') == (('b' == a) || (1 == a) || ('f' == a))" = true)
-            exit(r#"
-            a = 42
-            exit if a == 42
-            a
-            "# = 0)
-            ternary_true("1 ? 42 : 37" = 42)
-            ternary_false("none ? 'z' : 'a'" = "a")
+        }
+    }
+
+    pub mod debug {
+        use super::*;
+        run_debug_vm! {
             func_early_return(r#"
             fn foo
                 if true
@@ -700,11 +706,6 @@ pub mod runtime {
             foo + 37
             "# = 79)
         }
-    }
-
-    pub mod debug {
-        use super::*;
-        run_debug_vm! {}
     }
 
     pub mod recursive {

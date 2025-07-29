@@ -268,30 +268,22 @@ impl Runner for VM {
             let instruction = match self.next_instruction() {
                 None => {
                     // for manual calls to build a loop instruction without a ret
-                    if self.sp == scope_id {
+                    if self.frames.current.borrow().scope_id == scope_id {
                         self.frames.current.borrow_mut().pc = 0;
+                        self.frames.current.borrow_mut().clear_variables();
                         continue;
                     }
                     break;
                 }
-                Some(Instruction::Ret) => {
-                    if self.sp == scope_id
-                        && self.scopes[self.sp].instructions.len()
-                            == self.frames.current.borrow().pc
-                    {
-                        self.frames.current.borrow_mut().pc = 0;
-                        continue;
-                    } else {
-                        result = Some(VMState::Done(
-                            self.next_resolved_value("for ret".to_string()),
-                        ));
-                        break;
-                    }
+                Some(Instruction::Ret) if self.frames.current.borrow().scope_id == scope_id && self.scopes[self.frames.current.borrow().scope_id].instructions.len() == self.frames.current.borrow().pc => {
+                    self.frames.current.borrow_mut().pc = 0;
+                    self.frames.current.borrow_mut().clear_variables();
+                    continue;
                 }
                 Some(s) => s,
             };
 
-            match self.process_instruction(instruction) {
+            match self.process_instruction_scope(instruction) {
                 VMState::Running => {}
                 VMState::Next => {
                     while self.frames.len() > current + 1
@@ -400,30 +392,21 @@ impl Runner for VM {
             loop {
                 let ins = match self.next_instruction() {
                     None => {
-                        if self.sp == scope_id {
+                        if self.frames.current.borrow().scope_id == scope_id {
                             self.frames.current.borrow_mut().pc = 0;
+                            self.frames.current.borrow_mut().clear_variables();
                             continue;
                         }
                         break 'outer;
                     }
-                    Some(Instruction::Ret) => {
-                        if self.sp == scope_id
-                            && self.scopes[self.sp].instructions.len()
-                                == self.frames.current.borrow().pc
-                        {
-                            self.frames.current.borrow_mut().pc = 0;
-                            self.frames.current.borrow_mut().clear_variables();
-                            break;
-                        } else {
-                            result = Some(VMState::Done(
-                                self.next_resolved_value("for ret".to_string()),
-                            ));
-                            break 'outer;
-                        }
+                    Some(Instruction::Ret) if self.frames.current.borrow().scope_id == scope_id && self.scopes[self.frames.current.borrow().scope_id].instructions.len() == self.frames.current.borrow().pc => {
+                        self.frames.current.borrow_mut().pc = 0;
+                        self.frames.current.borrow_mut().clear_variables();
+                        break;
                     }
                     Some(i) => i,
                 };
-                match self.process_instruction(ins) {
+                match self.process_instruction_scope(ins) {
                     VMState::Running => {}
                     VMState::Break => {
                         break 'outer;
@@ -450,7 +433,7 @@ impl Runner for VM {
             }
         }
         self.sp = sp;
-        while self.frames.len() > current && self.frames.current.borrow().parent.is_some() {
+        while self.frames.len() > current {
             let Some(next) = self.frames.pop() else {
                 return Some(VMError::runtime("Missing call frame".to_string()).into());
             };

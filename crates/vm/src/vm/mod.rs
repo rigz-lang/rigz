@@ -123,6 +123,7 @@ impl VM {
     }
 
     pub fn process_ret(&mut self, ran: bool) -> VMState {
+        let mut last_scope = self.sp;
         match self.frames.pop() {
             None => {
                 let source = self.next_value("process_ret - empty stack");
@@ -130,10 +131,10 @@ impl VM {
             }
             Some(c) => {
                 let c = c;
-                let pc = self.frames.current.borrow().pc;
                 let mut updated = false;
                 loop {
-                    let sp = self.sp;
+                    let sp = self.frames.current.borrow().scope_id;
+                    let pc = self.frames.current.borrow().pc;
                     let scope = &self.scopes[sp];
                     let len = scope.instructions.len();
                     let propagate = len != pc
@@ -148,6 +149,7 @@ impl VM {
                                 return VMState::Done(source.resolve(self));
                             }
                             Some(next) => {
+                                last_scope = c.borrow().scope_id;
                                 self.sp = next.borrow().scope_id;
                                 self.frames.current = next;
                                 updated = true;
@@ -161,11 +163,21 @@ impl VM {
                     self.sp = c.borrow().scope_id;
                     self.frames.current = c;
                 }
+
                 match ran {
-                    false => VMState::Running,
+                    false => {
+                        VMState::Running
+                    },
                     true => {
-                        let source = self.next_value("process_ret - ran");
-                        VMState::Ran(source.resolve(self))
+                        let source = self.next_resolved_value("process_ret - ran");
+                        if updated && matches!(
+                            self.scopes[last_scope].named.as_str(),
+                            "if" | "unless" | "else" | "loop" | "for"
+                        ) {
+                            VMState::Done(source)
+                        } else {
+                            VMState::Ran(source)
+                        }
                     }
                 }
             }
@@ -189,7 +201,8 @@ impl VM {
 
     #[inline]
     fn next_instruction(&self) -> Option<Instruction> {
-        let scope = &self.scopes[self.sp];
+        let sp = self.frames.current.borrow().scope_id;
+        let scope = &self.scopes[sp];
         let pc = self.frames.current.borrow().pc;
         self.frames.current.borrow_mut().pc += 1;
         scope.instructions.get(pc).cloned()
@@ -321,7 +334,6 @@ impl VM {
         let mut failure_messages = Vec::new();
         for (s, named) in test_scopes {
             out!("test {named} ... ");
-            self.sp = s;
             self.frames.current = RefCell::new(CallFrame {
                 scope_id: s,
                 ..Default::default()

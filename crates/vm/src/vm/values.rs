@@ -25,22 +25,22 @@ impl ResolveValue for VM {
         "VM"
     }
 
-    #[inline]
+    #[inline] // todo this needs to use VMState, propagation isn't working
     fn handle_scope(&mut self, scope: usize) -> ResolvedValue {
         let current = self.sp;
         if let Err(e) = self.call_frame(scope) {
             let o: ObjectValue = e.into();
-            return ResolvedValue::Value(o.into());
+            return ResolvedValue::Done(o.into());
         };
 
         let mut v = match self.run_scope() {
             VMState::Break => return ResolvedValue::Break,
             VMState::Next => return ResolvedValue::Next,
             VMState::Running => unreachable!(),
-            VMState::Done(v) => return ResolvedValue::Value(v),
+            VMState::Done(v) => return ResolvedValue::Done(v),
             VMState::Ran(v) => ResolvedValue::Value(v),
         };
-        while current != self.sp {
+        while current != self.frames.current.borrow().scope_id {
             if let ResolvedValue::Value(v) = v {
                 self.stack.push(v.into());
             }
@@ -48,7 +48,7 @@ impl ResolveValue for VM {
                 VMState::Break => return ResolvedValue::Break,
                 VMState::Next => return ResolvedValue::Next,
                 VMState::Running => unreachable!(),
-                VMState::Done(v) => return ResolvedValue::Value(v),
+                VMState::Done(v) => return ResolvedValue::Done(v),
                 VMState::Ran(v) => ResolvedValue::Value(v),
             };
         }
