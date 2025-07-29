@@ -1780,9 +1780,11 @@ impl<'t> Parser<'t> {
                                     self.consume_token(c_token.kind)?;
                                     MatchVariantCondition::Unless(self.parse_expression(priority)?)
                                 }
-                                _ => return Err(ParsingError::ParseError(format!(
+                                _ => {
+                                    return Err(ParsingError::ParseError(format!(
                                     "Invalid match variant condition {c_token:?}, condition or =>"
-                                ))),
+                                )))
+                                }
                             };
                             self.consume_token(TokenKind::Arrow)?;
                             let var = self.peek_required_token("match_variant - enum")?;

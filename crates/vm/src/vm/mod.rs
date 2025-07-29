@@ -165,15 +165,15 @@ impl VM {
                 }
 
                 match ran {
-                    false => {
-                        VMState::Running
-                    },
+                    false => VMState::Running,
                     true => {
                         let source = self.next_resolved_value("process_ret - ran");
-                        if updated && matches!(
-                            self.scopes[last_scope].named.as_str(),
-                            "if" | "unless" | "else" | "loop" | "for"
-                        ) {
+                        if updated
+                            && matches!(
+                                self.scopes[last_scope].named.as_str(),
+                                "if" | "unless" | "else" | "loop" | "for"
+                            )
+                        {
                             VMState::Done(source)
                         } else {
                             VMState::Ran(source)

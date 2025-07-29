@@ -275,7 +275,13 @@ impl Runner for VM {
                     }
                     break;
                 }
-                Some(Instruction::Ret) if self.frames.current.borrow().scope_id == scope_id && self.scopes[self.frames.current.borrow().scope_id].instructions.len() == self.frames.current.borrow().pc => {
+                Some(Instruction::Ret)
+                    if self.frames.current.borrow().scope_id == scope_id
+                        && self.scopes[self.frames.current.borrow().scope_id]
+                            .instructions
+                            .len()
+                            == self.frames.current.borrow().pc =>
+                {
                     self.frames.current.borrow_mut().pc = 0;
                     self.frames.current.borrow_mut().clear_variables();
                     continue;
@@ -399,7 +405,13 @@ impl Runner for VM {
                         }
                         break 'outer;
                     }
-                    Some(Instruction::Ret) if self.frames.current.borrow().scope_id == scope_id && self.scopes[self.frames.current.borrow().scope_id].instructions.len() == self.frames.current.borrow().pc => {
+                    Some(Instruction::Ret)
+                        if self.frames.current.borrow().scope_id == scope_id
+                            && self.scopes[self.frames.current.borrow().scope_id]
+                                .instructions
+                                .len()
+                                == self.frames.current.borrow().pc =>
+                    {
                         self.frames.current.borrow_mut().pc = 0;
                         self.frames.current.borrow_mut().clear_variables();
                         break;

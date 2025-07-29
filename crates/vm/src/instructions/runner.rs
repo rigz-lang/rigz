@@ -118,10 +118,8 @@ macro_rules! runner_common {
         fn get_variable(&mut self, name: &str) {
             let r = self.frames.get_variable(name);
             let v = match r {
-                None => {
-                    VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))
-                    .into()
-                }
+                None => VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))
+                    .into(),
                 Some(v) => v.resolve(self).into(),
             };
             self.store_value(v);
