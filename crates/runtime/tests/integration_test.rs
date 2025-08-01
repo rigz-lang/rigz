@@ -689,6 +689,9 @@ pub mod runtime {
             end
             a
             "# = 42)
+            order_of_ops(r#"1 + 2 * 3"# = 9)
+            order_of_ops_ids(r#"a = 3; b = 2; c = 1;b + c * a"# = 9)
+            order_of_ops_self(r#"a = 3; b = 2; fn Number.foo = b + self * a; 1.foo"# = 9)
         }
     }
 

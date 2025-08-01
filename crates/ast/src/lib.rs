@@ -1688,7 +1688,7 @@ impl<'t> Parser<'t> {
         match token.kind {
             TokenKind::Identifier(id) => self.parse_identifier_expression(id),
             TokenKind::Value(v) => Ok(v.into()),
-            TokenKind::This => self.parse_this_expression(),
+            TokenKind::This => Ok(Expression::This),
             TokenKind::Symbol(s) => self.parse_symbol_expression(s),
             TokenKind::Not => self.parse_unary_expression(UnaryOperation::Not, priority),
             TokenKind::Minus => self.parse_unary_expression(UnaryOperation::Neg, priority),
