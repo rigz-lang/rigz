@@ -80,15 +80,20 @@ impl<'l> Formmatter<'l> {
             TokenKind::Comma
                 | TokenKind::Lparen
                 | TokenKind::Rparen
-                | TokenKind::Lbracket
+                | TokenKind::LbracketSpace
                 | TokenKind::Rbracket
-        ) || matches!(self.last, TokenKind::Lparen | TokenKind::Lbracket)
-        {
+        ) || matches!(
+            self.last,
+            TokenKind::Lparen | TokenKind::Lbracket | TokenKind::LbracketSpace
+        ) {
             return;
         }
 
         match self.last {
             TokenKind::Colon => {
+                self.result.push(' ');
+            }
+            TokenKind::Assign if next == TokenKind::Lbracket => {
                 self.result.push(' ');
             }
             TokenKind::Newline => {
@@ -108,7 +113,7 @@ impl<'l> Formmatter<'l> {
             _ => {
                 let char = match next {
                     TokenKind::End => '\n',
-                    TokenKind::Period | TokenKind::Semi => return,
+                    TokenKind::Period | TokenKind::Semi | TokenKind::Lbracket => return,
                     _ => ' ',
                 };
                 self.result.push(char)
@@ -183,4 +188,7 @@ test_format! {
     double_quote_string: r#""'hello'""# = r#""'hello'""#;
     backticks_quote_string: r#"`"'hello'"`"# = r#"`"'hello'"`"#;
     ternary: "1?2:3" = "1 ? 2 : 3";
+    array: "a=[1,3,4]" = "a = [1, 3, 4]";
+    array_fn: "a [1,3,4]" = "a [1, 3, 4]";
+    index: "a[1]" = "a[1]";
 }

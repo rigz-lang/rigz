@@ -959,7 +959,7 @@ impl<'t> Parser<'t> {
                 | TokenKind::Lparen
                 | TokenKind::Lcurly
                 | TokenKind::This
-                | TokenKind::Lbracket
+                | TokenKind::LbracketSpace
                 // if/unless not allowed as args without parens
                 | TokenKind::Do => {
                     let (args, assign) = self.parse_args()?;
@@ -1409,7 +1409,7 @@ impl<'t> Parser<'t> {
                 | TokenKind::Lparen
                 | TokenKind::Lcurly
                 | TokenKind::This
-                | TokenKind::Lbracket
+                | TokenKind::LbracketSpace
                 // if/unless not allowed as args without parens
                 | TokenKind::Do => {
                     let (args, assign) = self.parse_args()?;
@@ -1692,7 +1692,7 @@ impl<'t> Parser<'t> {
             TokenKind::Symbol(s) => self.parse_symbol_expression(s),
             TokenKind::Not => self.parse_unary_expression(UnaryOperation::Not, priority),
             TokenKind::Minus => self.parse_unary_expression(UnaryOperation::Neg, priority),
-            TokenKind::Lbracket => self.parse_list(),
+            TokenKind::Lbracket | TokenKind::LbracketSpace => self.parse_list(),
             TokenKind::Lcurly => self.parse_map(),
             TokenKind::Lparen => {
                 let paren = self.parse_paren_expression()?;
@@ -2385,7 +2385,7 @@ impl<'t> Parser<'t> {
                     )))
                 }
             },
-            TokenKind::Lbracket => {
+            TokenKind::Lbracket | TokenKind::LbracketSpace => {
                 let t = self.peek_required_token("parse_rigz_type - [")?;
                 match t.kind {
                     TokenKind::Rbracket => {

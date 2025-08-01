@@ -176,6 +176,8 @@ pub(crate) enum TokenKind<'lex> {
     Rcurly,
     #[token("[")]
     Lbracket,
+    #[token(" [")]
+    LbracketSpace,
     #[token("]")]
     Rbracket,
     #[token("do")]
@@ -289,6 +291,7 @@ impl Display for TokenKind<'_> {
             TokenKind::Lcurly => write!(f, "{{"),
             TokenKind::Rcurly => write!(f, "}}"),
             TokenKind::Lbracket => write!(f, "["),
+            TokenKind::LbracketSpace => write!(f, " ["),
             TokenKind::Rbracket => write!(f, "]"),
             TokenKind::Do => write!(f, "do"),
             TokenKind::End => write!(f, "end"),
