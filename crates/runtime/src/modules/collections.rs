@@ -113,6 +113,7 @@ derive_module! {
         fn List.empty = !self.to_b
         fn List.first -> Any?
         fn List.last -> Any?
+        fn List.nth(number: Number) -> Any?!
         fn mut List.push(var value)
         fn List.concat(value: List) -> List
         fn List.with(var value) -> List
@@ -287,6 +288,11 @@ impl RigzCollections for CollectionsModule {
 
     fn list_last(&self, this: Vec<ObjectValue>) -> Option<ObjectValue> {
         this.last().cloned()
+    }
+
+    fn list_nth(&self, this: Vec<ObjectValue>, number: Number) -> Result<Option<ObjectValue>, VMError> {
+        let index = number.to_usize()?;
+        Ok(this.get(index).cloned())
     }
 
     fn mut_list_push(&self, this: &mut Vec<ObjectValue>, value: Vec<ObjectValue>) {
