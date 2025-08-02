@@ -264,27 +264,11 @@ impl ObjectValue {
                 }
             }
             (ObjectValue::Map(source), index) => match source.get(index) {
-                None => {
-                    if let ObjectValue::Primitive(PrimitiveValue::Number(index)) = index {
-                        if let Ok(index) = index.to_usize() {
-                            return Ok(source
-                                .get_index(index)
-                                .map(|(k, v)| ObjectValue::Tuple(vec![k.clone(), v.clone()])));
-                        }
-                    }
-                    return Ok(None);
-                }
+                None => return Ok(None),
                 Some(c) => c.clone(),
             },
             (ObjectValue::Set(source), index) => match source.get(index) {
-                None => {
-                    if let ObjectValue::Primitive(PrimitiveValue::Number(index)) = index {
-                        if let Ok(index) = index.to_usize() {
-                            return Ok(source.get_index(index).cloned());
-                        }
-                    }
-                    return Ok(None);
-                }
+                None => return Ok(None),
                 Some(c) => c.clone(),
             },
             (

@@ -121,6 +121,7 @@ derive_module! {
         fn Set.empty = !self.to_b
         fn Set.first -> Any?
         fn Set.last -> Any?
+        fn Set.nth(number: Number) -> Any?!
         fn mut Set.insert(var value)
         fn Set.concat(value: Set) -> Set
         fn Set.with(var value) -> Set
@@ -131,7 +132,7 @@ derive_module! {
         fn Map.empty = !self.to_b
         fn Map.first -> Any?
         fn Map.last -> Any?
-        fn Map.get_index(number: Number) -> (Any, Any)?!
+        fn Map.nth(number: Number) -> (Any, Any)?!
         fn mut Map.insert(key, value)
         fn Map.with(var key, value) -> Map
         fn Map.concat(value: Map) -> Map
@@ -316,6 +317,11 @@ impl RigzCollections for CollectionsModule {
         this.last().cloned()
     }
 
+    fn set_nth(&self, this: IndexSet<ObjectValue>, number: Number) -> Result<Option<ObjectValue>, VMError> {
+        let index = number.to_usize()?;
+        Ok(this.get_index(index).cloned())
+    }
+
     fn mut_set_insert(&self, this: &mut IndexSet<ObjectValue>, value: Vec<ObjectValue>) {
         this.extend(value)
     }
@@ -356,7 +362,7 @@ impl RigzCollections for CollectionsModule {
         this.last().map(|(_, v)| v.clone())
     }
 
-    fn map_get_index(
+    fn map_nth(
         &self,
         this: IndexMap<ObjectValue, ObjectValue>,
         number: Number,
@@ -408,7 +414,7 @@ impl RigzCollections for CollectionsModule {
     fn map_has(&self, this: IndexMap<ObjectValue, ObjectValue>, value: ObjectValue) -> bool {
         this.contains_key(&value)
     }
-    
+
     fn map_has_value(&self, this: IndexMap<ObjectValue, ObjectValue>, value: ObjectValue) -> bool {
         this.values().contains(&value)
     }
