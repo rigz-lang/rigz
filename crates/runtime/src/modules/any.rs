@@ -13,7 +13,8 @@ derive_module! {
         fn Any.is_err -> Bool
         fn Any.is_none -> Bool
         fn Any.is_some -> Bool
-        fn Any.is(type: Type) -> Bool
+        fn Any.is(value) -> Bool
+        fn Any.is_not(value) -> Bool
         fn Any.is_int -> Bool
         fn Any.is_float -> Bool
         fn Any.is_num -> Bool
@@ -88,8 +89,18 @@ impl RigzAny for AnyModule {
         !matches!(this, ObjectValue::Primitive(PrimitiveValue::None))
     }
 
-    fn any_is(&self, this: ObjectValue, rigz_type: RigzType) -> bool {
-        this.rigz_type() == rigz_type
+    #[inline]
+    fn any_is(&self, this: ObjectValue, any: ObjectValue) -> bool {
+        let rt = this.rigz_type();
+        if let ObjectValue::Primitive(PrimitiveValue::Type(rigz_type)) = any {
+            rt == rigz_type
+        } else {
+            rt == any.rigz_type() && this == any
+        }
+    }
+
+    fn any_is_not(&self, this: ObjectValue, any: ObjectValue) -> bool {
+        !self.any_is(this, any)
     }
 
     fn any_is_int(&self, this: ObjectValue) -> bool {
@@ -152,12 +163,12 @@ impl RigzAny for AnyModule {
         this.to_list()
     }
 
-    fn any_to_set(&self, this: ObjectValue) -> Result<IndexSet<ObjectValue>, VMError> {
-        this.to_set()
-    }
-
     fn any_to_map(&self, this: ObjectValue) -> Result<IndexMap<ObjectValue, ObjectValue>, VMError> {
         this.to_map()
+    }
+
+    fn any_to_set(&self, this: ObjectValue) -> Result<IndexSet<ObjectValue>, VMError> {
+        this.to_set()
     }
 
     fn any_type(&self, this: ObjectValue) -> String {

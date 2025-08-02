@@ -242,6 +242,10 @@ pub mod runtime {
             a.foo.foo.foo
             a == "hhh"
             "# = true)
+            is_value("a = 0; a.is 0" = true)
+            is_type("''.is String" = true)
+            is_not_value("a = 0; a.is_not 1" = true)
+            is_not_type("''.is_not Int" = true)
             call_module_extension_function_in_extension_scope(r#"
             fn String.foo -> Self
                 "h" + self.to_s
