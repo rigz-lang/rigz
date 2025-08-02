@@ -7,6 +7,19 @@ use std::rc::Rc;
 
 derive_module! {
     r#"import trait Collections
+        fn Set.each(func: |Any| -> Any)
+            for v in self = func v
+            none
+        end
+
+        fn Set.filter(func: |Any| -> Bool) -> Set
+            Set.new [for v in self: v if func v]
+        end
+
+        fn Set.map(func: |Any| -> Any) -> Set
+            Set.new [for v in self: func v]
+        end
+
         fn List.each(func: |Any| -> Any)
             for v in self = func v
             none
@@ -33,18 +46,39 @@ derive_module! {
             {for k, v in self: func k, v}
         end
 
+        fn mut Set.extend(value: Set)
+        fn mut Set.clear -> None
         fn mut List.extend(value: List)
         fn mut List.clear -> None
 
+        fn mut Set.sort
         fn mut List.sort
         fn mut Map.sort
 
+        fn Set.split_first -> (Any?, Set)
+        fn Set.split_last -> (Any?, Set)
+        fn Set.zip(other: Set) -> Map
         fn List.split_first -> (Any?, List)
         fn List.split_last -> (Any?, List)
         fn List.zip(other: List) -> Map
 
         fn Map.split_first -> ((Any, Any)?, Map)
         fn Map.split_last -> ((Any, Any)?, Map)
+
+        fn Set.to_tuple -> Any
+        fn Set.reduce(init: Any, func: |Any, Any| -> Any) -> Any
+            if !self
+                init
+            else
+                (first, rest) = self.split_first
+                res = func init, first
+                rest.reduce res, func
+            end
+        end
+
+        fn Set.sum -> Number
+            self.reduce(0, |prev, res| prev + res)
+        end
 
         fn List.to_tuple -> Any
         fn List.reduce(init: Any, func: |Any, Any| -> Any) -> Any
@@ -83,6 +117,13 @@ derive_module! {
         fn List.concat(value: List) -> List
         fn List.with(var value) -> List
 
+        fn Set.empty = self.to_bool
+        fn Set.first -> Any?
+        fn Set.last -> Any?
+        fn mut Set.insert(var value)
+        fn Set.concat(value: Set) -> Set
+        fn Set.with(var value) -> Set
+
         fn mut Map.extend(value: Map)
         fn mut Map.clear -> None
         fn Map.empty = self.to_bool
@@ -99,12 +140,24 @@ derive_module! {
 }
 
 impl RigzCollections for CollectionsModule {
+    fn mut_set_extend(&self, this: &mut IndexSet<ObjectValue>, value: IndexSet<ObjectValue>) {
+        this.extend(value)
+    }
+
+    fn mut_set_clear(&self, this: &mut IndexSet<ObjectValue>) {
+        this.clear()
+    }
+
     fn mut_list_extend(&self, this: &mut Vec<ObjectValue>, value: Vec<ObjectValue>) {
         this.extend(value)
     }
 
     fn mut_list_clear(&self, this: &mut Vec<ObjectValue>) {
         this.clear()
+    }
+
+    fn mut_set_sort(&self, this: &mut IndexSet<ObjectValue>) {
+        this.sort()
     }
 
     fn mut_list_sort(&self, this: &mut Vec<ObjectValue>) {
@@ -117,6 +170,36 @@ impl RigzCollections for CollectionsModule {
             .sorted()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
+    }
+
+    fn set_split_first(&self, this: IndexSet<ObjectValue>) -> (Option<ObjectValue>, IndexSet<ObjectValue>) {
+        if this.is_empty() {
+            (None, IndexSet::new())
+        } else {
+            let first = this.first().unwrap();
+            (Some(first.clone()), this.iter()
+                .skip(1)
+                .cloned()
+                .collect())
+        }
+    }
+
+    fn set_split_last(&self, this: IndexSet<ObjectValue>) -> (Option<ObjectValue>, IndexSet<ObjectValue>) {
+        if this.is_empty() {
+            (None, IndexSet::new())
+        } else {
+            let last = this.last().unwrap();
+            (Some(last.clone()), this.iter()
+                .rev()
+                .skip(1)
+                .cloned()
+                .rev()
+                .collect())
+        }
+    }
+
+    fn set_zip(&self, this: IndexSet<ObjectValue>, other: IndexSet<ObjectValue>) -> IndexMap<ObjectValue, ObjectValue> {
+        this.into_iter().zip(other).collect()
     }
 
     fn list_split_first(&self, this: Vec<ObjectValue>) -> (Option<ObjectValue>, Vec<ObjectValue>) {
@@ -185,6 +268,10 @@ impl RigzCollections for CollectionsModule {
         }
     }
 
+    fn set_to_tuple(&self, this: IndexSet<ObjectValue>) -> ObjectValue {
+        ObjectValue::Tuple(this.into_iter().collect())
+    }
+
     fn list_to_tuple(&self, this: Vec<ObjectValue>) -> ObjectValue {
         ObjectValue::Tuple(this)
     }
@@ -208,6 +295,30 @@ impl RigzCollections for CollectionsModule {
     }
 
     fn list_with(&self, this: Vec<ObjectValue>, value: Vec<ObjectValue>) -> Vec<ObjectValue> {
+        let mut this = this;
+        this.extend(value);
+        this
+    }
+
+    fn set_first(&self, this: IndexSet<ObjectValue>) -> Option<ObjectValue> {
+        this.first().cloned()
+    }
+
+    fn set_last(&self, this: IndexSet<ObjectValue>) -> Option<ObjectValue> {
+        this.last().cloned()
+    }
+
+    fn mut_set_insert(&self, this: &mut IndexSet<ObjectValue>, value: Vec<ObjectValue>) {
+        this.extend(value)
+    }
+
+    fn set_concat(&self, this: IndexSet<ObjectValue>, value: IndexSet<ObjectValue>) -> IndexSet<ObjectValue> {
+        let mut this = this;
+        this.extend(value);
+        this
+    }
+
+    fn set_with(&self, this: IndexSet<ObjectValue>, value: Vec<ObjectValue>) -> IndexSet<ObjectValue> {
         let mut this = this;
         this.extend(value);
         this

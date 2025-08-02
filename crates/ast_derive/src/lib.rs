@@ -184,6 +184,21 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
                             }
                         }
                     }
+                    RigzType::Set(_) => {
+                        if is_mut {
+                            quote! {
+                                RigzType::Set(_) => {
+                                    #base_call
+                                }
+                            }
+                        } else {
+                            quote! {
+                                ObjectValue::Set(v) => {
+                                    #base_call
+                                }
+                            }
+                        }
+                    }
                     RigzType::Map(_, _) => {
                         if is_mut {
                             quote! {
@@ -838,6 +853,7 @@ fn method_name(name: &str, fs: &FunctionSignature) -> Ident {
         Some(s) => {
             let type_name = match &s.rigz_type {
                 RigzType::List(_) => "list".to_string(),
+                RigzType::Set(_) => "set".to_string(),
                 RigzType::Map(_, _) => "map".to_string(),
                 t => t.to_string().to_lowercase(),
             };
