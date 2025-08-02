@@ -152,6 +152,7 @@ pub mod runtime {
             list_index("[1, 2, 3][2]" = 3)
             list_multi_index("[[], [1, 2, 3]][1][2]" = 3)
             list_index_getter("[1, 2, 3].2" = 3)
+            list_empty("[].empty" = true)
             set("Set[1, 2, 3]" = IndexSet::from([1, 2, 3]))
             set_new("a = [3, 2, 1]; Set.new a" = IndexSet::from([3, 2, 1]))
             split_first("[1, 2, 3].split_first" = ObjectValue::Tuple(vec![1.into(), vec![2, 3].into()]))

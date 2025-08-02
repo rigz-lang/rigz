@@ -110,14 +110,14 @@ derive_module! {
             self.reduce(0, |res, _, nxt| res + nxt)
         end
 
-        fn List.empty = self.to_bool
+        fn List.empty = !self.to_b
         fn List.first -> Any?
         fn List.last -> Any?
         fn mut List.push(var value)
         fn List.concat(value: List) -> List
         fn List.with(var value) -> List
 
-        fn Set.empty = self.to_bool
+        fn Set.empty = !self.to_b
         fn Set.first -> Any?
         fn Set.last -> Any?
         fn mut Set.insert(var value)
@@ -126,7 +126,7 @@ derive_module! {
 
         fn mut Map.extend(value: Map)
         fn mut Map.clear -> None
-        fn Map.empty = self.to_bool
+        fn Map.empty = !self.to_b
         fn Map.first -> Any?
         fn Map.last -> Any?
         fn Map.get_index(number: Number) -> (Any, Any)?!
