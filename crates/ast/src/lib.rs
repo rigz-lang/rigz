@@ -339,7 +339,8 @@ impl<'t> Parser<'t> {
         let next = self.peek_required_token_eat_newlines("parse_function_arguments")?;
         if !(next.kind == TokenKind::Lparen
             || next.kind == TokenKind::Lcurly
-            || next.kind == TokenKind::Lbracket)
+            || next.kind == TokenKind::Lbracket
+            || next.kind == TokenKind::LbracketSpace)
         {
             return Ok((args, None, ArgType::Positional));
         }
@@ -348,6 +349,7 @@ impl<'t> Parser<'t> {
             TokenKind::Lparen => (TokenKind::Rparen, ArgType::Positional),
             TokenKind::Lcurly => (TokenKind::Rcurly, ArgType::Map),
             TokenKind::Lbracket => (TokenKind::Rbracket, ArgType::List),
+            TokenKind::LbracketSpace => (TokenKind::Rbracket, ArgType::List),
             _ => unreachable!(),
         };
         self.consume_token(next.kind)?;
