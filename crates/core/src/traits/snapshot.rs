@@ -1,4 +1,4 @@
-use crate::{VMError, ValueRange};
+use crate::{IndexSet, VMError, ValueRange};
 use indexmap::IndexMap;
 use itertools::Itertools;
 use log::Level;
@@ -78,6 +78,26 @@ impl<T: Snapshot> Snapshot for Vec<T> {
         let mut results = Vec::with_capacity(len);
         for _ in 0..len {
             results.push(T::from_bytes(bytes, location)?);
+        }
+        Ok(results)
+    }
+}
+
+impl<V: Snapshot + Hash + Eq> Snapshot for IndexSet<V> {
+    fn as_bytes(&self) -> Vec<u8> {
+        let mut res = Snapshot::as_bytes(&self.len());
+        for v in self {
+            res.extend(v.as_bytes());
+        }
+        res
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        let len = Snapshot::from_bytes(bytes, &format!("{location} len"))?;
+        let mut results = IndexSet::with_capacity(len);
+        for _ in 0..len {
+            let v = V::from_bytes(bytes, location)?;
+            results.insert(v);
         }
         Ok(results)
     }

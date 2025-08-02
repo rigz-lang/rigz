@@ -1829,6 +1829,26 @@ impl<'t> Parser<'t> {
                     variants,
                 })
             }
+            TokenKind::TypeValue("Set") => {
+                let next = self.next_required_token("expression_start - Set")?;
+                match next.kind {
+                    TokenKind::Period => {
+                        self.consume_token(TokenKind::New)?;
+                        Ok(Expression::Cast(self.parse_expression(0)?.into(), RigzType::Set(RigzType::Any.into())))
+                    }
+                    TokenKind::Lbracket => {
+                        match self.parse_list()? {
+                            Expression::List(v) => {
+                                Ok(Expression::Set(v))
+                            }
+                            e => {
+                                Ok(Expression::Cast(e.into(), RigzType::Set(RigzType::Any.into())))
+                            }
+                        }
+                    }
+                    _ => Err(ParsingError::ParseError(format!("Invalid Token for Set - {next:?}")))
+                }
+            }
             TokenKind::TypeValue(type_value) => {
                 let type_value = match type_value.parse() {
                     Ok(tv) => tv,

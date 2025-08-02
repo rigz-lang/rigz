@@ -85,6 +85,11 @@ impl Snapshot for RigzType {
                 res
             }
             RigzType::Never => vec![20],
+            RigzType::Set(v) => {
+                let mut res = vec![21];
+                res.extend(v.as_bytes());
+                res
+            }
         }
     }
 
@@ -130,6 +135,7 @@ impl Snapshot for RigzType {
             18 => RigzType::Custom(Snapshot::from_bytes(bytes, location)?),
             19 => RigzType::Enum(Snapshot::from_bytes(bytes, location)?),
             20 => RigzType::Never,
+            21 => RigzType::Set(Snapshot::from_bytes(bytes, location)?),
             b => {
                 return Err(VMError::runtime(format!(
                     "Illegal RigzType byte {b} - {location}"

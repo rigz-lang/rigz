@@ -24,6 +24,7 @@ derive_module! {
         fn Any.to_s -> String
         fn Any.to_list -> List!
         fn Any.to_map -> Map!
+        fn Any.to_set -> Set!
         fn Any.type -> String
         fn Any.get(index) -> Any!?
 
@@ -149,6 +150,10 @@ impl RigzAny for AnyModule {
 
     fn any_to_list(&self, this: ObjectValue) -> Result<Vec<ObjectValue>, VMError> {
         this.to_list()
+    }
+    
+    fn any_to_set(&self, this: ObjectValue) -> Result<IndexSet<ObjectValue>, VMError> {
+        this.to_set()
     }
 
     fn any_to_map(&self, this: ObjectValue) -> Result<IndexMap<ObjectValue, ObjectValue>, VMError> {

@@ -1,5 +1,5 @@
 use crate::derive::{boxed, csv_vec};
-use crate::{Number, ObjectValue, PrimitiveValue, VMError, ValueRange};
+use crate::{IndexSet, Number, ObjectValue, PrimitiveValue, VMError, ValueRange};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
@@ -11,6 +11,17 @@ impl ToTokens for ObjectValue {
                 let values = csv_vec(v);
                 quote! {
                     ObjectValue::List(#values)
+                }
+            }
+            ObjectValue::Set(set) => {
+                let values: Vec<_> = set
+                    .into_iter()
+                    .map(|v| {
+                        quote! { #v, }
+                    })
+                    .collect();
+                quote! {
+                    ObjectValue::Set(IndexSet::from([#(#values)*]))
                 }
             }
             ObjectValue::Tuple(v) => {

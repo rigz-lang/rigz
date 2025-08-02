@@ -5,10 +5,7 @@ use itertools::Itertools;
 use log::{error, warn, Level};
 pub use program::Program;
 use rigz_ast::*;
-use rigz_core::{
-    EnumDeclaration, IndexMap, IndexMapEntry, Lifecycle, Number, ObjectValue, PrimitiveValue,
-    RigzType,
-};
+use rigz_core::{EnumDeclaration, IndexMap, IndexMapEntry, IndexSet, Lifecycle, Number, ObjectValue, PrimitiveValue, RigzType};
 use rigz_vm::{Instruction, LoadValue, MatchArm, RigzBuilder, VMBuilder, VM};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -1293,6 +1290,9 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             Expression::List(list) => {
                 self.parse_list(list)?;
             }
+            Expression::Set(list) => {
+                self.parse_set(list)?;
+            }
             Expression::Map(map) => {
                 self.parse_map(map)?;
             }
@@ -1766,6 +1766,40 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         if values_only {
             self.builder
                 .add_load_instruction(ObjectValue::List(base).into());
+        }
+        Ok(())
+    }
+    
+    fn parse_set(&mut self, list: Vec<Expression>) -> Result<(), ValidationError> {
+        let mut base = IndexSet::new();
+        let mut values_only = true;
+        for (index, v) in list.into_iter().enumerate() {
+            if values_only {
+                match v {
+                    Expression::Value(v) => {
+                        base.insert(v.into());
+                    }
+                    e => {
+                        values_only = false;
+                        let index = Number::Int(index as i64);
+                        self.builder
+                            .add_load_instruction(ObjectValue::Set(base.into()).into());
+                        base = IndexSet::new();
+                        self.builder.add_load_instruction(index.into());
+                        self.parse_expression(e)?;
+                        self.builder.add_instance_set_instruction();
+                    }
+                }
+            } else {
+                let index = Number::Int(index as i64);
+                self.builder.add_load_instruction(index.into());
+                self.parse_expression(v)?;
+                self.builder.add_instance_set_instruction();
+            }
+        }
+        if values_only {
+            self.builder
+                .add_load_instruction(ObjectValue::Set(base).into());
         }
         Ok(())
     }

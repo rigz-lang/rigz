@@ -1,4 +1,4 @@
-use crate::{Number, RigzType, VMError};
+use crate::{IndexSet, Number, RigzType, VMError};
 use indexmap::IndexMap;
 use std::fmt::{Debug, Display};
 
@@ -21,9 +21,21 @@ pub trait AsPrimitive<T: Clone + AsPrimitive<T> + Default + Sized>:
         )))
     }
 
+    fn as_set(&mut self) -> Result<&mut IndexSet<T>, VMError> {
+        Err(VMError::UnsupportedOperation(format!(
+            "Cannot convert {self:?} to mut Set"
+        )))
+    }
+
     fn to_list(&self) -> Result<Vec<T>, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "Cannot convert {self:?} to List"
+        )))
+    }
+
+    fn to_set(&self) -> Result<IndexSet<T>, VMError> {
+        Err(VMError::UnsupportedOperation(format!(
+            "Cannot convert {self:?} to Set"
         )))
     }
 

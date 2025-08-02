@@ -16,6 +16,7 @@ mod types;
 mod vm_values;
 
 pub type IndexMap<K, V> = indexmap::map::IndexMap<K, V>;
+pub type IndexSet<V> = indexmap::set::IndexSet<V>;
 pub type IndexMapEntry<'a, K, V> = indexmap::map::Entry<'a, K, V>;
 
 pub use args::RigzArgs;

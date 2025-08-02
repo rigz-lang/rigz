@@ -106,6 +106,12 @@ impl ToTokens for Expression {
                     Expression::List(#values)
                 }
             }
+            Expression::Set(e) => {
+                let values = csv_vec(e);
+                quote! {
+                    Expression::Set(#values)
+                }
+            }
             Expression::Tuple(e) => {
                 let values = csv_vec(e);
                 quote! {

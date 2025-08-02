@@ -142,7 +142,7 @@ pub mod runtime {
 
     pub mod valid {
         use super::*;
-        use rigz_core::{IndexMap, ObjectValue};
+        use rigz_core::{IndexMap, IndexSet, ObjectValue};
 
         run_expected! {
             statement_only("a = 3 * 2" = PrimitiveValue::None)
@@ -152,6 +152,8 @@ pub mod runtime {
             list_index("[1, 2, 3][2]" = 3)
             list_multi_index("[[], [1, 2, 3]][1][2]" = 3)
             list_index_getter("[1, 2, 3].2" = 3)
+            set("Set[1, 2, 3]" = IndexSet::from([1, 2, 3]))
+            set_new("a = [3, 2, 1]; Set.new a" = IndexSet::from([3, 2, 1]))
             split_first("[1, 2, 3].split_first" = ObjectValue::Tuple(vec![1.into(), vec![2, 3].into()]))
             split_first_map("{1, 2, 3}.split_first" = ObjectValue::Tuple(vec![ObjectValue::Tuple(vec![1.into(), 1.into()].into()), ObjectValue::Map(IndexMap::from([(2.into(), 2.into()), (3.into(), 3.into())]))]))
             split_first_assign("(first, rest) = [1, 2, 3].split_first; first + rest" = vec![1, 2, 3])

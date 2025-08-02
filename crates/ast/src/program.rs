@@ -474,6 +474,7 @@ pub enum Expression {
     This,
     Value(PrimitiveValue),
     List(Vec<Expression>),
+    Set(Vec<Expression>),
     Map(Vec<(Expression, Expression)>),
     Identifier(String),
     BinExp(Box<Expression>, BinaryOperation, Box<Expression>),
@@ -553,6 +554,7 @@ impl Display for Expression {
             Expression::Value(PrimitiveValue::String(s)) => write!(f, "'{s}'"),
             Expression::Value(v) => write!(f, "{v}"),
             Expression::List(v) => write!(f, "[{}]", v.iter().map(|v| v.to_string()).join(", ")),
+            Expression::Set(v) => write!(f, "Set[{}]", v.iter().map(|v| v.to_string()).join(", ")),
             Expression::Map(m) => write!(
                 f,
                 "{{{}}}",

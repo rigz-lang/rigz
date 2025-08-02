@@ -37,6 +37,11 @@ impl Snapshot for ObjectValue {
                 res.extend(value.as_bytes());
                 res
             }
+            ObjectValue::Set(v) => {
+                let mut res = vec![7];
+                res.extend(v.as_bytes());
+                res
+            }
         }
     }
 
@@ -61,6 +66,7 @@ impl Snapshot for ObjectValue {
                 Snapshot::from_bytes(bytes, location)?,
                 Snapshot::from_bytes(bytes, location)?,
             ),
+            7 => ObjectValue::Set(Snapshot::from_bytes(bytes, location)?),
             b => {
                 return Err(VMError::runtime(format!(
                     "Illegal byte {b} for ObjectValue {location}"

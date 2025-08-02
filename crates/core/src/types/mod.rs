@@ -18,6 +18,7 @@ pub enum RigzType {
     Number,
     String,
     List(Box<RigzType>),
+    Set(Box<RigzType>),
     Map(Box<RigzType>, Box<RigzType>),
     Error,
     This,
@@ -82,6 +83,7 @@ impl FromStr for RigzType {
             "Error" => RigzType::Error,
             // lists & maps can be [<Type>], {<Type>, <Type>}, or {<Type>}. This is handled within AST
             "List" => RigzType::List(Box::new(RigzType::Any)),
+            "Set" => RigzType::Set(Box::new(RigzType::Any)),
             "Map" => RigzType::Map(Box::new(RigzType::Any), Box::new(RigzType::Any)),
             "Range" => RigzType::Range,
             "String" => RigzType::String,
@@ -128,6 +130,7 @@ impl Display for RigzType {
             RigzType::Float => write!(f, "Float"),
             RigzType::Number => write!(f, "Number"),
             RigzType::String => write!(f, "String"),
+            RigzType::Set(t) => write!(f, "Set[{t}]"),
             RigzType::List(t) => write!(f, "[{t}]"),
             RigzType::Map(k, v) => write!(f, "{{{k},{v}}}"),
             RigzType::Error => write!(f, "Error"),

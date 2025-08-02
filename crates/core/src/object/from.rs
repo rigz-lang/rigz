@@ -1,4 +1,4 @@
-use crate::{IndexMap, Object, ObjectValue, PrimitiveValue, VMError};
+use crate::{IndexMap, IndexSet, Object, ObjectValue, PrimitiveValue, VMError};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -25,6 +25,18 @@ impl<T: Into<ObjectValue>> From<Vec<T>> for ObjectValue {
     #[inline]
     fn from(value: Vec<T>) -> Self {
         ObjectValue::List(value.into_iter().map(|v| v.into()).collect())
+    }
+}
+
+impl<V: Into<ObjectValue>> From<IndexSet<V>> for ObjectValue {
+    #[inline]
+    fn from(value: IndexSet<V>) -> Self {
+        ObjectValue::Set(
+            value
+                .into_iter()
+                .map(|v| v.into())
+                .collect(),
+        )
     }
 }
 

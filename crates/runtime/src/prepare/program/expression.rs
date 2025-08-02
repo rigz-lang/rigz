@@ -169,6 +169,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             }
             // todo more accurate typing
             Expression::List(_) => RigzType::List(Box::new(RigzType::Any)),
+            Expression::Set(_) => RigzType::Set(Box::new(RigzType::Any)),
             Expression::Map(_) => RigzType::Map(Box::new(RigzType::Any), Box::new(RigzType::Any)),
             Expression::Index(base, _index) => {
                 if let Expression::Value(PrimitiveValue::Range(v)) = base.as_ref() {
@@ -229,7 +230,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             RigzType::Any => RigzType::Any,
             RigzType::Int | RigzType::Float | RigzType::Number => RigzType::Bool,
             RigzType::String => RigzType::String,
-            RigzType::List(l) | RigzType::Map(_, l) => *l,
+            RigzType::List(l) | RigzType::Set(l) | RigzType::Map(_, l) => *l,
             RigzType::Type => RigzType::Error,
             RigzType::Range => unreachable!(),
             RigzType::This => {

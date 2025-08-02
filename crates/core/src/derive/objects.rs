@@ -24,6 +24,10 @@ impl ToTokens for RigzType {
                 let t = boxed(t);
                 quote! { RigzType::List(#t) }
             }
+            RigzType::Set(t) => {
+                let t = boxed(t);
+                quote! { RigzType::Set(#t) }
+            }
             RigzType::Tuple(t) => {
                 let t = csv_vec(t);
                 quote! { RigzType::Tuple(#t) }
@@ -128,6 +132,10 @@ pub fn rigz_type_to_rust_str(rigz_type: &RigzType) -> Option<String> {
         RigzType::List(v) => {
             let v = rigz_type_to_rust_str(v.as_ref()).expect("None is not valid for list types");
             format!("Vec<{v}>")
+        }
+        RigzType::Set(v) => {
+            let v = rigz_type_to_rust_str(v.as_ref()).expect("None is not valid for list types");
+            format!("IndexSet<{v}>")
         }
         RigzType::Map(k, v) => {
             let k = rigz_type_to_rust_str(k.as_ref()).expect("None is not valid for map key types");

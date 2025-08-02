@@ -4,9 +4,7 @@ mod ops;
 #[cfg(feature = "snapshot")]
 mod snapshot;
 
-use crate::{
-    AsPrimitive, IndexMap, Number, Object, PrimitiveValue, RigzType, VMError, WithTypeInfo,
-};
+use crate::{AsPrimitive, IndexMap, IndexSet, Number, Object, PrimitiveValue, RigzType, VMError, WithTypeInfo};
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
@@ -20,6 +18,7 @@ pub enum ObjectValue {
     Primitive(PrimitiveValue),
     // todo Enum, Lists, Maps, & Tuples should use Rc<RefCell<ObjectValue>> to make this language fully pass by reference
     List(Vec<ObjectValue>),
+    Set(IndexSet<ObjectValue>),
     Map(IndexMap<ObjectValue, ObjectValue>),
     Tuple(Vec<ObjectValue>),
     Object(Box<dyn Object>),
@@ -43,6 +42,11 @@ impl Hash for ObjectValue {
         match self {
             ObjectValue::Primitive(p) => p.hash(state),
             ObjectValue::List(l) => l.hash(state),
+            ObjectValue::Set(l) => { 
+                for v in l {
+                    v.hash(state)
+                }
+            },
             ObjectValue::Map(m) => {
                 for (k, v) in m {
                     k.hash(state);
@@ -74,6 +78,11 @@ impl PartialEq for ObjectValue {
                 | ObjectValue::Primitive(PrimitiveValue::Bool(false)),
                 ObjectValue::Map(l),
             ) => l.is_empty(),
+            (
+                ObjectValue::Primitive(PrimitiveValue::None)
+                | ObjectValue::Primitive(PrimitiveValue::Bool(false)),
+                ObjectValue::Set(l),
+            ) => l.is_empty(),
             (ObjectValue::List(l) | ObjectValue::Tuple(l), ObjectValue::Map(m)) => {
                 l.is_empty() && m.is_empty()
             }
@@ -82,6 +91,7 @@ impl PartialEq for ObjectValue {
                 ObjectValue::List(right) | ObjectValue::Tuple(right),
             ) => left == right,
             (ObjectValue::Map(left), ObjectValue::Map(right)) => left == right,
+            (ObjectValue::Set(left), ObjectValue::Set(right)) => left == right,
             (ObjectValue::Object(left), ObjectValue::Object(right)) => left == right,
             (ObjectValue::Enum(l_e, l_i, l_v), ObjectValue::Enum(r_e, r_i, r_v)) => {
                 l_e == r_e && l_i == r_i && l_v == r_v
@@ -96,6 +106,7 @@ impl PartialOrd for ObjectValue {
         match (self, other) {
             (ObjectValue::Primitive(left), ObjectValue::Primitive(right)) => Some(left.cmp(right)),
             (ObjectValue::List(lhs), ObjectValue::List(rhs)) => lhs.partial_cmp(rhs),
+            (ObjectValue::Set(lhs), ObjectValue::Set(rhs)) => lhs.into_iter().partial_cmp(rhs),
             (ObjectValue::Map(lhs), ObjectValue::Map(rhs)) => lhs.into_iter().partial_cmp(rhs),
             (ObjectValue::Tuple(lhs), ObjectValue::Tuple(rhs)) => lhs.partial_cmp(rhs),
             (ObjectValue::Object(lhs), ObjectValue::Object(rhs)) => lhs.dyn_partial_cmp(rhs),
@@ -118,6 +129,17 @@ impl Display for ObjectValue {
             ObjectValue::Primitive(p) => write!(f, "{}", p),
             ObjectValue::Object(o) => write!(f, "{}", o),
             ObjectValue::List(l) => {
+                let mut values = String::new();
+                let len = l.len();
+                for (index, v) in l.iter().enumerate() {
+                    values.push_str(v.to_string().as_str());
+                    if index != len - 1 {
+                        values.push(',')
+                    }
+                }
+                write!(f, "[{}]", values)
+            }
+            ObjectValue::Set(l) => {
                 let mut values = String::new();
                 let len = l.len();
                 for (index, v) in l.iter().enumerate() {
@@ -366,6 +388,13 @@ impl ObjectValue {
                 };
                 ObjectValue::List(v)
             }
+            (v, RigzType::Set(_)) => {
+                let v = match v.to_set() {
+                    Ok(v) => v,
+                    Err(e) => return e.into(),
+                };
+                ObjectValue::Set(v)
+            }
             // todo check each type of tuple, probably with a to_tuple method
             (v, RigzType::Tuple(_)) => {
                 let v = match v.to_list() {
@@ -413,6 +442,7 @@ impl WithTypeInfo for ObjectValue {
         match self {
             ObjectValue::Primitive(p) => p.rigz_type(),
             // todo figure out concrete types
+            ObjectValue::Set(_) => RigzType::Set(Box::default()),
             ObjectValue::List(_) => RigzType::List(Box::default()),
             ObjectValue::Map(_) => RigzType::Map(Box::default(), Box::default()),
             ObjectValue::Tuple(t) => RigzType::Tuple(t.iter().map(|i| i.rigz_type()).collect()),
@@ -434,10 +464,33 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
         };
         Ok(m)
     }
+    
+    fn as_set(&mut self) -> Result<&mut IndexSet<ObjectValue>, VMError> {
+        *self = ObjectValue::Set(AsPrimitive::to_set(self)?);
+        let ObjectValue::Set(m) = self else {
+            unreachable!()
+        };
+        Ok(m)
+    }
 
     fn to_list(&self) -> Result<Vec<ObjectValue>, VMError> {
         match self {
             ObjectValue::Tuple(v) | ObjectValue::List(v) => Ok(v.clone()),
+            ObjectValue::Set(s) => Ok(s.iter().cloned().collect()),
+            ObjectValue::Map(m) => Ok(m
+                .iter()
+                .map(|(k, v)| ObjectValue::Tuple(vec![k.clone(), v.clone()]))
+                .collect()),
+            _ => Err(VMError::UnsupportedOperation(format!(
+                "Cannot convert {self} to List"
+            ))),
+        }
+    }
+    
+    fn to_set(&self) -> Result<IndexSet<ObjectValue>, VMError> {
+        match self {
+            ObjectValue::Tuple(v) | ObjectValue::List(v) => Ok(v.iter().cloned().collect()),
+            ObjectValue::Set(s) => Ok(s.clone()),
             ObjectValue::Map(m) => Ok(m
                 .iter()
                 .map(|(k, v)| ObjectValue::Tuple(vec![k.clone(), v.clone()]))
@@ -457,6 +510,7 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
                 .collect()),
             ObjectValue::Map(m) => Ok(m.clone()),
             ObjectValue::List(l) => Ok(l.iter().map(|v| (v.clone(), v.clone())).collect()),
+            ObjectValue::Set(l) => Ok(l.iter().map(|v| (v.clone(), v.clone())).collect()),
             ObjectValue::Tuple(t) => Ok(t
                 .chunks(2)
                 .map(|c| match &c[..2] {
@@ -487,6 +541,7 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
         match self {
             ObjectValue::Tuple(l) => !l.is_empty(),
             ObjectValue::List(l) => !l.is_empty(),
+            ObjectValue::Set(l) => !l.is_empty(),
             ObjectValue::Map(m) => !m.is_empty(),
             ObjectValue::Primitive(p) => p.to_bool(),
             ObjectValue::Object(o) => o.to_bool(),

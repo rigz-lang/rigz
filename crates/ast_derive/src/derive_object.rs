@@ -13,7 +13,7 @@ enum ObjectArg {
 }
 
 pub(crate) struct DeriveObject {
-    parent: LitStr,
+    parent: Option<LitStr>,
     definition: ObjectArg,
     literal: LitStr,
     display: bool,
@@ -21,8 +21,13 @@ pub(crate) struct DeriveObject {
 
 impl Parse for DeriveObject {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let parent = input.parse()?;
-        input.parse::<Token![,]>()?;
+        let parent = if input.peek(LitStr) {
+            let parent = input.parse()?;
+            input.parse::<Token![,]>()?;
+            Some(parent)
+        } else {
+            None
+        };
         let definition = if input.peek(token::Struct) {
             ObjectArg::Struct(input.parse()?)
         } else {
@@ -113,10 +118,15 @@ impl DeriveObject {
                         res.push('\n');
                         res
                     });
-                lit = lit.replace(
-                    format!("object {}", &name).as_str(),
-                    format!("object {}::{}\n{}", parent.value(), &name, pub_fields).as_str(),
-                );
+                lit = match parent {
+                    None => lit,
+                    Some(parent) => {
+                        lit.replace(
+                            format!("object {}", &name).as_str(),
+                            format!("object {}::{}\n{}", parent.value(), &name, pub_fields).as_str(),
+                        )
+                    }
+                };
 
                 (
                     id,
