@@ -518,7 +518,7 @@ pub enum Expression {
     Lambda {
         arguments: Vec<FunctionArgument>,
         var_args_start: Option<usize>,
-        body: Box<Expression>,
+        body: Box<Element>,
     },
     ForList {
         var: String,

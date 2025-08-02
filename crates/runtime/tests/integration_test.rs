@@ -358,6 +358,7 @@ pub mod runtime {
             a = a + a
             a
             "# = vec![1, 2, 3, 1, 2, 3])
+            list_each(r#"mut a = 0; [1, 2, 3].each { |v| a += v }; a"# = 6)
             map_filter_reduce(r#"
                 [1, 37, '4', 'a'].filter { |v| v.is_num }.map { |v| v.to_i }.reduce(0, |prev, res| prev + res)
             "# = 42)
@@ -700,12 +701,6 @@ pub mod runtime {
             order_of_ops(r#"1 + 2 * 3"# = 9)
             order_of_ops_ids(r#"a = 3; b = 2; c = 1;b + c * a"# = 9)
             order_of_ops_self(r#"a = 3; b = 2; fn Number.foo = b + self * a; 1.foo"# = 9)
-        }
-    }
-
-    pub mod debug {
-        use super::*;
-        run_debug_vm! {
             func_early_return(r#"
             fn foo
                 if true
@@ -716,6 +711,12 @@ pub mod runtime {
 
             foo + 37
             "# = 79)
+        }
+    }
+
+    pub mod debug {
+        use super::*;
+        run_debug_vm! {
         }
     }
 

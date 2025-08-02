@@ -368,7 +368,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         name: &str,
         arguments: Vec<FunctionArgument>,
         var_args_start: Option<usize>,
-        body: Box<Expression>,
+        body: Box<Element>,
     ) -> Result<(), ValidationError> {
         let old: Vec<_> = arguments
             .iter()
@@ -380,12 +380,22 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 )
             })
             .collect();
-        let rigz_type = self.rigz_type(&body)?;
-        let body = match *body {
-            Expression::Scope(s) => s,
-            ex => Scope {
-                elements: vec![Element::Expression(ex)],
-            },
+        let (rigz_type, body) = match *body {
+            Element::Expression(ex) => {
+                let rt = self.rigz_type(&ex)?;
+                let s = match ex {
+                    Expression::Scope(s) => s,
+                    ex => Scope {
+                        elements: vec![Element::Expression(ex)],
+                    },
+                };
+                (rt, s)
+            }
+            e => {
+                (RigzType::None, Scope {
+                    elements: vec![e],
+                })
+            }
         };
         let fd = FunctionDefinition {
             name: name.to_string(),
@@ -2617,7 +2627,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         name: &str,
         fn_args: Vec<FunctionArgument>,
         var_args_start: Option<usize>,
-        exp: Expression,
+        exp: Element,
     ) -> Result<(), ValidationError> {
         if var_args_start.is_some() {
             return Err(ValidationError::NotImplemented(format!(
@@ -2626,10 +2636,15 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         }
 
         let s = match exp {
-            Expression::Scope(s) => s,
+            Element::Expression(ex) => match ex {
+                Expression::Scope(s) => s,
+                e => Scope {
+                    elements: vec![e.into()],
+                },
+            }
             e => Scope {
-                elements: vec![e.into()],
-            },
+                elements: vec![e],
+            }
         };
 
         let current = self.builder.current_scope();

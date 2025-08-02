@@ -9,20 +9,18 @@ derive_module! {
     r#"import trait Collections
         fn Set.each(func: |Any| -> Any)
             for v in self = func v
-            none
         end
 
         fn Set.filter(func: |Any| -> Bool) -> Set
-            Set.new [for v in self: v if func v]
+            Set[for v in self: v if func v]
         end
 
         fn Set.map(func: |Any| -> Any) -> Set
-            Set.new [for v in self: func v]
+            Set[for v in self: func v]
         end
 
         fn List.each(func: |Any| -> Any)
             for v in self = func v
-            none
         end
 
         fn List.filter(func: |Any| -> Bool) -> List
@@ -35,7 +33,6 @@ derive_module! {
 
         fn Map.each(func: |Any, Any| -> (Any, Any))
             for k, v in self = func k, v
-            none
         end
 
         fn Map.filter(func: |Any, Any| -> Bool) -> Map

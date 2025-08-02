@@ -642,11 +642,11 @@ test_parse! {
                                 }
                             ],
                             var_args_start: None,
-                            body: FunctionExpression::InstanceFunctionCall(
+                            body: Element::Expression(FunctionExpression::InstanceFunctionCall(
                                     Expression::Identifier("v".to_string()).into(),
                                     vec!["is_num".to_string()],
                                     RigzArguments::Positional(vec![])
-                                ).into()
+                                ).into()).into()
                             }])
                 ).into(),
                 vec!["map".to_string()],
@@ -662,7 +662,7 @@ test_parse! {
                         rest: false
                     }],
                     var_args_start: None,
-                    body: Expression::BinExp(Expression::Identifier("v".to_string()).into(), BinaryOperation::Mul, Expression::Identifier("v".to_string()).into()).into()
+                    body: Element::Expression(Expression::BinExp(Expression::Identifier("v".to_string()).into(), BinaryOperation::Mul, Expression::Identifier("v".to_string()).into())).into()
                 }]
                     )
                 ).into()

@@ -140,7 +140,12 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 None => RigzType::None,
                 Some(e) => self.rigz_type(e)?,
             },
-            Expression::Lambda { body, .. } => self.rigz_type(body)?,
+            Expression::Lambda { body, .. } => {
+                match body.as_ref() {
+                    Element::Statement(_) => RigzType::None,
+                    Element::Expression(e) => self.rigz_type(e)?,
+                }
+            },
             // todo parse_expression should return type instead of calling this function for assignments
             Expression::ForList { /* body */ .. } =>  RigzType::List(RigzType::Any.into()) /* RigzType::List(self.rigz_type(body)?.into()) */,
             Expression::ForMap { /* key, value, */ .. } => RigzType::Map(RigzType::Any.into(), RigzType::Any.into()) /* match value {

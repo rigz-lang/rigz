@@ -1714,7 +1714,7 @@ impl<'t> Parser<'t> {
                         Expression::Lambda {
                             arguments,
                             var_args_start,
-                            body: Box::new(Expression::Scope(self.parse_scope()?)),
+                            body: Box::new(Expression::Scope(self.parse_scope()?).into()),
                         }
                     }
                     TokenKind::BinOp(BinaryOperation::Or) => {
@@ -1722,7 +1722,7 @@ impl<'t> Parser<'t> {
                         Expression::Lambda {
                             arguments: vec![],
                             var_args_start: None,
-                            body: Box::new(Expression::Scope(self.parse_scope()?)),
+                            body: Box::new(Expression::Scope(self.parse_scope()?).into()),
                         }
                     }
                     _ => Expression::Scope(self.parse_scope()?),
@@ -2123,7 +2123,7 @@ impl<'t> Parser<'t> {
         } else {
             self.parse_lambda_arguments()?
         };
-        let body = self.parse_expression(0)?;
+        let body = self.parse_element()?;
         Ok(Expression::Lambda {
             arguments,
             var_args_start,
