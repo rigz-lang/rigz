@@ -150,6 +150,7 @@ pub mod runtime {
             raw_value("'Hello World'" = "Hello World")
             addition("2 + 2" = 4)
             list_index("[1, 2, 3][2]" = 3)
+            list_multi_index("[[], [1, 2, 3]][1][2]" = 3)
             list_index_getter("[1, 2, 3].2" = 3)
             split_first("[1, 2, 3].split_first" = ObjectValue::Tuple(vec![1.into(), vec![2, 3].into()]))
             split_first_map("{1, 2, 3}.split_first" = ObjectValue::Tuple(vec![ObjectValue::Tuple(vec![1.into(), 1.into()].into()), ObjectValue::Map(IndexMap::from([(2.into(), 2.into()), (3.into(), 3.into())]))]))
