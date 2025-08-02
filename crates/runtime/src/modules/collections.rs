@@ -116,6 +116,7 @@ derive_module! {
         fn mut List.push(var value)
         fn List.concat(value: List) -> List
         fn List.with(var value) -> List
+        fn List.has(value) -> Bool
 
         fn Set.empty = !self.to_b
         fn Set.first -> Any?
@@ -123,6 +124,7 @@ derive_module! {
         fn mut Set.insert(var value)
         fn Set.concat(value: Set) -> Set
         fn Set.with(var value) -> Set
+        fn Set.has(value) -> Bool
 
         fn mut Map.extend(value: Map)
         fn mut Map.clear -> None
@@ -136,6 +138,8 @@ derive_module! {
         fn Map.entries = self.to_list
         fn Map.keys -> List
         fn Map.values -> List
+        fn Map.has(key) -> Bool
+        fn Map.has_value(value) -> Bool
     end"#
 }
 
@@ -300,6 +304,10 @@ impl RigzCollections for CollectionsModule {
         this
     }
 
+    fn list_has(&self, this: Vec<ObjectValue>, value: ObjectValue) -> bool {
+        this.contains(&value)
+    }
+
     fn set_first(&self, this: IndexSet<ObjectValue>) -> Option<ObjectValue> {
         this.first().cloned()
     }
@@ -322,6 +330,10 @@ impl RigzCollections for CollectionsModule {
         let mut this = this;
         this.extend(value);
         this
+    }
+
+    fn set_has(&self, this: IndexSet<ObjectValue>, value: ObjectValue) -> bool {
+        this.contains(&value)
     }
 
     fn mut_map_extend(
@@ -391,5 +403,13 @@ impl RigzCollections for CollectionsModule {
 
     fn map_values(&self, this: IndexMap<ObjectValue, ObjectValue>) -> Vec<ObjectValue> {
         this.values().cloned().collect()
+    }
+
+    fn map_has(&self, this: IndexMap<ObjectValue, ObjectValue>, value: ObjectValue) -> bool {
+        this.contains_key(&value)
+    }
+    
+    fn map_has_value(&self, this: IndexMap<ObjectValue, ObjectValue>, value: ObjectValue) -> bool {
+        this.values().contains(&value)
     }
 }

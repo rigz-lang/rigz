@@ -276,6 +276,17 @@ impl ObjectValue {
                 }
                 Some(c) => c.clone(),
             },
+            (ObjectValue::Set(source), index) => match source.get(index) {
+                None => {
+                    if let ObjectValue::Primitive(PrimitiveValue::Number(index)) = index {
+                        if let Ok(index) = index.to_usize() {
+                            return Ok(source.get_index(index).cloned());
+                        }
+                    }
+                    return Ok(None);
+                }
+                Some(c) => c.clone(),
+            },
             (
                 ObjectValue::Primitive(PrimitiveValue::Number(source)),
                 ObjectValue::Primitive(PrimitiveValue::Number(n)),
@@ -314,6 +325,15 @@ impl ObjectValue {
                 match n.to_usize() {
                     Ok(index) => {
                         s.insert(index, value.clone());
+                        None
+                    }
+                    Err(e) => Some(e),
+                }
+            }
+            (ObjectValue::Set(s), ObjectValue::Primitive(PrimitiveValue::Number(n))) => {
+                match n.to_usize() {
+                    Ok(index) => {
+                        s.shift_insert(index, value.clone());
                         None
                     }
                     Err(e) => Some(e),
