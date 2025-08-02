@@ -151,7 +151,7 @@ impl RigzAny for AnyModule {
     fn any_to_list(&self, this: ObjectValue) -> Result<Vec<ObjectValue>, VMError> {
         this.to_list()
     }
-    
+
     fn any_to_set(&self, this: ObjectValue) -> Result<IndexSet<ObjectValue>, VMError> {
         this.to_set()
     }

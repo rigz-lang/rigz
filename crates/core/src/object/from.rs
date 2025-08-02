@@ -31,12 +31,7 @@ impl<T: Into<ObjectValue>> From<Vec<T>> for ObjectValue {
 impl<V: Into<ObjectValue>> From<IndexSet<V>> for ObjectValue {
     #[inline]
     fn from(value: IndexSet<V>) -> Self {
-        ObjectValue::Set(
-            value
-                .into_iter()
-                .map(|v| v.into())
-                .collect(),
-        )
+        ObjectValue::Set(value.into_iter().map(|v| v.into()).collect())
     }
 }
 

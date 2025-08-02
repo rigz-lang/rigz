@@ -120,12 +120,10 @@ impl DeriveObject {
                     });
                 lit = match parent {
                     None => lit,
-                    Some(parent) => {
-                        lit.replace(
-                            format!("object {}", &name).as_str(),
-                            format!("object {}::{}\n{}", parent.value(), &name, pub_fields).as_str(),
-                        )
-                    }
+                    Some(parent) => lit.replace(
+                        format!("object {}", &name).as_str(),
+                        format!("object {}::{}\n{}", parent.value(), &name, pub_fields).as_str(),
+                    ),
                 };
 
                 (

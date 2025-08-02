@@ -5,7 +5,10 @@ use itertools::Itertools;
 use log::{error, warn, Level};
 pub use program::Program;
 use rigz_ast::*;
-use rigz_core::{EnumDeclaration, IndexMap, IndexMapEntry, IndexSet, Lifecycle, Number, ObjectValue, PrimitiveValue, RigzType};
+use rigz_core::{
+    EnumDeclaration, IndexMap, IndexMapEntry, IndexSet, Lifecycle, Number, ObjectValue,
+    PrimitiveValue, RigzType,
+};
 use rigz_vm::{Instruction, LoadValue, MatchArm, RigzBuilder, VMBuilder, VM};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -1769,7 +1772,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         }
         Ok(())
     }
-    
+
     fn parse_set(&mut self, list: Vec<Expression>) -> Result<(), ValidationError> {
         let mut base = IndexSet::new();
         let mut values_only = true;

@@ -4,7 +4,10 @@ mod ops;
 #[cfg(feature = "snapshot")]
 mod snapshot;
 
-use crate::{AsPrimitive, IndexMap, IndexSet, Number, Object, PrimitiveValue, RigzType, VMError, WithTypeInfo};
+use crate::{
+    AsPrimitive, IndexMap, IndexSet, Number, Object, PrimitiveValue, RigzType, VMError,
+    WithTypeInfo,
+};
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
@@ -42,11 +45,11 @@ impl Hash for ObjectValue {
         match self {
             ObjectValue::Primitive(p) => p.hash(state),
             ObjectValue::List(l) => l.hash(state),
-            ObjectValue::Set(l) => { 
+            ObjectValue::Set(l) => {
                 for v in l {
                     v.hash(state)
                 }
-            },
+            }
             ObjectValue::Map(m) => {
                 for (k, v) in m {
                     k.hash(state);
@@ -464,7 +467,7 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
         };
         Ok(m)
     }
-    
+
     fn as_set(&mut self) -> Result<&mut IndexSet<ObjectValue>, VMError> {
         *self = ObjectValue::Set(AsPrimitive::to_set(self)?);
         let ObjectValue::Set(m) = self else {
@@ -486,7 +489,7 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
             ))),
         }
     }
-    
+
     fn to_set(&self) -> Result<IndexSet<ObjectValue>, VMError> {
         match self {
             ObjectValue::Tuple(v) | ObjectValue::List(v) => Ok(v.iter().cloned().collect()),
