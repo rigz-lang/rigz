@@ -53,16 +53,16 @@ impl Runner for VM {
         self.frames.push(current);
         self.sp = scope_index;
 
-        if let Some(mutable) = self.scopes[scope_index].set_self {
-            self.set_this(mutable)?;
-        }
-
         for (arg, mutable) in self.scopes[scope_index].args.clone() {
             if mutable {
                 self.load_mut(arg, false)?;
             } else {
                 self.load_let(arg, false)?;
             }
+        }
+
+        if let Some(mutable) = self.scopes[scope_index].set_self {
+            self.set_this(mutable)?;
         }
         Ok(())
     }
@@ -71,8 +71,8 @@ impl Runner for VM {
         let args = self.scopes[scope_index].args.len();
         let call_args = if self.scopes[scope_index].set_self.is_some() {
             let mut ca = Vec::with_capacity(args + 1);
-            ca.push(self.next_resolved_value(|| "call frame_memo"));
             ca.extend(self.resolve_args(args));
+            ca.push(self.next_resolved_value(|| "call frame_memo"));
             ca
         } else {
             self.resolve_args(args)

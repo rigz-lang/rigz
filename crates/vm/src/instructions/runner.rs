@@ -168,8 +168,8 @@ macro_rules! runner_common {
             func: &str,
             args: usize,
         ) -> Result<ObjectValue, VMError> {
-            let this = self.next_resolved_value(|| "call_extension");
             let args = self.resolve_args(args).into();
+            let this = self.next_resolved_value(|| "call_extension");
             module.call_extension(this, func, args)
         }
 
@@ -180,8 +180,8 @@ macro_rules! runner_common {
             func: &str,
             args: usize,
         ) -> Result<Option<ObjectValue>, VMError> {
-            let this = self.next_resolved_value(|| "call_extension");
             let args = self.resolve_args(args).into();
+            let this = self.next_resolved_value(|| "call_extension");
             module.call_mutable_extension(this, func, args)
         }
     };
@@ -816,8 +816,8 @@ pub trait Runner: ResolveValue {
                 self.store_value(res.into());
             }
             Instruction::CallObjectExtension { func, args } => {
-                let v = self.next_resolved_value(|| "object_extension");
                 let args = self.resolve_args(*args).into();
+                let v = self.next_resolved_value(|| "object_extension");
                 let v = match v.borrow().deref() {
                     ObjectValue::Object(o) => o.call_extension(func, args),
                     s => Err(VMError::UnsupportedOperation(format!(
@@ -827,8 +827,8 @@ pub trait Runner: ResolveValue {
                 self.store_value(v.into());
             }
             Instruction::CallMutableObjectExtension { func, args } => {
-                let v = self.next_resolved_value(|| "mut_object_extension");
                 let args = self.resolve_args(*args).into();
+                let v = self.next_resolved_value(|| "mut_object_extension");
                 let v = match v.borrow_mut().deref_mut() {
                     ObjectValue::Object(o) => o.call_mutable_extension(func, args),
                     s => Err(VMError::UnsupportedOperation(format!(

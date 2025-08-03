@@ -2370,8 +2370,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         let rt = match fcs {
             CallSignature::Function(fcs, call) => {
                 let rt = fcs.return_type.rigz_type.clone();
-                let len = self.setup_call_args(arguments, fcs)?;
                 self.parse_extension_expression(mutable, this_exp)?;
+                let len = self.setup_call_args(arguments, fcs)?;
                 self.process_extension_call(name.to_string(), vm_module, mutable, len, call);
                 rt
             }
