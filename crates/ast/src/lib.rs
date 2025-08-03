@@ -1450,6 +1450,7 @@ impl<'t> Parser<'t> {
                     | TokenKind::BinOp(_)
                     | TokenKind::Pipe
                     | TokenKind::And
+                    | TokenKind::As
                     | TokenKind::Catch
                     | TokenKind::Minus => break,
                     TokenKind::Identifier(id) => {

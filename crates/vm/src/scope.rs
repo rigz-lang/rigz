@@ -8,7 +8,7 @@ pub struct Scope {
     pub instructions: Vec<Instruction>,
     pub lifecycle: Option<Lifecycle>,
     pub named: String,
-    pub args: Vec<(String, bool)>,
+    pub args: Vec<(usize, bool)>,
     pub set_self: Option<bool>,
 }
 
@@ -52,7 +52,7 @@ impl Snapshot for Scope {
 
 impl Scope {
     #[inline]
-    pub fn new(named: String, args: Vec<(String, bool)>, set_self: Option<bool>) -> Self {
+    pub fn new(named: String, args: Vec<(usize, bool)>, set_self: Option<bool>) -> Self {
         Scope {
             named,
             args,
@@ -64,7 +64,7 @@ impl Scope {
     #[inline]
     pub fn lifecycle(
         named: String,
-        args: Vec<(String, bool)>,
+        args: Vec<(usize, bool)>,
         lifecycle: Lifecycle,
         set_self: Option<bool>,
     ) -> Self {

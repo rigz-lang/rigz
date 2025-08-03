@@ -53,6 +53,24 @@ impl RigzType {
             return true;
         }
 
+        if matches!(self, RigzType::List(_)) && matches!(other, RigzType::List(_)) {
+            return true
+        }
+
+        if matches!(self, RigzType::Map(_, _)) && matches!(other, RigzType::Map(_, _)) {
+            return true
+        }
+
+        let s = if let RigzType::Wrapper { base_type, .. } = other {
+            base_type.as_ref()
+        } else {
+            other
+        };
+
+        if self == s {
+            return true;
+        }
+
         matches!(self, RigzType::Any | RigzType::This)
     }
 

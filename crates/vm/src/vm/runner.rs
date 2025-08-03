@@ -71,7 +71,7 @@ impl Runner for VM {
         let args = self.scopes[scope_index].args.len();
         let call_args = if self.scopes[scope_index].set_self.is_some() {
             let mut ca = Vec::with_capacity(args + 1);
-            ca.push(self.next_resolved_value("call frame_memo"));
+            ca.push(self.next_resolved_value(|| "call frame_memo"));
             ca.extend(self.resolve_args(args));
             ca
         } else {
@@ -275,21 +275,23 @@ impl Runner for VM {
                     }
                     break;
                 }
-                Some(Instruction::Ret)
-                    if self.frames.current.borrow().scope_id == scope_id
-                        && self.scopes[self.frames.current.borrow().scope_id]
-                            .instructions
-                            .len()
-                            == self.frames.current.borrow().pc =>
+                Some(s) =>
                 {
-                    self.frames.current.borrow_mut().pc = 0;
-                    self.frames.current.borrow_mut().clear_variables();
-                    continue;
+                    let s = unsafe { &*s };
+                    if s == &Instruction::Ret && self.frames.current.borrow().scope_id == scope_id
+                        && self.scopes[self.frames.current.borrow().scope_id]
+                        .instructions
+                        .len()
+                        == self.frames.current.borrow().pc {
+                        self.frames.current.borrow_mut().pc = 0;
+                        self.frames.current.borrow_mut().clear_variables();
+                        continue;
+                    }
+                    s
                 }
-                Some(s) => s,
             };
 
-            match self.process_instruction_scope(instruction) {
+            match unsafe {self.process_instruction_scope(instruction) } {
                 VMState::Running => {}
                 VMState::Next => {
                     while self.frames.len() > current + 1
@@ -405,20 +407,21 @@ impl Runner for VM {
                         }
                         break 'outer;
                     }
-                    Some(Instruction::Ret)
-                        if self.frames.current.borrow().scope_id == scope_id
+                    Some(s) => {
+                        let s = unsafe { &*s };
+                        if s == &Instruction::Ret && self.frames.current.borrow().scope_id == scope_id
                             && self.scopes[self.frames.current.borrow().scope_id]
-                                .instructions
-                                .len()
-                                == self.frames.current.borrow().pc =>
-                    {
-                        self.frames.current.borrow_mut().pc = 0;
-                        self.frames.current.borrow_mut().clear_variables();
-                        break;
+                            .instructions
+                            .len()
+                            == self.frames.current.borrow().pc {
+                            self.frames.current.borrow_mut().pc = 0;
+                            self.frames.current.borrow_mut().clear_variables();
+                            break;
+                        }
+                        s
                     }
-                    Some(i) => i,
                 };
-                match self.process_instruction_scope(ins) {
+                match unsafe { self.process_instruction_scope(ins) } {
                     VMState::Running => {}
                     VMState::Break => {
                         break 'outer;

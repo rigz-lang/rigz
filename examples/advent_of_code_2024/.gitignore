@@ -1,0 +1,5 @@
+inputs/*.txt
+outputs/*.txt
+*.js
+*.py
+*.rb

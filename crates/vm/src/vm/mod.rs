@@ -8,10 +8,7 @@ use crate::{
     generate_builder, out, CallFrame, Instruction, RigzBuilder, Runner, Scope, VMStack, Variable,
 };
 pub use options::VMOptions;
-use rigz_core::{
-    Dependency, EnumDeclaration, Lifecycle, Module, MutableReference, ObjectValue, PrimitiveValue,
-    Snapshot, StackValue, TestResults, VMError,
-};
+use rigz_core::{Dependency, EnumDeclaration, IndexSet, Lifecycle, Module, MutableReference, ObjectValue, PrimitiveValue, Snapshot, StackValue, TestResults, VMError};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -41,6 +38,7 @@ pub struct VM {
     pub constants: Vec<ObjectValue>,
     pub(crate) process_manager: MutableReference<ProcessManager>,
     pub enums: RwLock<Vec<Arc<EnumDeclaration>>>,
+    pub strings: IndexSet<String>
 }
 
 impl RigzBuilder for VM {
@@ -96,6 +94,7 @@ impl Default for VM {
             process_manager: ProcessManager::new().into(),
             dependencies: Default::default(),
             enums: Default::default(),
+            strings: IndexSet::from(["self".to_string()])
         }
     }
 }
@@ -126,7 +125,7 @@ impl VM {
         let mut last_scope = self.sp;
         match self.frames.pop() {
             None => {
-                let source = self.next_value("process_ret - empty stack");
+                let source = self.next_value(|| "process_ret - empty stack");
                 VMState::Done(source.resolve(self))
             }
             Some(c) => {
@@ -145,7 +144,7 @@ impl VM {
                     if propagate {
                         match self.frames.pop() {
                             None => {
-                                let source = self.next_value("process_ret - empty stack");
+                                let source = self.next_value(|| "process_ret - empty stack");
                                 return VMState::Done(source.resolve(self));
                             }
                             Some(next) => {
@@ -167,7 +166,7 @@ impl VM {
                 match ran {
                     false => VMState::Running,
                     true => {
-                        let source = self.next_resolved_value("process_ret - ran");
+                        let source = self.next_resolved_value(|| "process_ret - ran");
                         if updated
                             && matches!(
                                 self.scopes[last_scope].named.as_str(),
@@ -185,27 +184,27 @@ impl VM {
     }
 
     #[inline]
-    fn process_instruction(&mut self, instruction: Instruction) -> VMState {
-        match instruction {
+    unsafe fn process_instruction(&mut self, instruction: *const Instruction) -> VMState {
+        match &*instruction {
             Instruction::Ret => self.process_ret(false),
             instruction => self.process_core_instruction(instruction),
         }
     }
 
-    fn process_instruction_scope(&mut self, instruction: Instruction) -> VMState {
-        match instruction {
+    unsafe fn process_instruction_scope(&mut self, instruction: *const Instruction) -> VMState {
+        match &*instruction {
             Instruction::Ret => self.process_ret(true),
             ins => self.process_core_instruction(ins),
         }
     }
 
     #[inline]
-    fn next_instruction(&self) -> Option<Instruction> {
+    fn next_instruction(&self) -> Option<*const Instruction> {
         let sp = self.frames.current.borrow().scope_id;
         let scope = &self.scopes[sp];
         let pc = self.frames.current.borrow().pc;
         self.frames.current.borrow_mut().pc += 1;
-        scope.instructions.get(pc).cloned()
+        scope.instructions.get(pc).map(|i| i as *const Instruction)
     }
 
     /// Calls run and returns an error if the resulting value is an error
@@ -221,13 +220,14 @@ impl VM {
     }
 
     pub fn add_bindings(&mut self, bindings: HashMap<String, (StackValue, bool)>) {
-        let mut current = self.frames.current.borrow_mut();
         for (k, (v, mutable)) in bindings {
             let v = if mutable {
                 Variable::Mut(v)
             } else {
                 Variable::Let(v)
             };
+            let k = self.string_index(&k);
+            let mut current = self.frames.current.borrow_mut();
             current.variables.insert(k, v);
         }
     }
@@ -254,7 +254,7 @@ impl VM {
             Some(s) => s,
         };
 
-        match self.process_instruction(instruction) {
+        match unsafe { self.process_instruction(instruction) } {
             VMState::Break => {
                 return Some(
                     VMError::UnsupportedOperation("Invalid break instruction".to_string()).into(),
@@ -374,7 +374,7 @@ impl VM {
                 Some(s) => s,
             };
 
-            match self.process_instruction_scope(instruction) {
+            match unsafe { self.process_instruction_scope(instruction) } {
                 VMState::Running => {}
                 s => return s,
             };

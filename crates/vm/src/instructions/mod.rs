@@ -284,12 +284,12 @@ pub enum Instruction {
         rigz_type: RigzType,
     },
     Ret,
-    GetVariable(String),
-    GetMutableVariable(String),
-    GetVariableReference(String),
-    LoadLet(String, bool),
-    LoadMut(String, bool),
-    PersistScope(String),
+    GetVariable(usize),
+    GetMutableVariable(usize),
+    GetVariableReference(usize),
+    LoadLet(usize, bool),
+    LoadMut(usize, bool),
+    PersistScope(usize),
     // requires modules, enabled by default
     /// Module instructions will clone your module, ideally modules implement Copy + Clone
     CallModule {

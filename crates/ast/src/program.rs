@@ -104,6 +104,12 @@ pub struct FunctionArgument {
     pub rest: bool,
 }
 
+impl Display for FunctionArgument {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.name, self.function_type.rigz_type)
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Scope {
     pub elements: Vec<Element>,
@@ -604,7 +610,7 @@ impl Display for Expression {
                 arguments,
                 var_args_start,
                 body,
-            } => write!(f, ""),
+            } => write!(f, "{{|{}| {body}}}", fn_args(arguments, var_args_start)),
             Expression::ForList {
                 var,
                 expression,
@@ -628,6 +634,16 @@ impl Display for Expression {
             Expression::Next => write!(f, "next"),
         }
     }
+}
+
+fn fn_args(arguments: &[FunctionArgument], var_args_start: &Option<usize>) -> String {
+    arguments.iter().enumerate().map(|(idx, arg)| {
+        let f = match var_args_start {
+            &Some(i) if idx == i => "var ",
+            _ => "",
+        };
+        format!("{f}{arg}")
+    }).join(", ")
 }
 
 #[derive(Clone, Debug, PartialEq)]

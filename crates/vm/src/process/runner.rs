@@ -174,9 +174,9 @@ impl ProcessRunner<'_> {
         let instruction = self.scope.instructions[pc].clone();
         self.frames.current.borrow_mut().pc += 1;
         let state: VMState = if let Instruction::Ret = instruction {
-            VMState::Ran(self.stack.next_value("process_run").resolve(self))
+            VMState::Ran(self.stack.next_value(|| "process_run").resolve(self))
         } else {
-            self.process_core_instruction(instruction)
+            self.process_core_instruction(&instruction)
         };
 
         match state {

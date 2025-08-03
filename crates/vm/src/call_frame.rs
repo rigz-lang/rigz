@@ -88,7 +88,7 @@ impl Frames {
 
     #[inline]
     #[logfn_inputs(Trace, fmt = "load_let(frames={:#?} name={}, value={:?}, shadow={})")]
-    pub fn load_let(&self, name: String, value: StackValue, shadow: bool) -> Result<(), VMError> {
+    pub fn load_let(&self, name: usize, value: StackValue, shadow: bool) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
             IndexMapEntry::Occupied(mut v) => {
                 if shadow {
@@ -109,19 +109,19 @@ impl Frames {
 
     #[logfn(Trace)]
     #[logfn_inputs(Trace, fmt = "get_variable(frames={:#p} name={})")]
-    pub fn get_variable(&self, name: &str) -> Option<StackValue> {
+    pub fn get_variable(&self, name: usize) -> Option<StackValue> {
         self.current.borrow().get_variable(name, self)
     }
 
     #[logfn(Trace)]
     #[logfn_inputs(Trace, fmt = "get_mutable_variable(frames={:#p} name={})")]
-    pub fn get_mutable_variable(&self, name: &str) -> Result<Option<StackValue>, VMError> {
+    pub fn get_mutable_variable(&self, name: usize) -> Result<Option<StackValue>, VMError> {
         self.current.borrow().get_mutable_variable(name, self)
     }
 
     #[inline]
     #[logfn_inputs(Trace, fmt = "load_mut(frames={:#?} name={}, value={:?}, shadow={})")]
-    pub fn load_mut(&self, name: String, value: StackValue, shadow: bool) -> Result<(), VMError> {
+    pub fn load_mut(&self, name: usize, value: StackValue, shadow: bool) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
             IndexMapEntry::Occupied(mut var) => match var.get() {
                 Variable::Let(_) => {
@@ -160,7 +160,7 @@ impl Default for Frames {
 pub struct CallFrame {
     pub scope_id: usize,
     pub pc: usize,
-    pub variables: IndexMap<String, Variable>,
+    pub variables: IndexMap<usize, Variable>,
     pub parent: Option<usize>,
 }
 
@@ -188,8 +188,8 @@ impl Snapshot for CallFrame {
 }
 
 impl CallFrame {
-    fn get_variable(&self, name: &str, frames: &Frames) -> Option<StackValue> {
-        match self.variables.get(name) {
+    fn get_variable(&self, name: usize, frames: &Frames) -> Option<StackValue> {
+        match self.variables.get(&name) {
             None => match self.parent {
                 None => None,
                 Some(parent) => frames[parent].borrow().get_variable(name, frames),
@@ -203,10 +203,10 @@ impl CallFrame {
 
     fn get_mutable_variable(
         &self,
-        name: &str,
+        name: usize,
         frames: &Frames,
     ) -> Result<Option<StackValue>, VMError> {
-        match self.variables.get(name) {
+        match self.variables.get(&name) {
             None => match self.parent {
                 None => Ok(None),
                 Some(parent) => frames[parent].borrow().get_mutable_variable(name, frames),

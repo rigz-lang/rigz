@@ -10,6 +10,7 @@ derive_module! {
     fn String.concat(value: String) -> String
     fn String.with(var value) -> String
     fn String.trim -> String
+    fn String.lines -> [String]
     fn String.split(pattern: String) -> [String]
     fn String.replace(pattern: String, value: String) -> String
 end"#
@@ -36,6 +37,10 @@ impl RigzString for StringModule {
 
     fn string_trim(&self, this: String) -> String {
         this.trim().to_string()
+    }
+
+    fn string_lines(&self, this: String) -> Vec<String> {
+        this.lines().map(|s| s.to_string()).collect()
     }
 
     fn string_split(&self, this: String, pattern: String) -> Vec<String> {

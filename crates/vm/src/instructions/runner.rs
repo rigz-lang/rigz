@@ -17,7 +17,7 @@ use std::time::Duration;
 macro_rules! runner_common {
     () => {
         #[inline]
-        fn next_value<T: Display>(&mut self, location: T) -> StackValue {
+        fn next_value<T: Display, F>(&mut self, location: F) -> StackValue where F: FnOnce() -> T {
             self.stack.next_value(location)
         }
 
@@ -64,11 +64,11 @@ macro_rules! runner_common {
         )]
         fn find_variable(
             &self,
-            name: &str,
+            name: usize,
             frame: &CallFrame,
             parent: Option<usize>,
         ) -> Option<Option<usize>> {
-            match frame.variables.contains_key(name) {
+            match frame.variables.contains_key(&name) {
                 false => match frame.parent {
                     None => None,
                     Some(parent) => {
@@ -81,11 +81,11 @@ macro_rules! runner_common {
         }
 
         #[inline]
-        fn persist_scope(&mut self, var: String) -> Option<VMError> {
-            let next = self.next_resolved_value("persist_scope");
+        fn persist_scope(&mut self, var: usize) -> Option<VMError> {
+            let next = self.next_resolved_value(|| "persist_scope");
             self.store_value(next.clone().into());
             let current = self.frames.current.borrow();
-            let owner = self.find_variable(&var, current.deref(), None);
+            let owner = self.find_variable(var, current.deref(), None);
 
             let mut frame = match owner {
                 None => {
@@ -103,19 +103,19 @@ macro_rules! runner_common {
         }
 
         #[inline]
-        fn load_mut(&mut self, name: String, shadow: bool) -> Result<(), VMError> {
-            let v = self.next_value(format!("load_mut - {name}"));
+        fn load_mut(&mut self, name: usize, shadow: bool) -> Result<(), VMError> {
+            let v = self.next_value(|| format!("load_mut - {name}"));
             self.frames.load_mut(name, v, shadow)
         }
 
         #[inline]
-        fn load_let(&mut self, name: String, shadow: bool) -> Result<(), VMError> {
-            let v = self.next_value(format!("load_let - {name}"));
+        fn load_let(&mut self, name: usize, shadow: bool) -> Result<(), VMError> {
+            let v = self.next_value(|| format!("load_let - {name}"));
             self.frames.load_let(name, v, shadow)
         }
 
         #[inline]
-        fn get_variable(&mut self, name: &str) {
+        fn get_variable(&mut self, name: usize) {
             let r = self.frames.get_variable(name);
             let v = match r {
                 None => VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))
@@ -126,7 +126,7 @@ macro_rules! runner_common {
         }
 
         #[inline]
-        fn get_mutable_variable(&mut self, name: &str) {
+        fn get_mutable_variable(&mut self, name: usize) {
             let og = match self.frames.get_mutable_variable(name) {
                 Ok(None) => None,
                 Err(e) => Some(e.into()),
@@ -145,7 +145,7 @@ macro_rules! runner_common {
         }
 
         #[inline]
-        fn get_variable_reference(&mut self, name: &str) {
+        fn get_variable_reference(&mut self, name: usize) {
             let r = self.frames.get_variable(name);
             let v = match r {
                 None => VMError::VariableDoesNotExist(format!(
@@ -165,7 +165,7 @@ macro_rules! runner_common {
             func: String,
             args: usize,
         ) -> Result<ObjectValue, VMError> {
-            let this = self.next_resolved_value("call_extension");
+            let this = self.next_resolved_value(|| "call_extension");
             let args = self.resolve_args(args).into();
             module.call_extension(this, func, args)
         }
@@ -177,7 +177,7 @@ macro_rules! runner_common {
             func: String,
             args: usize,
         ) -> Result<Option<ObjectValue>, VMError> {
-            let this = self.next_resolved_value("call_extension");
+            let this = self.next_resolved_value(|| "call_extension");
             let args = self.resolve_args(args).into();
             module.call_mutable_extension(this, func, args)
         }
@@ -258,11 +258,19 @@ pub enum CallType {
 pub type ResolvedModule = Reference<dyn Module>;
 
 pub trait Runner: ResolveValue {
+    
+    const Ins: [fn(&mut Self) -> Option<VMState>; 1] = [
+        |s| {
+            None
+        }
+    ];
+    
+    
     fn store_value(&mut self, value: StackValue);
 
     fn pop(&mut self) -> Option<StackValue>;
 
-    fn next_value<T: Display>(&mut self, location: T) -> StackValue;
+    fn next_value<T: Display, F>(&mut self, location: F) -> StackValue where F: FnOnce() -> T;
 
     fn options(&self) -> &VMOptions;
 
@@ -274,12 +282,12 @@ pub trait Runner: ResolveValue {
 
     fn get_module(&mut self, module: String) -> Option<ResolvedModule>;
 
-    fn load_mut(&mut self, name: String, shadow: bool) -> Result<(), VMError>;
-    fn load_let(&mut self, name: String, shadow: bool) -> Result<(), VMError>;
+    fn load_mut(&mut self, name: usize, shadow: bool) -> Result<(), VMError>;
+    fn load_let(&mut self, name: usize, shadow: bool) -> Result<(), VMError>;
 
     fn find_variable(
         &self,
-        name: &str,
+        name: usize,
         frame: &CallFrame,
         parent: Option<usize>,
     ) -> Option<Option<usize>>;
@@ -288,9 +296,9 @@ pub trait Runner: ResolveValue {
     #[inline]
     fn set_this(&mut self, mutable: bool) -> Result<(), VMError> {
         if mutable {
-            self.load_mut("self".to_string(), false)
+            self.load_mut(0, false)
         } else {
-            self.load_let("self".to_string(), false)
+            self.load_let(0, false)
         }
     }
 
@@ -313,7 +321,7 @@ pub trait Runner: ResolveValue {
 
     #[inline]
     fn handle_unary(&mut self, op: UnaryOperation) {
-        let val = self.next_resolved_value("handle_unary");
+        let val = self.next_resolved_value(|| "handle_unary");
         self.apply_unary(op, val);
     }
 
@@ -330,32 +338,32 @@ pub trait Runner: ResolveValue {
 
     #[inline]
     fn handle_binary(&mut self, op: BinaryOperation) {
-        let rhs = self.next_resolved_value("handle_binary - rhs");
-        let lhs = self.next_resolved_value("handle_binary - lhs");
+        let rhs = self.next_resolved_value(|| "handle_binary - rhs");
+        let lhs = self.next_resolved_value(|| "handle_binary - lhs");
         self.apply_binary(op, lhs, rhs);
     }
 
     #[inline]
     fn handle_binary_assign(&mut self, op: BinaryOperation) {
-        let rhs = self.next_resolved_value("handle_binary_assign - rhs");
-        let lhs = self.next_resolved_value("handle_binary_assign - lhs");
+        let rhs = self.next_resolved_value(||"handle_binary_assign - rhs");
+        let lhs = self.next_resolved_value(|| "handle_binary_assign - lhs");
         let v = eval_binary_operation(op, lhs.borrow().deref(), rhs.borrow().deref());
         *lhs.borrow_mut().deref_mut() = v;
     }
 
     #[inline]
-    fn next_resolved_value<T: Display>(&mut self, location: T) -> Rc<RefCell<ObjectValue>> {
+    fn next_resolved_value<T: Display, F>(&mut self, location: F) -> Rc<RefCell<ObjectValue>> where F: FnOnce() -> T {
         self.next_value(location).resolve(self)
     }
 
     #[inline]
     fn resolve_args(&mut self, count: usize) -> Vec<Rc<RefCell<ObjectValue>>> {
         (0..count)
-            .map(|_| self.next_resolved_value("resolve_args"))
+            .map(|_| self.next_resolved_value(|| "resolve_args"))
             .collect()
     }
 
-    fn persist_scope(&mut self, var: String) -> Option<VMError>;
+    fn persist_scope(&mut self, var: usize) -> Option<VMError>;
 
     fn goto(&mut self, scope_id: usize, pc: usize) -> Result<(), VMError>;
 
@@ -365,11 +373,11 @@ pub trait Runner: ResolveValue {
 
     fn spawn(&mut self, scope_id: usize, timeout: Option<usize>) -> Result<(), VMError>;
 
-    fn get_variable(&mut self, name: &str);
+    fn get_variable(&mut self, name: usize);
 
-    fn get_mutable_variable(&mut self, name: &str);
+    fn get_mutable_variable(&mut self, name: usize);
 
-    fn get_variable_reference(&mut self, name: &str);
+    fn get_variable_reference(&mut self, name: usize);
 
     fn find_enum(&mut self, enum_type: usize) -> Result<Arc<EnumDeclaration>, VMError>;
 
@@ -415,7 +423,7 @@ pub trait Runner: ResolveValue {
     #[allow(unused_variables)]
     #[inline]
     #[log_derive::logfn_inputs(Debug, fmt = "process_instruction(vm={:#p}, instruction={:?})")]
-    fn process_core_instruction(&mut self, instruction: Instruction) -> VMState {
+    fn process_core_instruction(&mut self, instruction: &Instruction) -> VMState {
         match instruction {
             Instruction::Halt => {
                 let v = self
@@ -443,44 +451,44 @@ pub trait Runner: ResolveValue {
                 let s: StackValue = value.into();
                 self.store_value(s);
             }
-            Instruction::Unary(u) => self.handle_unary(u),
-            Instruction::Binary(b) => self.handle_binary(b),
-            Instruction::BinaryAssign(b) => self.handle_binary_assign(b),
+            &Instruction::Unary(u) => self.handle_unary(u),
+            &Instruction::Binary(b) => self.handle_binary(b),
+            &Instruction::BinaryAssign(b) => self.handle_binary_assign(b),
             Instruction::Load(r) => {
                 self.store_value(r.clone().into());
             }
-            Instruction::LoadLet(name, shadow) => {
+            &Instruction::LoadLet(name, shadow) => {
                 if let Err(e) = self.load_let(name, shadow) {
                     return e.into();
                 }
             }
-            Instruction::LoadMut(name, shadow) => {
+            &Instruction::LoadMut(name, shadow) => {
                 if let Err(e) = self.load_mut(name, shadow) {
                     return e.into();
                 }
             }
-            Instruction::Call(scope) => {
+            &Instruction::Call(scope) => {
                 if let Err(e) = self.call_frame(scope) {
                     return e.into();
                 }
             }
             Instruction::CallModule { module, func, args } => {
-                if let Some(module) = self.get_module(module) {
-                    let v = self.call(module, func, args).unwrap_or_else(|e| e.into());
+                if let Some(module) = self.get_module(module.clone()) {
+                    let v = self.call(module, func.clone(), *args).unwrap_or_else(|e| e.into());
                     self.store_value(v.into());
                 };
             }
             Instruction::CallExtension { module, func, args } => {
-                if let Some(module) = self.get_module(module) {
+                if let Some(module) = self.get_module(module.clone()) {
                     let v = self
-                        .call_extension(module, func, args)
+                        .call_extension(module, func.clone(), *args)
                         .unwrap_or_else(|e| e.into());
                     self.store_value(v.into());
                 };
             }
             Instruction::CallMutableExtension { module, func, args } => {
-                if let Some(module) = self.get_module(module) {
-                    match self.call_mutable_extension(module, func, args) {
+                if let Some(module) = self.get_module(module.clone()) {
+                    match self.call_mutable_extension(module, func.clone(), *args) {
                         Ok(Some(v)) => {
                             self.store_value(v.into());
                         }
@@ -499,38 +507,38 @@ pub trait Runner: ResolveValue {
             //         self.store_value(value.into());
             //     };
             // }
-            Instruction::PersistScope(var) => {
+            &Instruction::PersistScope(var) => {
                 if let Some(s) = self.persist_scope(var) {
                     return s.into();
                 }
             }
             Instruction::Cast { rigz_type } => {
-                let value = self.next_resolved_value("cast");
-                self.store_value(value.borrow().cast(&rigz_type).into());
+                let value = self.next_resolved_value(|| "cast");
+                self.store_value(value.borrow().cast(rigz_type).into());
             }
-            Instruction::CallEq(scope_index) => {
-                let b = self.next_resolved_value("call eq - rhs");
-                let a = self.next_resolved_value("call eq - lhs");
+            &Instruction::CallEq(scope_index) => {
+                let b = self.next_resolved_value(|| "call eq - rhs");
+                let a = self.next_resolved_value(|| "call eq - lhs");
                 if a == b {
                     if let Err(e) = self.call_frame(scope_index) {
                         return e.into();
                     };
                 }
             }
-            Instruction::CallNeq(scope_index) => {
-                let b = self.next_resolved_value("call neq - rhs");
-                let a = self.next_resolved_value("call neq - lhs");
+            &Instruction::CallNeq(scope_index) => {
+                let b = self.next_resolved_value(|| "call neq - rhs");
+                let a = self.next_resolved_value(|| "call neq - lhs");
                 if a == b {
                     if let Err(e) = self.call_frame(scope_index) {
                         return e.into();
                     };
                 }
             }
-            Instruction::IfElse {
+            &Instruction::IfElse {
                 if_scope,
                 else_scope,
             } => {
-                let truthy = self.next_resolved_value("if else");
+                let truthy = self.next_resolved_value(|| "if else");
                 let scope = if truthy.borrow().to_bool() {
                     if_scope
                 } else {
@@ -543,8 +551,8 @@ pub trait Runner: ResolveValue {
                     ResolvedValue::Done(v) => return VMState::Done(v),
                 };
             }
-            Instruction::If(if_scope) => {
-                let truthy = self.next_resolved_value("if");
+            &Instruction::If(if_scope) => {
+                let truthy = self.next_resolved_value(|| "if");
                 let v = if truthy.borrow().to_bool() {
                     match self.handle_scope(if_scope) {
                         ResolvedValue::Break => return VMState::Break,
@@ -557,8 +565,8 @@ pub trait Runner: ResolveValue {
                 };
                 self.store_value(v.into());
             }
-            Instruction::Unless(unless_scope) => {
-                let truthy = self.next_resolved_value("unless");
+            &Instruction::Unless(unless_scope) => {
+                let truthy = self.next_resolved_value(|| "unless");
                 let v = if !truthy.borrow().to_bool() {
                     match self.handle_scope(unless_scope) {
                         ResolvedValue::Break => return VMState::Break,
@@ -571,24 +579,24 @@ pub trait Runner: ResolveValue {
                 };
                 self.store_value(v.into());
             }
-            Instruction::GetVariableReference(name) => self.get_variable_reference(&name),
-            Instruction::GetVariable(name) => self.get_variable(&name),
-            Instruction::GetMutableVariable(name) => self.get_mutable_variable(&name),
+            &Instruction::GetVariableReference(name) => self.get_variable_reference(name),
+            &Instruction::GetVariable(name) => self.get_variable(name),
+            &Instruction::GetMutableVariable(name) => self.get_mutable_variable(name),
             Instruction::Log(level, tmpl, args) => {
                 if !self.options().enable_logging {
                     return VMState::Running;
                 }
 
                 let mut res = tmpl.to_string();
-                let args = self.resolve_args(args);
+                let args = self.resolve_args(*args);
                 for arg in args {
                     let l = arg.borrow().to_string();
                     res = res.replacen("{}", l.as_str(), 1);
                 }
-                log!(level, "{}", res);
+                log!(*level, "{}", res);
                 self.store_value(ObjectValue::default().into());
             }
-            Instruction::Puts(args) => {
+            &Instruction::Puts(args) => {
                 if args == 0 {
                     outln!();
                 } else {
@@ -607,12 +615,12 @@ pub trait Runner: ResolveValue {
                 ))
                 .into()
             }
-            Instruction::Goto(scope_id, index) => match self.goto(scope_id, index) {
+            &Instruction::Goto(scope_id, index) => match self.goto(scope_id, index) {
                 Ok(_) => {}
                 Err(e) => return e.into(),
             },
             Instruction::AddInstruction(scope, instruction) => {
-                let updated = self.update_scope(scope, |s| {
+                let updated = self.update_scope(*scope, |s| {
                     s.instructions.push(*instruction.clone());
                     Ok(())
                 });
@@ -621,9 +629,9 @@ pub trait Runner: ResolveValue {
                 }
             }
             Instruction::InsertAtInstruction(scope, index, new_instruction) => {
-                let updated = self.update_scope(scope, |s| {
+                let updated = self.update_scope(*scope, |s| {
                     // todo this can panic
-                    s.instructions.insert(index, *new_instruction.clone());
+                    s.instructions.insert(*index, *new_instruction.clone());
                     Ok(())
                 });
                 if let Err(e) = updated {
@@ -631,8 +639,8 @@ pub trait Runner: ResolveValue {
                 }
             }
             Instruction::UpdateInstruction(scope, index, new_instruction) => {
-                let updated = self.update_scope(scope, |s| {
-                    match s.instructions.get_mut(index) {
+                let updated = self.update_scope(*scope, |s| {
+                    match s.instructions.get_mut(*index) {
                         None => {
                             return Err(VMError::ScopeDoesNotExist(format!(
                                 "Instruction does not exist: {}",
@@ -649,7 +657,7 @@ pub trait Runner: ResolveValue {
                     return e.into();
                 }
             }
-            Instruction::RemoveInstruction(scope, index) => {
+            &Instruction::RemoveInstruction(scope, index) => {
                 let updated = self.update_scope(scope, |s| {
                     if index >= s.instructions.len() {
                         return Err(VMError::UnsupportedOperation(format!(
@@ -664,7 +672,7 @@ pub trait Runner: ResolveValue {
                     return e.into();
                 }
             }
-            Instruction::InstanceGet(multiple) => {
+            &Instruction::InstanceGet(multiple) => {
                 self.instance_get(multiple);
             }
             Instruction::InstanceSet => {
@@ -673,7 +681,7 @@ pub trait Runner: ResolveValue {
             Instruction::InstanceSetMut => {
                 self.instance_set(true);
             }
-            Instruction::Pop(output) => {
+            &Instruction::Pop(output) => {
                 for _ in 0..output {
                     let s = self.pop();
                     if s.is_none() {
@@ -681,17 +689,18 @@ pub trait Runner: ResolveValue {
                     }
                 }
             }
-            Instruction::CallMemo(scope) => {
+            &Instruction::CallMemo(scope) => {
                 if let Err(e) = self.call_frame_memo(scope) {
                     return e.into();
                 }
             }
-            Instruction::ForList { scope } => {
+            &Instruction::ForList { scope } => {
                 let mut result = vec![];
-                let this = match self.next_resolved_value("for-list").borrow().to_list() {
+                let this = match self.next_resolved_value(|| "for-list").borrow().to_list() {
                     Ok(l) => l,
                     Err(e) => return e.into(),
                 };
+                let default = ObjectValue::default();
                 for value in this {
                     self.store_value(value.into());
                     // todo ideally this doesn't need a call frame per intermediate, it should be possible to reuse the current scope/fram
@@ -701,7 +710,7 @@ pub trait Runner: ResolveValue {
                         ResolvedValue::Next => return VMState::Next,
                         ResolvedValue::Value(value) => {
                             let value = value.borrow().clone();
-                            if value != ObjectValue::default() {
+                            if value != default {
                                 result.push(value)
                             }
                         }
@@ -710,12 +719,13 @@ pub trait Runner: ResolveValue {
                 }
                 self.store_value(result.into());
             }
-            Instruction::ForMap { scope } => {
+            &Instruction::ForMap { scope } => {
                 let mut result = IndexMap::new();
-                let this = match self.next_resolved_value("for-map").borrow().to_map() {
+                let this = match self.next_resolved_value(|| "for-map").borrow().to_map() {
                     Ok(map) => map,
                     Err(e) => return e.into(),
                 };
+                let default = ObjectValue::default();
                 for (k, v) in this {
                     self.store_value(v.into());
                     self.store_value(k.into());
@@ -732,7 +742,7 @@ pub trait Runner: ResolveValue {
                             // todo this should be == 2 but same tuple is reused appending to front
                             let v = t.remove(1);
                             let k = t.remove(0);
-                            if k != ObjectValue::default() && v != ObjectValue::default() {
+                            if k != default && v != default {
                                 result.insert(k, v);
                             }
                         }
@@ -748,14 +758,14 @@ pub trait Runner: ResolveValue {
                 }
                 self.store_value(result.into());
             }
-            Instruction::Send(args) => {
+            &Instruction::Send(args) => {
                 if let Err(o) = self.send(args) {
                     return o.into();
                 }
             }
-            Instruction::Spawn(scope_id, timeout) => {
+            &Instruction::Spawn(scope_id, timeout) => {
                 let timeout = if timeout {
-                    let v = self.next_resolved_value("spawn");
+                    let v = self.next_resolved_value(|| "spawn");
                     let v = v.borrow();
                     match v.to_usize() {
                         Ok(u) => Some(u),
@@ -768,13 +778,13 @@ pub trait Runner: ResolveValue {
                     return o.into();
                 }
             }
-            Instruction::Receive(args) => {
+            &Instruction::Receive(args) => {
                 if let Err(o) = self.receive(args) {
                     return o.into();
                 }
             }
             Instruction::Sleep => {
-                let v = self.next_resolved_value("sleep");
+                let v = self.next_resolved_value(|| "sleep");
                 let duration = match v.borrow().to_usize() {
                     Ok(v) => Duration::from_millis(v as u64),
                     Err(e) => return e.into(),
@@ -783,9 +793,9 @@ pub trait Runner: ResolveValue {
                 self.store_value(ObjectValue::default().into());
             }
             Instruction::CreateObject(ob) => {
-                self.store_value(RigzObject::new(ob).into());
+                self.store_value(RigzObject::new(ob.clone()).into());
             }
-            Instruction::CreateDependency(args, dep) => {
+            &Instruction::CreateDependency(args, dep) => {
                 let args = self.resolve_args(args).into();
                 let res = self
                     .call_dependency(args, dep, CallType::Create)
@@ -793,17 +803,17 @@ pub trait Runner: ResolveValue {
                 self.store_value(res.into());
             }
             Instruction::CallObject { dep, func, args } => {
-                let args = self.resolve_args(args).into();
+                let args = self.resolve_args(*args).into();
                 let res = self
-                    .call_dependency(args, dep, CallType::Call(func))
+                    .call_dependency(args, *dep, CallType::Call(func.clone()))
                     .unwrap_or_else(|e| e.into());
                 self.store_value(res.into());
             }
             Instruction::CallObjectExtension { func, args } => {
-                let v = self.next_resolved_value("object_extension");
-                let args = self.resolve_args(args).into();
+                let v = self.next_resolved_value(|| "object_extension");
+                let args = self.resolve_args(*args).into();
                 let v = match v.borrow().deref() {
-                    ObjectValue::Object(o) => o.call_extension(func, args),
+                    ObjectValue::Object(o) => o.call_extension(func.clone(), args),
                     s => Err(VMError::UnsupportedOperation(format!(
                         "{s}.{func} is not callable"
                     ))),
@@ -811,10 +821,10 @@ pub trait Runner: ResolveValue {
                 self.store_value(v.into());
             }
             Instruction::CallMutableObjectExtension { func, args } => {
-                let v = self.next_resolved_value("mut_object_extension");
-                let args = self.resolve_args(args).into();
+                let v = self.next_resolved_value(|| "mut_object_extension");
+                let args = self.resolve_args(*args).into();
                 let v = match v.borrow_mut().deref_mut() {
-                    ObjectValue::Object(o) => o.call_mutable_extension(func, args),
+                    ObjectValue::Object(o) => o.call_mutable_extension(func.clone(), args),
                     s => Err(VMError::UnsupportedOperation(format!(
                         "{s}.{func} is not callable"
                     ))),
@@ -826,15 +836,15 @@ pub trait Runner: ResolveValue {
                 }
             }
             Instruction::Try => {
-                let next = self.next_resolved_value("try");
+                let next = self.next_resolved_value(|| "try");
                 if next.borrow().is_error() {
                     return VMState::Ran(next);
                 } else {
                     self.store_value(next.into())
                 }
             }
-            Instruction::Catch(scope, has_arg) => {
-                let next = self.next_resolved_value("catch");
+            &Instruction::Catch(scope, has_arg) => {
+                let next = self.next_resolved_value(|| "catch");
                 if next.borrow().is_error() {
                     let ObjectValue::Primitive(PrimitiveValue::Error(e)) = next.take() else {
                         unreachable!("is_error check failed")
@@ -852,7 +862,7 @@ pub trait Runner: ResolveValue {
                     self.store_value(next.into())
                 }
             }
-            Instruction::CreateEnum {
+            &Instruction::CreateEnum {
                 enum_type,
                 variant,
                 has_expression,
@@ -862,7 +872,7 @@ pub trait Runner: ResolveValue {
                     Err(e) => return e.into(),
                 };
                 let value = if has_expression {
-                    Some(self.next_resolved_value("create_enum"))
+                    Some(self.next_resolved_value(|| "create_enum"))
                 } else {
                     None
                 };
@@ -884,7 +894,7 @@ pub trait Runner: ResolveValue {
                 self.store_value(value)
             }
             Instruction::Match(arms) => {
-                let v = self.next_resolved_value("match");
+                let v = self.next_resolved_value(|| "match");
                 let mut scope = None;
                 for arm in arms {
                     match arm {
@@ -892,7 +902,7 @@ pub trait Runner: ResolveValue {
                             // todo support destructuring
                             if let ObjectValue::Enum(_, ev, val) = v.borrow().deref() {
                                 // todo ensure enum types are the same
-                                if ev == &va {
+                                if ev == va {
                                     scope = Some(sc);
                                     break;
                                 }
@@ -911,18 +921,18 @@ pub trait Runner: ResolveValue {
                         return VMError::runtime("No value found for match expression".to_string())
                             .into()
                     }
-                    Some(s) => match self.call_frame(s) {
+                    Some(s) => match self.call_frame(*s) {
                         Ok(_) => {}
                         Err(e) => return e.into(),
                     },
                 }
             }
-            Instruction::Loop(scope_id) => {
+            &Instruction::Loop(scope_id) => {
                 if let Some(e) = self.call_loop(scope_id) {
                     return e;
                 }
             }
-            Instruction::For { scope } => {
+            &Instruction::For { scope } => {
                 if let Some(e) = self.call_for(scope) {
                     return e;
                 }
@@ -938,8 +948,8 @@ pub trait Runner: ResolveValue {
 
     #[inline]
     fn instance_get(&mut self, multiple: bool) {
-        let attr = self.next_resolved_value("instance_get - attr");
-        let source = self.next_resolved_value("instance_get - source");
+        let attr = self.next_resolved_value(|| "instance_get - attr");
+        let source = self.next_resolved_value(|| "instance_get - source");
         let v = match source.borrow().get(attr.borrow().deref()) {
             Ok(Some(v)) => v,
             Ok(None) => ObjectValue::default(),
@@ -953,9 +963,9 @@ pub trait Runner: ResolveValue {
 
     #[inline]
     fn instance_set(&mut self, mutable: bool) {
-        let value = self.next_resolved_value("instance_set - value");
-        let attr = self.next_resolved_value("instance_set - attr");
-        let source = self.next_resolved_value("instance_set - source");
+        let value = self.next_resolved_value(|| "instance_set - value");
+        let attr = self.next_resolved_value(|| "instance_set - attr");
+        let source = self.next_resolved_value(|| "instance_set - source");
         let value = value.borrow();
         let source = if mutable {
             source

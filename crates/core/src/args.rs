@@ -110,7 +110,6 @@ impl RigzArgs {
             };
         }
         let min = var[0].len();
-        dbg!(&var, &results);
         if var.iter().any(|v| v.len() != min) {
             Err(VMError::runtime(format!(
                 "Invalid var args, expected all args to contain {min}"

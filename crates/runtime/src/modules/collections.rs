@@ -107,6 +107,7 @@ derive_module! {
             self.reduce(0, |res, _, nxt| res + nxt)
         end
 
+        fn List.len -> Int
         fn List.empty = !self.to_b
         fn List.first -> Any?
         fn List.last -> Any?
@@ -116,6 +117,7 @@ derive_module! {
         fn List.with(var value) -> List
         fn List.has(value) -> Bool
 
+        fn Set.len -> Int
         fn Set.empty = !self.to_b
         fn Set.first -> Any?
         fn Set.last -> Any?
@@ -125,6 +127,7 @@ derive_module! {
         fn Set.with(var value) -> Set
         fn Set.has(value) -> Bool
 
+        fn Map.len -> Int
         fn mut Map.extend(value: Map)
         fn mut Map.clear -> None
         fn Map.empty = !self.to_b
@@ -134,7 +137,7 @@ derive_module! {
         fn mut Map.insert(key, value)
         fn Map.with(var key, value) -> Map
         fn Map.concat(value: Map) -> Map
-        fn Map.entries = self.to_list
+        fn Map.entries -> List = self.to_list
         fn Map.keys -> List
         fn Map.values -> List
         fn Map.has(key) -> Bool
@@ -279,6 +282,10 @@ impl RigzCollections for CollectionsModule {
         ObjectValue::Tuple(this)
     }
 
+    fn list_len(&self, this: Vec<ObjectValue>) -> i64 {
+        this.len() as i64
+    }
+
     fn list_first(&self, this: Vec<ObjectValue>) -> Option<ObjectValue> {
         this.first().cloned()
     }
@@ -312,6 +319,10 @@ impl RigzCollections for CollectionsModule {
         this.contains(&value)
     }
 
+    fn set_len(&self, this: IndexSet<ObjectValue>) -> i64 {
+        this.len() as i64
+    }
+
     fn set_first(&self, this: IndexSet<ObjectValue>) -> Option<ObjectValue> {
         this.first().cloned()
     }
@@ -343,6 +354,10 @@ impl RigzCollections for CollectionsModule {
 
     fn set_has(&self, this: IndexSet<ObjectValue>, value: ObjectValue) -> bool {
         this.contains(&value)
+    }
+
+    fn map_len(&self, this: IndexMap<ObjectValue, ObjectValue>) -> i64 {
+        this.len() as i64
     }
 
     fn mut_map_extend(

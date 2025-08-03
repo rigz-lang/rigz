@@ -466,9 +466,9 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                         }
                     };
                     if mutable {
-                        self.builder.add_load_mut_instruction(var, shadow);
+                        self.builder.add_load_mut_instruction(&var, shadow);
                     } else {
-                        self.builder.add_load_let_instruction(var, shadow);
+                        self.builder.add_load_let_instruction(&var, shadow);
                     }
                 }
             },
@@ -518,9 +518,9 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                             }
                         };
                         if mutable {
-                            self.builder.add_load_mut_instruction(var, shadow);
+                            self.builder.add_load_mut_instruction(&var, shadow);
                         } else {
-                            self.builder.add_load_let_instruction(var, shadow);
+                            self.builder.add_load_let_instruction(&var, shadow);
                         }
                     }
                 }
@@ -564,9 +564,9 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     self.builder.add_load_instruction((index as i64).into());
                     self.builder.add_instance_get_instruction(index != 0);
                     if mutable {
-                        self.builder.add_load_mut_instruction(var, shadow);
+                        self.builder.add_load_mut_instruction(&var, shadow);
                     } else {
-                        self.builder.add_load_let_instruction(var, shadow);
+                        self.builder.add_load_let_instruction(&var, shadow);
                     }
                 }
             }
@@ -581,7 +581,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                         self.builder.add_get_self_mut_instruction();
                     }
                     Expression::Identifier(id) => {
-                        self.builder.add_get_mutable_variable_instruction(id);
+                        self.builder.add_get_mutable_variable_instruction(&id);
                     }
                     e => {
                         return Err(ValidationError::InvalidType(format!(
@@ -633,7 +633,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 expression,
             } => {
                 self.builder
-                    .add_get_mutable_variable_instruction(name.to_string());
+                    .add_get_mutable_variable_instruction(&name);
                 self.parse_expression(expression)?;
                 self.builder.add_binary_assign_instruction(op);
             }
@@ -643,7 +643,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 expression,
             } => {
                 self.builder
-                    .add_get_mutable_variable_instruction(name.to_string());
+                    .add_get_mutable_variable_instruction(&name);
                 // todo validate expression is rigz_type
                 self.parse_expression(expression)?;
                 self.builder.add_binary_assign_instruction(op);
@@ -950,7 +950,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             },
         );
         self.builder
-            .add_load_mut_instruction("self".to_string(), false);
+            .add_load_mut_instruction("self", false);
         self.parse_elements(body.elements)?;
         self.builder.add_get_self_instruction();
         self.builder.exit_scope(current);
@@ -967,7 +967,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             Expression::Scope(s) => {
                 let scope = self.parse_scope(s, "do")?;
                 self.builder.add_load_instruction(LoadValue::ScopeId(scope));
-                self.builder.convert_to_lazy_scope(scope, var.to_string());
+                self.builder.convert_to_lazy_scope(scope, var);
                 Ok(())
             }
             _ => self.parse_expression(expression),
@@ -1243,7 +1243,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 if self.function_scopes.contains_key(&id) {
                     self.call_function(None, &id, vec![].into())?;
                 } else {
-                    self.builder.add_get_variable_instruction(id.to_string());
+                    self.builder.add_get_variable_instruction(&id);
                 }
             }
             Expression::If {
@@ -1615,36 +1615,39 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 let mut calls = calls.into_iter().enumerate();
                 let (_, first) = calls.next().unwrap();
                 self.check_module_exists(&first)?;
-                match self.function_scopes.contains_key(&first) {
+                let mut rt = match self.function_scopes.contains_key(&first) {
                     false => {
                         self.parse_expression(*exp)?;
                         self.builder.add_load_instruction(first.into());
                         self.builder.add_instance_get_instruction(false);
+                        RigzType::default()
                     }
                     true if last == 0 => {
                         self.call_extension_function(*exp, &first, args)?;
                         return Ok(());
                     }
                     true => {
-                        self.call_extension_function(*exp, &first, vec![].into())?;
+                        self.call_extension_function(*exp, &first, vec![].into())?
                     }
                 };
 
                 for (index, c) in calls {
+                    self.check_module_exists(&c)?;
                     let fcs = match self.function_scopes.get(&c) {
                         None => {
                             self.builder.add_load_instruction(c.into());
                             self.builder.add_instance_get_instruction(false);
+                            rt = RigzType::default();
                             continue;
                         }
                         Some(fcs) => fcs.clone(),
                     };
 
                     if index == last {
-                        self.call_inline_extension(&c, fcs, args)?;
+                        self.call_inline_extension(rt, &c, fcs, args)?;
                         break;
                     } else {
-                        self.call_inline_extension(&c, fcs, vec![].into())?;
+                        rt = self.call_inline_extension(rt, &c, fcs, vec![].into())?;
                     }
                 }
             }
@@ -1713,40 +1716,30 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
 
     fn call_inline_extension(
         &mut self,
+        rigz_type: RigzType,
         name: &str,
         function_call_signatures: FunctionCallSignatures,
         args: RigzArguments,
-    ) -> Result<(), ValidationError> {
-        if function_call_signatures.len() == 1 {
-            let mut fcs = function_call_signatures.into_iter();
-            match fcs.next().unwrap() {
-                CallSignature::Function(fcs, call) => {
-                    let (vm_module, mutable) = match &fcs.self_type {
-                        None => {
-                            return Err(ValidationError::InvalidFunction(format!(
-                                "Function is not an extension function {name}"
-                            )))
-                        }
-                        Some(this) => {
-                            let is_vm = this.rigz_type.is_vm();
-                            (is_vm, this.mutable)
-                        }
-                    };
-                    let len = self.setup_call_args(args, fcs)?;
-                    self.process_extension_call(name.to_string(), vm_module, mutable, len, call);
-                }
-                CallSignature::Lambda(..) => {
-                    return Err(ValidationError::InvalidFunction(format!(
-                        "extension lambdas are not supported {name}"
-                    )))
-                }
-            };
-        } else {
-            return Err(ValidationError::NotImplemented(format!(
-                "Multiple extension functions match for {name}"
-            )));
-        }
-        Ok(())
+    ) -> Result<RigzType, ValidationError> {
+        let BestMatch {
+            fcs,
+            mutable,
+            vm_module,
+        } = self.best_matched_function(name, Some(rigz_type), &args)?;
+        let rt = match fcs {
+            CallSignature::Function(fcs, call) => {
+                let rt = fcs.return_type.rigz_type.clone();
+                let len = self.setup_call_args(args, fcs)?;
+                self.process_extension_call(name.to_string(), vm_module, mutable, len, call);
+                rt
+            }
+            CallSignature::Lambda(..) => {
+                return Err(ValidationError::InvalidFunction(format!(
+                    "extension lambdas are not supported {name}"
+                )))
+            }
+        };
+        Ok(rt)
     }
 
     fn parse_list(&mut self, list: Vec<Expression>) -> Result<(), ValidationError> {
@@ -2059,9 +2052,9 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             if let Some(v) = self.identifiers.get(name) {
                 if v.mutable {
                     self.builder
-                        .add_get_mutable_variable_instruction(name.to_string());
+                        .add_get_mutable_variable_instruction(name);
                 } else {
-                    self.builder.add_get_variable_instruction(name.to_string());
+                    self.builder.add_get_variable_instruction(name);
                 }
                 return Ok(());
             }
@@ -2116,7 +2109,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     // todo ensure arg matches actual
                     self.parse_expression(actual)?;
                 }
-                self.builder.add_get_variable_instruction(name.to_string());
+                self.builder.add_get_variable_instruction(name);
             }
         };
         Ok(())
@@ -2189,12 +2182,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                                 }
                             }
                             (Some(ft), Some(s)) => {
-                                let s = if let RigzType::Wrapper { base_type, .. } = s {
-                                    base_type.as_ref()
-                                } else {
-                                    s
-                                };
-                                if &ft.rigz_type == s {
+                                if ft.rigz_type.matches(s) {
                                     if arg_len <= fc_arg_len {
                                         vm_module = ft.rigz_type.is_vm();
                                         mutable = ft.mutable;
@@ -2326,7 +2314,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                         match self.function_scopes.get(&id) {
                             None => {
                                 self.builder
-                                    .add_get_variable_reference_instruction(arg.name.to_string());
+                                    .add_get_variable_reference_instruction(&arg.name);
                             }
                             Some(fcs) => {
                                 let func = fcs.iter()
@@ -2349,7 +2337,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                                     .collect::<Vec<_>>();
                                 if func.is_empty() {
                                     self.builder.add_get_variable_reference_instruction(
-                                        arg.name.to_string(),
+                                        &arg.name,
                                     );
                                     continue;
                                 }
@@ -2361,9 +2349,9 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                                 let func = func[0];
                                 self.builder.add_load_instruction(LoadValue::ScopeId(func));
                                 self.builder
-                                    .add_load_let_instruction(arg.name.to_string(), false);
+                                    .add_load_let_instruction(&arg.name, false);
                                 self.builder
-                                    .add_get_variable_reference_instruction(arg.name.to_string());
+                                    .add_get_variable_reference_instruction(&arg.name);
                             }
                         }
                     } else {
@@ -2380,7 +2368,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         this_exp: Expression,
         name: &str,
         arguments: RigzArguments,
-    ) -> Result<(), ValidationError> {
+    ) -> Result<RigzType, ValidationError> {
         if let Expression::Lambda { .. } = this_exp {
             return Err(ValidationError::InvalidFunction("Cannot call function on lambda, use {{ || <expression> }} or do || end syntax instead when chaining".to_string()));
         }
@@ -2391,11 +2379,13 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             mutable,
             vm_module,
         } = self.best_matched_function(name, Some(rigz_type), &arguments)?;
-        match fcs {
+        let rt = match fcs {
             CallSignature::Function(fcs, call) => {
+                let rt = fcs.return_type.rigz_type.clone();
                 let len = self.setup_call_args(arguments, fcs)?;
                 self.parse_extension_expression(mutable, this_exp)?;
                 self.process_extension_call(name.to_string(), vm_module, mutable, len, call);
+                rt
             }
             CallSignature::Lambda(..) => {
                 return Err(ValidationError::InvalidFunction(format!(
@@ -2403,7 +2393,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 )))
             }
         };
-        Ok(())
+        Ok(rt)
     }
 
     fn process_extension_call(
@@ -2453,11 +2443,10 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
     ) -> Result<(), ValidationError> {
         match expression {
             Expression::Identifier(id) => {
-                let id = id.to_string();
                 if mutable {
-                    self.builder.add_get_mutable_variable_instruction(id);
+                    self.builder.add_get_mutable_variable_instruction(&id);
                 } else {
-                    self.builder.add_get_variable_instruction(id);
+                    self.builder.add_get_variable_instruction(&id);
                 }
             }
             _ => {
@@ -2541,7 +2530,6 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 if self.parser_options.current_directory.is_none() {
                     self.parser_options.current_directory = match env::current_dir() {
                         Ok(f) => {
-                            println!("Current Dir: {f:?}");
                             Some(f)
                         }
                         Err(e) => {
@@ -2571,8 +2559,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 }
 
                 return self.parse_import_path(path);
-            } // todo support `import "<URL | path>" as foo`
-              // todo support `import dep` to support external resources, like package.json or Gemfile
+            }
         };
 
         match self.modules.get_mut(name.as_str()) {

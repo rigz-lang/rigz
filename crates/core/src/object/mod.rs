@@ -488,6 +488,8 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
                 .iter()
                 .map(|(k, v)| ObjectValue::Tuple(vec![k.clone(), v.clone()]))
                 .collect()),
+            ObjectValue::Primitive(p) => Ok(p.to_list()?.into_iter().map(|p| p.into()).collect()),
+            ObjectValue::Object(o) => o.to_list(),
             _ => Err(VMError::UnsupportedOperation(format!(
                 "Cannot convert {self} to List"
             ))),
@@ -502,6 +504,8 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
                 .iter()
                 .map(|(k, v)| ObjectValue::Tuple(vec![k.clone(), v.clone()]))
                 .collect()),
+            ObjectValue::Primitive(p) => Ok(p.to_list()?.into_iter().map(|p| p.into()).collect()),
+            ObjectValue::Object(o) => o.to_set(),
             _ => Err(VMError::UnsupportedOperation(format!(
                 "Cannot convert {self} to List"
             ))),

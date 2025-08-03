@@ -2,10 +2,7 @@ use crate::vm::VMOptions;
 use crate::{Instruction, LoadValue, Scope, VM};
 use crate::{MatchArm, ModulesMap};
 use log::Level;
-use rigz_core::{
-    BinaryOperation, Dependency, EnumDeclaration, Lifecycle, Module, ObjectValue, RigzType,
-    UnaryOperation,
-};
+use rigz_core::{BinaryOperation, Dependency, EnumDeclaration, IndexSet, Lifecycle, Module, ObjectValue, RigzType, UnaryOperation};
 use std::fmt::Debug;
 use std::sync::Arc;
 // todo use Rodeo (single threaded here + runtime), use Reference<(Threaded or not)Resolver> in VM
@@ -20,6 +17,7 @@ pub struct VMBuilder {
     pub lifecycles: Vec<Lifecycle>,
     pub constants: Vec<ObjectValue>,
     pub enums: Vec<Arc<EnumDeclaration>>,
+    pub strings: IndexSet<String>,
 }
 
 impl Default for VMBuilder {
@@ -34,6 +32,7 @@ impl Default for VMBuilder {
             lifecycles: Default::default(),
             constants: Default::default(),
             enums: Default::default(),
+            strings: IndexSet::from(["self".to_string()])
         }
     }
 }
@@ -71,6 +70,8 @@ pub trait RigzBuilder: Debug + Default {
 
     fn current_scope(&self) -> usize;
 
+    fn string_index(&mut self, value: &str) -> usize;
+
     fn enter_scope(
         &mut self,
         named: String,
@@ -88,7 +89,7 @@ pub trait RigzBuilder: Debug + Default {
 
     fn exit_scope(&mut self, current: usize) -> &mut Self;
 
-    fn convert_to_lazy_scope(&mut self, scope_id: usize, var: String) -> &mut Self;
+    fn convert_to_lazy_scope(&mut self, scope_id: usize, var: &str) -> &mut Self;
 
     fn register_dependency(&mut self, dependency: Arc<Dependency>) -> usize;
 
@@ -321,37 +322,42 @@ pub trait RigzBuilder: Debug + Default {
     }
 
     #[inline]
-    fn add_get_variable_reference_instruction(&mut self, name: String) -> &mut Self {
+    fn add_get_variable_reference_instruction(&mut self, name: &str) -> &mut Self {
+        let name = self.string_index(name);
         self.add_instruction(Instruction::GetVariableReference(name))
     }
 
     #[inline]
-    fn add_get_variable_instruction(&mut self, name: String) -> &mut Self {
+    fn add_get_variable_instruction(&mut self, name: &str) -> &mut Self {
+        let name = self.string_index(name);
         self.add_instruction(Instruction::GetVariable(name))
     }
 
     #[inline]
-    fn add_get_mutable_variable_instruction(&mut self, name: String) -> &mut Self {
+    fn add_get_mutable_variable_instruction(&mut self, name: &str) -> &mut Self {
+        let name = self.string_index(name);
         self.add_instruction(Instruction::GetMutableVariable(name))
     }
 
     #[inline]
     fn add_get_self_instruction(&mut self) -> &mut Self {
-        self.add_instruction(Instruction::GetVariable("self".to_string()))
+        self.add_instruction(Instruction::GetVariable(0))
     }
 
     #[inline]
     fn add_get_self_mut_instruction(&mut self) -> &mut Self {
-        self.add_instruction(Instruction::GetMutableVariable("self".to_string()))
+        self.add_instruction(Instruction::GetMutableVariable(0))
     }
 
     #[inline]
-    fn add_load_let_instruction(&mut self, name: String, shadow: bool) -> &mut Self {
+    fn add_load_let_instruction(&mut self, name: &str, shadow: bool) -> &mut Self {
+        let name = self.string_index(name);
         self.add_instruction(Instruction::LoadLet(name, shadow))
     }
 
     #[inline]
-    fn add_load_mut_instruction(&mut self, name: String, shadow: bool) -> &mut Self {
+    fn add_load_mut_instruction(&mut self, name: &str, shadow: bool) -> &mut Self {
+        let name = self.string_index(name);
         self.add_instruction(Instruction::LoadMut(name, shadow))
     }
 
@@ -449,12 +455,21 @@ macro_rules! generate_builder {
         }
 
         #[inline]
+        fn string_index(&mut self, value: &str) -> usize {
+            if let Some(u) = self.strings.get_index_of(value) {
+                return u
+            }
+            self.strings.insert_full(value.to_string()).0
+        }
+
+        #[inline]
         fn enter_scope(
             &mut self,
             named: String,
             args: Vec<(String, bool)>,
             set_self: Option<bool>,
         ) -> usize {
+            let args = args.into_iter().map(|(a, m)| (self.string_index(&a), m)).collect();
             let next = self.scopes.len();
             self.scopes.push(Scope::new(named, args, set_self));
             self.sp = self.scopes.len() - 1;
@@ -462,7 +477,8 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        fn convert_to_lazy_scope(&mut self, scope_id: usize, variable: String) -> &mut Self {
+        fn convert_to_lazy_scope(&mut self, scope_id: usize, variable: &str) -> &mut Self {
+            let variable = self.string_index(variable);
             let scope = &mut self.scopes[scope_id];
             let last = scope.instructions.len() - 1;
             scope
@@ -479,6 +495,7 @@ macro_rules! generate_builder {
             args: Vec<(String, bool)>,
             set_self: Option<bool>,
         ) -> usize {
+            let args = args.into_iter().map(|(a, m)| (self.string_index(&a), m)).collect();
             let next = self.scopes.len();
             self.scopes
                 .push(Scope::lifecycle(named, args, lifecycle, set_self));
