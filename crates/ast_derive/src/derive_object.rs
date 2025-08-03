@@ -382,8 +382,8 @@ fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTra
         None
     } else {
         Some(quote! {
-            fn call_extension(&self, function: String, args: RigzArgs) -> Result<ObjectValue, VMError> {
-                match function.as_str() {
+            fn call_extension(&self, function: &str, args: RigzArgs) -> Result<ObjectValue, VMError> {
+                match function {
                     #(#ext_funcs)*
                     _ => {
                         Err(VMError::UnsupportedOperation(format!(
@@ -401,11 +401,11 @@ fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTra
         Some(quote! {
             fn call_mutable_extension(
                 &mut self,
-                function: String,
+                function: &str,
                 args: RigzArgs,
             ) -> Result<Option<ObjectValue>, VMError>
             {
-                match function.as_str() {
+                match function {
                     #(#mut_funcs)*
                     _ => {
                         return Err(VMError::UnsupportedOperation(format!(
@@ -422,8 +422,8 @@ fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTra
         None
     } else {
         Some(quote! {
-            fn call(function: String, args: RigzArgs) -> Result<ObjectValue, VMError> where Self: Sized {
-                match function.as_str() {
+            fn call(function: &str, args: RigzArgs) -> Result<ObjectValue, VMError> where Self: Sized {
+                match function {
                     #(#stat_funcs)*
                     _ => {
                         Err(VMError::UnsupportedOperation(format!(

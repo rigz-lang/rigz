@@ -29,7 +29,7 @@ pub trait Definition {
 
 pub struct Dependency {
     pub create: fn(RigzArgs) -> Result<Box<dyn Object>, VMError>,
-    pub call: fn(String, RigzArgs) -> Result<ObjectValue, VMError>,
+    pub call: fn(&str, RigzArgs) -> Result<ObjectValue, VMError>,
 }
 
 impl Debug for Dependency {
@@ -58,7 +58,7 @@ pub trait Module: Debug + Definition {
         vec![]
     }
 
-    fn call(&self, function: String, args: RigzArgs) -> Result<ObjectValue, VMError> {
+    fn call(&self, function: &str, args: RigzArgs) -> Result<ObjectValue, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "{self:?} does not implement `call` - {function}"
         )))
@@ -67,7 +67,7 @@ pub trait Module: Debug + Definition {
     fn call_extension(
         &self,
         this: Rc<RefCell<ObjectValue>>,
-        function: String,
+        function: &str,
         args: RigzArgs,
     ) -> Result<ObjectValue, VMError> {
         Err(VMError::UnsupportedOperation(format!(
@@ -78,7 +78,7 @@ pub trait Module: Debug + Definition {
     fn call_mutable_extension(
         &self,
         this: Rc<RefCell<ObjectValue>>,
-        function: String,
+        function: &str,
         args: RigzArgs,
     ) -> Result<Option<ObjectValue>, VMError> {
         Err(VMError::UnsupportedOperation(format!(
@@ -108,7 +108,7 @@ pub trait Object:
     + Send
     + Sync
 {
-    fn call(function: String, args: RigzArgs) -> Result<ObjectValue, VMError>
+    fn call(function: &str, args: RigzArgs) -> Result<ObjectValue, VMError>
     where
         Self: Sized,
     {
@@ -118,7 +118,7 @@ pub trait Object:
         )))
     }
 
-    fn call_extension(&self, function: String, args: RigzArgs) -> Result<ObjectValue, VMError> {
+    fn call_extension(&self, function: &str, args: RigzArgs) -> Result<ObjectValue, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "{self:?} does not implement `call_extension` - {function}"
         )))
@@ -126,7 +126,7 @@ pub trait Object:
 
     fn call_mutable_extension(
         &mut self,
-        function: String,
+        function: &str,
         args: RigzArgs,
     ) -> Result<Option<ObjectValue>, VMError> {
         Err(VMError::UnsupportedOperation(format!(

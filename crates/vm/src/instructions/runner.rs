@@ -42,8 +42,8 @@ macro_rules! runner_common {
         }
 
         #[inline]
-        fn get_module(&mut self, module: String) -> Option<ResolvedModule> {
-            let e = match self.modules.get(module.as_str()) {
+        fn get_module(&mut self, module: &str) -> Option<ResolvedModule> {
+            let e = match self.modules.get(module) {
                 None => VMError::InvalidModule(module.to_string()),
                 Some(m) => {
                     #[cfg(feature = "threaded")]
@@ -162,7 +162,7 @@ macro_rules! runner_common {
         fn call_extension(
             &mut self,
             module: ResolvedModule,
-            func: String,
+            func: &str,
             args: usize,
         ) -> Result<ObjectValue, VMError> {
             let this = self.next_resolved_value(|| "call_extension");
@@ -174,7 +174,7 @@ macro_rules! runner_common {
         fn call_mutable_extension(
             &mut self,
             module: ResolvedModule,
-            func: String,
+            func: &str,
             args: usize,
         ) -> Result<Option<ObjectValue>, VMError> {
             let this = self.next_resolved_value(|| "call_extension");
@@ -249,23 +249,23 @@ pub type ResolvedModule = Reference<dyn Module + Send + Sync>;
 
 use crate::ModulesMap;
 
-pub enum CallType {
+pub enum CallType<'c> {
     Create,
-    Call(String),
+    Call(&'c str),
 }
 
 #[cfg(not(feature = "threaded"))]
 pub type ResolvedModule = Reference<dyn Module>;
 
 pub trait Runner: ResolveValue {
-    
+
     const Ins: [fn(&mut Self) -> Option<VMState>; 1] = [
         |s| {
             None
         }
     ];
-    
-    
+
+
     fn store_value(&mut self, value: StackValue);
 
     fn pop(&mut self) -> Option<StackValue>;
@@ -280,7 +280,7 @@ pub trait Runner: ResolveValue {
 
     fn modules(&self) -> ModulesMap;
 
-    fn get_module(&mut self, module: String) -> Option<ResolvedModule>;
+    fn get_module(&mut self, module: &str) -> Option<ResolvedModule>;
 
     fn load_mut(&mut self, name: usize, shadow: bool) -> Result<(), VMError>;
     fn load_let(&mut self, name: usize, shadow: bool) -> Result<(), VMError>;
@@ -384,21 +384,21 @@ pub trait Runner: ResolveValue {
     fn call(
         &mut self,
         module: ResolvedModule,
-        func: String,
+        func: &str,
         args: usize,
     ) -> Result<ObjectValue, VMError>;
 
     fn call_extension(
         &mut self,
         module: ResolvedModule,
-        func: String,
+        func: &str,
         args: usize,
     ) -> Result<ObjectValue, VMError>;
 
     fn call_mutable_extension(
         &mut self,
         module: ResolvedModule,
-        func: String,
+        func: &str,
         args: usize,
     ) -> Result<Option<ObjectValue>, VMError>;
 
@@ -473,22 +473,22 @@ pub trait Runner: ResolveValue {
                 }
             }
             Instruction::CallModule { module, func, args } => {
-                if let Some(module) = self.get_module(module.clone()) {
-                    let v = self.call(module, func.clone(), *args).unwrap_or_else(|e| e.into());
+                if let Some(module) = self.get_module(module) {
+                    let v = self.call(module, func, *args).unwrap_or_else(|e| e.into());
                     self.store_value(v.into());
                 };
             }
             Instruction::CallExtension { module, func, args } => {
-                if let Some(module) = self.get_module(module.clone()) {
+                if let Some(module) = self.get_module(module) {
                     let v = self
-                        .call_extension(module, func.clone(), *args)
+                        .call_extension(module, func, *args)
                         .unwrap_or_else(|e| e.into());
                     self.store_value(v.into());
                 };
             }
             Instruction::CallMutableExtension { module, func, args } => {
-                if let Some(module) = self.get_module(module.clone()) {
-                    match self.call_mutable_extension(module, func.clone(), *args) {
+                if let Some(module) = self.get_module(module) {
+                    match self.call_mutable_extension(module, func, *args) {
                         Ok(Some(v)) => {
                             self.store_value(v.into());
                         }
@@ -696,13 +696,15 @@ pub trait Runner: ResolveValue {
             }
             &Instruction::ForList { scope } => {
                 let mut result = vec![];
-                let this = match self.next_resolved_value(|| "for-list").borrow().to_list() {
+                let resolved = self.next_resolved_value(|| "for-list");
+                let mut resolved = resolved.borrow_mut();
+                let this = match resolved.as_list() {
                     Ok(l) => l,
                     Err(e) => return e.into(),
                 };
                 let default = ObjectValue::default();
                 for value in this {
-                    self.store_value(value.into());
+                    self.store_value(value.clone().into());
                     // todo ideally this doesn't need a call frame per intermediate, it should be possible to reuse the current scope/fram
                     // the process_ret instruction for the scope is the reason this is needed
                     match self.handle_scope(scope) {
@@ -721,14 +723,16 @@ pub trait Runner: ResolveValue {
             }
             &Instruction::ForMap { scope } => {
                 let mut result = IndexMap::new();
-                let this = match self.next_resolved_value(|| "for-map").borrow().to_map() {
+                let res = self.next_resolved_value(|| "for-map");
+                let mut res = res.borrow_mut();
+                let this = match res.as_map() {
                     Ok(map) => map,
                     Err(e) => return e.into(),
                 };
                 let default = ObjectValue::default();
                 for (k, v) in this {
-                    self.store_value(v.into());
-                    self.store_value(k.into());
+                    self.store_value(v.clone().into());
+                    self.store_value(k.clone().into());
                     let value = match self.handle_scope(scope) {
                         ResolvedValue::Break => return VMState::Break,
                         ResolvedValue::Next => return VMState::Next,
@@ -805,7 +809,7 @@ pub trait Runner: ResolveValue {
             Instruction::CallObject { dep, func, args } => {
                 let args = self.resolve_args(*args).into();
                 let res = self
-                    .call_dependency(args, *dep, CallType::Call(func.clone()))
+                    .call_dependency(args, *dep, CallType::Call(func))
                     .unwrap_or_else(|e| e.into());
                 self.store_value(res.into());
             }
@@ -813,7 +817,7 @@ pub trait Runner: ResolveValue {
                 let v = self.next_resolved_value(|| "object_extension");
                 let args = self.resolve_args(*args).into();
                 let v = match v.borrow().deref() {
-                    ObjectValue::Object(o) => o.call_extension(func.clone(), args),
+                    ObjectValue::Object(o) => o.call_extension(func, args),
                     s => Err(VMError::UnsupportedOperation(format!(
                         "{s}.{func} is not callable"
                     ))),
@@ -824,7 +828,7 @@ pub trait Runner: ResolveValue {
                 let v = self.next_resolved_value(|| "mut_object_extension");
                 let args = self.resolve_args(*args).into();
                 let v = match v.borrow_mut().deref_mut() {
-                    ObjectValue::Object(o) => o.call_mutable_extension(func.clone(), args),
+                    ObjectValue::Object(o) => o.call_mutable_extension(func, args),
                     s => Err(VMError::UnsupportedOperation(format!(
                         "{s}.{func} is not callable"
                     ))),

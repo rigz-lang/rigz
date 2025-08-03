@@ -95,8 +95,8 @@ mod vm_test {
 
     #[allow(unused_variables)]
     impl Module for TestModule {
-        fn call(&self, function: String, args: RigzArgs) -> Result<ObjectValue, VMError> {
-            match function.as_str() {
+        fn call(&self, function: &str, args: RigzArgs) -> Result<ObjectValue, VMError> {
+            match function {
                 "hello" => {
                     println!("{}", ObjectValue::List(args.into()));
                     Ok(ObjectValue::default())

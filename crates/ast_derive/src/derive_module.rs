@@ -200,8 +200,8 @@ impl ToTokens for DeriveModule {
 
         if !calls.is_empty() {
             module_methods.push(quote! {
-                fn call(&self, function: String, args: RigzArgs) -> Result<ObjectValue, VMError> {
-                    match function.as_str() {
+                fn call(&self, function: &str, args: RigzArgs) -> Result<ObjectValue, VMError> {
+                    match function {
                         #(#calls)*
                         _ => Err(VMError::InvalidModuleFunction(format!(
                             "Function {function} does not exist"
@@ -234,10 +234,10 @@ impl ToTokens for DeriveModule {
                 fn call_extension(
                     &self,
                     this: Rc<RefCell<ObjectValue>>,
-                    function: String,
+                    function: &str,
                     args: RigzArgs,
                 ) -> Result<ObjectValue, VMError> {
-                    match function.as_str() {
+                    match function {
                         #(#ext_calls)*
                         _ => Err(VMError::InvalidModuleFunction(format!(
                             "Function {function} does not exist"
@@ -293,10 +293,10 @@ impl ToTokens for DeriveModule {
                 fn call_mutable_extension(
                     &self,
                     this: Rc<RefCell<ObjectValue>>,
-                    function: String,
+                    function: &str,
                     args: RigzArgs,
                 ) -> Result<Option<ObjectValue>, VMError> {
-                    match function.as_str() {
+                    match function {
                         #(#mut_ext_calls)*
                         _ => return Err(VMError::InvalidModuleFunction(format!(
                             "Function {function} does not exist"

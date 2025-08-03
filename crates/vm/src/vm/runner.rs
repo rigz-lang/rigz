@@ -240,7 +240,7 @@ impl Runner for VM {
     fn call(
         &mut self,
         module: ResolvedModule,
-        func: String,
+        func: &str,
         args: usize,
     ) -> Result<ObjectValue, VMError> {
         let args = self.resolve_args(args).into();
@@ -344,7 +344,9 @@ impl Runner for VM {
                 VMError::runtime(format!("No object passed into for loop - {scope_id}")).into(),
             );
         };
-        let value = match value.resolve(self).borrow().to_list() {
+        let res = value.resolve(self);
+        let mut res = res.borrow_mut();
+        let value = match res.as_list() {
             Ok(v) => v,
             Err(e) => {
                 return Some(
@@ -379,17 +381,17 @@ impl Runner for VM {
             if let ObjectValue::Tuple(tuple) = each {
                 for (value, (name, mutable)) in tuple.into_iter().zip(&args) {
                     let res = if *mutable {
-                        self.frames.load_mut(name.clone(), value.into(), false)
+                        self.frames.load_mut(name.clone(), value.clone().into(), false)
                     } else {
-                        self.frames.load_let(name.clone(), value.into(), false)
+                        self.frames.load_let(name.clone(), value.clone().into(), false)
                     };
                 }
             } else {
                 let (name, mutable) = args[0].clone();
                 let res = if mutable {
-                    self.frames.load_mut(name, each.into(), false)
+                    self.frames.load_mut(name, each.clone().into(), false)
                 } else {
-                    self.frames.load_let(name, each.into(), false)
+                    self.frames.load_let(name, each.clone().into(), false)
                 };
 
                 if let Err(err) = res {

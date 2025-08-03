@@ -465,19 +465,33 @@ impl WithTypeInfo for ObjectValue {
 
 impl AsPrimitive<ObjectValue> for ObjectValue {
     fn as_list(&mut self) -> Result<&mut Vec<ObjectValue>, VMError> {
-        *self = ObjectValue::List(AsPrimitive::to_list(self)?);
-        let ObjectValue::List(m) = self else {
-            unreachable!()
-        };
-        Ok(m)
+        match self {
+            ObjectValue::List(m) | ObjectValue::Tuple(m) => {
+                Ok(m)
+            }
+            _ => {
+                *self = ObjectValue::List(AsPrimitive::to_list(self)?);
+                let ObjectValue::List(m) = self else {
+                    unreachable!()
+                };
+                Ok(m)
+            }
+        }
     }
 
     fn as_set(&mut self) -> Result<&mut IndexSet<ObjectValue>, VMError> {
-        *self = ObjectValue::Set(AsPrimitive::to_set(self)?);
-        let ObjectValue::Set(m) = self else {
-            unreachable!()
-        };
-        Ok(m)
+        match self {
+            ObjectValue::Set(m) => {
+                Ok(m)
+            }
+            _ => {
+                *self = ObjectValue::Set(AsPrimitive::to_set(self)?);
+                let ObjectValue::Set(m) = self else {
+                    unreachable!()
+                };
+                Ok(m)
+            }
+        }
     }
 
     fn to_list(&self) -> Result<Vec<ObjectValue>, VMError> {
@@ -537,6 +551,21 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
                 ))),
                 Some(v) => v.to_map(),
             },
+        }
+    }
+
+    fn as_map(&mut self) -> Result<&mut IndexMap<ObjectValue, ObjectValue>, VMError> {
+        match self {
+            ObjectValue::Map(m) => {
+                Ok(m)
+            }
+            _ => {
+                *self = ObjectValue::Map(AsPrimitive::to_map(self)?);
+                let ObjectValue::Map(m) = self else {
+                    unreachable!()
+                };
+                Ok(m)
+            }
         }
     }
 

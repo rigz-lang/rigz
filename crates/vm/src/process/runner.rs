@@ -115,7 +115,7 @@ impl Runner for ProcessRunner<'_> {
     fn call(
         &mut self,
         module: ResolvedModule,
-        func: String,
+        func: &str,
         args: usize,
     ) -> Result<ObjectValue, VMError> {
         Err(VMError::todo("Process does not implement `call`"))
