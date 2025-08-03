@@ -637,13 +637,17 @@ impl Display for Expression {
 }
 
 fn fn_args(arguments: &[FunctionArgument], var_args_start: &Option<usize>) -> String {
-    arguments.iter().enumerate().map(|(idx, arg)| {
-        let f = match var_args_start {
-            &Some(i) if idx == i => "var ",
-            _ => "",
-        };
-        format!("{f}{arg}")
-    }).join(", ")
+    arguments
+        .iter()
+        .enumerate()
+        .map(|(idx, arg)| {
+            let f = match var_args_start {
+                &Some(i) if idx == i => "var ",
+                _ => "",
+            };
+            format!("{f}{arg}")
+        })
+        .join(", ")
 }
 
 #[derive(Clone, Debug, PartialEq)]

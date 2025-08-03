@@ -275,14 +275,15 @@ impl Runner for VM {
                     }
                     break;
                 }
-                Some(s) =>
-                {
+                Some(s) => {
                     let s = unsafe { &*s };
-                    if s == &Instruction::Ret && self.frames.current.borrow().scope_id == scope_id
+                    if s == &Instruction::Ret
+                        && self.frames.current.borrow().scope_id == scope_id
                         && self.scopes[self.frames.current.borrow().scope_id]
-                        .instructions
-                        .len()
-                        == self.frames.current.borrow().pc {
+                            .instructions
+                            .len()
+                            == self.frames.current.borrow().pc
+                    {
                         self.frames.current.borrow_mut().pc = 0;
                         self.frames.current.borrow_mut().clear_variables();
                         continue;
@@ -291,7 +292,7 @@ impl Runner for VM {
                 }
             };
 
-            match unsafe {self.process_instruction_scope(instruction) } {
+            match unsafe { self.process_instruction_scope(instruction) } {
                 VMState::Running => {}
                 VMState::Next => {
                     while self.frames.len() > current + 1
@@ -381,9 +382,11 @@ impl Runner for VM {
             if let ObjectValue::Tuple(tuple) = each {
                 for (value, (name, mutable)) in tuple.into_iter().zip(&args) {
                     let res = if *mutable {
-                        self.frames.load_mut(name.clone(), value.clone().into(), false)
+                        self.frames
+                            .load_mut(name.clone(), value.clone().into(), false)
                     } else {
-                        self.frames.load_let(name.clone(), value.clone().into(), false)
+                        self.frames
+                            .load_let(name.clone(), value.clone().into(), false)
                     };
                 }
             } else {
@@ -411,11 +414,13 @@ impl Runner for VM {
                     }
                     Some(s) => {
                         let s = unsafe { &*s };
-                        if s == &Instruction::Ret && self.frames.current.borrow().scope_id == scope_id
+                        if s == &Instruction::Ret
+                            && self.frames.current.borrow().scope_id == scope_id
                             && self.scopes[self.frames.current.borrow().scope_id]
-                            .instructions
-                            .len()
-                            == self.frames.current.borrow().pc {
+                                .instructions
+                                .len()
+                                == self.frames.current.borrow().pc
+                        {
                             self.frames.current.borrow_mut().pc = 0;
                             self.frames.current.borrow_mut().clear_variables();
                             break;

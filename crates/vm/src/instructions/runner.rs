@@ -17,7 +17,10 @@ use std::time::Duration;
 macro_rules! runner_common {
     () => {
         #[inline]
-        fn next_value<T: Display, F>(&mut self, location: F) -> StackValue where F: FnOnce() -> T {
+        fn next_value<T: Display, F>(&mut self, location: F) -> StackValue
+        where
+            F: FnOnce() -> T,
+        {
             self.stack.next_value(location)
         }
 
@@ -258,19 +261,15 @@ pub enum CallType<'c> {
 pub type ResolvedModule = Reference<dyn Module>;
 
 pub trait Runner: ResolveValue {
-
-    const Ins: [fn(&mut Self) -> Option<VMState>; 1] = [
-        |s| {
-            None
-        }
-    ];
-
+    const Ins: [fn(&mut Self) -> Option<VMState>; 1] = [|s| None];
 
     fn store_value(&mut self, value: StackValue);
 
     fn pop(&mut self) -> Option<StackValue>;
 
-    fn next_value<T: Display, F>(&mut self, location: F) -> StackValue where F: FnOnce() -> T;
+    fn next_value<T: Display, F>(&mut self, location: F) -> StackValue
+    where
+        F: FnOnce() -> T;
 
     fn options(&self) -> &VMOptions;
 
@@ -345,14 +344,17 @@ pub trait Runner: ResolveValue {
 
     #[inline]
     fn handle_binary_assign(&mut self, op: BinaryOperation) {
-        let rhs = self.next_resolved_value(||"handle_binary_assign - rhs");
+        let rhs = self.next_resolved_value(|| "handle_binary_assign - rhs");
         let lhs = self.next_resolved_value(|| "handle_binary_assign - lhs");
         let v = eval_binary_operation(op, lhs.borrow().deref(), rhs.borrow().deref());
         *lhs.borrow_mut().deref_mut() = v;
     }
 
     #[inline]
-    fn next_resolved_value<T: Display, F>(&mut self, location: F) -> Rc<RefCell<ObjectValue>> where F: FnOnce() -> T {
+    fn next_resolved_value<T: Display, F>(&mut self, location: F) -> Rc<RefCell<ObjectValue>>
+    where
+        F: FnOnce() -> T,
+    {
         self.next_value(location).resolve(self)
     }
 

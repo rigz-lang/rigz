@@ -47,8 +47,12 @@ impl VMStack {
     }
 
     #[inline]
-    pub fn next_value<T: Display, F>(&mut self, location: F) -> StackValue where F: FnOnce() -> T {
-        self.pop()
-            .unwrap_or_else(|| VMError::EmptyStack(format!("Stack is empty for {}", location())).into())
+    pub fn next_value<T: Display, F>(&mut self, location: F) -> StackValue
+    where
+        F: FnOnce() -> T,
+    {
+        self.pop().unwrap_or_else(|| {
+            VMError::EmptyStack(format!("Stack is empty for {}", location())).into()
+        })
     }
 }

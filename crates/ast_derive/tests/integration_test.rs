@@ -294,12 +294,9 @@ fn blah() {
     let json = JSONModule;
     assert_eq!(
         "5",
-        json.call(
-            "parse",
-            vec![Rc::new(RefCell::new(5.into()))].into()
-        )
-        .expect("json parse failed")
-        .to_string()
-        .as_str()
+        json.call("parse", vec![Rc::new(RefCell::new(5.into()))].into())
+            .expect("json parse failed")
+            .to_string()
+            .as_str()
     )
 }

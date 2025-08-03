@@ -8,7 +8,10 @@ use crate::{
     generate_builder, out, CallFrame, Instruction, RigzBuilder, Runner, Scope, VMStack, Variable,
 };
 pub use options::VMOptions;
-use rigz_core::{Dependency, EnumDeclaration, IndexSet, Lifecycle, Module, MutableReference, ObjectValue, PrimitiveValue, Snapshot, StackValue, TestResults, VMError};
+use rigz_core::{
+    Dependency, EnumDeclaration, IndexSet, Lifecycle, Module, MutableReference, ObjectValue,
+    PrimitiveValue, Snapshot, StackValue, TestResults, VMError,
+};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -38,7 +41,7 @@ pub struct VM {
     pub constants: Vec<ObjectValue>,
     pub(crate) process_manager: MutableReference<ProcessManager>,
     pub enums: RwLock<Vec<Arc<EnumDeclaration>>>,
-    pub strings: IndexSet<String>
+    pub strings: IndexSet<String>,
 }
 
 impl RigzBuilder for VM {
@@ -94,7 +97,7 @@ impl Default for VM {
             process_manager: ProcessManager::new().into(),
             dependencies: Default::default(),
             enums: Default::default(),
-            strings: IndexSet::from(["self".to_string()])
+            strings: IndexSet::from(["self".to_string()]),
         }
     }
 }

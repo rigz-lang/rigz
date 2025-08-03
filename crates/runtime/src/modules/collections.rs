@@ -178,33 +178,38 @@ impl RigzCollections for CollectionsModule {
             .collect();
     }
 
-    fn set_split_first(&self, this: IndexSet<ObjectValue>) -> (Option<ObjectValue>, IndexSet<ObjectValue>) {
+    fn set_split_first(
+        &self,
+        this: IndexSet<ObjectValue>,
+    ) -> (Option<ObjectValue>, IndexSet<ObjectValue>) {
         if this.is_empty() {
             (None, IndexSet::new())
         } else {
             let first = this.first().unwrap();
-            (Some(first.clone()), this.iter()
-                .skip(1)
-                .cloned()
-                .collect())
+            (Some(first.clone()), this.iter().skip(1).cloned().collect())
         }
     }
 
-    fn set_split_last(&self, this: IndexSet<ObjectValue>) -> (Option<ObjectValue>, IndexSet<ObjectValue>) {
+    fn set_split_last(
+        &self,
+        this: IndexSet<ObjectValue>,
+    ) -> (Option<ObjectValue>, IndexSet<ObjectValue>) {
         if this.is_empty() {
             (None, IndexSet::new())
         } else {
             let last = this.last().unwrap();
-            (Some(last.clone()), this.iter()
-                .rev()
-                .skip(1)
-                .cloned()
-                .rev()
-                .collect())
+            (
+                Some(last.clone()),
+                this.iter().rev().skip(1).cloned().rev().collect(),
+            )
         }
     }
 
-    fn set_zip(&self, this: IndexSet<ObjectValue>, other: IndexSet<ObjectValue>) -> IndexMap<ObjectValue, ObjectValue> {
+    fn set_zip(
+        &self,
+        this: IndexSet<ObjectValue>,
+        other: IndexSet<ObjectValue>,
+    ) -> IndexMap<ObjectValue, ObjectValue> {
         this.into_iter().zip(other).collect()
     }
 
@@ -294,7 +299,11 @@ impl RigzCollections for CollectionsModule {
         this.last().cloned()
     }
 
-    fn list_nth(&self, this: Vec<ObjectValue>, number: Number) -> Result<Option<ObjectValue>, VMError> {
+    fn list_nth(
+        &self,
+        this: Vec<ObjectValue>,
+        number: Number,
+    ) -> Result<Option<ObjectValue>, VMError> {
         let index = number.to_usize()?;
         Ok(this.get(index).cloned())
     }
@@ -331,7 +340,11 @@ impl RigzCollections for CollectionsModule {
         this.last().cloned()
     }
 
-    fn set_nth(&self, this: IndexSet<ObjectValue>, number: Number) -> Result<Option<ObjectValue>, VMError> {
+    fn set_nth(
+        &self,
+        this: IndexSet<ObjectValue>,
+        number: Number,
+    ) -> Result<Option<ObjectValue>, VMError> {
         let index = number.to_usize()?;
         Ok(this.get_index(index).cloned())
     }
@@ -340,13 +353,21 @@ impl RigzCollections for CollectionsModule {
         this.extend(value)
     }
 
-    fn set_concat(&self, this: IndexSet<ObjectValue>, value: IndexSet<ObjectValue>) -> IndexSet<ObjectValue> {
+    fn set_concat(
+        &self,
+        this: IndexSet<ObjectValue>,
+        value: IndexSet<ObjectValue>,
+    ) -> IndexSet<ObjectValue> {
         let mut this = this;
         this.extend(value);
         this
     }
 
-    fn set_with(&self, this: IndexSet<ObjectValue>, value: Vec<ObjectValue>) -> IndexSet<ObjectValue> {
+    fn set_with(
+        &self,
+        this: IndexSet<ObjectValue>,
+        value: Vec<ObjectValue>,
+    ) -> IndexSet<ObjectValue> {
         let mut this = this;
         this.extend(value);
         this

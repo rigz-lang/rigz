@@ -2,7 +2,10 @@ use crate::vm::VMOptions;
 use crate::{Instruction, LoadValue, Scope, VM};
 use crate::{MatchArm, ModulesMap};
 use log::Level;
-use rigz_core::{BinaryOperation, Dependency, EnumDeclaration, IndexSet, Lifecycle, Module, ObjectValue, RigzType, UnaryOperation};
+use rigz_core::{
+    BinaryOperation, Dependency, EnumDeclaration, IndexSet, Lifecycle, Module, ObjectValue,
+    RigzType, UnaryOperation,
+};
 use std::fmt::Debug;
 use std::sync::Arc;
 // todo use Rodeo (single threaded here + runtime), use Reference<(Threaded or not)Resolver> in VM
@@ -32,7 +35,7 @@ impl Default for VMBuilder {
             lifecycles: Default::default(),
             constants: Default::default(),
             enums: Default::default(),
-            strings: IndexSet::from(["self".to_string()])
+            strings: IndexSet::from(["self".to_string()]),
         }
     }
 }
@@ -457,7 +460,7 @@ macro_rules! generate_builder {
         #[inline]
         fn string_index(&mut self, value: &str) -> usize {
             if let Some(u) = self.strings.get_index_of(value) {
-                return u
+                return u;
             }
             self.strings.insert_full(value.to_string()).0
         }
@@ -469,7 +472,10 @@ macro_rules! generate_builder {
             args: Vec<(String, bool)>,
             set_self: Option<bool>,
         ) -> usize {
-            let args = args.into_iter().map(|(a, m)| (self.string_index(&a), m)).collect();
+            let args = args
+                .into_iter()
+                .map(|(a, m)| (self.string_index(&a), m))
+                .collect();
             let next = self.scopes.len();
             self.scopes.push(Scope::new(named, args, set_self));
             self.sp = self.scopes.len() - 1;
@@ -495,7 +501,10 @@ macro_rules! generate_builder {
             args: Vec<(String, bool)>,
             set_self: Option<bool>,
         ) -> usize {
-            let args = args.into_iter().map(|(a, m)| (self.string_index(&a), m)).collect();
+            let args = args
+                .into_iter()
+                .map(|(a, m)| (self.string_index(&a), m))
+                .collect();
             let next = self.scopes.len();
             self.scopes
                 .push(Scope::lifecycle(named, args, lifecycle, set_self));

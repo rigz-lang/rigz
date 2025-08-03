@@ -391,11 +391,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 };
                 (rt, s)
             }
-            e => {
-                (RigzType::None, Scope {
-                    elements: vec![e],
-                })
-            }
+            e => (RigzType::None, Scope { elements: vec![e] }),
         };
         let fd = FunctionDefinition {
             name: name.to_string(),
@@ -632,8 +628,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 op,
                 expression,
             } => {
-                self.builder
-                    .add_get_mutable_variable_instruction(&name);
+                self.builder.add_get_mutable_variable_instruction(&name);
                 self.parse_expression(expression)?;
                 self.builder.add_binary_assign_instruction(op);
             }
@@ -642,8 +637,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 op,
                 expression,
             } => {
-                self.builder
-                    .add_get_mutable_variable_instruction(&name);
+                self.builder.add_get_mutable_variable_instruction(&name);
                 // todo validate expression is rigz_type
                 self.parse_expression(expression)?;
                 self.builder.add_binary_assign_instruction(op);
@@ -949,8 +943,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 mutable: true,
             },
         );
-        self.builder
-            .add_load_mut_instruction("self", false);
+        self.builder.add_load_mut_instruction("self", false);
         self.parse_elements(body.elements)?;
         self.builder.add_get_self_instruction();
         self.builder.exit_scope(current);
@@ -1626,9 +1619,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                         self.call_extension_function(*exp, &first, args)?;
                         return Ok(());
                     }
-                    true => {
-                        self.call_extension_function(*exp, &first, vec![].into())?
-                    }
+                    true => self.call_extension_function(*exp, &first, vec![].into())?,
                 };
 
                 for (index, c) in calls {
@@ -2051,8 +2042,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         if arguments.is_empty() {
             if let Some(v) = self.identifiers.get(name) {
                 if v.mutable {
-                    self.builder
-                        .add_get_mutable_variable_instruction(name);
+                    self.builder.add_get_mutable_variable_instruction(name);
                 } else {
                     self.builder.add_get_variable_instruction(name);
                 }
@@ -2336,9 +2326,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                                     })
                                     .collect::<Vec<_>>();
                                 if func.is_empty() {
-                                    self.builder.add_get_variable_reference_instruction(
-                                        &arg.name,
-                                    );
+                                    self.builder
+                                        .add_get_variable_reference_instruction(&arg.name);
                                     continue;
                                 }
                                 if func.len() > 1 {
@@ -2348,8 +2337,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                                 }
                                 let func = func[0];
                                 self.builder.add_load_instruction(LoadValue::ScopeId(func));
-                                self.builder
-                                    .add_load_let_instruction(&arg.name, false);
+                                self.builder.add_load_let_instruction(&arg.name, false);
                                 self.builder
                                     .add_get_variable_reference_instruction(&arg.name);
                             }
@@ -2529,9 +2517,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             ImportValue::FilePath(f) => {
                 if self.parser_options.current_directory.is_none() {
                     self.parser_options.current_directory = match env::current_dir() {
-                        Ok(f) => {
-                            Some(f)
-                        }
+                        Ok(f) => Some(f),
                         Err(e) => {
                             return Err(ValidationError::InvalidImport(format!(
                                 "Failed to get current directory - {e}"
@@ -2628,10 +2614,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 e => Scope {
                     elements: vec![e.into()],
                 },
-            }
-            e => Scope {
-                elements: vec![e],
-            }
+            },
+            e => Scope { elements: vec![e] },
         };
 
         let current = self.builder.current_scope();
