@@ -12,6 +12,7 @@ use std::fmt::Display;
 use std::ops::Deref;
 use std::thread;
 use std::time::Duration;
+use std::rc::Rc;
 
 #[allow(unused_variables)]
 impl Runner for VM {

@@ -567,6 +567,7 @@ impl RigzBuilder for VMBuilder {
             lifecycles: self.lifecycles,
             constants: self.constants,
             enums: self.enums.into(),
+            strings: self.strings,
             ..Default::default()
         }
     }

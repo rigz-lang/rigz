@@ -11,7 +11,6 @@ use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::string::ToString;
 use std::sync::Arc;
-use std::time::Duration;
 
 #[macro_export]
 macro_rules! runner_common {
@@ -108,7 +107,22 @@ macro_rules! runner_common {
         #[inline]
         fn load_mut(&mut self, name: usize, shadow: bool) -> Result<(), VMError> {
             let v = self.next_value(|| format!("load_mut - {name}"));
-            self.frames.load_mut(name, v, shadow)
+            if shadow {
+                self.frames.load_mut(name, v, shadow)
+            } else {
+                if let Some(og) = self.frames.get_variable(name) {
+                    let ogv = og.resolve(self);
+                    let sv = v.resolve(self);
+                    if Rc::ptr_eq(&ogv, &sv) {
+                        return self.frames.load_mut(name, v, shadow);
+                    }
+        
+                    ogv.swap(&v.resolve(self));
+                    self.frames.load_mut(name, og, shadow)
+                } else {
+                    self.frames.load_mut(name, v, shadow)
+                }
+            }
         }
 
         #[inline]
@@ -186,6 +200,8 @@ macro_rules! runner_common {
         }
     };
 }
+
+use std::time::Duration;
 
 #[inline]
 pub fn eval_unary(unary_operation: UnaryOperation, val: &ObjectValue) -> ObjectValue {
@@ -295,7 +311,7 @@ pub trait Runner: ResolveValue {
     #[inline]
     fn set_this(&mut self, mutable: bool) -> Result<(), VMError> {
         if mutable {
-            self.load_mut(0, false)
+            self.load_mut(0, true)
         } else {
             self.load_let(0, false)
         }

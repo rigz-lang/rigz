@@ -64,13 +64,11 @@ derive_module! {
 
         fn Set.to_tuple -> Any
         fn Set.reduce(init: Any, func: |Any, Any| -> Any) -> Any
-            if !self
-                init
-            else
-                (first, rest) = self.split_first
-                res = func init, first
-                rest.reduce res, func
+            mut result = init
+            for v in self
+                result = func result, v
             end
+            result
         end
 
         fn Set.sum -> Number
@@ -79,13 +77,11 @@ derive_module! {
 
         fn List.to_tuple -> Any
         fn List.reduce(init: Any, func: |Any, Any| -> Any) -> Any
-            if !self
-                init
-            else
-                (first, rest) = self.split_first
-                res = func init, first
-                rest.reduce res, func
+            mut result = init
+            for v in self
+                result = func result, v
             end
+            result
         end
 
         fn List.sum -> Number
@@ -93,14 +89,11 @@ derive_module! {
         end
 
         fn Map.reduce(init: Any, func: |Any, Any, Any| -> Any) -> Any
-            if !self
-                init
-            else
-                (k, rest) = self.split_first
-                (key, first) = k
-                nxt = func init, key, first
-                rest.reduce nxt, func
+            mut result = init
+            for k, v in self
+                result = func result, k, v
             end
+            result
         end
 
         fn Map.sum -> Number
