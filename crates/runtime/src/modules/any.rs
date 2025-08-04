@@ -91,11 +91,12 @@ impl RigzAny for AnyModule {
 
     #[inline]
     fn any_is(&self, this: ObjectValue, any: ObjectValue) -> bool {
-        let rt = this.rigz_type();
         if let ObjectValue::Primitive(PrimitiveValue::Type(rigz_type)) = any {
+            let rt = this.rigz_type();
             rt == rigz_type
         } else {
-            rt == any.rigz_type() && this == any
+            let rt = this.rigz_type();
+            this == any && rt == any.rigz_type()
         }
     }
 

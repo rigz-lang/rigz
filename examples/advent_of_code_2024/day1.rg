@@ -17,12 +17,12 @@ rhs.sort
 fn part1
     mut res = 0
     for l, r in lhs.zip rhs
-        res += (r > l) ? (r - l) : (l - r)
+        res += r > l ? r - l : l - r
     end
     res
 end
 
-fn part2 = lhs.map { |l| l * [for r in rhs: r == l].len }.sum
+fn part2 = lhs.map {|l| l * [for r in rhs: 1 if r == l].len }.sum
 
 o1 = part1
 o2 = part2

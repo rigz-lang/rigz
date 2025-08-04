@@ -116,7 +116,7 @@ macro_rules! runner_common {
                     if Rc::ptr_eq(&ogv, &sv) {
                         return self.frames.load_mut(name, v, shadow);
                     }
-        
+
                     ogv.swap(&v.resolve(self));
                     self.frames.load_mut(name, og, shadow)
                 } else {
@@ -713,14 +713,13 @@ pub trait Runner: ResolveValue {
                 }
             }
             &Instruction::ForList { scope } => {
-                let mut result = vec![];
                 let resolved = self.next_resolved_value(|| "for-list");
                 let mut resolved = resolved.borrow_mut();
                 let this = match resolved.as_list() {
                     Ok(l) => l,
                     Err(e) => return e.into(),
                 };
-                let default = ObjectValue::default();
+                let mut result = Vec::with_capacity(this.len());
                 for value in this {
                     self.store_value(value.clone().into());
                     // todo ideally this doesn't need a call frame per intermediate, it should be possible to reuse the current scope/fram
@@ -730,7 +729,7 @@ pub trait Runner: ResolveValue {
                         ResolvedValue::Next => return VMState::Next,
                         ResolvedValue::Value(value) => {
                             let value = value.borrow().clone();
-                            if value != default {
+                            if !value.is_none() {
                                 result.push(value)
                             }
                         }
@@ -740,14 +739,13 @@ pub trait Runner: ResolveValue {
                 self.store_value(result.into());
             }
             &Instruction::ForMap { scope } => {
-                let mut result = IndexMap::new();
                 let res = self.next_resolved_value(|| "for-map");
                 let mut res = res.borrow_mut();
                 let this = match res.as_map() {
                     Ok(map) => map,
                     Err(e) => return e.into(),
                 };
-                let default = ObjectValue::default();
+                let mut result = IndexMap::with_capacity(this.len());
                 for (k, v) in this {
                     self.store_value(v.clone().into());
                     self.store_value(k.clone().into());
@@ -764,7 +762,7 @@ pub trait Runner: ResolveValue {
                             // todo this should be == 2 but same tuple is reused appending to front
                             let v = t.remove(1);
                             let k = t.remove(0);
-                            if k != default && v != default {
+                            if !k.is_none() && !v.is_none() {
                                 result.insert(k, v);
                             }
                         }

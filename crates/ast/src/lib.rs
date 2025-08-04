@@ -2268,7 +2268,7 @@ impl<'t> Parser<'t> {
                         self.consume_token(TokenKind::Optional)?;
                         let then = self.parse_expression(0)?.into();
                         self.consume_token(TokenKind::Colon)?;
-                        let branch = self.parse_expression(rp)?.into();
+                        let branch = self.parse_expression(0)?.into();
                         Expression::Ternary {
                             condition,
                             then,

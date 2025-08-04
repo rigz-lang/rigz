@@ -32,6 +32,10 @@ impl ObjectValue {
     pub fn new(obj: impl Object) -> Self {
         ObjectValue::Object(Box::new(obj))
     }
+    
+    pub fn is_none(&self) -> bool {
+        matches!(self, ObjectValue::Primitive(PrimitiveValue::None))
+    }
 }
 
 impl Default for ObjectValue {

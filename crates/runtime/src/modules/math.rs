@@ -11,6 +11,7 @@ derive_module! {
     fn Number.logn(e: Number) -> Number!
     fn Number.pow(e: Number) -> Number!
     fn Number.sqrt -> Number!
+    fn Number.abs -> Number
     fn Number.sin -> Float
     fn Number.cos -> Float
     fn Number.tan -> Float
@@ -39,6 +40,13 @@ impl RigzMath for MathModule {
 
     fn number_sqrt(&self, this: Number) -> Result<Number, VMError> {
         this.sqrt()
+    }
+
+    fn number_abs(&self, this: Number) -> Number {
+        match this {
+            Number::Int(i) => i.abs().into(),
+            Number::Float(f) => f.abs().into()
+        }
     }
 
     fn number_sin(&self, this: Number) -> f64 {
