@@ -3,7 +3,7 @@ use rigz_ast::*;
 use rigz_ast_derive::{derive_module, derive_object};
 use rigz_core::*;
 use std::ops::Deref;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
 derive_object! {
     "Http",
@@ -192,13 +192,13 @@ impl ResponseObject for Response {
 
 #[derive(Debug)]
 pub struct HttpModule {
-    client: ureq::Agent,
+    client: LazyLock<ureq::Agent>,
 }
 
 impl Default for HttpModule {
     fn default() -> Self {
         Self {
-            client: ureq::Agent::new(),
+            client: LazyLock::new(ureq::Agent::new),
         }
     }
 }
