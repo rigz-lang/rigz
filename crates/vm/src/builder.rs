@@ -1,20 +1,23 @@
 use crate::vm::VMOptions;
 use crate::{Instruction, LoadValue, Scope, VM};
-use crate::{MatchArm, ModulesMap};
+use crate::MatchArm;
 use log::Level;
-use rigz_core::{
-    BinaryOperation, Dependency, EnumDeclaration, IndexSet, Lifecycle, Module, ObjectValue,
-    RigzType, UnaryOperation,
-};
+use rigz_core::{BinaryOperation, Dependency, EnumDeclaration, IndexSet, Lifecycle, Module, ObjectValue, Reference, RigzType, UnaryOperation};
 use std::fmt::Debug;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 // todo use Rodeo (single threaded here + runtime), use Reference<(Threaded or not)Resolver> in VM
+
+#[cfg(feature = "threaded")]
+type Modules = Vec<std::sync::Arc<dyn Module + Send + Sync>>;
+
+#[cfg(not(feature = "threaded"))]
+type Modules = Vec<std::rc::Rc<dyn Module>>;
 
 #[derive(Clone, Debug)]
 pub struct VMBuilder {
     pub sp: usize,
     pub scopes: Vec<Scope>,
-    pub modules: ModulesMap,
+    pub modules: Modules,
     pub dependencies: Vec<Arc<Dependency>>,
     pub options: VMOptions,
     pub lifecycles: Vec<Lifecycle>,
@@ -98,12 +101,6 @@ pub trait RigzBuilder: Debug + Default {
 
     fn register_enum(&mut self, dependency: Arc<EnumDeclaration>) -> usize;
 
-    #[cfg(feature = "threaded")]
-    fn register_module<M: Module + Send + Sync + 'static>(&mut self, module: M) -> &mut Self;
-
-    #[cfg(not(feature = "threaded"))]
-    fn register_module<M: Module + 'static>(&mut self, module: M) -> &mut Self;
-
     fn with_options(&mut self, options: VMOptions) -> &mut Self;
 
     generate_bin_op_methods! {
@@ -185,7 +182,7 @@ pub trait RigzBuilder: Debug + Default {
     #[inline]
     fn add_call_module_instruction(
         &mut self,
-        module: String,
+        module: usize,
         func: String,
         args: usize,
     ) -> &mut Self {
@@ -196,7 +193,7 @@ pub trait RigzBuilder: Debug + Default {
     #[inline]
     fn add_call_extension_module_instruction(
         &mut self,
-        module: String,
+        module: usize,
         func: String,
         args: usize,
     ) -> &mut Self {
@@ -207,7 +204,7 @@ pub trait RigzBuilder: Debug + Default {
     #[inline]
     fn add_call_mutable_extension_module_instruction(
         &mut self,
-        module: String,
+        module: usize,
         func: String,
         args: usize,
     ) -> &mut Self {
@@ -520,20 +517,6 @@ macro_rules! generate_builder {
         }
 
         #[inline]
-        #[cfg(feature = "threaded")]
-        fn register_module<M: Module + Send + Sync + 'static>(&mut self, module: M) -> &mut Self {
-            self.modules.insert(M::name(), std::sync::Arc::new(module));
-            self
-        }
-
-        #[inline]
-        #[cfg(not(feature = "threaded"))]
-        fn register_module<M: Module + 'static>(&mut self, module: M) -> &mut Self {
-            self.modules.insert(M::name(), std::rc::Rc::new(module));
-            self
-        }
-
-        #[inline]
         fn with_options(&mut self, options: VMOptions) -> &mut Self {
             self.options = options;
             self
@@ -561,7 +544,7 @@ impl RigzBuilder for VMBuilder {
     fn build(self) -> VM {
         VM {
             scopes: self.scopes,
-            modules: self.modules,
+            modules: self.modules.into(),
             dependencies: self.dependencies.into(),
             options: self.options,
             lifecycles: self.lifecycles,
@@ -587,6 +570,22 @@ impl RigzBuilder for VMBuilder {
 }
 
 impl VMBuilder {
+    #[inline]
+    #[cfg(not(feature = "threaded"))]
+    fn register_module<M: Module + 'static>(&mut self, module: M) -> usize {
+        let index = self.modules.len();
+        self.modules.push(std::rc::Rc::new(module));
+        index
+    }
+
+    #[inline]
+    #[cfg(feature = "threaded")]
+    pub fn register_module<M: Module + Send + Sync + 'static>(&mut self, module: M) -> usize {
+        let index = self.modules.len();
+        self.modules.push(Arc::new(module));
+        index
+    }
+
     #[inline]
     pub fn new() -> Self {
         Self::default()

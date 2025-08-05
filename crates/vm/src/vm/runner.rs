@@ -1,5 +1,5 @@
 use crate::{
-    runner_common, CallFrame, CallType, Instruction, ModulesMap, ResolvedModule, Runner, Scope,
+    runner_common, CallFrame, CallType, Instruction, ResolvedModule, Runner, Scope, Modules,
     VMOptions, VMState, Variable, VM,
 };
 use itertools::Itertools;
@@ -463,6 +463,126 @@ impl Runner for VM {
             self.frames.current.swap(&next);
         }
         result
+    }
+
+    fn call_for_comprehension<T, I, F>(&mut self, scope_id: usize, init: I, mut save: F) -> Result<T, VMState> where F: FnMut(&mut T, ObjectValue) -> Option<VMError>, I: FnOnce(usize) -> T
+    {
+        let sp = self.sp;
+        let current = self.frames.len();
+        let Some(value) = self.pop() else {
+            return Err(
+                VMError::runtime(format!("No object passed into for loop - {scope_id}")).into(),
+            );
+        };
+        let res = value.resolve(self);
+        let mut res = res.borrow_mut();
+        let value = match res.as_list() {
+            Ok(v) => v,
+            Err(e) => {
+                return Err(
+                    VMError::runtime(format!(
+                        "Invalid object passed into for loop - {scope_id}, {value:?}"
+                    )).into()
+                )
+            }
+        };
+
+        let args = match self.scopes.get(scope_id) {
+            None => {
+                return Err(
+                    VMError::runtime(format!("Scope does not exist in for loop - {scope_id}")).into()
+                )
+            }
+            Some(v) => v.args.clone(),
+        };
+        if args.is_empty() {
+            return Err(
+                VMError::runtime(format!("No args for scope in for loop- {scope_id}")).into(),
+            );
+        }
+        let new_frame = CallFrame::child(scope_id, self.frames.len());
+        let old = self.frames.current.replace(new_frame);
+        self.frames.push(old);
+        self.sp = scope_id;
+        let mut result = init(value.len());
+        'outer: for each in value {
+            if let ObjectValue::Tuple(tuple) = each {
+                for (value, (name, mutable)) in tuple.into_iter().zip(&args) {
+                    if *mutable {
+                        self.frames
+                            .load_mut(name.clone(), value.clone().into(), false)?
+                    } else {
+                        self.frames
+                            .load_let(name.clone(), value.clone().into(), false)?
+                    }
+                }
+            } else {
+                let (name, mutable) = args[0].clone();
+                if mutable {
+                    self.frames.load_mut(name, each.clone().into(), false)?
+                } else {
+                    self.frames.load_let(name, each.clone().into(), false)?
+                };
+            }
+            loop {
+                let ins = match self.next_instruction() {
+                    None => {
+                        if self.frames.current.borrow().scope_id == scope_id {
+                            self.frames.current.borrow_mut().pc = 0;
+                            self.frames.current.borrow_mut().clear_variables();
+                            continue;
+                        }
+                        break 'outer;
+                    }
+                    Some(s) => {
+                        let s = unsafe { &*s };
+                        if s == &Instruction::Ret
+                            && self.frames.current.borrow().scope_id == scope_id
+                            && self.scopes[self.frames.current.borrow().scope_id]
+                            .instructions
+                            .len()
+                            == self.frames.current.borrow().pc
+                        {
+                            save(&mut result, self.next_resolved_value(|| "for").borrow().clone());
+                            self.frames.current.borrow_mut().pc = 0;
+                            self.frames.current.borrow_mut().clear_variables();
+                            break;
+                        }
+                        s
+                    }
+                };
+                match unsafe { self.process_instruction_scope(ins) } {
+                    VMState::Running => {}
+                    VMState::Break => {
+                        break 'outer;
+                    }
+                    VMState::Next => {
+                        while self.frames.len() > current + 1 {
+                            let Some(next) = self.frames.pop() else {
+                                return Err(
+                                    VMError::runtime("Missing call frame".to_string()).into(),
+                                );
+                            };
+                            self.frames.current.swap(&next);
+                        }
+                        self.sp = scope_id;
+                        self.frames.current.borrow_mut().pc = 0;
+                        self.frames.current.borrow_mut().clear_variables();
+                        break;
+                    }
+                    VMState::Ran(r) => self.store_value(r.into()),
+                    v => return Err(v)
+                }
+            }
+        }
+        self.sp = sp;
+        while self.frames.len() > current {
+            let Some(next) = self.frames.pop() else {
+                return Err(VMError::runtime("Missing call frame".to_string()).into());
+            };
+            self.frames.current.swap(&next);
+        }
+        Ok(result)
     }
 
     fn sleep(&self, duration: Duration) {

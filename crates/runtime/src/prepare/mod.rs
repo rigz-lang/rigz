@@ -21,7 +21,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum CallSite {
     Scope(usize, bool),
-    Module(String),
+    Module(usize),
     Object(usize),
     // todo only store used functions in VM
     // Parsed,
@@ -133,8 +133,8 @@ type FunctionCallSignatures = Vec<CallSignature>;
 
 #[derive(Debug)]
 pub(crate) enum ModuleDefinition {
-    Imported,
-    Module(ModuleTraitDefinition),
+    Imported(usize),
+    Module(ModuleTraitDefinition, usize),
 }
 
 #[derive(Clone, Debug)]
@@ -265,44 +265,12 @@ struct BestMatch {
 }
 
 impl<T: RigzBuilder> ProgramParser<'_, T> {
-    pub(crate) fn new() -> Self {
-        let mut p = ProgramParser::default();
-        p.add_default_modules()
-            .expect("failed to register default modules");
-        p
-    }
-
-    pub(crate) fn with_options(parser_options: ParserOptions) -> Self {
-        let mut p = ProgramParser {
-            parser_options,
-            ..Default::default()
-        };
-        p.add_default_modules()
-            .expect("failed to register default modules");
-        p
-    }
-
-    pub(crate) fn register_module<M: ParsedModule + 'static>(
-        &mut self,
-        module: M,
-    ) -> Result<(), ValidationError> {
-        let name = M::name();
-        let def = M::module_definition();
-        for dep in M::parsed_dependencies() {
-            let obj = dep.object_definition;
-            let dep = self.builder.register_dependency(Arc::new(dep.dependency));
-            self.parse_object_definition(obj, Some(dep))?;
-        }
-        self.modules.insert(name, ModuleDefinition::Module(def));
-        self.builder.register_module(module);
-        Ok(())
-    }
-
     fn parse_module_trait_definition(
         &mut self,
         module: ModuleTraitDefinition,
+        index: usize,
     ) -> Result<(), ValidationError> {
-        self.parse_trait_definition_for_module(module.definition)
+        self.parse_trait_definition_for_module(module.definition, index)
     }
 
     pub(crate) fn parse_program(&mut self, program: Program) -> Result<(), ValidationError> {
@@ -778,7 +746,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         Ok(())
     }
 
-    fn parse_object_definition(
+    pub(crate) fn parse_object_definition(
         &mut self,
         definition: ObjectDefinition,
         dep: Option<usize>,
@@ -1080,8 +1048,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
     pub(crate) fn parse_trait_definition_for_module(
         &mut self,
         trait_definition: TraitDefinition,
+        index: usize,
     ) -> Result<(), ValidationError> {
-        let module_name = trait_definition.name;
         for func in trait_definition.functions {
             match func {
                 FunctionDeclaration::Declaration {
@@ -1093,13 +1061,13 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                         IndexMapEntry::Occupied(mut entry) => {
                             entry.get_mut().push(CallSignature::Function(
                                 type_definition,
-                                CallSite::Module(module_name.to_string()),
+                                CallSite::Module(index),
                             ));
                         }
                         IndexMapEntry::Vacant(e) => {
                             e.insert(vec![CallSignature::Function(
                                 type_definition,
-                                CallSite::Module(module_name.to_string()),
+                                CallSite::Module(index),
                             )]);
                         }
                     }
@@ -1158,8 +1126,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             .modules
             .iter()
             .filter_map(|(_, m)| match m {
-                ModuleDefinition::Imported => None,
-                ModuleDefinition::Module(m) => {
+                ModuleDefinition::Imported(_) => None,
+                ModuleDefinition::Module(m, _) => {
                     if m.auto_import
                         && m.definition.functions.iter().any(|f| match f {
                             FunctionDeclaration::Declaration { name, .. } => *name == function,
@@ -2556,13 +2524,14 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 )));
             }
             Some(def) => {
-                if let ModuleDefinition::Module(_) = def {
-                    let ModuleDefinition::Module(def) =
-                        std::mem::replace(def, ModuleDefinition::Imported)
+                if let ModuleDefinition::Module(_, idx) = def {
+                    let idx = *idx;
+                    let ModuleDefinition::Module(def, _) =
+                        std::mem::replace(def, ModuleDefinition::Imported(idx))
                     else {
                         unreachable!()
                     };
-                    self.parse_module_trait_definition(def)?;
+                    self.parse_module_trait_definition(def, idx)?;
                 }
             }
         }

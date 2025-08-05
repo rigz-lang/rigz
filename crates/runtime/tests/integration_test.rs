@@ -314,7 +314,6 @@ pub mod runtime {
             a = || 42
             a
             "# = 42)
-            for_list(r#"[for v in [1, 2, 3]: v * v]"# = vec![1, 4, 9])
             for_list_assign(r#"a = [for v in [1, 2, 3]: v * v]; a"# = vec![1, 4, 9])
             for_list_exclude_nones(r#"[for v in [1, 2, 3, 'a', 'b']: v if v.is_num]"# = vec![1, 2, 3])
             for_map(r#"{for k, v in {1, 2, 3}: k, v if k % 2 == 0}"# = IndexMap::from([(2, 2)]))
@@ -719,7 +718,9 @@ pub mod runtime {
 
     pub mod debug {
         use super::*;
-        run_debug_vm! {}
+        run_debug_vm! {
+            for_list(r#"[for v in [1, 2, 3]: v * v]"# = vec![1, 4, 9])
+        }
     }
 
     pub mod recursive {

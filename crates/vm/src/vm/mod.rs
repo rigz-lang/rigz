@@ -20,11 +20,10 @@ use std::time::Duration;
 pub use values::*;
 
 #[cfg(feature = "threaded")]
-pub type ModulesMap =
-    std::sync::Arc<dashmap::DashMap<&'static str, std::sync::Arc<dyn Module + Send + Sync>>>;
+pub type Modules = Arc<Vec<std::sync::Arc<dyn Module + Send + Sync>>>;
 
 #[cfg(not(feature = "threaded"))]
-pub type ModulesMap = HashMap<&'static str, std::rc::Rc<dyn Module>>;
+pub type Modules = Vec<std::rc::Rc<dyn Module>>;
 
 pub type Dependencies = RwLock<Vec<Arc<Dependency>>>;
 
@@ -32,7 +31,7 @@ pub type Dependencies = RwLock<Vec<Arc<Dependency>>>;
 pub struct VM {
     pub scopes: Vec<Scope>,
     pub frames: Frames,
-    pub modules: ModulesMap,
+    pub modules: Modules,
     pub(crate) dependencies: Dependencies,
     pub stack: VMStack,
     pub sp: usize,
@@ -117,7 +116,7 @@ impl VM {
     }
 
     #[inline]
-    pub fn from_modules(modules: ModulesMap) -> Self {
+    pub fn from_modules(modules: Modules) -> Self {
         Self {
             modules,
             ..Default::default()

@@ -110,10 +110,10 @@ mod vm_test {
     fn module_works() {
         let mut builder = VMBuilder::new();
         let module = TestModule {};
-        builder
-            .register_module(module)
-            .add_load_instruction("abc".into())
-            .add_call_module_instruction("test".to_string(), "hello".to_string(), 1);
+        let test = builder
+            .register_module(module);
+        builder.add_load_instruction("abc".into())
+            .add_call_module_instruction(test, "hello".to_string(), 1);
         let mut vm = builder.build();
         let v = vm.eval().unwrap();
         assert_eq!(v, PrimitiveValue::None.into());
@@ -273,7 +273,7 @@ mod vm_test {
                     Instruction::Call(1),
                     Instruction::Load("".into()),
                     Instruction::CallModule {
-                        module: "Std".to_string(),
+                        module: 0,
                         func: "assert_eq".to_string(),
                         args: 3,
                     },
@@ -290,7 +290,7 @@ mod vm_test {
             TestResults {
                 passed: 0,
                 failed: 1,
-                failure_messages: vec![("test".into(), VMError::InvalidModule("Std".to_string()))],
+                failure_messages: vec![("test".into(), VMError::InvalidModule(0.to_string()))],
                 duration: Default::default(),
             }
         )

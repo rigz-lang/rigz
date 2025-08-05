@@ -8,12 +8,12 @@ use std::time::Duration;
 
 #[derive(Default, Debug, Clone)]
 pub struct RuntimeOptions {
-    vm: VMOptions,
+    pub vm: VMOptions,
 }
 
 pub struct Runtime<'vm> {
-    parser: ProgramParser<'vm, VM>,
-    runtime_options: RuntimeOptions,
+    pub parser: ProgramParser<'vm, VM>,
+    pub runtime_options: RuntimeOptions,
 }
 
 impl<'vm> From<ProgramParser<'vm, VM>> for Runtime<'vm> {
@@ -103,7 +103,7 @@ impl Runtime<'_> {
 
     pub fn new() -> Self {
         Runtime {
-            parser: ProgramParser::new(),
+            parser: ProgramParser::default(),
             runtime_options: Default::default(),
         }
     }
@@ -142,13 +142,6 @@ impl Runtime<'_> {
         let program = parser.parse().map_err(|e| e.into())?;
         let program: Program = program.into();
         program.create_runtime_without_modules()
-    }
-
-    pub fn register_module(
-        &mut self,
-        module: impl ParsedModule + 'static,
-    ) -> Result<(), ValidationError> {
-        self.parser.register_module(module)
     }
 
     pub fn run(&mut self) -> Result<ObjectValue, RuntimeError> {

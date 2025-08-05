@@ -1,5 +1,5 @@
 use crate::process::Process;
-use crate::{ModulesMap, Scope, VMOptions, VM};
+use crate::{Modules, Scope, VMOptions, VM};
 use log::warn;
 use rigz_core::{AsPrimitive, Lifecycle, MutableReference, ObjectValue, Reference, VMError};
 use std::cell::RefCell;
@@ -109,7 +109,7 @@ impl ProcessManager {
         scope: Scope,
         args: Vec<ObjectValue>,
         options: VMOptions,
-        modules: ModulesMap,
+        modules: Modules,
         timeout: Option<usize>,
         process_manager: MutableReference<ProcessManager>,
     ) -> Result<usize, VMError> {

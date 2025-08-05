@@ -133,6 +133,7 @@ impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
         !matches!(self, PrimitiveValue::Error(_) | PrimitiveValue::None)
     }
 
+    #[inline]
     fn to_bool(&self) -> bool {
         match self {
             PrimitiveValue::None => false,

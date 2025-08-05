@@ -14,7 +14,8 @@ mod string;
 mod uuid;
 // mod vm;
 
-use crate::prepare::ProgramParser;
+use std::sync::Arc;
+use crate::prepare::{ModuleDefinition, ProgramParser};
 
 use crate::modules::html::HtmlModule;
 use crate::modules::http::HttpModule;
@@ -32,10 +33,39 @@ pub use string::StringModule;
 pub use uuid::UUIDModule;
 // pub use vm::VMModule;
 
-use rigz_ast::ValidationError;
-use rigz_vm::RigzBuilder;
+use rigz_ast::{ParsedModule, ParserOptions, ValidationError};
+use rigz_vm::{RigzBuilder, VMBuilder};
 
-impl<T: RigzBuilder> ProgramParser<'_, T> {
+impl ProgramParser<'_, VMBuilder> {
+    pub fn new() -> Self {
+        let mut p = ProgramParser::default();
+        p.add_default_modules()
+            .expect("failed to register default modules");
+        p
+    }
+
+    pub fn with_options(parser_options: ParserOptions) -> Self {
+        let mut p = ProgramParser::default();
+        p.parser_options = parser_options;
+        p
+    }
+
+    pub fn register_module<M: ParsedModule + 'static>(
+        &mut self,
+        module: M,
+    ) -> Result<(), ValidationError> {
+        let name = M::name();
+        let def = M::module_definition();
+        for dep in M::parsed_dependencies() {
+            let obj = dep.object_definition;
+            let dep = self.builder.register_dependency(Arc::new(dep.dependency));
+            self.parse_object_definition(obj, Some(dep))?;
+        }
+        let index = self.builder.register_module(module);
+        self.modules.insert(name, ModuleDefinition::Module(def, index));
+        Ok(())
+    }
+
     pub fn add_default_modules(&mut self) -> Result<(), ValidationError> {
         // self.register_module(VMModule);
         self.register_module(AnyModule)?;

@@ -1,4 +1,4 @@
-use crate::{err, errln, out, outln, CallFrame, Instruction, MatchArm, Scope, VMOptions, VMState};
+use crate::{err, errln, out, outln, CallFrame, Instruction, MatchArm, Modules, Scope, VMOptions, VMState};
 use log::log;
 use rigz_core::{
     AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, Logical, Module, ObjectValue,
@@ -39,20 +39,16 @@ macro_rules! runner_common {
         }
 
         #[inline]
-        fn modules(&self) -> ModulesMap {
+        fn modules(&self) -> Modules {
             self.modules.clone()
         }
 
         #[inline]
-        fn get_module(&mut self, module: &str) -> Option<ResolvedModule> {
+        fn get_module(&mut self, module: usize) -> Option<ResolvedModule> {
             let e = match self.modules.get(module) {
                 None => VMError::InvalidModule(module.to_string()),
                 Some(m) => {
-                    #[cfg(feature = "threaded")]
-                    let m = m.value().clone();
-                    #[cfg(not(feature = "threaded"))]
-                    let m = m.clone();
-                    return Some(m);
+                    return Some(m.clone());
                 }
             };
             self.store_value(e.into());
@@ -266,8 +262,6 @@ pub fn eval_binary_operation(
 #[cfg(feature = "threaded")]
 pub type ResolvedModule = Reference<dyn Module + Send + Sync>;
 
-use crate::ModulesMap;
-
 pub enum CallType<'c> {
     Create,
     Call(&'c str),
@@ -277,7 +271,6 @@ pub enum CallType<'c> {
 pub type ResolvedModule = Reference<dyn Module>;
 
 pub trait Runner: ResolveValue {
-    const Ins: [fn(&mut Self) -> Option<VMState>; 1] = [|s| None];
 
     fn store_value(&mut self, value: StackValue);
 
@@ -293,9 +286,9 @@ pub trait Runner: ResolveValue {
     where
         F: FnMut(&mut Scope) -> Result<(), VMError>;
 
-    fn modules(&self) -> ModulesMap;
+    fn modules(&self) -> Modules;
 
-    fn get_module(&mut self, module: &str) -> Option<ResolvedModule>;
+    fn get_module(&mut self, module: usize) -> Option<ResolvedModule>;
 
     fn load_mut(&mut self, name: usize, shadow: bool) -> Result<(), VMError>;
     fn load_let(&mut self, name: usize, shadow: bool) -> Result<(), VMError>;
@@ -424,6 +417,7 @@ pub trait Runner: ResolveValue {
 
     fn call_for(&mut self, scope_id: usize) -> Option<VMState>;
 
+    fn call_for_comprehension<T, I, F>(&mut self, scope_id: usize, init: I, save: F) -> Result<T, VMState> where F: FnMut(&mut T, ObjectValue) -> Option<VMError>, I: FnOnce(usize) -> T;
     // fn vm_extension(
     //     &mut self,
     //     module: ResolvedModule,
@@ -491,13 +485,13 @@ pub trait Runner: ResolveValue {
                 }
             }
             Instruction::CallModule { module, func, args } => {
-                if let Some(module) = self.get_module(module) {
+                if let Some(module) = self.get_module(*module) {
                     let v = self.call(module, func, *args).unwrap_or_else(|e| e.into());
                     self.store_value(v.into());
                 };
             }
             Instruction::CallExtension { module, func, args } => {
-                if let Some(module) = self.get_module(module) {
+                if let Some(module) = self.get_module(*module) {
                     let v = self
                         .call_extension(module, func, *args)
                         .unwrap_or_else(|e| e.into());
@@ -505,7 +499,7 @@ pub trait Runner: ResolveValue {
                 };
             }
             Instruction::CallMutableExtension { module, func, args } => {
-                if let Some(module) = self.get_module(module) {
+                if let Some(module) = self.get_module(*module) {
                     match self.call_mutable_extension(module, func, *args) {
                         Ok(Some(v)) => {
                             self.store_value(v.into());
@@ -713,49 +707,19 @@ pub trait Runner: ResolveValue {
                 }
             }
             &Instruction::ForList { scope } => {
-                let resolved = self.next_resolved_value(|| "for-list");
-                let mut resolved = resolved.borrow_mut();
-                let this = match resolved.as_list() {
-                    Ok(l) => l,
-                    Err(e) => return e.into(),
-                };
-                let mut result = Vec::with_capacity(this.len());
-                for value in this {
-                    self.store_value(value.clone().into());
-                    // todo ideally this doesn't need a call frame per intermediate, it should be possible to reuse the current scope/fram
-                    // the process_ret instruction for the scope is the reason this is needed
-                    match self.handle_scope(scope) {
-                        ResolvedValue::Break => return VMState::Break,
-                        ResolvedValue::Next => return VMState::Next,
-                        ResolvedValue::Value(value) => {
-                            let value = value.borrow().clone();
-                            if !value.is_none() {
-                                result.push(value)
-                            }
-                        }
-                        ResolvedValue::Done(v) => return VMState::Done(v),
+                let result = self.call_for_comprehension(scope, Vec::with_capacity, |result, value| {
+                    if !value.is_none() {
+                        result.push(value);
                     }
+                    None
+                });
+                match result {
+                    Ok(r) => self.store_value(r.into()),
+                    Err(e) => return e
                 }
-                self.store_value(result.into());
             }
             &Instruction::ForMap { scope } => {
-                let res = self.next_resolved_value(|| "for-map");
-                let mut res = res.borrow_mut();
-                let this = match res.as_map() {
-                    Ok(map) => map,
-                    Err(e) => return e.into(),
-                };
-                let mut result = IndexMap::with_capacity(this.len());
-                for (k, v) in this {
-                    self.store_value(v.clone().into());
-                    self.store_value(k.clone().into());
-                    let value = match self.handle_scope(scope) {
-                        ResolvedValue::Break => return VMState::Break,
-                        ResolvedValue::Next => return VMState::Next,
-                        ResolvedValue::Value(v) => v,
-                        ResolvedValue::Done(v) => return VMState::Done(v),
-                    };
-                    let value = value.borrow().clone();
+                let result = self.call_for_comprehension(scope, IndexMap::with_capacity, |result, value| {
                     match value {
                         ObjectValue::Primitive(PrimitiveValue::None) => {}
                         ObjectValue::Tuple(mut t) if t.len() >= 2 => {
@@ -771,12 +735,16 @@ pub trait Runner: ResolveValue {
                             let e: ObjectValue = VMError::UnsupportedOperation(format!(
                                 "Invalid args in for-map {value}"
                             ))
-                            .into();
+                                .into();
                             result.insert(e.clone(), e);
                         }
                     }
+                    None
+                });
+                match result {
+                    Ok(r) => self.store_value(r.into()),
+                    Err(e) => return e
                 }
-                self.store_value(result.into());
             }
             &Instruction::Send(args) => {
                 if let Err(o) = self.send(args) {

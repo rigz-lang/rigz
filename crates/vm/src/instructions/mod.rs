@@ -12,8 +12,8 @@ use std::vec::IntoIter;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum VMCallSite {
     Scope(usize),
-    Module { module: String, func: String },
-    VMModule { module: String, func: String },
+    Module { module: usize, func: String },
+    VMModule { module: usize, func: String },
 }
 
 impl Snapshot for VMCallSite {
@@ -293,17 +293,17 @@ pub enum Instruction {
     // requires modules, enabled by default
     /// Module instructions will clone your module, ideally modules implement Copy + Clone
     CallModule {
-        module: String,
+        module: usize,
         func: String,
         args: usize,
     },
     CallExtension {
-        module: String,
+        module: usize,
         func: String,
         args: usize,
     },
     CallMutableExtension {
-        module: String,
+        module: usize,
         func: String,
         args: usize,
     },
