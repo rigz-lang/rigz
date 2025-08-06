@@ -572,7 +572,7 @@ impl RigzBuilder for VMBuilder {
 impl VMBuilder {
     #[inline]
     #[cfg(not(feature = "threaded"))]
-    fn register_module<M: Module + 'static>(&mut self, module: M) -> usize {
+    pub fn register_module<M: Module + 'static>(&mut self, module: M) -> usize {
         let index = self.modules.len();
         self.modules.push(std::rc::Rc::new(module));
         index
