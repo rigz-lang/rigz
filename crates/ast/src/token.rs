@@ -168,6 +168,8 @@ pub(crate) enum TokenKind<'lex> {
     Lifecycle(&'lex str),
     #[token("(")]
     Lparen,
+    #[token(" (")]
+    LparenSpace,
     #[token(")")]
     Rparen,
     #[token("{")]
@@ -287,6 +289,7 @@ impl Display for TokenKind<'_> {
             TokenKind::Symbol(s) => write!(f, "{}", s),
             TokenKind::Lifecycle(s) => write!(f, "@{}", s),
             TokenKind::Lparen => write!(f, "("),
+            TokenKind::LparenSpace => write!(f, " ("),
             TokenKind::Rparen => write!(f, ")"),
             TokenKind::Lcurly => write!(f, "{{"),
             TokenKind::Rcurly => write!(f, "}}"),

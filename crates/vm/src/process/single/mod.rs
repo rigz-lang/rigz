@@ -1,5 +1,5 @@
 use crate::process::{ProcessManager, ProcessRunner};
-use crate::{ModulesMap, Scope, VMOptions};
+use crate::{Modules, Scope, VMOptions};
 use rigz_core::{Lifecycle, MutableReference, ObjectValue, VMError};
 use std::time::Duration;
 
@@ -7,7 +7,7 @@ use std::time::Duration;
 pub struct Process {
     pub scope: Scope,
     options: VMOptions,
-    modules: ModulesMap,
+    modules: Modules,
     pub(crate) timeout: Option<usize>,
     process_manager: MutableReference<ProcessManager>,
     pub(crate) requests: Vec<Vec<ObjectValue>>,
@@ -17,7 +17,7 @@ impl Process {
     pub fn new(
         scope: Scope,
         options: VMOptions,
-        modules: ModulesMap,
+        modules: Modules,
         timeout: Option<usize>,
         process_manager: MutableReference<ProcessManager>,
     ) -> Self {

@@ -338,6 +338,7 @@ impl<'t> Parser<'t> {
         let mut args = Vec::new();
         let next = self.peek_required_token_eat_newlines("parse_function_arguments")?;
         if !(next.kind == TokenKind::Lparen
+            || next.kind == TokenKind::LparenSpace
             || next.kind == TokenKind::Lcurly
             || next.kind == TokenKind::Lbracket
             || next.kind == TokenKind::LbracketSpace)
@@ -347,6 +348,7 @@ impl<'t> Parser<'t> {
 
         let (terminal, arg_type) = match next.kind {
             TokenKind::Lparen => (TokenKind::Rparen, ArgType::Positional),
+            TokenKind::LparenSpace => (TokenKind::Rparen, ArgType::Positional),
             TokenKind::Lcurly => (TokenKind::Rcurly, ArgType::Map),
             TokenKind::Lbracket => (TokenKind::Rbracket, ArgType::List),
             TokenKind::LbracketSpace => (TokenKind::Rbracket, ArgType::List),
@@ -675,7 +677,7 @@ impl<'t> Parser<'t> {
                 }
                 .into()
             }
-            TokenKind::Lparen => {
+            TokenKind::Lparen | TokenKind::LparenSpace => {
                 self.next_token();
                 let e = self.parse_paren_expression()?;
                 if let Element::Expression(e) = e {
@@ -959,6 +961,7 @@ impl<'t> Parser<'t> {
                 | TokenKind::Identifier(_)
                 | TokenKind::Symbol(_)
                 | TokenKind::Lparen
+                | TokenKind::LparenSpace
                 | TokenKind::Lcurly
                 | TokenKind::This
                 | TokenKind::LbracketSpace
@@ -1103,7 +1106,7 @@ impl<'t> Parser<'t> {
 
         match next.kind {
             TokenKind::Identifier(id) => self.parse_assignment_definition(mutable, id, shadow),
-            TokenKind::Lparen => self.parse_tuple_assign(mutable, shadow),
+            TokenKind::Lparen | TokenKind::LparenSpace => self.parse_tuple_assign(mutable, shadow),
             _ => Err(ParsingError::ParseError(format!(
                 "Unexpected token for assignment {:?}",
                 next
@@ -1409,6 +1412,7 @@ impl<'t> Parser<'t> {
                 | TokenKind::Identifier(_)
                 | TokenKind::Symbol(_)
                 | TokenKind::Lparen
+                | TokenKind::LparenSpace
                 | TokenKind::Lcurly
                 | TokenKind::This
                 | TokenKind::LbracketSpace
@@ -1697,7 +1701,7 @@ impl<'t> Parser<'t> {
             TokenKind::Minus => self.parse_unary_expression(UnaryOperation::Neg, priority),
             TokenKind::Lbracket | TokenKind::LbracketSpace => self.parse_list(),
             TokenKind::Lcurly => self.parse_map(),
-            TokenKind::Lparen => {
+            TokenKind::Lparen | TokenKind::LparenSpace => {
                 let paren = self.parse_paren_expression()?;
                 let Element::Expression(e) = paren else {
                     return Err(ParsingError::ParseError(format!(
@@ -2475,7 +2479,7 @@ impl<'t> Parser<'t> {
                     Some(t) => RigzType::Custom(t),
                 }
             }
-            TokenKind::Lparen => {
+            TokenKind::Lparen | TokenKind::LparenSpace => {
                 let mut t = self.parse_rigz_type(None, true)?;
                 loop {
                     let next = self.peek_required_token("parse_rigz_type - (")?;

@@ -81,6 +81,7 @@ impl<'l> Formmatter<'l> {
                 | TokenKind::Lparen
                 | TokenKind::Rparen
                 | TokenKind::LbracketSpace
+                | TokenKind::LparenSpace
                 | TokenKind::Rbracket
         ) || matches!(
             self.last,
