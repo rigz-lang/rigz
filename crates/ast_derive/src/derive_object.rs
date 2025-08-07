@@ -362,10 +362,7 @@ fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTra
                 }
             }
 
-            let ret = match rigz_type_to_return_type(&sig.return_type.rigz_type) {
-                None => None,
-                Some(s) => Some(quote! { -> #s }),
-            };
+            let ret = rigz_type_to_return_type(&sig.return_type.rigz_type).map(|s| quote! { -> #s });
             if sig.self_type.is_none() {
                 quote! {
                     fn #fn_name(#(#args, )*) #ret where Self: Sized;

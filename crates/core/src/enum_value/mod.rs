@@ -1,5 +1,6 @@
 use crate::RigzType;
 use std::fmt::{Display, Formatter};
+use itertools::Itertools;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct EnumDeclaration {
@@ -9,6 +10,6 @@ pub struct EnumDeclaration {
 
 impl Display for EnumDeclaration {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        write!(f, "enum {} {{{}}}", self.name, self.variants.iter().map(|(v, rt)| format!("{v}({rt})")).join(",\n"))
     }
 }

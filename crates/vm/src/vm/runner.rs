@@ -381,17 +381,17 @@ impl Runner for VM {
         let mut result: Option<VMState> = None;
         'outer: for each in value {
             if let ObjectValue::Tuple(tuple) = each {
-                for (value, (name, mutable)) in tuple.into_iter().zip(&args) {
-                    let res = if *mutable {
+                for (value, &(name, mutable)) in tuple.iter().zip(&args) {
+                    let res = if mutable {
                         self.frames
-                            .load_mut(name.clone(), value.clone().into(), false)
+                            .load_mut(name, value.clone().into(), false)
                     } else {
                         self.frames
-                            .load_let(name.clone(), value.clone().into(), false)
+                            .load_let(name, value.clone().into(), false)
                     };
                 }
             } else {
-                let (name, mutable) = args[0].clone();
+                let (name, mutable) = args[0];
                 let res = if mutable {
                     self.frames.load_mut(name, each.clone().into(), false)
                 } else {

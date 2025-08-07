@@ -477,7 +477,7 @@ impl<'t> Parser<'t> {
                         rigz_type = v.rigz_type()
                     };
                 }
-                Some(v.into())
+                Some(v)
             }
             _ => None,
         };
@@ -745,7 +745,7 @@ impl<'t> Parser<'t> {
                                 el
                             }
                         }
-                        _ => self.parse_identifier_element(id)?.into(),
+                        _ => self.parse_identifier_element(id)?,
                     },
                 }
             }
@@ -984,7 +984,7 @@ impl<'t> Parser<'t> {
                 return if let Expression::Function(next) = self.parse_expression(0)? {
                     Ok(Expression::Into {
                         base: fe.into(),
-                        next: next.into(),
+                        next,
                     }
                     .into())
                 } else {
@@ -1151,7 +1151,7 @@ impl<'t> Parser<'t> {
                 TokenKind::Identifier(id) => {
                     tuple.push((id.to_string(), is_mut, can_shadow));
                     is_mut = mutable;
-                    is_mut = shadow;
+                    can_shadow = shadow;
                     needs_id = false
                 }
                 _ => {
@@ -1531,11 +1531,10 @@ impl<'t> Parser<'t> {
         let args = match named {
             None => {
                 if args.len() == 1 {
-                    let args = match args.remove(0) {
+                    match args.remove(0) {
                         Expression::Tuple(a) => a.into(),
                         a => vec![a].into(),
-                    };
-                    args
+                    }
                 } else {
                     args.into()
                 }
@@ -1643,7 +1642,7 @@ impl<'t> Parser<'t> {
                             lhs,
                             calls
                                 .into_iter()
-                                .map(|s| AssignIndex::Identifier(s))
+                                .map(AssignIndex::Identifier)
                                 .collect(),
                         ),
                         expression: self.parse_expression(0)?,
@@ -1684,10 +1683,6 @@ impl<'t> Parser<'t> {
 
     fn parse_symbol_expression(&mut self, symbol: Symbol<'t>) -> Result<Expression, ParsingError> {
         self.parse_inline_expression(symbol.into(), 0)
-    }
-
-    fn parse_this_expression(&mut self) -> Result<Expression, ParsingError> {
-        self.parse_inline_expression(Expression::This, 0)
     }
 
     fn parse_expression_start(&mut self, priority: u8) -> Result<Expression, ParsingError> {

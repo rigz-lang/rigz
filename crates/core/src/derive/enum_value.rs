@@ -1,4 +1,4 @@
-use crate::derive::{csv_tuple_vec, csv_vec};
+use crate::derive::csv_tuple_vec;
 use crate::EnumDeclaration;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};

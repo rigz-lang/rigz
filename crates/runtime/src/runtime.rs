@@ -1,5 +1,5 @@
 use crate::prepare::{Program, ProgramParser};
-use rigz_ast::{ParsedModule, Parser, ParserOptions, ParsingError, ValidationError};
+use rigz_ast::{Parser, ParserOptions, ParsingError, ValidationError};
 use rigz_core::{ObjectValue, TestResults, VMError};
 use rigz_vm::{VMOptions, VM};
 use std::error::Error;

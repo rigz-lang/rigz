@@ -1,11 +1,11 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{env, io};
 
 pub fn current_dir() -> PathBuf {
     env::current_dir().expect("Unable to read current directory")
 }
 
-pub fn read_rigz_files(input: &PathBuf) -> io::Result<Vec<PathBuf>> {
+pub fn read_rigz_files(input: &Path) -> io::Result<Vec<PathBuf>> {
     let mut files = Vec::with_capacity(1);
     if input.is_dir() {
         for f in input.read_dir()? {
@@ -15,7 +15,7 @@ pub fn read_rigz_files(input: &PathBuf) -> io::Result<Vec<PathBuf>> {
         input.extension().map(|e| e.to_str()),
         Some(Some("rg") | Some("rigz"))
     ) {
-        files.push(input.clone());
+        files.push(input.to_path_buf());
     }
     Ok(files)
 }

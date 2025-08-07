@@ -5,6 +5,7 @@ use crate::VMError;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
@@ -183,10 +184,16 @@ impl Display for RigzType {
     }
 }
 
-#[derive(Clone, Debug, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialOrd, Ord, Eq, Serialize, Deserialize)]
 pub struct CustomType {
     pub name: String,
     pub fields: Vec<(String, RigzType)>,
+}
+
+impl Hash for CustomType {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.name.hash(state)
+    }
 }
 
 impl PartialEq for CustomType {

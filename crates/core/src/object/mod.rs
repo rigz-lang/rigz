@@ -112,10 +112,10 @@ impl PartialOrd for ObjectValue {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self, other) {
             (ObjectValue::Primitive(left), ObjectValue::Primitive(right)) => Some(left.cmp(right)),
-            (ObjectValue::List(lhs), ObjectValue::List(rhs)) => lhs.partial_cmp(rhs),
+            (ObjectValue::List(lhs), ObjectValue::List(rhs)) => Some(lhs.cmp(rhs)),
             (ObjectValue::Set(lhs), ObjectValue::Set(rhs)) => lhs.into_iter().partial_cmp(rhs),
             (ObjectValue::Map(lhs), ObjectValue::Map(rhs)) => lhs.into_iter().partial_cmp(rhs),
-            (ObjectValue::Tuple(lhs), ObjectValue::Tuple(rhs)) => lhs.partial_cmp(rhs),
+            (ObjectValue::Tuple(lhs), ObjectValue::Tuple(rhs)) => Some(lhs.cmp(rhs)),
             (ObjectValue::Object(lhs), ObjectValue::Object(rhs)) => lhs.dyn_partial_cmp(rhs),
             _ => None,
         }
@@ -351,11 +351,7 @@ impl ObjectValue {
                 if let ObjectValue::Object(o) = source {
                     let value = value.clone();
                     let v = o.set(attr, value);
-                    if let Err(e) = v {
-                        Some(e)
-                    } else {
-                        None
-                    }
+                    v.err()
                 } else {
                     Some(VMError::UnsupportedOperation(format!(
                         "Cannot read {} for {}",

@@ -615,14 +615,20 @@ impl Display for Expression {
                 var,
                 expression,
                 body,
-            } => write!(f, ""),
+            } => write!(f, "[for {var} in {expression}: {body}]"),
             Expression::ForMap {
                 k_var,
                 v_var,
                 expression,
                 key,
                 value,
-            } => write!(f, ""),
+            } => {
+                let v = match value {
+                    None => key.to_string(),
+                    Some(v) => format!("{key}, {v}")
+                };
+                write!(f, "{{for {k_var}, {v_var} in {expression}: {v}}}")
+            },
             Expression::Into { base, next } => write!(f, "{base} |> {next}"),
             Expression::DoubleBang(ex) => write!(f, "{ex}!!"),
             Expression::Try(exp) => write!(f, "try {exp}"),

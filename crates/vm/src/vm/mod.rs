@@ -218,7 +218,7 @@ impl VM {
     }
 
     pub fn eval_within(&mut self, duration: Duration) -> Result<ObjectValue, VMError> {
-        self.run_within(duration).map_err(|e| e.into())
+        self.run_within(duration)
     }
 
     pub fn add_bindings(&mut self, bindings: HashMap<String, (StackValue, bool)>) {

@@ -133,7 +133,7 @@ type FunctionCallSignatures = Vec<CallSignature>;
 
 #[derive(Debug)]
 pub(crate) enum ModuleDefinition {
-    Imported(usize),
+    Imported,
     Module(ModuleTraitDefinition, usize),
 }
 
@@ -164,7 +164,7 @@ enum ImportPath {
 }
 
 #[derive(Debug)]
-pub(crate) struct ProgramParser<'vm, T: RigzBuilder> {
+pub struct ProgramParser<'vm, T: RigzBuilder> {
     pub(crate) builder: T,
     pub(crate) modules: IndexMap<&'vm str, ModuleDefinition>,
     // todo nested functions are global, they should be removed if invalid
@@ -770,7 +770,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                         })
                         .collect(),
                 };
-                let args = definition
+                let args: Vec<_> = definition
                     .fields
                     .iter()
                     .map(|a| FunctionArgument {
@@ -890,7 +890,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         &mut self,
         body: Scope,
         rigz_type: Arc<RigzType>,
-        args: &Vec<FunctionArgument>,
+        args: &[FunctionArgument],
     ) -> Result<usize, ValidationError> {
         let current_vars = self.identifiers.clone();
         let current = self.builder.current_scope();
@@ -1126,7 +1126,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             .modules
             .iter()
             .filter_map(|(_, m)| match m {
-                ModuleDefinition::Imported(_) => None,
+                ModuleDefinition::Imported => None,
                 ModuleDefinition::Module(m, _) => {
                     if m.auto_import
                         && m.definition.functions.iter().any(|f| match f {
@@ -1622,9 +1622,9 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 };
                 let (cargs, var, scope) = match &dec.constructor {
                     ObjectConstructor::Scope(cargs, var, s) => {
-                        (cargs.clone(), var.clone(), Some(*s))
+                        (cargs.clone(), *var, Some(*s))
                     }
-                    ObjectConstructor::Custom(cargs, var) => (cargs.clone(), var.clone(), None),
+                    ObjectConstructor::Custom(cargs, var) => (cargs.clone(), *var, None),
                 };
 
                 let args = self.setup_call_args(
@@ -1714,7 +1714,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                         values_only = false;
                         let index = Number::Int(index as i64);
                         self.builder
-                            .add_load_instruction(ObjectValue::List(base.into()).into());
+                            .add_load_instruction(ObjectValue::List(base).into());
                         base = Vec::new();
                         self.builder.add_load_instruction(index.into());
                         self.parse_expression(e)?;
@@ -1748,7 +1748,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                         values_only = false;
                         let index = Number::Int(index as i64);
                         self.builder
-                            .add_load_instruction(ObjectValue::Set(base.into()).into());
+                            .add_load_instruction(ObjectValue::Set(base).into());
                         base = IndexSet::new();
                         self.builder.add_load_instruction(index.into());
                         self.parse_expression(e)?;
@@ -1781,7 +1781,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     e => {
                         values_only = false;
                         self.builder
-                            .add_load_instruction(ObjectValue::Tuple(base.into()).into());
+                            .add_load_instruction(ObjectValue::Tuple(base).into());
                         base = Vec::new();
                         let index = Number::Int(index as i64);
                         self.builder.add_load_instruction(index.into());
@@ -2527,7 +2527,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 if let ModuleDefinition::Module(_, idx) = def {
                     let idx = *idx;
                     let ModuleDefinition::Module(def, _) =
-                        std::mem::replace(def, ModuleDefinition::Imported(idx))
+                        std::mem::replace(def, ModuleDefinition::Imported)
                     else {
                         unreachable!()
                     };

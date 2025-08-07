@@ -254,8 +254,7 @@ pub fn eval_binary_operation(
             lhs.clone()
         } else {
             rhs.clone()
-        }
-        .into(),
+        },
     }
 }
 
@@ -838,10 +837,8 @@ pub trait Runner: ResolveValue {
                         unreachable!("is_error check failed")
                     };
                     if has_arg {
-                        if has_arg {
-                            let v = e.extract_value();
-                            self.store_value(v.into());
-                        }
+                        let v = e.extract_value();
+                        self.store_value(v.into());
                     }
                     if let Err(e) = self.call_frame(scope) {
                         self.store_value(e.into())

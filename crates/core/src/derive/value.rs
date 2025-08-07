@@ -1,5 +1,5 @@
 use crate::derive::{boxed, csv_vec};
-use crate::{IndexSet, Number, ObjectValue, PrimitiveValue, VMError, ValueRange};
+use crate::{Number, ObjectValue, PrimitiveValue, VMError, ValueRange};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
