@@ -9,7 +9,7 @@ use syn::{token, ItemStruct, LitStr, Token, Type, Visibility};
 
 enum ObjectArg {
     Ident(Ident),
-    Struct(ItemStruct),
+    Struct(Box<ItemStruct>),
 }
 
 pub(crate) struct DeriveObject {
