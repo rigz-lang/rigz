@@ -801,12 +801,7 @@ impl<'t> Parser<'t> {
                         }
                         TokenKind::Period => {
                             self.next_token();
-                            let el = self.parse_instance_call_element(Expression::This)?;
-                            if let Element::Expression(ex) = el {
-                                self.parse_inline_expression(ex, 0)?.into()
-                            } else {
-                                el
-                            }
+                            self.parse_instance_call_element(Expression::This)?
                         }
                         _ => self.parse_this_element()?,
                     },
@@ -858,6 +853,12 @@ impl<'t> Parser<'t> {
                 .into()
             }
             _ => self.parse_expression(0)?.into(),
+        };
+
+        let ele = if let Element::Expression(e) = ele {
+            self.parse_inline_expression(e, 0)?.into()
+        } else {
+            ele
         };
         if let Some(t) = self.peek_token() {
             if t.terminal() {
@@ -1440,11 +1441,25 @@ impl<'t> Parser<'t> {
         let mut needs_comma = false;
         let mut named = None;
         let mut assign = false;
+        let fn_parens = {
+            match self.peek_token() {
+                None => false,
+                Some(t) => {
+                    if t.kind == TokenKind::Lparen {
+                        self.next_token();
+                        true
+                    } else {
+                        false
+                    }
+                },
+            }
+        };
         loop {
             match self.peek_token() {
                 None => break,
                 Some(t) if t.terminal() => break,
                 Some(t) => match t.kind {
+                    TokenKind::Rparen if fn_parens => break,
                     TokenKind::Rparen
                     | TokenKind::Rbracket
                     | TokenKind::Rcurly
@@ -1456,7 +1471,7 @@ impl<'t> Parser<'t> {
                     | TokenKind::And
                     | TokenKind::As
                     | TokenKind::Catch
-                    | TokenKind::Minus => break,
+                    | TokenKind::Minus if !fn_parens => break,
                     TokenKind::Identifier(id) => {
                         self.consume_token(TokenKind::Identifier(id))?;
                         match self.peek_token() {
@@ -1526,6 +1541,10 @@ impl<'t> Parser<'t> {
                     _ => break
                 },
             }
+        }
+
+        if fn_parens {
+            self.consume_token(TokenKind::Rparen)?;
         }
 
         let args = match named {

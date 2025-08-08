@@ -713,6 +713,17 @@ pub mod runtime {
 
             foo + 37
             "# = 79)
+            fn_parens(r#"
+            fn foo(a) = a * 2
+            fn bar(b) = b / 2
+
+            foo(22) - bar(4)
+            "# = 42)
+            fn_parens_inline(r#"
+            fn foo(a) = a * 2
+
+            foo(22).to_s
+            "# = "44")
         }
     }
 
