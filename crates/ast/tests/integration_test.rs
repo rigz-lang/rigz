@@ -1,5 +1,5 @@
 #[cfg(test)]
-use pretty_assertions::{assert_eq, assert_ne};
+use pretty_assertions::assert_eq;
 use rigz_ast::*;
 use rigz_core::{BinaryOperation, CustomType, PrimitiveValue, RigzType};
 use wasm_bindgen_test::*;
@@ -76,7 +76,7 @@ macro_rules! test_parse_invalid {
 
 pub mod invalid {
     use super::*;
-    use pretty_assertions::{assert_eq, assert_ne};
+    use pretty_assertions::assert_eq;
 
     test_parse_invalid!(
         invalid_bin_exp "1 +",
@@ -93,7 +93,7 @@ pub mod invalid {
 
 pub mod valid {
     use super::*;
-    use pretty_assertions::{assert_eq, assert_ne};
+    use pretty_assertions::assert_eq;
 
     test_parse_valid!(
         do_one_line "do = 1 + 2",

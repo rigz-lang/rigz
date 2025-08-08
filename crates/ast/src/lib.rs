@@ -528,7 +528,7 @@ impl<'t> Parser<'t> {
                 return Err(ParsingError::ParseError(format!("Received non-self type for constructor, {tv}, use Self() or rely on default constructor")));
             }
             self.consume_token(t.kind)?;
-            let (args, var, ty) = self.parse_function_arguments()?;
+            let (args, var, _) = self.parse_function_arguments()?;
             // todo support all types for ty
             let next = self.peek_required_token_eat_newlines("parse_constructor - fn or end")?;
             return if let TokenKind::FunctionDef = next.kind {
@@ -1253,7 +1253,7 @@ impl<'t> Parser<'t> {
                     name,
                     mutable,
                     shadow,
-                    rigz_type,
+                    rigz_type: _,
                 } => (name, mutable, shadow),
                 Each::Tuple(_) => unreachable!(),
             };

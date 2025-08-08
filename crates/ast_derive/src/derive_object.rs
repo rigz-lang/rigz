@@ -6,6 +6,8 @@ use rigz_core::derive::Tokens;
 use rigz_core::RigzType;
 use syn::parse::{Parse, ParseStream};
 use syn::{token, ItemStruct, LitStr, Token, Type, Visibility};
+use log::warn;
+use syn::spanned::Spanned;
 
 enum ObjectArg {
     Ident(Ident),
@@ -64,7 +66,9 @@ fn type_to_rigz_type(rust_type: &Type) -> RigzType {
                 }
             }
         }
-        t => {}
+        t => {
+            warn!("Type Span {:?} defaulting to Any", t.span())
+        }
     }
     RigzType::Any
 }
@@ -255,18 +259,18 @@ fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTra
                             "Non Self extensions are not supported for Objects yet {:?}",
                             s.rigz_type
                         );
-                        let arg = match rigz_type_to_return_type(&s.rigz_type) {
-                            None => quote! { ObjectValue },
-                            Some(t) => quote! { #t },
-                        };
-                        (
-                            quote! { value: #arg },
-                            Ident::new(
-                                format!("{mut_str}{}", s.rigz_type.to_string().to_lowercase())
-                                    .as_str(),
-                                Span::call_site(),
-                            ),
-                        )
+                        // let arg = match rigz_type_to_return_type(&s.rigz_type) {
+                        //     None => quote! { ObjectValue },
+                        //     Some(t) => quote! { #t },
+                        // };
+                        // (
+                        //     quote! { value: #arg },
+                        //     Ident::new(
+                        //         format!("{mut_str}{}", s.rigz_type.to_string().to_lowercase())
+                        //             .as_str(),
+                        //         Span::call_site(),
+                        //     ),
+                        // )
                     };
                     let base = if s.mutable {
                         quote! { &mut #base }

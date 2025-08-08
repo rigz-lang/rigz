@@ -507,7 +507,7 @@ impl Runner for VM {
         let mut result = init(value.len());
         'outer: for each in value {
             if let ObjectValue::Tuple(tuple) = each {
-                for (value, &(name, mutable)) in tuple.into_iter().zip(&args) {
+                for (value, &(name, mutable)) in tuple.iter().zip(&args) {
                     if mutable {
                         self.frames
                             .load_mut(name, value.clone().into(), false)?

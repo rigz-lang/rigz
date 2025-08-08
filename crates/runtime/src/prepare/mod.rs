@@ -696,7 +696,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     Each::Identifier {
                         name,
                         mutable,
-                        shadow,
+                        shadow: _,
                     } => {
                         self.identifiers.insert(
                             name.clone(),
@@ -710,7 +710,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     Each::TypedIdentifier {
                         name,
                         mutable,
-                        shadow,
+                        shadow: _,
                         rigz_type,
                     } => {
                         self.identifiers
@@ -719,7 +719,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     }
                     Each::Tuple(v) => {
                         let mut res = Vec::with_capacity(v.len());
-                        for (name, mutable, shadow) in v {
+                        for (name, mutable, _) in v {
                             self.identifiers.insert(
                                 name.clone(),
                                 FunctionType {
@@ -1458,16 +1458,16 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                                 name,
                                 condition: cond,
                                 body,
-                                variables,
+                                variables: _,
                             },
                         ) => {
-                            match en.variants.iter().find_position(|(v, vt)| v == &name) {
+                            match en.variants.iter().find_position(|(v, _)| v == &name) {
                                 None => {
                                     return Err(ValidationError::InvalidEnum(format!(
                                     "Illegal enum match variant .{name} for {condition:?} ({rt:?})"
                                 )))
                                 }
-                                Some((vi, (vname, vt))) => {
+                                Some((vi, (vname, _))) => {
                                     match cond {
                                         MatchVariantCondition::None => {
                                             let scope = self.parse_scope(body, vname)?;
@@ -1528,9 +1528,9 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     }
                     (
                         RigzType::Wrapper {
-                            base_type,
+                            base_type: _,
                             optional,
-                            can_return_error,
+                            can_return_error: _,
                         },
                         ex,
                     ) if *optional => match ex {
@@ -1545,7 +1545,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                             "{t}.{v}, expected {rt:?}, received none"
                         )))
                     }
-                    (rt, Some(e)) => {
+                    (_, Some(e)) => {
                         self.parse_expression(*e)?;
                         true
                     }
@@ -1592,21 +1592,18 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
 
                 for (index, c) in calls {
                     self.check_module_exists(&c)?;
-                    let fcs = match self.function_scopes.get(&c) {
-                        None => {
-                            self.builder.add_load_instruction(c.into());
-                            self.builder.add_instance_get_instruction(false);
-                            rt = RigzType::default();
-                            continue;
-                        }
-                        Some(fcs) => fcs.clone(),
-                    };
+                    if self.function_scopes.get(&c).is_none() {
+                        self.builder.add_load_instruction(c.into());
+                        self.builder.add_instance_get_instruction(false);
+                        rt = RigzType::default();
+                        continue;
+                    }
 
                     if index == last {
-                        self.call_inline_extension(rt, &c, fcs, args)?;
+                        self.call_inline_extension(rt, &c, args)?;
                         break;
                     } else {
-                        rt = self.call_inline_extension(rt, &c, fcs, vec![].into())?;
+                        rt = self.call_inline_extension(rt, &c, vec![].into())?;
                     }
                 }
             }
@@ -1677,7 +1674,6 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         &mut self,
         rigz_type: RigzType,
         name: &str,
-        function_call_signatures: FunctionCallSignatures,
         args: RigzArguments,
     ) -> Result<RigzType, ValidationError> {
         let BestMatch {

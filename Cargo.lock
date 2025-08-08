@@ -1870,6 +1870,7 @@ dependencies = [
 name = "rigz_ast_derive"
 version = "0.6.0"
 dependencies = [
+ "log",
  "proc-macro2",
  "quote",
  "rigz_ast",

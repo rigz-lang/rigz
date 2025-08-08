@@ -400,6 +400,7 @@ impl VM {
         bytes.extend(self.frames.as_bytes());
         bytes.extend(self.lifecycles.as_bytes());
         bytes.extend(self.constants.as_bytes());
+        bytes.extend(self.strings.as_bytes());
         Ok(bytes)
     }
 
@@ -413,6 +414,7 @@ impl VM {
         self.frames = Snapshot::from_bytes(&mut bytes, &"load snapshot: frames")?;
         self.lifecycles = Snapshot::from_bytes(&mut bytes, &"load snapshot: lifecycles")?;
         self.constants = Snapshot::from_bytes(&mut bytes, &"load snapshot: constants")?;
+        self.strings = Snapshot::from_bytes(&mut bytes, &"load snapshot: strings")?;
         Ok(())
     }
 }

@@ -8,20 +8,10 @@ use std::rc::Rc;
 use std::time::Duration;
 
 #[derive(Debug)]
-pub(crate) enum VMMessage {}
-
-#[derive(Debug)]
-pub(crate) enum ProcessMessage {}
-
-#[derive(Debug)]
-pub(crate) struct VMMessenger {}
-
-#[derive(Debug)]
 pub(crate) struct ProcessManager {
     #[cfg(feature = "threaded")]
     pub(crate) handle: tokio::runtime::Handle,
     processes: SpawnedProcesses,
-    vm_messenger: Option<VMMessenger>,
 }
 
 #[cfg(feature = "threaded")]
@@ -82,7 +72,6 @@ impl ProcessManager {
     pub(crate) fn new() -> Self {
         Self {
             processes: Vec::new(),
-            vm_messenger: None,
         }
     }
 
@@ -96,7 +85,6 @@ impl ProcessManager {
         Ok(Self {
             handle,
             processes: Vec::new(),
-            vm_messenger: None,
         })
     }
 

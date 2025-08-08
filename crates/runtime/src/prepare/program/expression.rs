@@ -252,7 +252,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             RigzType::Custom(_) => RigzType::Any,
             RigzType::Wrapper { base_type, .. } => self.index_type(*base_type),
             RigzType::Enum(i) => {
-                todo!()
+                todo!("Enum indexes aren't supported yet {i}")
             }
             RigzType::Never => RigzType::Never,
         }

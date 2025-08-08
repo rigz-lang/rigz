@@ -17,6 +17,7 @@ proc-macro2 = "1.0"
 syn = "2.0"
 rigz_core = { features = ["derive"], workspace = true }
 rigz_ast = { features = ["derive"], default-features = false, workspace = true }
+log = "0.4.27"
 
 [dev-dependencies]
 rigz_core.workspace = true

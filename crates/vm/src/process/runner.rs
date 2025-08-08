@@ -192,7 +192,8 @@ impl ProcessRunner<'_> {
         }
     }
 
-    pub fn run_within(&mut self, timeout: usize) -> ObjectValue {
+    #[cfg(not(feature = "threaded"))]
+    pub(crate) fn run_within(&mut self, timeout: usize) -> ObjectValue {
         let until = Duration::from_millis(timeout as u64);
         #[cfg(feature = "js")]
         let now = web_time::Instant::now();

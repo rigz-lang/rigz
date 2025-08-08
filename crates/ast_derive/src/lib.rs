@@ -257,7 +257,7 @@ fn create_matched_call(name: &str, fs: Vec<&&FunctionSignature>, first_arg: Firs
 }
 
 fn convert_response(base_call: Tokens, function_signature: &FunctionSignature) -> Tokens {
-    let (mut_result, is_vm) = match &function_signature.self_type {
+    let (mut_result, _) = match &function_signature.self_type {
         None => (false, false),
         Some(t) => (t.mutable, t.rigz_type.is_vm()),
     };
