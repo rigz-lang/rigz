@@ -743,6 +743,8 @@ pub mod runtime {
             set.insert a
             set
             "# = IndexSet::from([1]))
+            map_index_set("mut a = {}; a[1] = 2; a" = IndexMap::from([(1, 2)]))
+            list_group_by("[1, 1, 1, 2, 2].group_by(|v| v.to_i)" = IndexMap::from([(1, vec![1, 1, 1]), (2, vec![2, 2])]))
         }
     }
 

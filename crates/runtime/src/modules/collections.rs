@@ -135,6 +135,21 @@ derive_module! {
         fn Map.values -> List
         fn Map.has(key) -> Bool
         fn Map.has_value(value) -> Bool
+
+        fn List.group_by(func: |Any| -> Any)
+            mut result = {}
+            # todo support using reduce with lambda here
+            for v in self
+                val = func v
+                if result.has val
+                    # todo support += and .push
+                    result[val] = result[val] + v
+                else
+                    result.insert val, [v]
+                end
+            end
+            result
+        end
     end"#
 }
 

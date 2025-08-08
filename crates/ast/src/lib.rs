@@ -856,7 +856,35 @@ impl<'t> Parser<'t> {
         };
 
         let ele = if let Element::Expression(e) = ele {
-            self.parse_inline_expression(e, 0)?.into()
+            if let Expression::Index(base, index) = e {
+                if let Some(t) = self.peek_token() {
+                    let kind = t.kind;
+                    if matches!(kind, TokenKind::Assign | TokenKind::BinAssign(_)) {
+                        self.next_token();
+                        let expression = self.parse_expression(0)?;
+                        if let Some(t) = self.peek_token() {
+                            if t.terminal() {
+                                self.next_token();
+                            }
+                        }
+                        let lhs = Assign::InstanceSet(*base, vec![AssignIndex::Index(*index)]);
+                        let TokenKind::BinAssign(op) = kind else {
+                            return Ok(Statement::Assignment {
+                                lhs,
+                                expression,
+                            }.into())
+                        };
+                        return Ok(Statement::BinaryAssignment {
+                            lhs,
+                            op,
+                            expression,
+                        }.into());
+                    }
+                }
+                self.parse_inline_expression(Expression::Index(base, index), 0)?.into()
+            } else {
+                self.parse_inline_expression(e, 0)?.into()
+            }
         } else {
             ele
         };

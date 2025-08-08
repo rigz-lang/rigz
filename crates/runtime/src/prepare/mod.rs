@@ -453,7 +453,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     }
                     exp => {
                         let ext = self.rigz_type(&exp)?;
-                        if ext != rigz_type {
+                        if !ext.matches(&rigz_type) {
                             return Err(ValidationError::InvalidType(format!(
                                 "{ext} cannot be assigned to {rigz_type}"
                             )));
