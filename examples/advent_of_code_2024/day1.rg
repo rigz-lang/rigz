@@ -22,7 +22,9 @@ fn part1
     res
 end
 
-fn part2 = lhs.map {|l| l * [for r in rhs: 1 if r == l].len }.sum
+vals = rhs.group_by(|v| v)
+
+fn part2 = lhs.map {|l| l * ((vals[l] || []) as List).len }.sum
 
 o1 = part1
 o2 = part2
