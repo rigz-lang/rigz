@@ -724,6 +724,25 @@ pub mod runtime {
 
             foo(22).to_s
             "# = "44")
+            list_new(r#"
+            mut list = List.new 1
+            list.push 48
+            list
+            "# = vec![48])
+            map_new(r#"
+            mut map = Map.new 1
+            map.insert 'Foo', 'Bar'
+            map
+            "# = IndexMap::from([("Foo", "Bar")]))
+            list_new_empty("List.new" = Vec::<ObjectValue>::new())
+            map_new_empty("Map.new" = IndexMap::<ObjectValue, ObjectValue>::new())
+            set_new_empty("Set.new" = IndexSet::<ObjectValue>::new())
+            set_new_len(r#"
+            a = 1
+            mut set = Set.new a
+            set.insert a
+            set
+            "# = IndexSet::from([1]))
         }
     }
 

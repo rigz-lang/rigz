@@ -1853,10 +1853,14 @@ impl<'t> Parser<'t> {
                 match next.kind {
                     TokenKind::Period => {
                         self.consume_token(TokenKind::New)?;
-                        Ok(Expression::Cast(
-                            self.parse_expression(0)?.into(),
-                            RigzType::Set(RigzType::Any.into()),
-                        ))
+                        let (args, assign) = self.parse_args()?;
+                        if assign {
+                            let t = self.next_required_token("parse_expression: =")?;
+                            return Err(ParsingError::ParseError(format!(
+                                "Unexpected = after {args:?} - {t:?}"
+                            )));
+                        }
+                        Ok(FunctionExpression::TypeConstructor(RigzType::Set(RigzType::Any.into()), args).into())
                     }
                     TokenKind::Lbracket => match self.parse_list()? {
                         Expression::List(v) => Ok(Expression::Set(v)),

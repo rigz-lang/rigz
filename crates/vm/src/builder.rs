@@ -387,8 +387,8 @@ pub trait RigzBuilder: Debug + Default {
     }
 
     #[inline]
-    fn add_create_object_instruction(&mut self, value: Arc<RigzType>) -> &mut Self {
-        self.add_instruction(Instruction::CreateObject(value))
+    fn add_create_object_instruction(&mut self, value: Arc<RigzType>, args: usize) -> &mut Self {
+        self.add_instruction(Instruction::CreateObject(value, args))
     }
 
     #[inline]

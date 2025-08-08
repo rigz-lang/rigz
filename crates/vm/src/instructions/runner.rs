@@ -1,10 +1,6 @@
 use crate::{err, errln, out, outln, CallFrame, Instruction, MatchArm, Modules, Scope, VMOptions, VMState};
 use log::log;
-use rigz_core::{
-    AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, Logical, Module, ObjectValue,
-    PrimitiveValue, Reference, ResolveValue, ResolvedValue, Reverse, RigzArgs, RigzObject,
-    StackValue, UnaryOperation, VMError,
-};
+use rigz_core::{AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, IndexSet, Logical, Module, ObjectValue, PrimitiveValue, Reference, ResolveValue, ResolvedValue, Reverse, RigzArgs, RigzObject, RigzType, StackValue, UnaryOperation, VMError};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
@@ -198,6 +194,7 @@ macro_rules! runner_common {
 }
 
 use std::time::Duration;
+use itertools::Itertools;
 
 #[inline]
 pub fn eval_unary(unary_operation: UnaryOperation, val: &ObjectValue) -> ObjectValue {
@@ -779,8 +776,76 @@ pub trait Runner: ResolveValue {
                 self.sleep(duration);
                 self.store_value(ObjectValue::default().into());
             }
-            Instruction::CreateObject(ob) => {
-                self.store_value(RigzObject::new(ob.clone()).into());
+            Instruction::CreateObject(ob, args) => {
+                let obj = match ob.clone().deref() {
+                    RigzType::List(_) => {
+                        let res = self.resolve_args(*args);
+                        let base = match res.len() {
+                            0 => vec![],
+                            1 => {
+                                let base = res[0].borrow().clone();
+                                let v = match base {
+                                    ObjectValue::Primitive(PrimitiveValue::Number(n)) => {
+                                        n.to_usize().map(|i| Vec::with_capacity(i))
+                                    }
+                                    _ => base.to_list()
+                                };
+                                match v {
+                                    Ok(v) => v,
+                                    Err(e) => return e.into()
+                                }
+                            }
+                            _ => res.iter().map(|r| r.borrow().clone()).collect()
+                        };
+                        ObjectValue::List(base).into()
+                    }
+                    RigzType::Set(_) => {
+                        let res = self.resolve_args(*args);
+                        let base = match res.len() {
+                            0 => IndexSet::new(),
+                            1 => {
+                                let base = res[0].borrow().clone();
+                                let v = match base {
+                                    ObjectValue::Primitive(PrimitiveValue::Number(n)) => {
+                                        n.to_usize().map(|i| IndexSet::with_capacity(i))
+                                    }
+                                    _ => base.to_set()
+                                };
+                                match v {
+                                    Ok(v) => v,
+                                    Err(e) => return e.into()
+                                }
+                            }
+                            _ => res.iter().map(|r| r.borrow().clone()).collect()
+                        };
+                        ObjectValue::Set(base).into()
+                    }
+                    RigzType::Map(_, _) => {
+                        let res = self.resolve_args(*args);
+                        let base = match res.len() {
+                            0 => IndexMap::new(),
+                            1 => {
+                                let base = res[0].borrow().clone();
+                                let v = match base {
+                                    ObjectValue::Primitive(PrimitiveValue::Number(n)) => {
+                                        n.to_usize().map(|i| IndexMap::with_capacity(i))
+                                    }
+                                    _ => base.to_map()
+                                };
+                                match v {
+                                    Ok(v) => v,
+                                    Err(e) => return e.into()
+                                }
+                            }
+                            _ => return VMError::runtime(format!("Invalid args for Map.new {res:?}")).into()
+                        };
+                        ObjectValue::Map(base).into()
+                    }
+                    _ => {
+                        RigzObject::new(ob.clone()).into()
+                    }
+                };
+                self.store_value(obj)
             }
             &Instruction::CreateDependency(args, dep) => {
                 let args = self.resolve_args(args).into();

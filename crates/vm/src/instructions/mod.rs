@@ -262,7 +262,7 @@ pub enum Instruction {
     CallMatchingSelfMemo(Vec<(VMArg, Vec<VMArg>, VMCallSite)>),
     CallMatching(Vec<(Vec<VMArg>, VMCallSite)>),
     CallMatchingMemo(Vec<(Vec<VMArg>, VMCallSite)>),
-    CreateObject(Arc<RigzType>),
+    CreateObject(Arc<RigzType>, usize),
     CreateEnum {
         enum_type: usize,
         variant: usize,
@@ -587,9 +587,10 @@ impl Snapshot for Instruction {
                 res.extend(v.as_bytes());
                 res
             }
-            Instruction::CreateObject(o) => {
+            Instruction::CreateObject(o, args) => {
                 let mut res = vec![46];
                 res.extend(o.as_bytes());
+                res.extend(args.as_bytes());
                 res
             }
             Instruction::CreateDependency(args, dep) => {
@@ -773,7 +774,7 @@ impl Snapshot for Instruction {
                 Snapshot::from_bytes(bytes, location)?,
                 Snapshot::from_bytes(bytes, location)?,
             ),
-            46 => Instruction::CreateObject(Snapshot::from_bytes(bytes, location)?),
+            46 => Instruction::CreateObject(Snapshot::from_bytes(bytes, location)?, Snapshot::from_bytes(bytes, location)?),
             47 => Instruction::CreateDependency(
                 Snapshot::from_bytes(bytes, location)?,
                 Snapshot::from_bytes(bytes, location)?,

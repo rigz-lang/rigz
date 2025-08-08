@@ -903,7 +903,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         );
         let res = self.builder.current_scope();
         self.builder
-            .add_create_object_instruction(rigz_type.clone());
+            .add_create_object_instruction(rigz_type.clone(), 0);
         self.identifiers.insert(
             "self".to_string(),
             FunctionType {
@@ -1608,50 +1608,99 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 }
             }
             FunctionExpression::TypeConstructor(ty, args) => {
-                let ty = ty.to_string();
-                let dec = match self.objects.get(&ty) {
-                    None => {
-                        return Err(ValidationError::InvalidType(format!(
-                            "Missing constructor for {ty}"
-                        )))
+                let name = ty.to_string();
+                match &ty {
+                    RigzType::Set(_) | RigzType::List(_) | RigzType::Map(_, _) => {
+                        let cargs = match args.len() {
+                            0 => {
+                                Vec::with_capacity(0)
+                            }
+                            1 => {
+                                if let RigzArguments::Positional(args) = &args {
+                                    let rigz_type = self.rigz_type(&args[0])?;
+                                    let name = if &rigz_type == &RigzType::Number {
+                                        "len".to_string()
+                                    } else {
+                                        "values".to_string()
+                                    };
+                                    vec![FunctionArgument {
+                                        name,
+                                        default: None,
+                                        function_type: FunctionType {
+                                            mutable: false,
+                                            rigz_type
+                                        },
+                                        var_arg: false,
+                                        rest: false,
+                                    }]
+                                } else {
+                                    return Err(ValidationError::InvalidType(format!("Invalid args for {name}, positional args required {args:?}")))
+                                }
+                            }
+                            _ => {
+                                return Err(ValidationError::InvalidType(format!("Invalid args for {name} - {args:?}")))
+                            }
+                        };
+                        let fcs = FunctionCallSignature {
+                            name,
+                            arguments: cargs,
+                            return_type: FunctionType {
+                                rigz_type: ty.clone(),
+                                mutable: false,
+                            },
+                            self_type: None,
+                            arg_type: ArgType::Positional,
+                            var_args_start: None,
+                        };
+                        let len = self.setup_call_args(args, fcs)?;
+                        self.builder.add_create_object_instruction(Arc::new(ty), len);
                     }
-                    Some(dec) => dec.clone(),
-                };
-                let (cargs, var, scope) = match &dec.constructor {
-                    ObjectConstructor::Scope(cargs, var, s) => {
-                        (cargs.clone(), *var, Some(*s))
-                    }
-                    ObjectConstructor::Custom(cargs, var) => (cargs.clone(), *var, None),
-                };
+                    _ => {
+                        let dec = match self.objects.get(&name) {
+                            None => {
+                                return Err(ValidationError::InvalidType(format!(
+                                    "Missing constructor for {name}"
+                                )))
+                            }
+                            Some(dec) => dec.clone(),
+                        };
+                        let (cargs, var, scope) = match &dec.constructor {
+                            ObjectConstructor::Scope(cargs, var, s) => {
+                                (cargs.clone(), *var, Some(*s))
+                            }
+                            ObjectConstructor::Custom(cargs, var) => (cargs.clone(), *var, None),
+                        };
 
-                let args = self.setup_call_args(
-                    args,
-                    FunctionCallSignature {
-                        name: "Self".to_string(),
-                        arguments: cargs,
-                        return_type: FunctionType {
-                            rigz_type: Default::default(),
-                            mutable: false,
-                        },
-                        self_type: None,
-                        arg_type: ArgType::Positional,
-                        var_args_start: var,
-                    },
-                )?;
+                        let args = self.setup_call_args(
+                            args,
+                            FunctionCallSignature {
+                                name: "Self".to_string(),
+                                arguments: cargs,
+                                return_type: FunctionType {
+                                    rigz_type: Default::default(),
+                                    mutable: false,
+                                },
+                                self_type: None,
+                                arg_type: ArgType::Positional,
+                                var_args_start: var,
+                            },
+                        )?;
 
-                match scope {
-                    None => match dec.dep {
-                        None => {
-                            return Err(ValidationError::InvalidType(format!(
-                                "{ty} is not a Custom Type, definition required for object"
-                            )))
+                        match scope {
+                            None => match dec.dep {
+                                None => {
+                                    return Err(ValidationError::InvalidType(format!(
+                                        "{ty} is not a Custom Type, definition required for object"
+                                    )))
+                                }
+                                Some(d) => {
+                                    self.builder.add_call_dependency_instruction(args, d);
+                                }
+                            },
+                            Some(s) => {
+                                self.builder.add_call_instruction(s);
+                            }
                         }
-                        Some(d) => {
-                            self.builder.add_call_dependency_instruction(args, d);
-                        }
-                    },
-                    Some(s) => {
-                        self.builder.add_call_instruction(s);
                     }
                 }
             }
