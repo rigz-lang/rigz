@@ -1,6 +1,6 @@
 use crate::{err, errln, out, outln, CallFrame, Instruction, MatchArm, Modules, Scope, VMOptions, VMState};
 use log::log;
-use rigz_core::{AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, IndexSet, Logical, Module, ObjectValue, PrimitiveValue, Reference, ResolveValue, ResolvedValue, Reverse, RigzArgs, RigzObject, RigzType, StackValue, UnaryOperation, VMError};
+use rigz_core::{AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, IndexSet, Logical, Module, ObjectValue, PrimitiveValue, Reference, ResolveValue, ResolvedValue, Reverse, RigzArgs, RigzObject, RigzType, StackValue, UnaryOperation, VMError, WithTypeInfo};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
@@ -521,7 +521,11 @@ pub trait Runner: ResolveValue {
             }
             Instruction::Cast { rigz_type } => {
                 let value = self.next_resolved_value(|| "cast");
-                self.store_value(value.borrow().cast(rigz_type).into());
+                if &value.borrow().rigz_type() == rigz_type {
+                    self.store_value(value.into())
+                } else {
+                    self.store_value(value.borrow().cast(rigz_type).into());
+                }
             }
             &Instruction::CallEq(scope_index) => {
                 let b = self.next_resolved_value(|| "call eq - rhs");

@@ -32,7 +32,8 @@ impl Default for VMBuilder {
         Self {
             sp: 0,
             scopes: vec![Default::default()],
-            modules: Default::default(),
+            // keep in sync with default modules
+            modules: Vec::with_capacity(16),
             dependencies: Default::default(),
             options: Default::default(),
             lifecycles: Default::default(),

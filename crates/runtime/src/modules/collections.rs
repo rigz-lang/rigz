@@ -175,19 +175,15 @@ impl RigzCollections for CollectionsModule {
     }
 
     fn mut_set_sort(&self, this: &mut IndexSet<ObjectValue>) {
-        this.sort()
+        this.sort_unstable()
     }
 
     fn mut_list_sort(&self, this: &mut Vec<ObjectValue>) {
-        this.sort()
+        this.sort_unstable()
     }
 
     fn mut_map_sort(&self, this: &mut IndexMap<ObjectValue, ObjectValue>) {
-        *this = this
-            .into_iter()
-            .sorted()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect();
+        this.sort_unstable_keys()
     }
 
     fn set_split_first(

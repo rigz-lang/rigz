@@ -297,7 +297,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                                     CallSignature::Function(f, _) => match &f.self_type {
                                         None => None,
                                         Some(ft) => {
-                                            if &ft.rigz_type == r {
+                                            if ft.rigz_type.matches(r) {
                                                 Some(f.return_type.rigz_type.clone())
                                             } else {
                                                 None
@@ -357,7 +357,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                                     CallSignature::Function(f, _) => f
                                         .self_type
                                         .as_ref()
-                                        .filter(|t| t.rigz_type == this)
+                                        .filter(|t| t.rigz_type.matches(&this))
                                         .map(|_| f.return_type.rigz_type.clone()),
                                     CallSignature::Lambda(_, _, ret) => Some(ret.clone()),
                                 })
