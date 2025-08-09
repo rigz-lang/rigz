@@ -15,6 +15,18 @@ pub trait AsPrimitive<T: Clone + AsPrimitive<T> + Default + Sized>:
         )))
     }
 
+    fn iter_len(&self) -> Result<usize, VMError> {
+        Err(VMError::UnsupportedOperation(format!(
+            "Cannot {self:?} is not iterable"
+        )))
+    }
+
+    fn iter(&self) -> Result<Box<dyn Iterator<Item = T> + '_>, VMError> {
+        Err(VMError::UnsupportedOperation(format!(
+            "Cannot convert {self:?} to iter"
+        )))
+    }
+
     fn as_list(&mut self) -> Result<&mut Vec<T>, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "Cannot convert {self:?} to mut List"

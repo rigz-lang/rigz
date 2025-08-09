@@ -477,6 +477,34 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
         }
     }
 
+    fn iter_len(&self) -> Result<usize, VMError> {
+        match self {
+            ObjectValue::List(m) | ObjectValue::Tuple(m) => Ok(m.len()),
+            ObjectValue::Set(m) => Ok(m.len()),
+            ObjectValue::Map(m) => Ok(m.len()),
+            ObjectValue::Primitive(p) => p.iter_len(),
+            ObjectValue::Object(o) => o.iter_len(),
+            _ => Err(VMError::UnsupportedOperation(format!(
+                "{self} is not iterable"
+            ))),
+        }
+    }
+
+    fn iter(&self) -> Result<Box<dyn Iterator<Item=ObjectValue> + '_>, VMError> {
+        match self {
+            ObjectValue::List(m) | ObjectValue::Tuple(m) => Ok(Box::new(m.iter().cloned())),
+            ObjectValue::Set(s) => Ok(Box::new(s.iter().cloned())),
+            ObjectValue::Map(m) => Ok(Box::new(m
+                                          .iter()
+                                          .map(|(k, v)| ObjectValue::Tuple(vec![k.clone(), v.clone()])))),
+            ObjectValue::Primitive(p) => Ok(Box::new(p.iter()?.map(|p| p.into()))),
+            ObjectValue::Object(o) => o.iter(),
+            _ => Err(VMError::UnsupportedOperation(format!(
+                "Cannot convert {self} to List"
+            ))),
+        }
+    }
+
     fn as_set(&mut self) -> Result<&mut IndexSet<ObjectValue>, VMError> {
         match self {
             ObjectValue::Set(m) => Ok(m),

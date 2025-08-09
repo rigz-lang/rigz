@@ -347,18 +347,7 @@ impl Runner for VM {
             );
         };
         let res = value.resolve(self);
-        let mut res = res.borrow_mut();
-        let value = match res.as_list() {
-            Ok(v) => v,
-            Err(e) => {
-                return Some(
-                    VMError::runtime(format!(
-                        "Invalid object passed into for loop - {scope_id}, {value:?}"
-                    ))
-                    .into(),
-                )
-            }
-        };
+        let res = res.borrow_mut();
 
         let args = match self.scopes.get(scope_id) {
             None => {
@@ -379,23 +368,27 @@ impl Runner for VM {
         self.frames.push(old);
         self.sp = scope_id;
         let mut result: Option<VMState> = None;
+        let value = match res.iter() {
+            Ok(v) => v,
+            Err(e) => return Some(e.into())
+        };
         'outer: for each in value {
             if let ObjectValue::Tuple(tuple) = each {
-                for (value, &(name, mutable)) in tuple.iter().zip(&args) {
+                for (value, &(name, mutable)) in tuple.into_iter().zip(&args) {
                     let res = if mutable {
                         self.frames
-                            .load_mut(name, value.clone().into(), false)
+                            .load_mut(name, value.into(), false)
                     } else {
                         self.frames
-                            .load_let(name, value.clone().into(), false)
+                            .load_let(name, value.into(), false)
                     };
                 }
             } else {
                 let (name, mutable) = args[0];
                 let res = if mutable {
-                    self.frames.load_mut(name, each.clone().into(), false)
+                    self.frames.load_mut(name, each.into(), false)
                 } else {
-                    self.frames.load_let(name, each.clone().into(), false)
+                    self.frames.load_let(name, each.into(), false)
                 };
 
                 if let Err(err) = res {
@@ -475,17 +468,7 @@ impl Runner for VM {
             );
         };
         let res = value.resolve(self);
-        let mut res = res.borrow_mut();
-        let value = match res.as_list() {
-            Ok(v) => v,
-            Err(e) => {
-                return Err(
-                    VMError::runtime(format!(
-                        "Invalid object passed into for loop - {scope_id}, {value:?}"
-                    )).into()
-                )
-            }
-        };
+        let res = res.borrow_mut();
 
         let args = match self.scopes.get(scope_id) {
             None => {
@@ -504,24 +487,24 @@ impl Runner for VM {
         let old = self.frames.current.replace(new_frame);
         self.frames.push(old);
         self.sp = scope_id;
-        let mut result = init(value.len());
-        'outer: for each in value {
+        let mut result = init(res.iter_len()?);
+        'outer: for each in res.iter()? {
             if let ObjectValue::Tuple(tuple) = each {
-                for (value, &(name, mutable)) in tuple.iter().zip(&args) {
+                for (value, &(name, mutable)) in tuple.into_iter().zip(&args) {
                     if mutable {
                         self.frames
-                            .load_mut(name, value.clone().into(), false)?
+                            .load_mut(name, value.into(), false)?
                     } else {
                         self.frames
-                            .load_let(name, value.clone().into(), false)?
+                            .load_let(name, value.into(), false)?
                     }
                 }
             } else {
                 let (name, mutable) = args[0];
                 if mutable {
-                    self.frames.load_mut(name, each.clone().into(), false)?
+                    self.frames.load_mut(name, each.into(), false)?
                 } else {
-                    self.frames.load_let(name, each.clone().into(), false)?
+                    self.frames.load_let(name, each.into(), false)?
                 };
             }
             loop {

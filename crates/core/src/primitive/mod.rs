@@ -17,6 +17,7 @@ use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use std::str::from_utf8;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -83,11 +84,27 @@ impl WithTypeInfo for PrimitiveValue {
 }
 
 impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
+    fn iter_len(&self) -> Result<usize, VMError> {
+        match self {
+            PrimitiveValue::String(s) => Ok(s.len()),
+            // PrimitiveValue::Range(v) => Ok(v),
+            _ => Err(VMError::UnsupportedOperation(format!("{self} is not iterable"))),
+        }
+    }
+
+    fn iter(&self) -> Result<Box<dyn Iterator<Item=PrimitiveValue> + '_>, VMError> {
+        match self {
+            PrimitiveValue::String(s) => Ok(Box::new(s.bytes().map(|c| String::from(from_utf8(&[c]).expect("Invalid String Byte")).into()))),
+            // PrimitiveValue::Range(v) => Ok(v.iter()),
+            _ => Err(VMError::UnsupportedOperation(format!("{self} is not iterable"))),
+        }
+    }
+
     fn to_list(&self) -> Result<Vec<PrimitiveValue>, VMError> {
         if let PrimitiveValue::Range(r) = self {
             Ok(r.to_list())
         } else {
-            Err(VMError::runtime(format!("Cannot convert {self} to List")))
+            Err(VMError::UnsupportedOperation(format!("Cannot convert {self} to List")))
         }
     }
 
@@ -95,7 +112,7 @@ impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
         if let PrimitiveValue::Range(r) = self {
             Ok(r.to_map())
         } else {
-            Err(VMError::runtime(format!("Cannot convert {self} to Map")))
+            Err(VMError::UnsupportedOperation(format!("Cannot convert {self} to Map")))
         }
     }
 
@@ -129,10 +146,6 @@ impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
         self.as_number()
     }
 
-    fn is_value(&self) -> bool {
-        !matches!(self, PrimitiveValue::Error(_) | PrimitiveValue::None)
-    }
-
     #[inline]
     fn to_bool(&self) -> bool {
         match self {
@@ -160,6 +173,10 @@ impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
 
         *self = PrimitiveValue::Bool(self.to_bool());
         self.as_bool()
+    }
+
+    fn is_value(&self) -> bool {
+        !matches!(self, PrimitiveValue::Error(_) | PrimitiveValue::None)
     }
 
     fn as_string(&mut self) -> Result<&mut String, VMError> {
