@@ -52,7 +52,7 @@ impl From<FirstArg> for Option<Tokens> {
             FirstArg::None => None,
             FirstArg::VM => Some(quote! { vm }),
             FirstArg::MutThis => Some(quote! { this.borrow().rigz_type() }),
-            FirstArg::This => Some(quote! { this.borrow().clone() }),
+            FirstArg::This => Some(quote! { this.borrow().deref() }),
         }
     }
 }
@@ -417,9 +417,41 @@ fn base_call(
                             self.#method_name(#f, #fn_args)
                         }
                     }
-                    Some((t, _)) => {
+                    Some((t, _)) if ft.mutable => {
                         quote! {
                             self.#method_name(#t, #fn_args)
+                        }
+                    }
+                    Some((t, _)) => {
+                        // todo match to avoid duplicate allocations
+                        let common = quote! {
+                            {
+                                let this = #t;
+                                self.#method_name(&this, #fn_args)
+                            }
+                        };
+                        match &ft.rigz_type {
+                            RigzType::List(_) => quote! {
+                                if let ObjectValue::List(l) = this.borrow().deref() {
+                                    self.#method_name(&l, #fn_args)
+                                } else #common
+                            },
+                            RigzType::Map(_, _) => quote! {
+                                if let ObjectValue::Map(m) = this.borrow().deref() {
+                                    self.#method_name(&m, #fn_args)
+                                } else #common
+                            },
+                            RigzType::Set(_) => quote! {
+                                if let ObjectValue::Set(s) = this.borrow().deref() {
+                                    self.#method_name(&s, #fn_args)
+                                } else #common
+                            },
+                            RigzType::String => quote! {
+                                if let ObjectValue::Primitive(PrimitiveValue::String(s)) = this.borrow().deref() {
+                                    self.#method_name(&s, #fn_args)
+                                } else #common
+                            },
+                            _ => common,
                         }
                     }
                 }

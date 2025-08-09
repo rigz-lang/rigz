@@ -22,36 +22,36 @@ end
 }
 
 impl RigzNumber for NumberModule {
-    fn number_ceil(&self, this: Number) -> Number {
+    fn number_ceil(&self, this: &Number) -> Number {
         match this {
-            Number::Int(_) => this,
+            Number::Int(_) => *this,
             Number::Float(f) => (f.ceil() as i64).into(),
         }
     }
 
-    fn number_round(&self, this: Number) -> Number {
+    fn number_round(&self, this: &Number) -> Number {
         match this {
-            Number::Int(_) => this,
+            Number::Int(_) => *this,
             Number::Float(f) => (f.round() as i64).into(),
         }
     }
 
-    fn number_trunc(&self, this: Number) -> Number {
+    fn number_trunc(&self, this: &Number) -> Number {
         match this {
-            Number::Int(_) => this,
+            Number::Int(_) => *this,
             Number::Float(f) => (f.trunc() as i64).into(),
         }
     }
 
-    fn number_min(&self, this: Number, other: Number) -> Number {
-        this.min(other)
+    fn number_min(&self, this: &Number, other: Number) -> Number {
+        (*this).min(other)
     }
 
-    fn number_max(&self, this: Number, other: Number) -> Number {
-        this.max(other)
+    fn number_max(&self, this: &Number, other: Number) -> Number {
+        (*this).max(other)
     }
 
-    fn number_to_bits(&self, this: Number) -> Vec<ObjectValue> {
+    fn number_to_bits(&self, this: &Number) -> Vec<ObjectValue> {
         let bits = this.to_bits();
         let start = bits.leading_zeros();
         let bits = bits.reverse_bits();

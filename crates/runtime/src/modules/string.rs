@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
 use rigz_core::*;
@@ -21,33 +22,33 @@ impl RigzString for StringModule {
         this.push_str(value.to_string().as_str())
     }
 
-    fn string_concat(&self, this: String, value: String) -> String {
-        let mut this = this;
+    fn string_concat(&self, this: &String, value: String) -> String {
+        let mut this = this.clone();
         this.push_str(value.to_string().as_str());
         this
     }
 
-    fn string_with(&self, this: String, value: Vec<ObjectValue>) -> String {
-        let mut this = this;
+    fn string_with(&self, this: &String, value: Vec<ObjectValue>) -> String {
+        let mut this = this.clone();
         for v in value {
             this.push_str(v.to_string().as_str())
         }
         this
     }
 
-    fn string_trim(&self, this: String) -> String {
+    fn string_trim(&self, this: &String) -> String {
         this.trim().to_string()
     }
 
-    fn string_lines(&self, this: String) -> Vec<String> {
+    fn string_lines(&self, this: &String) -> Vec<String> {
         this.lines().map(|s| s.to_string()).collect()
     }
 
-    fn string_split(&self, this: String, pattern: String) -> Vec<String> {
+    fn string_split(&self, this: &String, pattern: String) -> Vec<String> {
         this.split(&pattern).map(|s| s.to_string()).collect()
     }
 
-    fn string_replace(&self, this: String, pattern: String, value: String) -> String {
+    fn string_replace(&self, this: &String, pattern: String, value: String) -> String {
         this.replace(pattern.as_str(), value.as_str())
     }
 }

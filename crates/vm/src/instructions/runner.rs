@@ -194,7 +194,6 @@ macro_rules! runner_common {
 }
 
 use std::time::Duration;
-use itertools::Itertools;
 
 #[inline]
 pub fn eval_unary(unary_operation: UnaryOperation, val: &ObjectValue) -> ObjectValue {

@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
 use rigz_core::*;
@@ -100,51 +101,51 @@ derive_module!(
 
 #[allow(unused_variables)]
 impl RigzStd for StdModule {
-    fn any_clone(&self, this: ObjectValue) -> ObjectValue {
+    fn any_clone(&self, this: &ObjectValue) -> ObjectValue {
         todo!()
     }
 
-    fn any_is_err(&self, this: ObjectValue) -> bool {
+    fn any_is_err(&self, this: &ObjectValue) -> bool {
         todo!()
     }
 
-    fn any_is_none(&self, this: ObjectValue) -> bool {
+    fn any_is_none(&self, this: &ObjectValue) -> bool {
         todo!()
     }
 
-    fn any_is_some(&self, this: ObjectValue) -> bool {
+    fn any_is_some(&self, this: &ObjectValue) -> bool {
         todo!()
     }
 
-    fn any_to_b(&self, this: ObjectValue) -> bool {
+    fn any_to_b(&self, this: &ObjectValue) -> bool {
         todo!()
     }
 
-    fn any_to_i(&self, this: ObjectValue) -> Result<i64, VMError> {
+    fn any_to_i(&self, this: &ObjectValue) -> Result<i64, VMError> {
         todo!()
     }
 
-    fn any_to_f(&self, this: ObjectValue) -> Result<f64, VMError> {
+    fn any_to_f(&self, this: &ObjectValue) -> Result<f64, VMError> {
         todo!()
     }
 
-    fn any_to_n(&self, this: ObjectValue) -> Result<Number, VMError> {
+    fn any_to_n(&self, this: &ObjectValue) -> Result<Number, VMError> {
         todo!()
     }
 
-    fn any_to_s(&self, this: ObjectValue) -> String {
+    fn any_to_s(&self, this: &ObjectValue) -> String {
         todo!()
     }
 
-    fn any_to_list(&self, this: ObjectValue) -> Vec<ObjectValue> {
+    fn any_to_list(&self, this: &ObjectValue) -> Vec<ObjectValue> {
         todo!()
     }
 
-    fn any_to_map(&self, this: ObjectValue) -> IndexMap<ObjectValue, ObjectValue> {
+    fn any_to_map(&self, this: &ObjectValue) -> IndexMap<ObjectValue, ObjectValue> {
         todo!()
     }
 
-    fn any_type(&self, this: ObjectValue) -> String {
+    fn any_type(&self, this: &ObjectValue) -> String {
         todo!()
     }
 
@@ -152,11 +153,11 @@ impl RigzStd for StdModule {
         todo!()
     }
 
-    fn list_first(&self, this: Vec<ObjectValue>) -> Option<ObjectValue> {
+    fn list_first(&self, this: &Vec<ObjectValue>) -> Option<ObjectValue> {
         todo!()
     }
 
-    fn list_last(&self, this: Vec<ObjectValue>) -> Option<ObjectValue> {
+    fn list_last(&self, this: &Vec<ObjectValue>) -> Option<ObjectValue> {
         todo!()
     }
 
@@ -164,11 +165,11 @@ impl RigzStd for StdModule {
         todo!()
     }
 
-    fn list_concat(&self, this: Vec<ObjectValue>, value: Vec<ObjectValue>) -> Vec<ObjectValue> {
+    fn list_concat(&self, this: &Vec<ObjectValue>, value: Vec<ObjectValue>) -> Vec<ObjectValue> {
         todo!()
     }
 
-    fn list_with(&self, this: Vec<ObjectValue>, value: Vec<ObjectValue>) -> Vec<ObjectValue> {
+    fn list_with(&self, this: &Vec<ObjectValue>, value: Vec<ObjectValue>) -> Vec<ObjectValue> {
         todo!()
     }
 
@@ -180,11 +181,11 @@ impl RigzStd for StdModule {
         todo!()
     }
 
-    fn map_first(&self, this: IndexMap<ObjectValue, ObjectValue>) -> Option<ObjectValue> {
+    fn map_first(&self, this: &IndexMap<ObjectValue, ObjectValue>) -> Option<ObjectValue> {
         todo!()
     }
 
-    fn map_last(&self, this: IndexMap<ObjectValue, ObjectValue>) -> Option<ObjectValue> {
+    fn map_last(&self, this: &IndexMap<ObjectValue, ObjectValue>) -> Option<ObjectValue> {
         todo!()
     }
 
@@ -199,7 +200,7 @@ impl RigzStd for StdModule {
 
     fn map_with(
         &self,
-        this: IndexMap<ObjectValue, ObjectValue>,
+        this: &IndexMap<ObjectValue, ObjectValue>,
         key: Vec<ObjectValue>,
         value: Vec<ObjectValue>,
     ) -> IndexMap<ObjectValue, ObjectValue> {
@@ -208,29 +209,29 @@ impl RigzStd for StdModule {
 
     fn map_concat(
         &self,
-        this: IndexMap<ObjectValue, ObjectValue>,
+        this: &IndexMap<ObjectValue, ObjectValue>,
         value: IndexMap<ObjectValue, ObjectValue>,
     ) -> IndexMap<ObjectValue, ObjectValue> {
         todo!()
     }
 
-    fn map_entries(&self, this: IndexMap<ObjectValue, ObjectValue>) -> Vec<ObjectValue> {
+    fn map_entries(&self, this: &IndexMap<ObjectValue, ObjectValue>) -> Vec<ObjectValue> {
         todo!()
     }
 
-    fn map_keys(&self, this: IndexMap<ObjectValue, ObjectValue>) -> Vec<ObjectValue> {
+    fn map_keys(&self, this: &IndexMap<ObjectValue, ObjectValue>) -> Vec<ObjectValue> {
         todo!()
     }
 
-    fn number_ceil(&self, this: Number) -> Number {
+    fn number_ceil(&self, this: &Number) -> Number {
         todo!()
     }
 
-    fn number_round(&self, this: Number) -> Number {
+    fn number_round(&self, this: &Number) -> Number {
         todo!()
     }
 
-    fn number_trunc(&self, this: Number) -> Number {
+    fn number_trunc(&self, this: &Number) -> Number {
         todo!()
     }
 
@@ -238,15 +239,15 @@ impl RigzStd for StdModule {
         todo!()
     }
 
-    fn string_concat(&self, this: String, value: String) -> String {
+    fn string_concat(&self, this: &String, value: String) -> String {
         todo!()
     }
 
-    fn string_with(&self, this: String, value: Vec<ObjectValue>) -> String {
+    fn string_with(&self, this: &String, value: Vec<ObjectValue>) -> String {
         todo!()
     }
 
-    fn string_trim(&self, this: String) -> String {
+    fn string_trim(&self, this: &String) -> String {
         todo!()
     }
 
@@ -272,7 +273,7 @@ impl RigzFile for FileModule {
 
 #[allow(unused_variables)]
 impl RigzJSON for JSONModule {
-    fn any_to_json(&self, value: ObjectValue) -> Result<String, VMError> {
+    fn any_to_json(&self, value: &ObjectValue) -> Result<String, VMError> {
         match serde_json::to_string(&value) {
             Ok(s) => Ok(s),
             Err(e) => Err(VMError::runtime(format!("Failed to write json - {e}"))),

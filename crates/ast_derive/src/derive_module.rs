@@ -130,7 +130,7 @@ impl ToTokens for DeriveModule {
                                     }
                                 } else {
                                     quote! {
-                                        #name: #ty,
+                                        #name: &#ty,
                                     }
                                 };
                                 let mut r = vec![first];

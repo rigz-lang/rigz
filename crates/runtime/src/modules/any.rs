@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use itertools::Itertools;
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
@@ -71,40 +72,40 @@ fn is_float(s: &str) -> bool {
 }
 
 impl RigzAny for AnyModule {
-    fn any_clone(&self, this: ObjectValue) -> ObjectValue {
+    fn any_clone(&self, this: &ObjectValue) -> ObjectValue {
         this.clone()
     }
 
-    fn any_is_err(&self, this: ObjectValue) -> bool {
+    fn any_is_err(&self, this: &ObjectValue) -> bool {
         matches!(this, ObjectValue::Primitive(PrimitiveValue::Error(_)))
     }
 
-    fn any_is_none(&self, this: ObjectValue) -> bool {
+    fn any_is_none(&self, this: &ObjectValue) -> bool {
         // todo should error be counted as none?
         matches!(this, ObjectValue::Primitive(PrimitiveValue::None))
     }
 
-    fn any_is_some(&self, this: ObjectValue) -> bool {
+    fn any_is_some(&self, this: &ObjectValue) -> bool {
         // todo should error count as some?
         !matches!(this, ObjectValue::Primitive(PrimitiveValue::None))
     }
 
     #[inline]
-    fn any_is(&self, this: ObjectValue, any: ObjectValue) -> bool {
+    fn any_is(&self, this: &ObjectValue, any: ObjectValue) -> bool {
         if let ObjectValue::Primitive(PrimitiveValue::Type(rigz_type)) = any {
             let rt = this.rigz_type();
             rt == rigz_type
         } else {
             let rt = this.rigz_type();
-            this == any && rt == any.rigz_type()
+            this == &any && rt == any.rigz_type()
         }
     }
 
-    fn any_is_not(&self, this: ObjectValue, any: ObjectValue) -> bool {
+    fn any_is_not(&self, this: &ObjectValue, any: ObjectValue) -> bool {
         !self.any_is(this, any)
     }
 
-    fn any_is_int(&self, this: ObjectValue) -> bool {
+    fn any_is_int(&self, this: &ObjectValue) -> bool {
         match this {
             ObjectValue::Primitive(p) => match p {
                 PrimitiveValue::Number(Number::Int(_)) => true,
@@ -115,7 +116,7 @@ impl RigzAny for AnyModule {
         }
     }
 
-    fn any_is_float(&self, this: ObjectValue) -> bool {
+    fn any_is_float(&self, this: &ObjectValue) -> bool {
         match this {
             ObjectValue::Primitive(p) => match p {
                 PrimitiveValue::Number(Number::Float(_)) => true,
@@ -126,7 +127,7 @@ impl RigzAny for AnyModule {
         }
     }
 
-    fn any_is_num(&self, this: ObjectValue) -> bool {
+    fn any_is_num(&self, this: &ObjectValue) -> bool {
         match this {
             ObjectValue::Primitive(p) => match p {
                 PrimitiveValue::Number(_) => true,
@@ -140,45 +141,45 @@ impl RigzAny for AnyModule {
         }
     }
 
-    fn any_to_b(&self, this: ObjectValue) -> bool {
+    fn any_to_b(&self, this: &ObjectValue) -> bool {
         this.to_bool()
     }
 
-    fn any_to_i(&self, this: ObjectValue) -> Result<i64, VMError> {
+    fn any_to_i(&self, this: &ObjectValue) -> Result<i64, VMError> {
         this.to_int()
     }
 
-    fn any_to_f(&self, this: ObjectValue) -> Result<f64, VMError> {
+    fn any_to_f(&self, this: &ObjectValue) -> Result<f64, VMError> {
         this.to_float()
     }
 
-    fn any_to_n(&self, this: ObjectValue) -> Result<Number, VMError> {
+    fn any_to_n(&self, this: &ObjectValue) -> Result<Number, VMError> {
         this.to_number()
     }
 
-    fn any_to_s(&self, this: ObjectValue) -> String {
+    fn any_to_s(&self, this: &ObjectValue) -> String {
         this.to_string()
     }
 
-    fn any_to_list(&self, this: ObjectValue) -> Result<Vec<ObjectValue>, VMError> {
+    fn any_to_list(&self, this: &ObjectValue) -> Result<Vec<ObjectValue>, VMError> {
         this.to_list()
     }
 
-    fn any_to_map(&self, this: ObjectValue) -> Result<IndexMap<ObjectValue, ObjectValue>, VMError> {
+    fn any_to_map(&self, this: &ObjectValue) -> Result<IndexMap<ObjectValue, ObjectValue>, VMError> {
         this.to_map()
     }
 
-    fn any_to_set(&self, this: ObjectValue) -> Result<IndexSet<ObjectValue>, VMError> {
+    fn any_to_set(&self, this: &ObjectValue) -> Result<IndexSet<ObjectValue>, VMError> {
         this.to_set()
     }
 
-    fn any_type(&self, this: ObjectValue) -> String {
+    fn any_type(&self, this: &ObjectValue) -> String {
         this.rigz_type().to_string()
     }
 
     fn any_get(
         &self,
-        this: ObjectValue,
+        this: &ObjectValue,
         index: ObjectValue,
     ) -> Result<Option<ObjectValue>, VMError> {
         this.get(&index)

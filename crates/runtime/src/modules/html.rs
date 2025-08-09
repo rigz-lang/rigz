@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use rigz_ast::*;
 use rigz_ast_derive::{derive_module, derive_object};
 use rigz_core::*;
@@ -96,7 +97,7 @@ end"#
 impl RigzHtml for HtmlModule {
     fn string_elements(
         &self,
-        this: String,
+        this: &String,
         ids: Vec<ObjectValue>,
         selectors: Vec<String>,
     ) -> IndexMap<ObjectValue, ObjectValue> {

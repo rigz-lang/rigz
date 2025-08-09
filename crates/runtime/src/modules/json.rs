@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
 use rigz_core::*;
@@ -13,8 +14,8 @@ derive_module! {
 
 impl RigzJSON for JSONModule {
     #[inline]
-    fn any_to_json(&self, value: ObjectValue) -> Result<String, VMError> {
-        match serde_json::to_string(&value) {
+    fn any_to_json(&self, value: &ObjectValue) -> Result<String, VMError> {
+        match serde_json::to_string(value) {
             Ok(s) => Ok(s),
             Err(e) => Err(VMError::runtime(format!("Failed to write json - {e}"))),
         }
