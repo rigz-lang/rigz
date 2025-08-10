@@ -745,6 +745,11 @@ pub mod runtime {
             "# = IndexSet::from([1]))
             map_index_set("mut a = {}; a[1] = 2; a" = IndexMap::from([(1, 2)]))
             list_group_by("[1, 1, 1, 2, 2].group_by(|v| v.to_i)" = IndexMap::from([(1, vec![1, 1, 1]), (2, vec![2, 2])]))
+            mut_index_set_number("mut a = 0; a[1] = true; a" = 2)
+            mut_index_set("mut a = [1, 2, 3]; a[1] = 4; a" = vec![1, 4, 3])
+            mut_index_set_empty("mut a = []; a[0] = 4; a" = vec![4])
+            mut_index_bin_op("mut a = [1, 2, 3]; a[1] += 4; a" = vec![1, 6, 3])
+            mut_index_push("mut a = {x = [], y = [], z = []}; a.x.push 4; a" = IndexMap::from([("x", vec![4]), ("y", vec![]), ("z", vec![])]))
         }
     }
 

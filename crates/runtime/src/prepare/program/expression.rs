@@ -173,9 +173,60 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 RigzType::Tuple(result)
             }
             // todo more accurate typing
-            Expression::List(_) => RigzType::List(Box::new(RigzType::Any)),
-            Expression::Set(_) => RigzType::Set(Box::new(RigzType::Any)),
-            Expression::Map(_) => RigzType::Map(Box::new(RigzType::Any), Box::new(RigzType::Any)),
+            Expression::List(v) => {
+                let mut types = vec![];
+                for t in v.iter().map(|x| self.rigz_type(x)) {
+                    let r = t?;
+                    if !types.contains(&r) {
+                        types.push(r);
+                    }
+                };
+                let base = if types.is_empty() {
+                    RigzType::Any
+                } else {
+                    if types.len() == 1 {
+                        types.remove(0)
+                    } else {
+                        RigzType::Union(types)
+                    }
+                };
+                RigzType::List(base.into())
+            },
+            Expression::Set(s) => RigzType::Set(Box::new(RigzType::Any)),
+            Expression::Map(m) => {
+                if m.is_empty() {
+                    RigzType::Map(Box::new(RigzType::Any), Box::new(RigzType::Any))
+                } else {
+                    let mut keys = vec![];
+                    let mut values = vec![];
+                    for (k, v) in m {
+                        let k = if matches!(k, Expression::Identifier(_)) {
+                            RigzType::String
+                        } else {
+                            self.rigz_type(k)?
+                        };
+                        let v = self.rigz_type(v)?;
+                        if !keys.contains(&k) {
+                            keys.push(k)
+                        }
+                        if !values.contains(&v) {
+                            values.push(v)
+                        }
+                    }
+                    let k_type = if keys.len() == 1 {
+                        keys.remove(0)
+                    } else {
+                        RigzType::Union(keys)
+                    };
+
+                    let v_type = if values.len() == 1 {
+                        values.remove(0)
+                    } else {
+                        RigzType::Union(values)
+                    };
+                    RigzType::Map(k_type.into(), v_type.into())
+                }
+            },
             Expression::Index(base, _index) => {
                 if let Expression::Value(PrimitiveValue::Range(v)) = base.as_ref() {
                     match v {
@@ -184,7 +235,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     }
                 } else {
                     let base = self.rigz_type(base)?;
-                    self.index_type(base)
+                    self.index_type(&base)
                 }
             }
             Expression::Into { next, .. } => {
@@ -226,7 +277,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         Ok(t)
     }
 
-    fn index_type(&mut self, base: RigzType) -> RigzType {
+    pub(crate) fn index_type(&mut self, base: &RigzType) -> RigzType {
         // todo confirm index can be used
         match base {
             RigzType::None | RigzType::Bool | RigzType::Error | RigzType::Function(_, _) => {
@@ -235,7 +286,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             RigzType::Any => RigzType::Any,
             RigzType::Int | RigzType::Float | RigzType::Number => RigzType::Bool,
             RigzType::String => RigzType::String,
-            RigzType::List(l) | RigzType::Set(l) | RigzType::Map(_, l) => *l,
+            RigzType::List(l) | RigzType::Set(l) | RigzType::Map(_, l) => *l.clone(),
             RigzType::Type => RigzType::Error,
             RigzType::Range => unreachable!(),
             RigzType::This => {
@@ -245,12 +296,12 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     Some(v) => v.rigz_type.clone(),
                 }
             }
-            RigzType::Tuple(t) => RigzType::Union(t.into_iter().unique().collect()),
+            RigzType::Tuple(t) => RigzType::Union(t.iter().cloned().unique().collect()),
             RigzType::Union(v) | RigzType::Composite(v) => {
-                RigzType::Union(v.into_iter().map(|v| self.index_type(v)).unique().collect())
+                RigzType::Union(v.iter().map(|v| self.index_type(v)).unique().collect())
             }
             RigzType::Custom(_) => RigzType::Any,
-            RigzType::Wrapper { base_type, .. } => self.index_type(*base_type),
+            RigzType::Wrapper { base_type, .. } => self.index_type(&base_type),
             RigzType::Enum(i) => {
                 todo!("Enum indexes aren't supported yet {i}")
             }

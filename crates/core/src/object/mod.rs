@@ -4,16 +4,15 @@ mod ops;
 #[cfg(feature = "snapshot")]
 mod snapshot;
 
-use crate::{
-    AsPrimitive, IndexMap, IndexSet, Number, Object, PrimitiveValue, RigzType, VMError,
-    WithTypeInfo,
-};
+use crate::{AsPrimitive, DynCompare, IndexMap, IndexSet, Number, Object, PrimitiveValue, RigzType, VMError, WithTypeInfo};
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
+use indexmap::set::MutableValues;
+use itertools::Itertools;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
@@ -312,8 +311,17 @@ impl ObjectValue {
             | (ObjectValue::Tuple(s), ObjectValue::Primitive(PrimitiveValue::Number(n))) => {
                 match n.to_usize() {
                     Ok(index) => {
-                        s.insert(index, value.clone());
-                        None
+                        if let Some(v) = s.get_mut(index) {
+                            *v = value.clone();
+                            None
+                        } else {
+                            if s.len() == index {
+                                s.push(value.clone());
+                                None
+                            } else {
+                                Some(VMError::runtime(format!("Index out of bounds {index}")))
+                            }
+                        }
                     }
                     Err(e) => Some(e),
                 }
@@ -321,8 +329,17 @@ impl ObjectValue {
             (ObjectValue::Set(s), ObjectValue::Primitive(PrimitiveValue::Number(n))) => {
                 match n.to_usize() {
                     Ok(index) => {
-                        s.shift_insert(index, value.clone());
-                        None
+                        if let Some(v) = s.get_index_mut2(index) {
+                            *v = value.clone();
+                            None
+                        } else {
+                            if s.len() == index {
+                                s.insert(value.clone());
+                                None
+                            } else {
+                                Some(VMError::runtime(format!("Index {index} out of bounds ")))
+                            }
+                        }
                     }
                     Err(e) => Some(e),
                 }
@@ -338,11 +355,11 @@ impl ObjectValue {
                 let value = if value.to_bool() { 1 } else { 0 };
                 *source = match source {
                     Number::Int(_) => {
-                        i64::from_le_bytes((source.to_bits() & (value << n.to_int())).to_le_bytes())
+                        i64::from_le_bytes((source.to_bits() | (value << n.to_int())).to_le_bytes())
                             .into()
                     }
                     Number::Float(_) => {
-                        f64::from_bits(source.to_bits() & (value << n.to_int())).into()
+                        f64::from_bits(source.to_bits() | (value << n.to_int())).into()
                     }
                 };
                 None

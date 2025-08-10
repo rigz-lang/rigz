@@ -1578,10 +1578,11 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 self.check_module_exists(&first)?;
                 let mut rt = match self.function_scopes.contains_key(&first) {
                     false => {
+                        let rt = self.rigz_type(&exp)?;
                         self.parse_expression(*exp)?;
                         self.builder.add_load_instruction(first.into());
                         self.builder.add_instance_get_instruction(false);
-                        RigzType::default()
+                        rt
                     }
                     true if last == 0 => {
                         self.call_extension_function(*exp, &first, args)?;
@@ -1600,10 +1601,12 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     }
 
                     if index == last {
-                        self.call_inline_extension(rt, &c, args)?;
+                        let it = self.index_type(&rt);
+                        self.call_inline_extension(it, &c, args)?;
                         break;
                     } else {
-                        rt = self.call_inline_extension(rt, &c, vec![].into())?;
+                        let it = self.index_type(&rt);
+                        rt = self.call_inline_extension(it, &c, vec![].into())?;
                     }
                 }
             }
