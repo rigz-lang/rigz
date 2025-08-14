@@ -6,10 +6,16 @@ pub trait WithTypeInfo {
     fn rigz_type(&self) -> RigzType;
 }
 
-pub trait AsPrimitive<T: Clone + AsPrimitive<T> + Default + Sized>:
-    Display + Debug + WithTypeInfo
+pub trait ToBool {
+    fn to_bool(&self) -> bool {
+        true
+    }
+}
+
+pub trait AsPrimitive<V: Clone + AsPrimitive<V, T> + Default + Sized, T: Clone + Default + Debug + Sized = V>:
+    Display + Debug + ToBool + WithTypeInfo
 {
-    fn reverse(&self) -> Result<T, VMError> {
+    fn reverse(&self) -> Result<V, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "Cannot reverse {self}"
         )))
@@ -21,7 +27,7 @@ pub trait AsPrimitive<T: Clone + AsPrimitive<T> + Default + Sized>:
         )))
     }
 
-    fn iter(&self) -> Result<Box<dyn Iterator<Item = T> + '_>, VMError> {
+    fn iter(&self) -> Result<Box<dyn Iterator<Item = V> + '_>, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "Cannot convert {self:?} to iter"
         )))
@@ -33,7 +39,7 @@ pub trait AsPrimitive<T: Clone + AsPrimitive<T> + Default + Sized>:
         )))
     }
 
-    fn as_set(&mut self) -> Result<&mut IndexSet<T>, VMError> {
+    fn as_set(&mut self) -> Result<&mut IndexSet<V>, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "Cannot convert {self:?} to mut Set"
         )))
@@ -45,19 +51,19 @@ pub trait AsPrimitive<T: Clone + AsPrimitive<T> + Default + Sized>:
         )))
     }
 
-    fn to_set(&self) -> Result<IndexSet<T>, VMError> {
+    fn to_set(&self) -> Result<IndexSet<V>, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "Cannot convert {self:?} to Set"
         )))
     }
 
-    fn to_map(&self) -> Result<IndexMap<T, T>, VMError> {
+    fn to_map(&self) -> Result<IndexMap<V, T>, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "Cannot convert {self:?} to Map"
         )))
     }
 
-    fn as_map(&mut self) -> Result<&mut IndexMap<T, T>, VMError> {
+    fn as_map(&mut self) -> Result<&mut IndexMap<V, T>, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "Cannot convert {self:?} to mut Map"
         )))
@@ -73,10 +79,6 @@ pub trait AsPrimitive<T: Clone + AsPrimitive<T> + Default + Sized>:
         Err(VMError::UnsupportedOperation(format!(
             "Cannot convert {self:?} to mut Number"
         )))
-    }
-
-    fn to_bool(&self) -> bool {
-        true
     }
 
     fn as_bool(&mut self) -> Result<&mut bool, VMError> {
@@ -119,19 +121,19 @@ pub trait AsPrimitive<T: Clone + AsPrimitive<T> + Default + Sized>:
         )))
     }
 
-    fn get(&self, attr: &T) -> Result<T, VMError> {
+    fn get(&self, attr: &V) -> Result<T, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "Cannot get {attr} from {self:?}"
         )))
     }
 
-    fn set(&mut self, attr: &T, value: T) -> Result<(), VMError> {
+    fn set(&mut self, attr: &V, value: V) -> Result<(), VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "Cannot update {attr} on {self:?} - {value}"
         )))
     }
 
-    fn get_mut(&self, attr: &T) -> Result<&mut T, VMError> {
+    fn get_mut(&self, attr: &V) -> Result<&mut V, VMError> {
         Err(VMError::UnsupportedOperation(format!(
             "Cannot get_mut {attr} from {self:?}"
         )))

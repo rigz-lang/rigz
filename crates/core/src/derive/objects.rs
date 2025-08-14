@@ -100,7 +100,7 @@ impl ToTokens for CustomType {
     }
 }
 
-pub fn rigz_type_to_rust_str(rigz_type: &RigzType) -> Option<String> {
+pub fn rigz_type_to_rust_str(rigz_type: &RigzType, return_type: bool) -> Option<String> {
     let type_str = match rigz_type {
         RigzType::None => return None,
         RigzType::Bool => "bool".to_string(),
@@ -113,38 +113,47 @@ pub fn rigz_type_to_rust_str(rigz_type: &RigzType) -> Option<String> {
             optional,
             can_return_error,
         } => match (base_type.as_ref(), optional, can_return_error) {
-            (t, false, false) => return rigz_type_to_rust_str(t),
-            (t, true, false) => match rigz_type_to_rust_str(t) {
+            (t, false, false) => return rigz_type_to_rust_str(t, return_type),
+            (t, true, false) => match rigz_type_to_rust_str(t, return_type) {
                 None => "Option<()>".to_string(),
                 Some(t) => format!("Option<{t}>"),
             },
-            (t, false, true) => match rigz_type_to_rust_str(t) {
+            (t, false, true) => match rigz_type_to_rust_str(t, return_type) {
                 None => "Result<(), VMError>".to_string(),
                 Some(t) => format!("Result<{t}, VMError>"),
             },
-            (t, true, true) => match rigz_type_to_rust_str(t) {
+            (t, true, true) => match rigz_type_to_rust_str(t, return_type) {
                 None => "Result<Option<()>, VMError>".to_string(),
                 Some(t) => format!("Result<Option<{t}>, VMError>"),
             },
         },
         // I'm not a huge fan of enforcing this downstream type here
-        RigzType::Any | RigzType::Custom(_) => "ObjectValue".to_string(),
+        RigzType::Any | RigzType::Custom(_) if return_type => "ObjectValue".to_string(),
+        RigzType::Any | RigzType::Custom(_) => "Rc<RefCell<ObjectValue>>".to_string(),
         RigzType::List(v) => {
-            let v = rigz_type_to_rust_str(v.as_ref()).expect("None is not valid for list types");
+            let v = rigz_type_to_rust_str(v.as_ref(), return_type).expect("None is not valid for list types");
             format!("Vec<{v}>")
         }
         RigzType::Set(v) => {
-            let v = rigz_type_to_rust_str(v.as_ref()).expect("None is not valid for list types");
+            let v = if v.as_ref() == &RigzType::Any {
+                "ObjectValue".to_string()
+            } else {
+                rigz_type_to_rust_str(v.as_ref(), return_type).expect("None is not valid for map key types")
+            };
             format!("IndexSet<{v}>")
         }
         RigzType::Map(k, v) => {
-            let k = rigz_type_to_rust_str(k.as_ref()).expect("None is not valid for map key types");
+            let k = if k.as_ref() == &RigzType::Any {
+                "ObjectValue".to_string()
+            } else {
+                rigz_type_to_rust_str(k.as_ref(), return_type).expect("None is not valid for map key types")
+            };
             let v =
-                rigz_type_to_rust_str(v.as_ref()).expect("None is not valid for map value types");
+                rigz_type_to_rust_str(v.as_ref(), return_type).expect("None is not valid for map value types");
             format!("IndexMap<{k}, {v}>")
         }
         RigzType::Tuple(v) => {
-            let rep = v.iter().filter_map(rigz_type_to_rust_str).join(",");
+            let rep = v.iter().filter_map(|m| rigz_type_to_rust_str(m, return_type)).join(",");
             format!("({rep})")
         }
         t => t.to_string(),

@@ -18,8 +18,8 @@ end"#
 }
 
 impl RigzString for StringModule {
-    fn mut_string_push(&self, this: &mut String, value: ObjectValue) {
-        this.push_str(value.to_string().as_str())
+    fn mut_string_push(&self, this: &mut String, value: Rc<RefCell<ObjectValue>>) {
+        this.push_str(value.borrow().to_string().as_str())
     }
 
     fn string_concat(&self, this: &String, value: String) -> String {
@@ -28,10 +28,10 @@ impl RigzString for StringModule {
         this
     }
 
-    fn string_with(&self, this: &String, value: Vec<ObjectValue>) -> String {
+    fn string_with(&self, this: &String, value: Vec<Rc<RefCell<ObjectValue>>>) -> String {
         let mut this = this.clone();
         for v in value {
-            this.push_str(v.to_string().as_str())
+            this.push_str(v.borrow().to_string().as_str())
         }
         this
     }

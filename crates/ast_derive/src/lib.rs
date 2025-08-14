@@ -486,7 +486,7 @@ fn base_call(
                     }
                     let name = Ident::new(v.name.as_str(), Span::call_site());
                     if let Some((v, _)) = convert_type_for_arg(
-                        quote! { n },
+                        quote! { n.borrow() },
                         &v.function_type.rigz_type,
                         v.function_type.mutable,
                     ) {
@@ -564,11 +564,11 @@ fn tuple_call_args(values: &[RigzType], offset: Option<usize>) -> Tokens {
     let values = values.iter().enumerate().map(|(index, v)| {
         if let RigzType::Tuple(t) = v {
             let v = tuple_call_args(t, offset);
-            quote! { ObjectValue::Primitive(PrimitiveValue::Tuple(vec![#v])) }
+            quote! { ObjectValue::Primitive(PrimitiveValue::Tuple(vec![#v])).into() }
         } else {
             let v = rigz_type_to_arg(v, index, offset);
             quote! {
-                #v.into()
+                Into::<ObjectValue>::into(#v).into()
             }
         }
     });
@@ -658,7 +658,7 @@ fn setup_call_args(
             arg.function_type.mutable,
         ) {
             None => call_args.push(quote! {
-                let #name = #name.borrow().clone();
+                let #name = #name.clone();
             }),
             Some((value, _)) => call_args.push(quote! {
                 let #name = #value;
@@ -753,7 +753,7 @@ fn convert_type_for_borrowed_arg(
                 optional: true,
                 can_return_error: false,
             } => match convert_type_for_arg(name.clone(), base_type, mutable) {
-                None => (quote! { #name.borrow().deref().map(|t| t.clone()) }, false),
+                None => (quote! { #name.borrow().deref().map(|t| t.clone().into()) }, false),
                 Some((t, e)) => {
                     if e {
                         (
@@ -899,12 +899,12 @@ fn method_name(name: &str, fs: &FunctionSignature) -> Ident {
     Ident::new(method_name.as_str(), Span::call_site())
 }
 
-fn rigz_type_to_return_type(rigz_type: &RigzType) -> Option<Type> {
+fn rigz_type_to_return_type(rigz_type: &RigzType, return_type: bool) -> Option<Type> {
     if rigz_type == &RigzType::This {
         return None;
     }
 
-    match rigz_type_to_rust_str(rigz_type) {
+    match rigz_type_to_rust_str(rigz_type, return_type) {
         None => None,
         Some(type_str) => parse_str::<Type>(&type_str).ok(),
     }

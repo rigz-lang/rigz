@@ -1,9 +1,11 @@
+use std::cell::RefCell;
 use rand::{Rng, RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use rigz_ast::*;
 use rigz_ast_derive::{derive_module, derive_object};
 use rigz_core::*;
 use std::ops::Deref;
+use std::rc::Rc;
 
 derive_object! {
     "Random",
@@ -84,7 +86,7 @@ impl Default for InnerRng {
     }
 }
 
-impl AsPrimitive<ObjectValue> for Random {}
+impl AsPrimitive<ObjectValue, Rc<RefCell<ObjectValue>>> for Random {}
 
 impl CreateObject for Random {
     fn create(value: RigzArgs) -> Result<Self, VMError>

@@ -63,22 +63,22 @@ impl RigzNumber for NumberModule {
             .collect()
     }
 
-    fn int_from_bits(&self, raw: Vec<ObjectValue>) -> i64 {
+    fn int_from_bits(&self, raw: Vec<Rc<RefCell<ObjectValue>>>) -> i64 {
         raw.into_iter()
             .rev()
             .enumerate()
             .fold(0, |res, (index, next)| {
-                res | ((next.to_bool() as i64) << index as i64)
+                res | ((next.borrow().to_bool() as i64) << index as i64)
             })
     }
 
-    fn float_from_bits(&self, raw: Vec<ObjectValue>) -> f64 {
+    fn float_from_bits(&self, raw: Vec<Rc<RefCell<ObjectValue>>>) -> f64 {
         let raw = raw
             .into_iter()
             .rev()
             .enumerate()
             .fold(0, |res, (index, next)| {
-                res | ((next.to_bool() as u64) << index as u64)
+                res | ((next.borrow().to_bool() as u64) << index as u64)
             });
         f64::from_bits(raw)
     }

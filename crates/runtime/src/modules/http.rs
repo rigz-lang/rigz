@@ -1,8 +1,10 @@
+use std::cell::RefCell;
 use log::warn;
 use rigz_ast::*;
 use rigz_ast_derive::{derive_module, derive_object};
 use rigz_core::*;
 use std::ops::Deref;
+use std::rc::Rc;
 use std::sync::{Arc, LazyLock, RwLock};
 
 derive_object! {
@@ -10,6 +12,7 @@ derive_object! {
     struct Request {
         pub method: Option<String>,
         pub path: String,
+        #[derivative(Hash="ignore")]
         pub body: Option<ObjectValue>,
         #[derivative(Hash="ignore", PartialEq="ignore", PartialOrd="ignore")]
         pub headers: Option<IndexMap<ObjectValue, ObjectValue>>,
@@ -26,7 +29,7 @@ derive_object! {
 }
 
 impl Request {
-    fn from_map(map: IndexMap<ObjectValue, ObjectValue>) -> Result<Self, VMError> {
+    fn from_map(map: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>) -> Result<Self, VMError> {
         let path = match map.get(&ObjectValue::Primitive(PrimitiveValue::String(
             "path".to_string(),
         ))) {
@@ -35,25 +38,25 @@ impl Request {
                     "Missing `path`, cannot create request from {map:?}"
                 )))
             }
-            Some(p) => p.to_string(),
+            Some(p) => p.borrow().to_string(),
         };
 
         let method = map
             .get(&ObjectValue::Primitive(PrimitiveValue::String(
                 "method".to_string(),
             )))
-            .map(|o| o.to_string());
+            .map(|o| o.borrow().to_string());
         let body = map
             .get(&ObjectValue::Primitive(PrimitiveValue::String(
                 "body".to_string(),
             )))
-            .cloned();
+            .map(|b| b.borrow().clone());
 
         let headers = match map.get(&ObjectValue::Primitive(PrimitiveValue::String(
             "headers".to_string(),
         ))) {
             None => None,
-            Some(p) => match p {
+            Some(p) => match p.borrow().deref() {
                 ObjectValue::Map(m) => Some(m.clone()),
                 ObjectValue::Object(o) => Some(o.to_map()?),
                 o => {
@@ -62,7 +65,7 @@ impl Request {
                     )))
                 }
             },
-        };
+        }.map(|m| m.into_iter().map(|(k, v)| (k, v.borrow().clone())).collect());
 
         Ok(Request {
             method,
@@ -73,15 +76,17 @@ impl Request {
     }
 }
 
-impl AsPrimitive<ObjectValue> for Request {}
+impl AsPrimitive<ObjectValue, Rc<RefCell<ObjectValue>>> for Request {}
 
 impl RequestObject for Request {
-    fn header(&self, key: ObjectValue) -> Option<ObjectValue> {
-        self.headers.as_ref().map(|h| h.get(&key).cloned())?
+    fn header(&self, key: Rc<RefCell<ObjectValue>>) -> Option<ObjectValue> {
+        let binding = key.borrow();
+        let key = binding.deref();
+        self.headers.as_ref().map(|h| h.get(key).map(|v| v.clone()))?
     }
 
-    fn mut_body(&mut self, body: ObjectValue) {
-        self.body = Some(body);
+    fn mut_body(&mut self, body: Rc<RefCell<ObjectValue>>) {
+        self.body = Some(body.borrow().clone());
     }
 
     fn mut_method(&mut self, method: String) {
@@ -114,7 +119,7 @@ impl CreateObject for Request {
             let [path, method, body, headers] = args.take()?;
             let headers = match headers.borrow().map(|o| o.to_map()) {
                 None => None,
-                Some(Ok(s)) => Some(s),
+                Some(Ok(s)) => Some(s.into_iter().map(|(k, v)| (k, v.borrow().clone())).collect()),
                 Some(Err(e)) => return Err(e),
             };
             let method = method.borrow();
@@ -123,7 +128,7 @@ impl CreateObject for Request {
             Ok(Self {
                 path: path.to_string(),
                 method: method.map(|o| o.to_string()),
-                body: body.map(|o| o.clone()),
+                body: body.map(|o| o.clone().into()),
                 headers,
             })
         }
@@ -154,7 +159,7 @@ impl From<ureq::Response> for Response {
     }
 }
 
-impl AsPrimitive<ObjectValue> for Response {}
+impl AsPrimitive<ObjectValue, Rc<RefCell<ObjectValue>>> for Response {}
 
 impl CreateObject for Response {
     fn create(args: RigzArgs) -> Result<Self, VMError>
@@ -221,12 +226,12 @@ derive_module! {
 
 fn set_headers(
     request: ureq::Request,
-    headers: Option<IndexMap<ObjectValue, ObjectValue>>,
+    headers: Option<IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>>,
 ) -> ureq::Request {
     let mut request = request;
     if let Some(headers) = headers {
         for (k, v) in headers {
-            request = request.set(k.to_string().as_str(), v.to_string().as_str());
+            request = request.set(k.to_string().as_str(), v.borrow().to_string().as_str());
         }
     }
     request
@@ -243,23 +248,22 @@ fn to_object(res: Result<ureq::Response, ureq::Error>) -> Result<ObjectValue, VM
     }
 }
 
-fn handle_body(req: ureq::Request, body: Option<ObjectValue>) -> Result<ObjectValue, VMError> {
+fn handle_body(req: ureq::Request, body: Option<Rc<RefCell<ObjectValue>>>) -> Result<ObjectValue, VMError> {
     let resp = match body {
         None => req.call(),
-        Some(ObjectValue::Primitive(PrimitiveValue::String(body))) => req.send_string(&body),
         // todo support form
         // todo support bytes
-        Some(o) => {
-            // todo use json
-            req.send_string(&o.to_string())
+        Some(o) => match o.borrow().deref() {
+            ObjectValue::Primitive(PrimitiveValue::String(body)) => req.send_string(&body),
+            o => req.send_string(&o.to_string())
         }
     };
     to_object(resp)
 }
 
 impl RigzHttp for HttpModule {
-    fn fetch(&self, request: ObjectValue) -> Result<ObjectValue, VMError> {
-        let r: Request = match request {
+    fn fetch(&self, request: Rc<RefCell<ObjectValue>>) -> Result<ObjectValue, VMError> {
+        let r: Request = match request.borrow().deref() {
             ObjectValue::Map(m) => Request::from_map(m)?,
             ObjectValue::Object(o) => match o.downcast_ref::<Request>() {
                 Some(r) => r.clone(),
@@ -271,28 +275,29 @@ impl RigzHttp for HttpModule {
             },
             o => return Err(VMError::todo(format!("`fetch` cannot be called with {o}"))),
         };
+        let headers = r.headers.map(|m| m.into_iter().map(|(k, v)| (k, v.into())).collect());
         match r.method {
             None => {
                 if r.body.is_some() {
                     warn!("Ignoring body for GET request - {:?}", r.body)
                 }
-                self.get(r.path, r.headers)
+                self.get(r.path, headers)
             }
             Some(s) => match s.to_lowercase().as_str() {
                 "get" => {
                     if r.body.is_some() {
                         warn!("Ignoring body for GET request - {:?}", r.body)
                     }
-                    self.get(r.path, r.headers)
+                    self.get(r.path, headers)
                 }
                 "delete" => {
                     if r.body.is_some() {
                         warn!("Ignoring body for DELETE request - {:?}", r.body)
                     }
-                    self.delete(r.path, r.headers)
+                    self.delete(r.path, headers)
                 }
-                "post" => self.post(r.path, r.body, r.headers),
-                "put" => self.post(r.path, r.body, r.headers),
+                "post" => self.post(r.path, r.body.map(|b| b.into()), headers),
+                "put" => self.post(r.path, r.body.map(|b| b.into()), headers),
                 method => Err(VMError::runtime(format!("Invalid HTTP method {method}"))),
             },
         }
@@ -301,7 +306,7 @@ impl RigzHttp for HttpModule {
     fn head(
         &self,
         path: String,
-        headers: Option<IndexMap<ObjectValue, ObjectValue>>,
+        headers: Option<IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>>,
     ) -> Result<ObjectValue, VMError> {
         let mut req = self.client.head(&path);
         req = set_headers(req, headers);
@@ -313,7 +318,7 @@ impl RigzHttp for HttpModule {
     fn get(
         &self,
         path: String,
-        headers: Option<IndexMap<ObjectValue, ObjectValue>>,
+        headers: Option<IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>>,
     ) -> Result<ObjectValue, VMError> {
         let mut req = self.client.get(&path);
         req = set_headers(req, headers);
@@ -325,7 +330,7 @@ impl RigzHttp for HttpModule {
     fn delete(
         &self,
         path: String,
-        headers: Option<IndexMap<ObjectValue, ObjectValue>>,
+        headers: Option<IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>>,
     ) -> Result<ObjectValue, VMError> {
         let mut req = self.client.delete(&path);
         req = set_headers(req, headers);
@@ -337,7 +342,7 @@ impl RigzHttp for HttpModule {
     fn options(
         &self,
         path: String,
-        headers: Option<IndexMap<ObjectValue, ObjectValue>>,
+        headers: Option<IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>>,
     ) -> Result<ObjectValue, VMError> {
         let mut req = self.client.request("OPTIONS", &path);
         req = set_headers(req, headers);
@@ -349,8 +354,8 @@ impl RigzHttp for HttpModule {
     fn patch(
         &self,
         path: String,
-        body: Option<ObjectValue>,
-        headers: Option<IndexMap<ObjectValue, ObjectValue>>,
+        body: Option<Rc<RefCell<ObjectValue>>>,
+        headers: Option<IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>>,
     ) -> Result<ObjectValue, VMError> {
         let mut req = self.client.patch(&path);
         req = set_headers(req, headers);
@@ -360,8 +365,8 @@ impl RigzHttp for HttpModule {
     fn post(
         &self,
         path: String,
-        body: Option<ObjectValue>,
-        headers: Option<IndexMap<ObjectValue, ObjectValue>>,
+        body: Option<Rc<RefCell<ObjectValue>>>,
+        headers: Option<IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>>,
     ) -> Result<ObjectValue, VMError> {
         let mut req = self.client.post(&path);
         req = set_headers(req, headers);
@@ -371,8 +376,8 @@ impl RigzHttp for HttpModule {
     fn put(
         &self,
         path: String,
-        body: Option<ObjectValue>,
-        headers: Option<IndexMap<ObjectValue, ObjectValue>>,
+        body: Option<Rc<RefCell<ObjectValue>>>,
+        headers: Option<IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>>,
     ) -> Result<ObjectValue, VMError> {
         let mut req = self.client.put(&path);
         req = set_headers(req, headers);

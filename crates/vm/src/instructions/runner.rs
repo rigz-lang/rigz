@@ -1,6 +1,6 @@
 use crate::{err, errln, out, outln, CallFrame, Instruction, MatchArm, Modules, Scope, VMOptions, VMState};
 use log::log;
-use rigz_core::{AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, IndexSet, Logical, Module, ObjectValue, PrimitiveValue, Reference, ResolveValue, ResolvedValue, Reverse, RigzArgs, RigzObject, RigzType, StackValue, UnaryOperation, VMError, WithTypeInfo};
+use rigz_core::{AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, IndexSet, Logical, Module, ObjectValue, PrimitiveValue, Reference, ResolveValue, ResolvedValue, Reverse, RigzArgs, RigzObject, RigzType, StackValue, ToBool, UnaryOperation, VMError, WithTypeInfo};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
@@ -724,8 +724,8 @@ pub trait Runner: ResolveValue {
                         ObjectValue::Tuple(mut t) if t.len() >= 2 => {
                             // todo this should be == 2 but same tuple is reused appending to front
                             let v = t.remove(1);
-                            let k = t.remove(0);
-                            if !k.is_none() && !v.is_none() {
+                            let k = t.remove(0).borrow().clone();
+                            if !k.is_none() && !v.borrow().is_none() {
                                 result.insert(k, v);
                             }
                         }
@@ -735,13 +735,13 @@ pub trait Runner: ResolveValue {
                                 "Invalid args in for-map {value}"
                             ))
                                 .into();
-                            result.insert(e.clone(), e);
+                            result.insert(e.clone(), e.into());
                         }
                     }
                     None
                 });
                 match result {
-                    Ok(r) => self.store_value(r.into()),
+                    Ok(r) => self.store_value(ObjectValue::Map(r).into()),
                     Err(e) => return e
                 }
             }
@@ -798,7 +798,7 @@ pub trait Runner: ResolveValue {
                                     Err(e) => return e.into()
                                 }
                             }
-                            _ => res.iter().map(|r| r.borrow().clone()).collect()
+                            _ => res
                         };
                         ObjectValue::List(base).into()
                     }
@@ -1005,8 +1005,8 @@ pub trait Runner: ResolveValue {
         let source = self.next_resolved_value(|| "instance_get - source");
         let v = match source.borrow().get(attr.borrow().deref()) {
             Ok(Some(v)) => v,
-            Ok(None) => ObjectValue::default(),
-            Err(e) => e.into(),
+            Ok(None) => ObjectValue::default().into(),
+            Err(e) => Rc::new(RefCell::new(e.into())),
         };
         if multiple {
             self.store_value(source.into());
@@ -1019,13 +1019,12 @@ pub trait Runner: ResolveValue {
         let value = self.next_resolved_value(|| "instance_set - value");
         let attr = self.next_resolved_value(|| "instance_set - attr");
         let source = self.next_resolved_value(|| "instance_set - source");
-        let value = value.borrow();
         let source = if mutable {
             source
         } else {
             source.borrow().clone().into()
         };
-        let s = { source.borrow_mut().instance_set(attr, value.deref()) };
+        let s = { source.borrow_mut().instance_set(attr, value) };
         if let Err(e) = s {
             source.replace(e.into());
         }

@@ -1,4 +1,4 @@
-use crate::derive::{boxed, csv_vec};
+use crate::derive::{csv_vec_rc, rc};
 use crate::{Number, ObjectValue, PrimitiveValue, VMError, ValueRange};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
@@ -8,7 +8,7 @@ impl ToTokens for ObjectValue {
         let t = match self {
             ObjectValue::Primitive(p) => quote! { ObjectValue::Primitive(#p) },
             ObjectValue::List(v) => {
-                let values = csv_vec(v);
+                let values = csv_vec_rc(v);
                 quote! {
                     ObjectValue::List(#values)
                 }
@@ -25,7 +25,7 @@ impl ToTokens for ObjectValue {
                 }
             }
             ObjectValue::Tuple(v) => {
-                let values = csv_vec(v);
+                let values = csv_vec_rc(v);
                 quote! {
                     ObjectValue::Tuple(#values)
                 }
@@ -34,7 +34,8 @@ impl ToTokens for ObjectValue {
                 let values: Vec<_> = map
                     .into_iter()
                     .map(|(k, v)| {
-                        quote! { (#k, #v), }
+                        let v = v.borrow().clone();
+                        quote! { (#k, Rc::new(RefCell::new(#v))), }
                     })
                     .collect();
                 quote! {
@@ -45,7 +46,7 @@ impl ToTokens for ObjectValue {
             ObjectValue::Enum(i, v, b) => match b {
                 None => quote! { ObjectValue::Enum(#i, #v, None) },
                 Some(b) => {
-                    let b = boxed(b);
+                    let b = rc(b);
                     quote! { ObjectValue::Enum(#i, #v, Some(#b)) }
                 }
             },

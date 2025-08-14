@@ -123,7 +123,7 @@ pub mod runtime {
             try_fail(r#"
             try raise "Failure"
             "# = VMError::runtime("Failure".to_string()))
-            raise_args("raise 1, 2, 3" = VMError::RuntimeError(Box::new(ObjectValue::Tuple(vec![1.into(), 2.into(), 3.into()]))))
+            raise_args("raise 1, 2, 3" = VMError::RuntimeError(Box::new(ObjectValue::Tuple(vec![ObjectValue::rc(1.into()), ObjectValue::rc(2.into()), ObjectValue::rc(3.into())]))))
         }
 
         run_error_starts_with! {
@@ -155,8 +155,8 @@ pub mod runtime {
             list_empty("[].empty" = true)
             set("Set[1, 2, 3]" = IndexSet::from([1, 2, 3]))
             set_new("a = [3, 2, 1]; Set.new a" = IndexSet::from([3, 2, 1]))
-            split_first("[1, 2, 3].split_first" = ObjectValue::Tuple(vec![1.into(), vec![2, 3].into()]))
-            split_first_map("{1, 2, 3}.split_first" = ObjectValue::Tuple(vec![ObjectValue::Tuple(vec![1.into(), 1.into()].into()), ObjectValue::Map(IndexMap::from([(2.into(), 2.into()), (3.into(), 3.into())]))]))
+            split_first("[1, 2, 3].split_first" = ObjectValue::Tuple(vec![ObjectValue::rc(1.into()), ObjectValue::List(vec![ObjectValue::rc(2.into()), ObjectValue::rc(3.into())].into()).into()]))
+            split_first_map("{1, 2, 3}.split_first" = ObjectValue::Tuple(vec![ObjectValue::Tuple(vec![ObjectValue::rc(1.into()), ObjectValue::rc(1.into())].into()).into(), ObjectValue::Map(IndexMap::from([(2.into(), ObjectValue::rc(2.into())), (3.into(), ObjectValue::rc(3.into()))])).into()]))
             split_first_assign("(first, rest) = [1, 2, 3].split_first; first + rest" = vec![1, 2, 3])
             complex_expression_ignore_precedence("1 + 2 * 3 - 4 / 5" = 1)
             ignore_precedence("2 + 1 * 3" = 9)
@@ -235,7 +235,7 @@ pub mod runtime {
             "# = IndexMap::from([(1, 1), (2, 2), (3, 3), (4, 4)]))
             create_dynamic_list(r#"
                 [{d = 1}]
-            "# = vec![ObjectValue::Map(IndexMap::from([("d".into(), 1.into())]))])
+            "# = vec![ObjectValue::Map(IndexMap::from([("d".into(), ObjectValue::rc(1.into()))]))])
             call_extension_function_multiple_times_inline_no_parens(r#"
             fn mut String.foo -> mut Self
                 self += "h"
@@ -750,6 +750,7 @@ pub mod runtime {
             mut_index_set_empty("mut a = []; a[0] = 4; a" = vec![4])
             mut_index_bin_op("mut a = [1, 2, 3]; a[1] += 4; a" = vec![1, 6, 3])
             mut_index_push("mut a = {x = [], y = [], z = []}; a.x.push 4; a" = IndexMap::from([("x", vec![4]), ("y", vec![]), ("z", vec![])]))
+            mut_reference_update("mut x = []; mut a = {x, y = [], z = []}; a.x.push 4; x" = vec![4])
         }
     }
 

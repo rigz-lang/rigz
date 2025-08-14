@@ -165,6 +165,8 @@ impl DeriveObject {
             .parse_object_definition()
             .expect("failed to parse object definition");
         let definition = quote! {
+            impl ToBool for #id {}
+
             impl rigz_core::Definition for #id {
                 fn name() -> &'static str {
                     concat!(#parent, "::", #name)
@@ -288,7 +290,7 @@ fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTra
             let mut var_arg = false;
             args.extend(sig.arguments.iter().map(|arg| {
                 let ident = Ident::new(arg.name.as_str(), Span::call_site());
-                let rt = match rigz_type_to_return_type(&arg.function_type.rigz_type) {
+                let rt = match rigz_type_to_return_type(&arg.function_type.rigz_type, false) {
                     None => quote! { ObjectValue },
                     Some(t) => quote! { #t },
                 };
@@ -313,7 +315,7 @@ fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTra
                         }
                         let name = Ident::new(v.name.as_str(), Span::call_site());
                         if let Some((v, _)) = convert_type_for_arg(
-                            quote! { n },
+                            quote! { n.borrow() },
                             &v.function_type.rigz_type,
                             v.function_type.mutable,
                         ) {
@@ -366,7 +368,7 @@ fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTra
                 }
             }
 
-            let ret = rigz_type_to_return_type(&sig.return_type.rigz_type).map(|s| quote! { -> #s });
+            let ret = rigz_type_to_return_type(&sig.return_type.rigz_type, true).map(|s| quote! { -> #s });
             if sig.self_type.is_none() {
                 quote! {
                     fn #fn_name(#(#args, )*) #ret where Self: Sized;

@@ -1,5 +1,5 @@
 use crate::{ObjectValue, VMError};
-use std::ops::Sub;
+use std::ops::{Deref, Sub};
 
 impl Sub for &ObjectValue {
     type Output = ObjectValue;
@@ -13,7 +13,7 @@ impl Sub for &ObjectValue {
             }
             (ObjectValue::List(a), b) => {
                 let mut result = a.clone();
-                result.retain(|v| v != b);
+                result.retain(|v| v.borrow().deref() != b);
                 ObjectValue::List(result)
             }
             (ObjectValue::Map(a), ObjectValue::Map(b)) => {
@@ -23,14 +23,14 @@ impl Sub for &ObjectValue {
             }
             (ObjectValue::Map(a), b) => {
                 let mut result = a.clone();
-                result.retain(|_, v| b != v);
+                result.retain(|_, v| b != v.borrow().deref());
                 ObjectValue::Map(result)
             }
             (ObjectValue::Tuple(a), ObjectValue::Tuple(b)) => {
-                ObjectValue::Tuple(a.iter().zip(b).map(|(a, b)| a - b).collect())
+                ObjectValue::Tuple(a.iter().zip(b).map(|(a, b)| a.borrow().deref() - b.borrow().deref()).map(|v| v.into()).collect())
             }
-            (ObjectValue::Tuple(a), b) => ObjectValue::Tuple(a.iter().map(|a| a - b).collect()),
-            (b, ObjectValue::Tuple(a)) => ObjectValue::Tuple(a.iter().map(|a| b - a).collect()),
+            (ObjectValue::Tuple(a), b) => ObjectValue::Tuple(a.iter().map(|a| a.borrow().deref() - b).map(|v| v.into()).collect()),
+            (b, ObjectValue::Tuple(a)) => ObjectValue::Tuple(a.iter().map(|a| b - a.borrow().deref()).map(|v| v.into()).collect()),
             (lhs, rhs) => {
                 VMError::UnsupportedOperation(format!("Not supported: {lhs} - {rhs}")).into()
             }

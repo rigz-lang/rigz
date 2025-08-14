@@ -125,7 +125,7 @@ impl ProcessManager {
         &mut self,
         args: Vec<Rc<RefCell<ObjectValue>>>,
     ) -> Result<ObjectValue, VMError> {
-        let mut args = args.into_iter().map(|v| v.borrow().clone());
+        let mut args = args.into_iter().map(|v| v.borrow().deep_clone());
         // todo message or pid
         let message = args.next().unwrap().to_string();
         let args = Vec::from_iter(args);
@@ -201,7 +201,7 @@ impl ProcessManager {
             ObjectValue::List(val) => {
                 let mut res = Vec::with_capacity(val.len());
                 for v in val {
-                    let r = match v.to_usize() {
+                    let r = match v.borrow().to_usize() {
                         Ok(pid) => self.handle_receive(pid, timeout),
                         Err(e) => e.into(),
                     };

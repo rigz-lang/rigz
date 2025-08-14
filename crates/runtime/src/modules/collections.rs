@@ -166,11 +166,11 @@ impl RigzCollections for CollectionsModule {
         this.clear()
     }
 
-    fn mut_list_extend(&self, this: &mut Vec<ObjectValue>, value: Vec<ObjectValue>) {
+    fn mut_list_extend(&self, this: &mut Vec<Rc<RefCell<ObjectValue>>>, value: Vec<Rc<RefCell<ObjectValue>>>) {
         this.extend(value)
     }
 
-    fn mut_list_clear(&self, this: &mut Vec<ObjectValue>) {
+    fn mut_list_clear(&self, this: &mut Vec<Rc<RefCell<ObjectValue>>>) {
         this.clear()
     }
 
@@ -178,11 +178,11 @@ impl RigzCollections for CollectionsModule {
         this.sort_unstable()
     }
 
-    fn mut_list_sort(&self, this: &mut Vec<ObjectValue>) {
+    fn mut_list_sort(&self, this: &mut Vec<Rc<RefCell<ObjectValue>>>) {
         this.sort_unstable()
     }
 
-    fn mut_map_sort(&self, this: &mut IndexMap<ObjectValue, ObjectValue>) {
+    fn mut_map_sort(&self, this: &mut IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>) {
         this.sort_unstable_keys()
     }
 
@@ -221,31 +221,31 @@ impl RigzCollections for CollectionsModule {
         this.iter().cloned().zip(other).collect()
     }
 
-    fn list_split_first(&self, this: &Vec<ObjectValue>) -> (Option<ObjectValue>, Vec<ObjectValue>) {
+    fn list_split_first(&self, this: &Vec<Rc<RefCell<ObjectValue>>>) -> (Option<ObjectValue>, Vec<ObjectValue>) {
         match this.split_first() {
             None => (None, vec![]),
-            Some((s, rest)) => (Some(s.clone()), rest.to_vec()),
+            Some((s, rest)) => (Some(s.borrow().clone()), rest.iter().map(|v| v.borrow().clone()).collect()),
         }
     }
 
-    fn list_split_last(&self, this: &Vec<ObjectValue>) -> (Option<ObjectValue>, Vec<ObjectValue>) {
+    fn list_split_last(&self, this: &Vec<Rc<RefCell<ObjectValue>>>) -> (Option<ObjectValue>, Vec<ObjectValue>) {
         match this.split_last() {
             None => (None, vec![]),
-            Some((s, rest)) => (Some(s.clone()), rest.to_vec()),
+            Some((s, rest)) => (Some(s.borrow().clone()), rest.iter().map(|v| v.borrow().clone()).collect()),
         }
     }
 
     fn list_zip(
         &self,
-        this: &Vec<ObjectValue>,
-        other: Vec<ObjectValue>,
+        this: &Vec<Rc<RefCell<ObjectValue>>>,
+        other: Vec<Rc<RefCell<ObjectValue>>>,
     ) -> IndexMap<ObjectValue, ObjectValue> {
-        this.iter().cloned().zip(other).collect()
+        this.iter().cloned().zip(other).map(|(k, v)| (k.borrow().clone(), v.borrow().clone())).collect()
     }
 
     fn map_split_first(
         &self,
-        this: &IndexMap<ObjectValue, ObjectValue>,
+        this: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>,
     ) -> (
         Option<(ObjectValue, ObjectValue)>,
         IndexMap<ObjectValue, ObjectValue>,
@@ -255,10 +255,10 @@ impl RigzCollections for CollectionsModule {
         } else {
             let (k, v) = this.first().unwrap();
             (
-                Some((k.clone(), v.clone())),
+                Some((k.clone().into(), v.borrow().clone())),
                 this.iter()
                     .skip(1)
-                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .map(|(k, v)| (k.clone(), v.borrow().clone()))
                     .collect(),
             )
         }
@@ -266,7 +266,7 @@ impl RigzCollections for CollectionsModule {
 
     fn map_split_last(
         &self,
-        this: &IndexMap<ObjectValue, ObjectValue>,
+        this: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>,
     ) -> (
         Option<(ObjectValue, ObjectValue)>,
         IndexMap<ObjectValue, ObjectValue>,
@@ -276,11 +276,11 @@ impl RigzCollections for CollectionsModule {
         } else {
             let (k, v) = this.first().unwrap();
             (
-                Some((k.clone(), v.clone())),
+                Some((k.clone().into(), v.borrow().clone())),
                 this.iter()
                     .rev()
                     .skip(1)
-                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .map(|(k, v)| (k.clone(), v.borrow().clone()))
                     .rev()
                     .collect(),
             )
@@ -288,59 +288,59 @@ impl RigzCollections for CollectionsModule {
     }
 
     fn set_to_tuple(&self, this: &IndexSet<ObjectValue>) -> ObjectValue {
-        ObjectValue::Tuple(this.iter().cloned().collect())
+        ObjectValue::Tuple(this.iter().cloned().map(|v| v.into()).collect())
     }
 
-    fn list_to_tuple(&self, this: &Vec<ObjectValue>) -> ObjectValue {
+    fn list_to_tuple(&self, this: &Vec<Rc<RefCell<ObjectValue>>>) -> ObjectValue {
         ObjectValue::Tuple(this.clone())
     }
 
-    fn list_len(&self, this: &Vec<ObjectValue>) -> i64 {
+    fn list_len(&self, this: &Vec<Rc<RefCell<ObjectValue>>>) -> i64 {
         this.len() as i64
     }
 
-    fn list_first(&self, this: &Vec<ObjectValue>) -> Option<ObjectValue> {
-        this.first().cloned()
+    fn list_first(&self, this: &Vec<Rc<RefCell<ObjectValue>>>) -> Option<ObjectValue> {
+        this.first().map(|b| b.borrow().clone())
     }
 
-    fn list_last(&self, this: &Vec<ObjectValue>) -> Option<ObjectValue> {
-        this.last().cloned()
+    fn list_last(&self, this: &Vec<Rc<RefCell<ObjectValue>>>) -> Option<ObjectValue> {
+        this.last().map(|b| b.borrow().clone())
     }
 
     fn list_nth(
         &self,
-        this: &Vec<ObjectValue>,
+        this: &Vec<Rc<RefCell<ObjectValue>>>,
         number: Number,
     ) -> Result<Option<ObjectValue>, VMError> {
         let index = number.to_usize()?;
-        Ok(this.get(index).cloned())
+        Ok(this.get(index).map(|b| b.borrow().clone()))
     }
 
-    fn mut_list_shift(&self, this: &mut Vec<ObjectValue>) -> Option<ObjectValue> {
+    fn mut_list_shift(&self, this: &mut Vec<Rc<RefCell<ObjectValue>>>) -> Option<ObjectValue> {
         if this.is_empty() {
             None
         } else {
-            Some(this.remove(0))
+            Some(this.remove(0).borrow().clone())
         }
     }
 
-    fn mut_list_push(&self, this: &mut Vec<ObjectValue>, value: Vec<ObjectValue>) {
+    fn mut_list_push(&self, this: &mut Vec<Rc<RefCell<ObjectValue>>>, value: Vec<Rc<RefCell<ObjectValue>>>) {
         this.extend(value)
     }
 
-    fn list_concat(&self, this: &Vec<ObjectValue>, value: Vec<ObjectValue>) -> Vec<ObjectValue> {
+    fn list_concat(&self, this: &Vec<Rc<RefCell<ObjectValue>>>, value: Vec<Rc<RefCell<ObjectValue>>>) -> Vec<ObjectValue> {
         let mut this = this.clone();
         this.extend(value);
-        this
+        this.into_iter().map(|v| v.borrow().clone()).collect()
     }
 
-    fn list_with(&self, this: &Vec<ObjectValue>, value: Vec<ObjectValue>) -> Vec<ObjectValue> {
+    fn list_with(&self, this: &Vec<Rc<RefCell<ObjectValue>>>, value: Vec<Rc<RefCell<ObjectValue>>>) -> Vec<ObjectValue> {
         let mut this = this.clone();
         this.extend(value);
-        this
+        this.into_iter().map(|v| v.borrow().clone()).collect()
     }
 
-    fn list_has(&self, this: &Vec<ObjectValue>, value: ObjectValue) -> bool {
+    fn list_has(&self, this: &Vec<Rc<RefCell<ObjectValue>>>, value: Rc<RefCell<ObjectValue>>) -> bool {
         this.contains(&value)
     }
 
@@ -362,15 +362,15 @@ impl RigzCollections for CollectionsModule {
         number: Number,
     ) -> Result<Option<ObjectValue>, VMError> {
         let index = number.to_usize()?;
-        Ok(this.get_index(index).cloned())
+        Ok(this.get_index(index).map(|v| v.clone().into()))
     }
 
-    fn mut_set_insert(&self, this: &mut IndexSet<ObjectValue>, value: Vec<ObjectValue>) {
-        this.extend(value)
+    fn mut_set_insert(&self, this: &mut IndexSet<ObjectValue>, value: Vec<Rc<RefCell<ObjectValue>>>) {
+        this.extend(value.into_iter().map(|v| v.borrow().clone()) )
     }
 
-    fn mut_set_remove(&self, this: &mut IndexSet<ObjectValue>, value: ObjectValue) -> bool {
-        this.shift_remove(&value)
+    fn mut_set_remove(&self, this: &mut IndexSet<ObjectValue>, value: Rc<RefCell<ObjectValue>>) -> bool {
+        this.shift_remove(value.borrow().deref())
     }
 
     fn set_concat(
@@ -386,99 +386,99 @@ impl RigzCollections for CollectionsModule {
     fn set_with(
         &self,
         this: &IndexSet<ObjectValue>,
-        value: Vec<ObjectValue>,
+        value: Vec<Rc<RefCell<ObjectValue>>>,
     ) -> IndexSet<ObjectValue> {
         let mut this = this.clone();
-        this.extend(value);
+        this.extend(value.into_iter().map(|v| v.borrow().clone()));
         this
     }
 
-    fn set_has(&self, this: &IndexSet<ObjectValue>, value: ObjectValue) -> bool {
-        this.contains(&value)
+    fn set_has(&self, this: &IndexSet<ObjectValue>, value: Rc<RefCell<ObjectValue>>) -> bool {
+        this.contains(value.borrow().deref())
     }
 
-    fn map_len(&self, this: &IndexMap<ObjectValue, ObjectValue>) -> i64 {
+    fn map_len(&self, this: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>) -> i64 {
         this.len() as i64
     }
 
     fn mut_map_extend(
         &self,
-        this: &mut IndexMap<ObjectValue, ObjectValue>,
-        value: IndexMap<ObjectValue, ObjectValue>,
+        this: &mut IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>,
+        value: IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>,
     ) {
         this.extend(value)
     }
 
-    fn mut_map_clear(&self, this: &mut IndexMap<ObjectValue, ObjectValue>) {
+    fn mut_map_clear(&self, this: &mut IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>) {
         this.clear()
     }
 
-    fn map_first(&self, this: &IndexMap<ObjectValue, ObjectValue>) -> Option<ObjectValue> {
-        this.first().map(|(_, v)| v.clone())
+    fn map_first(&self, this: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>) -> Option<ObjectValue> {
+        this.first().map(|(_, v)| v.borrow().clone())
     }
 
-    fn map_last(&self, this: &IndexMap<ObjectValue, ObjectValue>) -> Option<ObjectValue> {
-        this.last().map(|(_, v)| v.clone())
+    fn map_last(&self, this: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>) -> Option<ObjectValue> {
+        this.last().map(|(_, v)| v.borrow().clone())
     }
 
     fn map_nth(
         &self,
-        this: &IndexMap<ObjectValue, ObjectValue>,
+        this: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>,
         number: Number,
     ) -> Result<Option<(ObjectValue, ObjectValue)>, VMError> {
         let index = number.to_usize()?;
-        Ok(this.get_index(index).map(|(k, v)| (k.clone(), v.clone())))
+        Ok(this.get_index(index).map(|(k, v)| (k.clone(), v.borrow().clone())))
     }
 
     fn mut_map_insert(
         &self,
-        this: &mut IndexMap<ObjectValue, ObjectValue>,
-        key: ObjectValue,
-        value: ObjectValue,
+        this: &mut IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>,
+        key: Rc<RefCell<ObjectValue>>,
+        value: Rc<RefCell<ObjectValue>>,
     ) {
-        this.insert(key, value);
+        this.insert(key.borrow().clone(), value);
     }
 
-    fn mut_map_remove(&self, this: &mut IndexMap<ObjectValue, ObjectValue>, key: ObjectValue) -> Option<ObjectValue> {
-        this.shift_remove(&key)
+    fn mut_map_remove(&self, this: &mut IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>, key: Rc<RefCell<ObjectValue>>) -> Option<ObjectValue> {
+        this.shift_remove(key.borrow().deref()).map(|b| b.borrow().clone())
     }
 
     fn map_with(
         &self,
-        this: &IndexMap<ObjectValue, ObjectValue>,
-        key: Vec<ObjectValue>,
-        value: Vec<ObjectValue>,
+        this: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>,
+        key: Vec<Rc<RefCell<ObjectValue>>>,
+        value: Vec<Rc<RefCell<ObjectValue>>>,
     ) -> IndexMap<ObjectValue, ObjectValue> {
-        let mut this = this.clone();
+        let mut this: IndexMap<_, _> = this.into_iter().map(|(k, v)| (k.clone(), v.borrow().clone())).collect();
         for (k, v) in key.into_iter().zip(value.into_iter()) {
-            this.insert(k, v);
+            this.insert(k.borrow().clone(), v.borrow().clone());
         }
         this
     }
 
     fn map_concat(
         &self,
-        this: &IndexMap<ObjectValue, ObjectValue>,
-        value: IndexMap<ObjectValue, ObjectValue>,
+        this: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>,
+        value: IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>,
     ) -> IndexMap<ObjectValue, ObjectValue> {
-        let mut this = this.clone();
-        this.extend(value);
+        let mut this: IndexMap<_, _> = this.into_iter().map(|(k, v)| (k.clone(), v.borrow().clone())).collect();
+        this.extend(value.into_iter().map(|(k, v)| (k, v.borrow().clone())));
         this
     }
 
-    fn map_keys(&self, this: &IndexMap<ObjectValue, ObjectValue>) -> Vec<ObjectValue> {
-        this.keys().cloned().collect()
+    fn map_keys(&self, this: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>) -> Vec<ObjectValue> {
+        this.keys().map(|k| k.clone().into()).collect()
     }
 
-    fn map_values(&self, this: &IndexMap<ObjectValue, ObjectValue>) -> Vec<ObjectValue> {
-        this.values().cloned().collect()
+    fn map_values(&self, this: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>) -> Vec<ObjectValue> {
+        this.values().map(|v| v.borrow().clone()).collect()
     }
 
-    fn map_has(&self, this: &IndexMap<ObjectValue, ObjectValue>, value: ObjectValue) -> bool {
-        this.contains_key(&value)
+    fn map_has(&self, this: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>, value: Rc<RefCell<ObjectValue>>) -> bool {
+        this.contains_key(value.borrow().deref())
     }
 
-    fn map_has_value(&self, this: &IndexMap<ObjectValue, ObjectValue>, value: ObjectValue) -> bool {
+    fn map_has_value(&self, this: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>, value: Rc<RefCell<ObjectValue>>) -> bool {
         this.values().contains(&value)
     }
 }

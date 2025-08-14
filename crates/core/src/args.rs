@@ -34,7 +34,7 @@ impl From<RigzArgs> for Vec<ObjectValue> {
 }
 
 pub type VarArgs<const START: usize, const COUNT: usize> =
-    ([Rc<RefCell<ObjectValue>>; START], [Vec<ObjectValue>; COUNT]);
+    ([Rc<RefCell<ObjectValue>>; START], [Vec<Rc<RefCell<ObjectValue>>>; COUNT]);
 
 pub type VarArgsRc<const START: usize, const COUNT: usize> = (
     [Rc<RefCell<ObjectValue>>; START],
@@ -190,39 +190,39 @@ pub mod rigz_args {
         ]);
         let ([first], [var]) = args.var_args().expect("Failed to get var_args");
         assert_eq!(first, Rc::new(RefCell::new(1.into())));
-        assert_eq!(var, vec![2.into(), 3.into()]);
+        assert_eq!(var, vec![Rc::new(RefCell::new(2.into())), Rc::new(RefCell::new(3.into()))]);
     }
 
     #[wasm_bindgen_test(unsupported = test)]
     fn var_args_skip_first() {
         let args: RigzArgs = RigzArgs(vec![Rc::new(RefCell::new(
-            ObjectValue::List(vec![1.into(), 2.into(), 3.into()]).into(),
+            ObjectValue::List(vec![Rc::new(RefCell::new(1.into())), Rc::new(RefCell::new(2.into())), Rc::new(RefCell::new(3.into()))]).into(),
         ))]);
         let ([], [var]) = args.var_args().expect("Failed to get var_args");
-        assert_eq!(var, vec![1.into(), 2.into(), 3.into()]);
+        assert_eq!(var, vec![Rc::new(RefCell::new(1.into())), Rc::new(RefCell::new(2.into())), Rc::new(RefCell::new(3.into()))]);
     }
 
     #[wasm_bindgen_test(unsupported = test)]
     fn var_args_two() {
         let args: RigzArgs = RigzArgs(vec![
             Rc::new(RefCell::new(vec![PrimitiveValue::Number(3.into())].into())),
-            Rc::new(RefCell::new(ObjectValue::List(vec![2.into()]).into())),
+            Rc::new(RefCell::new(ObjectValue::List(vec![Rc::new(RefCell::new(2.into()))]).into())),
             Rc::new(RefCell::new(1.into())),
         ]);
         let ([first], [var1, var2]) = args.var_args().expect("Failed to get var_args");
         let v: ObjectValue = 1.into();
         assert_eq!(first, v.into());
-        assert_eq!(var1, vec![2.into()]);
-        assert_eq!(var2, vec![3.into()]);
+        assert_eq!(var1, vec![Rc::new(RefCell::new(2.into()))]);
+        assert_eq!(var2, vec![Rc::new(RefCell::new(3.into()))]);
     }
 
     #[wasm_bindgen_test(unsupported = test)]
     fn var_args_error() {
         let args: RigzArgs = RigzArgs(vec![
             Rc::new(RefCell::new(1.into())),
-            Rc::new(RefCell::new(ObjectValue::List(vec![2.into()]).into())),
+            Rc::new(RefCell::new(ObjectValue::List(vec![Rc::new(RefCell::new(2.into()))]).into())),
             Rc::new(RefCell::new(
-                ObjectValue::List(vec![3.into(), 3.into()]).into(),
+                ObjectValue::List(vec![Rc::new(RefCell::new(3.into())), Rc::new(RefCell::new(3.into()))]).into(),
             )),
         ]);
         assert!(

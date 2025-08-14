@@ -24,9 +24,9 @@ derive_module! {
         fn Any.to_f -> Float!
         fn Any.to_n -> Number!
         fn Any.to_s -> String
-        fn Any.to_list -> List!
-        fn Any.to_map -> Map!
-        fn Any.to_set -> Set!
+        fn Any.to_list -> List! = self as List
+        fn Any.to_map -> Map! = self as Map
+        fn Any.to_set -> Set! = self as Set
         fn Any.type -> String
         fn Any.get(index) -> Any!?
 
@@ -91,17 +91,17 @@ impl RigzAny for AnyModule {
     }
 
     #[inline]
-    fn any_is(&self, this: &ObjectValue, any: ObjectValue) -> bool {
-        if let ObjectValue::Primitive(PrimitiveValue::Type(rigz_type)) = any {
-            let rt = this.rigz_type();
-            rt == rigz_type
+    fn any_is(&self, this: &ObjectValue, any: Rc<RefCell<ObjectValue>>) -> bool {
+        let rt = this.rigz_type();
+        if let ObjectValue::Primitive(PrimitiveValue::Type(rigz_type)) = any.borrow().deref() {
+            &rt == rigz_type
         } else {
-            let rt = this.rigz_type();
-            this == &any && rt == any.rigz_type()
+            let any = any.borrow();
+            this == any.deref() && rt == any.rigz_type()
         }
     }
 
-    fn any_is_not(&self, this: &ObjectValue, any: ObjectValue) -> bool {
+    fn any_is_not(&self, this: &ObjectValue, any: Rc<RefCell<ObjectValue>>) -> bool {
         !self.any_is(this, any)
     }
 
@@ -161,18 +161,6 @@ impl RigzAny for AnyModule {
         this.to_string()
     }
 
-    fn any_to_list(&self, this: &ObjectValue) -> Result<Vec<ObjectValue>, VMError> {
-        this.to_list()
-    }
-
-    fn any_to_map(&self, this: &ObjectValue) -> Result<IndexMap<ObjectValue, ObjectValue>, VMError> {
-        this.to_map()
-    }
-
-    fn any_to_set(&self, this: &ObjectValue) -> Result<IndexSet<ObjectValue>, VMError> {
-        this.to_set()
-    }
-
     fn any_type(&self, this: &ObjectValue) -> String {
         this.rigz_type().to_string()
     }
@@ -180,34 +168,34 @@ impl RigzAny for AnyModule {
     fn any_get(
         &self,
         this: &ObjectValue,
-        index: ObjectValue,
+        index: Rc<RefCell<ObjectValue>>,
     ) -> Result<Option<ObjectValue>, VMError> {
-        this.get(&index)
+        Ok(this.get(index.borrow().deref())?.map(|v| v.borrow().clone()))
     }
 
-    fn format(&self, template: String, args: Vec<ObjectValue>) -> String {
+    fn format(&self, template: String, args: Vec<Rc<RefCell<ObjectValue>>>) -> String {
         let mut res = template;
         for arg in args {
-            let l = arg.to_string();
+            let l = arg.borrow().to_string();
             res = res.replacen("{}", l.as_str(), 1);
         }
         res
     }
 
-    fn print(&self, args: Vec<ObjectValue>) {
-        let s = args.iter().map(|a| a.to_string()).join("");
+    fn print(&self, args: Vec<Rc<RefCell<ObjectValue>>>) {
+        let s = args.iter().map(|a| a.borrow().to_string()).join("");
         out!("{s}")
     }
 
-    fn printf(&self, template: String, args: Vec<ObjectValue>) {
+    fn printf(&self, template: String, args: Vec<Rc<RefCell<ObjectValue>>>) {
         outln!("{}", self.format(template, args))
     }
 
-    fn any(&self, values: Vec<ObjectValue>) -> bool {
-        values.iter().any(|v| v.to_bool())
+    fn any(&self, values: Vec<Rc<RefCell<ObjectValue>>>) -> bool {
+        values.iter().any(|v| v.borrow().to_bool())
     }
 
-    fn all(&self, values: Vec<ObjectValue>) -> bool {
-        values.iter().all(|v| v.to_bool())
+    fn all(&self, values: Vec<Rc<RefCell<ObjectValue>>>) -> bool {
+        values.iter().all(|v| v.borrow().to_bool())
     }
 }

@@ -4,7 +4,7 @@ mod dyn_traits;
 mod snapshot;
 
 use crate::{ObjectValue, RigzArgs, VMError};
-pub use as_primitive::{AsPrimitive, WithTypeInfo};
+pub use as_primitive::{AsPrimitive, ToBool, WithTypeInfo};
 use dyn_clone::DynClone;
 pub use dyn_traits::*;
 use mopa::mopafy;
@@ -102,7 +102,7 @@ pub trait Object:
     + DynCompare
     + DynClone
     + DynHash
-    + AsPrimitive<ObjectValue>
+    + AsPrimitive<ObjectValue, Rc<RefCell<ObjectValue>>>
     + CreateObject
     + Definition
     + Send
@@ -222,7 +222,7 @@ pub trait Logical<Rhs> {
     fn xor(self, rhs: Rhs) -> Self::Output;
 }
 
-impl<T: Clone + AsPrimitive<T> + Default + Sized> Logical<&T> for &T {
+impl<T: Clone + ToBool + Default + Sized> Logical<&T> for &T {
     type Output = T;
 
     #[inline]

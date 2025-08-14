@@ -646,13 +646,25 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 ))
             }
             Statement::BinaryAssignment {
-                lhs: Assign::InstanceSet(..),
-                op: _,
-                expression: _,
+                lhs: Assign::InstanceSet(base, indexes),
+                op,
+                expression,
             } => {
-                return Err(ValidationError::NotImplemented(
-                    "Binary assignment not supported for InstanceSet".to_string(),
-                ))
+                self.parse_expression(base)?;
+                let max = indexes.len() - 1;
+                for (index, next) in indexes.into_iter().enumerate() {
+                    match next {
+                        AssignIndex::Identifier(id) => {
+                            self.parse_expression(Expression::Identifier(id))?;
+                        }
+                        AssignIndex::Index(idx) => {
+                            self.parse_expression(idx)?;
+                        }
+                    }
+                    self.builder.add_instance_get_instruction(index != max);
+                }
+                self.parse_expression(expression)?;
+                self.builder.add_binary_assign_instruction(op);
             }
             Statement::TraitImpl { definitions, .. } => {
                 // todo this probably needs some form of checking base_trait and concrete type

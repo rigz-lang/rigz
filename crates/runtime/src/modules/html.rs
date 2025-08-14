@@ -39,14 +39,14 @@ impl HtmlObject for Html {
 
     fn elements(
         &self,
-        ids: Vec<ObjectValue>,
+        ids: Vec<Rc<RefCell<ObjectValue>>>,
         selectors: Vec<String>,
     ) -> IndexMap<ObjectValue, ObjectValue> {
         html_elements(&self.document, ids, selectors)
     }
 }
 
-impl AsPrimitive<ObjectValue> for Html {}
+impl AsPrimitive<ObjectValue, Rc<RefCell<ObjectValue>>> for Html {}
 
 impl CreateObject for Html {
     fn create(args: RigzArgs) -> Result<Self, VMError>
@@ -62,7 +62,7 @@ impl CreateObject for Html {
 
 fn html_elements(
     this: &str,
-    ids: Vec<ObjectValue>,
+    ids: Vec<Rc<RefCell<ObjectValue>>>,
     selectors: Vec<String>,
 ) -> IndexMap<ObjectValue, ObjectValue> {
     let html = scraper::Html::parse_document(this);
@@ -81,7 +81,7 @@ fn html_elements(
                 }
                 Err(e) => VMError::runtime(format!("Invalid selector {selector}: {e}")).into(),
             };
-            (id, v)
+            (id.borrow().clone(), v)
         })
         .collect()
 }
@@ -98,7 +98,7 @@ impl RigzHtml for HtmlModule {
     fn string_elements(
         &self,
         this: &String,
-        ids: Vec<ObjectValue>,
+        ids: Vec<Rc<RefCell<ObjectValue>>>,
         selectors: Vec<String>,
     ) -> IndexMap<ObjectValue, ObjectValue> {
         html_elements(&this, ids, selectors)

@@ -4,7 +4,7 @@ mod ops;
 #[cfg(feature = "snapshot")]
 mod snapshot;
 
-use crate::{AsPrimitive, DynCompare, IndexMap, IndexSet, Number, Object, PrimitiveValue, RigzType, VMError, WithTypeInfo};
+use crate::{AsPrimitive, DynCompare, IndexMap, IndexSet, Number, Object, PrimitiveValue, RigzType, ToBool, VMError, WithTypeInfo};
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
@@ -12,28 +12,61 @@ use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
 use indexmap::set::MutableValues;
-use itertools::Itertools;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 pub enum ObjectValue {
     Primitive(PrimitiveValue),
-    // todo Enum, Lists, Maps, & Tuples should use Rc<RefCell<ObjectValue>> to make this language fully pass by reference
-    List(Vec<ObjectValue>),
+    List(Vec<Rc<RefCell<ObjectValue>>>),
     Set(IndexSet<ObjectValue>),
-    Map(IndexMap<ObjectValue, ObjectValue>),
-    Tuple(Vec<ObjectValue>),
+    Map(IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>),
+    Tuple(Vec<Rc<RefCell<ObjectValue>>>),
     Object(Box<dyn Object>),
-    Enum(usize, usize, Option<Box<ObjectValue>>),
+    Enum(usize, usize, Option<Rc<RefCell<ObjectValue>>>),
 }
+
+unsafe impl Send for ObjectValue {}
+unsafe impl Sync for ObjectValue {}
 
 impl ObjectValue {
     pub fn new(obj: impl Object) -> Self {
         ObjectValue::Object(Box::new(obj))
     }
+
+    pub fn rc(self) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(self))
+    }
     
     pub fn is_none(&self) -> bool {
         matches!(self, ObjectValue::Primitive(PrimitiveValue::None))
+    }
+
+    pub fn deep_clone(&self) -> Self {
+        match self {
+            ObjectValue::Primitive(v) => {
+                match v {
+                    PrimitiveValue::Error(e) => {
+                        if let VMError::RuntimeError(r) = e {
+                            VMError::RuntimeError(r.deep_clone().into()).into()
+                        } else {
+                            e.clone().into()
+                        }
+                    }
+                    p => p.clone(),
+                }.into()
+            }
+            ObjectValue::Tuple(o) =>
+                ObjectValue::Tuple(o.iter().map(|v| v.borrow().deep_clone().into()).collect()),
+            ObjectValue::List(o) =>
+                ObjectValue::List(o.iter().map(|v| v.borrow().deep_clone().into()).collect()),
+            ObjectValue::Set(s) =>
+                ObjectValue::Set(s.iter().map(|v| v.deep_clone()).collect()),
+            ObjectValue::Map(m) =>
+                ObjectValue::Map(m.iter().map(|(k, v)| (k.deep_clone(), v.borrow().deep_clone().into())).collect()),
+            ObjectValue::Object(o) => ObjectValue::Object(o.clone()),
+            ObjectValue::Enum(id, var, v) =>
+                ObjectValue::Enum(*id, *var, v.clone().map(|o| o.borrow().deep_clone().into()))
+        }
     }
 }
 
@@ -47,7 +80,11 @@ impl Hash for ObjectValue {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             ObjectValue::Primitive(p) => p.hash(state),
-            ObjectValue::List(l) => l.hash(state),
+            ObjectValue::List(l) => {
+                for v in l {
+                    v.borrow().hash(state)
+                }
+            },
             ObjectValue::Set(l) => {
                 for v in l {
                     v.hash(state)
@@ -56,15 +93,22 @@ impl Hash for ObjectValue {
             ObjectValue::Map(m) => {
                 for (k, v) in m {
                     k.hash(state);
-                    v.hash(state);
+                    v.borrow().hash(state);
                 }
             }
-            ObjectValue::Tuple(t) => t.hash(state),
+            ObjectValue::Tuple(t) => {
+                for v in t {
+                    v.borrow().hash(state)
+                }
+            },
             ObjectValue::Object(o) => o.hash(state),
             ObjectValue::Enum(e, i, v) => {
                 e.hash(state);
                 i.hash(state);
-                v.hash(state);
+                match v {
+                    None => None::<ObjectValue>.hash(state),
+                    Some(v) => v.borrow().hash(state)
+                }
             }
         }
     }
@@ -138,7 +182,7 @@ impl Display for ObjectValue {
                 let mut values = String::new();
                 let len = l.len();
                 for (index, v) in l.iter().enumerate() {
-                    values.push_str(v.to_string().as_str());
+                    values.push_str(v.borrow().to_string().as_str());
                     if index != len - 1 {
                         values.push(',')
                     }
@@ -160,7 +204,7 @@ impl Display for ObjectValue {
                 let mut values = String::new();
                 let len = l.len();
                 for (index, v) in l.iter().enumerate() {
-                    values.push_str(v.to_string().as_str());
+                    values.push_str(v.borrow().to_string().as_str());
                     if index != len - 1 {
                         values.push(',')
                     }
@@ -173,7 +217,7 @@ impl Display for ObjectValue {
                 for (index, (k, v)) in m.iter().enumerate() {
                     values.push_str(k.to_string().as_str());
                     values.push_str(" = ");
-                    values.push_str(v.to_string().as_str());
+                    values.push_str(v.borrow().to_string().as_str());
                     if index != len - 1 {
                         values.push(',')
                     }
@@ -242,7 +286,7 @@ impl ObjectValue {
         }
     }
 
-    pub fn get(&self, attr: &ObjectValue) -> Result<Option<ObjectValue>, VMError> {
+    pub fn get(&self, attr: &ObjectValue) -> Result<Option<Rc<RefCell<ObjectValue>>>, VMError> {
         // todo support negative numbers as index, -1 is last element
         let v = match (self, attr) {
             // todo support ranges as attr
@@ -253,7 +297,7 @@ impl ObjectValue {
                 let index = n.to_usize()?;
                 match source.chars().nth(index) {
                     None => return Ok(None),
-                    Some(c) => c.to_string().into(),
+                    Some(c) => Rc::new(RefCell::new(c.to_string().into())),
                 }
             }
             (ObjectValue::List(source), ObjectValue::Primitive(PrimitiveValue::Number(n)))
@@ -263,7 +307,7 @@ impl ObjectValue {
                         None => return Ok(None),
                         Some(c) => c.clone(),
                     },
-                    Err(e) => e.into(),
+                    Err(e) => Rc::new(RefCell::new(e.into())),
                 }
             }
             (ObjectValue::Map(source), index) => match source.get(index) {
@@ -272,12 +316,12 @@ impl ObjectValue {
             },
             (ObjectValue::Set(source), index) => match source.get(index) {
                 None => return Ok(None),
-                Some(c) => c.clone(),
+                Some(c) => c.clone().into(),
             },
             (
                 ObjectValue::Primitive(PrimitiveValue::Number(source)),
                 ObjectValue::Primitive(PrimitiveValue::Number(n)),
-            ) => (source.to_bits() & (1 << n.to_int()) != 0).into(),
+            ) => Rc::new(RefCell::new((source.to_bits() & (1 << n.to_int()) != 0).into())),
             (ObjectValue::Object(o), v) => o.get(v)?,
             (source, attr) => {
                 return Err(VMError::UnsupportedOperation(format!(
@@ -292,7 +336,7 @@ impl ObjectValue {
     pub fn instance_set(
         &mut self,
         attr: Rc<RefCell<ObjectValue>>,
-        value: &ObjectValue,
+        value: Rc<RefCell<ObjectValue>>,
     ) -> Result<(), VMError> {
         // todo support negative numbers as index, -1 is last element
         let e = match (self, attr.borrow().deref()) {
@@ -302,7 +346,7 @@ impl ObjectValue {
                 ObjectValue::Primitive(PrimitiveValue::Number(n)),
             ) => match n.to_usize() {
                 Ok(index) => {
-                    s.insert_str(index, value.to_string().as_str());
+                    s.insert_str(index, value.borrow().to_string().as_str());
                     None
                 }
                 Err(e) => Some(e),
@@ -312,11 +356,11 @@ impl ObjectValue {
                 match n.to_usize() {
                     Ok(index) => {
                         if let Some(v) = s.get_mut(index) {
-                            *v = value.clone();
+                            *v = value;
                             None
                         } else {
                             if s.len() == index {
-                                s.push(value.clone());
+                                s.push(value);
                                 None
                             } else {
                                 Some(VMError::runtime(format!("Index out of bounds {index}")))
@@ -330,11 +374,11 @@ impl ObjectValue {
                 match n.to_usize() {
                     Ok(index) => {
                         if let Some(v) = s.get_index_mut2(index) {
-                            *v = value.clone();
+                            *v = value.borrow().clone();
                             None
                         } else {
                             if s.len() == index {
-                                s.insert(value.clone());
+                                s.insert(value.borrow().clone());
                                 None
                             } else {
                                 Some(VMError::runtime(format!("Index {index} out of bounds ")))
@@ -345,14 +389,14 @@ impl ObjectValue {
                 }
             }
             (ObjectValue::Map(source), index) => {
-                source.insert(index.clone(), value.clone());
+                source.insert(index.clone(), value.clone().into());
                 None
             }
             (
                 ObjectValue::Primitive(PrimitiveValue::Number(source)),
                 ObjectValue::Primitive(PrimitiveValue::Number(n)),
             ) => {
-                let value = if value.to_bool() { 1 } else { 0 };
+                let value = if value.borrow().to_bool() { 1 } else { 0 };
                 *source = match source {
                     Number::Int(_) => {
                         i64::from_le_bytes((source.to_bits() | (value << n.to_int())).to_le_bytes())
@@ -366,7 +410,7 @@ impl ObjectValue {
             }
             (source, attr) => {
                 if let ObjectValue::Object(o) = source {
-                    let value = value.clone();
+                    let value = value.borrow().clone();
                     let v = o.set(attr, value);
                     v.err()
                 } else {
@@ -449,7 +493,10 @@ impl ObjectValue {
                             ))
                             .into()
                         }
-                        Some(current) => *current = current.clone().cast(rigz_type),
+                        Some(current) => {
+                            let v = current.borrow().cast(rigz_type).into();
+                            *current = v;
+                        },
                     }
                 }
                 ObjectValue::Map(res)
@@ -469,31 +516,35 @@ impl WithTypeInfo for ObjectValue {
             ObjectValue::Set(_) => RigzType::Set(Box::default()),
             ObjectValue::List(_) => RigzType::List(Box::default()),
             ObjectValue::Map(_) => RigzType::Map(Box::default(), Box::default()),
-            ObjectValue::Tuple(t) => RigzType::Tuple(t.iter().map(|i| i.rigz_type()).collect()),
+            ObjectValue::Tuple(t) => RigzType::Tuple(t.iter().map(|i| i.borrow().rigz_type()).collect()),
             ObjectValue::Object(o) => o.rigz_type(),
             // todo these should be updated
             ObjectValue::Enum(i, _, v) => match v {
                 None => RigzType::Enum(*i),
-                Some(v) => v.rigz_type(),
+                Some(v) => v.borrow().rigz_type(),
             },
         }
     }
 }
 
-impl AsPrimitive<ObjectValue> for ObjectValue {
-    fn as_list(&mut self) -> Result<&mut Vec<ObjectValue>, VMError> {
+impl ToBool for ObjectValue {
+    fn to_bool(&self) -> bool {
         match self {
-            ObjectValue::List(m) | ObjectValue::Tuple(m) => Ok(m),
-            _ => {
-                *self = ObjectValue::List(AsPrimitive::to_list(self)?);
-                let ObjectValue::List(m) = self else {
-                    unreachable!()
-                };
-                Ok(m)
-            }
+            ObjectValue::Tuple(l) => !l.is_empty(),
+            ObjectValue::List(l) => !l.is_empty(),
+            ObjectValue::Set(l) => !l.is_empty(),
+            ObjectValue::Map(m) => !m.is_empty(),
+            ObjectValue::Primitive(p) => p.to_bool(),
+            ObjectValue::Object(o) => o.to_bool(),
+            ObjectValue::Enum(_, _, v) => match v {
+                None => true, // todo should variant 0 be false?
+                Some(e) => e.borrow().to_bool(),
+            },
         }
     }
+}
 
+impl AsPrimitive<ObjectValue, Rc<RefCell<ObjectValue>>> for ObjectValue {
     fn iter_len(&self) -> Result<usize, VMError> {
         match self {
             ObjectValue::List(m) | ObjectValue::Tuple(m) => Ok(m.len()),
@@ -509,16 +560,29 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
 
     fn iter(&self) -> Result<Box<dyn Iterator<Item=ObjectValue> + '_>, VMError> {
         match self {
-            ObjectValue::List(m) | ObjectValue::Tuple(m) => Ok(Box::new(m.iter().cloned())),
+            ObjectValue::List(m) | ObjectValue::Tuple(m) => Ok(Box::new(m.iter().map(|b| b.borrow().clone()))),
             ObjectValue::Set(s) => Ok(Box::new(s.iter().cloned())),
             ObjectValue::Map(m) => Ok(Box::new(m
                                           .iter()
-                                          .map(|(k, v)| ObjectValue::Tuple(vec![k.clone(), v.clone()])))),
+                                          .map(|(k, v)| ObjectValue::Tuple(vec![k.clone().into(), v.clone()])))),
             ObjectValue::Primitive(p) => Ok(Box::new(p.iter()?.map(|p| p.into()))),
             ObjectValue::Object(o) => o.iter(),
             _ => Err(VMError::UnsupportedOperation(format!(
                 "Cannot convert {self} to List"
             ))),
+        }
+    }
+
+    fn as_list(&mut self) -> Result<&mut Vec<Rc<RefCell<ObjectValue>>>, VMError> {
+        match self {
+            ObjectValue::List(m) | ObjectValue::Tuple(m) => Ok(m),
+            _ => {
+                *self = ObjectValue::List(AsPrimitive::to_list(self)?);
+                let ObjectValue::List(m) = self else {
+                    unreachable!()
+                };
+                Ok(m)
+            }
         }
     }
 
@@ -535,15 +599,15 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
         }
     }
 
-    fn to_list(&self) -> Result<Vec<ObjectValue>, VMError> {
+    fn to_list(&self) -> Result<Vec<Rc<RefCell<ObjectValue>>>, VMError> {
         match self {
             ObjectValue::Tuple(v) | ObjectValue::List(v) => Ok(v.clone()),
-            ObjectValue::Set(s) => Ok(s.iter().cloned().collect()),
+            ObjectValue::Set(s) => Ok(s.iter().map(|v| Rc::new(RefCell::new(v.clone()))).collect()),
             ObjectValue::Map(m) => Ok(m
                 .iter()
-                .map(|(k, v)| ObjectValue::Tuple(vec![k.clone(), v.clone()]))
+                .map(|(k, v)| ObjectValue::Tuple(vec![k.clone().into(), v.clone()]).into())
                 .collect()),
-            ObjectValue::Primitive(p) => Ok(p.to_list()?.into_iter().map(|p| p.into()).collect()),
+            ObjectValue::Primitive(p) => Ok(p.to_list()?.into_iter().map(|p| p.into()).map(|v: ObjectValue| v.into()).collect()),
             ObjectValue::Object(o) => o.to_list(),
             _ => Err(VMError::UnsupportedOperation(format!(
                 "Cannot convert {self} to List"
@@ -553,11 +617,11 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
 
     fn to_set(&self) -> Result<IndexSet<ObjectValue>, VMError> {
         match self {
-            ObjectValue::Tuple(v) | ObjectValue::List(v) => Ok(v.iter().cloned().collect()),
+            ObjectValue::Tuple(v) | ObjectValue::List(v) => Ok(v.iter().map(|v| v.borrow().clone()).collect()),
             ObjectValue::Set(s) => Ok(s.clone()),
             ObjectValue::Map(m) => Ok(m
                 .iter()
-                .map(|(k, v)| ObjectValue::Tuple(vec![k.clone(), v.clone()]))
+                .map(|(k, v)| ObjectValue::Tuple(vec![k.clone().into(), v.clone()]))
                 .collect()),
             ObjectValue::Primitive(p) => Ok(p.to_list()?.into_iter().map(|p| p.into()).collect()),
             ObjectValue::Object(o) => o.to_set(),
@@ -567,21 +631,21 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
         }
     }
 
-    fn to_map(&self) -> Result<indexmap::IndexMap<ObjectValue, ObjectValue>, VMError> {
+    fn to_map(&self) -> Result<indexmap::IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>, VMError> {
         match self {
             ObjectValue::Primitive(m) => Ok(m
                 .to_map()?
                 .into_iter()
-                .map(|(k, v)| (k.into(), v.into()))
+                .map(|(k, v)| (k.into(), Rc::new(RefCell::new(v.into()))))
                 .collect()),
             ObjectValue::Map(m) => Ok(m.clone()),
-            ObjectValue::List(l) => Ok(l.iter().map(|v| (v.clone(), v.clone())).collect()),
-            ObjectValue::Set(l) => Ok(l.iter().map(|v| (v.clone(), v.clone())).collect()),
+            ObjectValue::List(l) => Ok(l.iter().map(|v| (v.borrow().clone(), v.clone())).collect()),
+            ObjectValue::Set(l) => Ok(l.iter().map(|v| (v.clone(), Rc::new(RefCell::new(v.clone())))).collect()),
             ObjectValue::Tuple(t) => Ok(t
                 .chunks(2)
                 .map(|c| match &c[..2] {
-                    [k, v] => (k.clone(), v.clone()),
-                    [v] => (v.clone(), v.clone()),
+                    [k, v] => (k.borrow().clone(), v.clone()),
+                    [v] => (v.borrow().clone(), v.clone()),
                     _ => unreachable!(),
                 })
                 .collect()),
@@ -590,12 +654,12 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
                 None => Err(VMError::UnsupportedOperation(format!(
                     "Cannot convert enum {e} to {i}"
                 ))),
-                Some(v) => v.to_map(),
+                Some(v) => v.borrow().to_map(),
             },
         }
     }
 
-    fn as_map(&mut self) -> Result<&mut IndexMap<ObjectValue, ObjectValue>, VMError> {
+    fn as_map(&mut self) -> Result<&mut IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>, VMError> {
         match self {
             ObjectValue::Map(m) => Ok(m),
             _ => {
@@ -613,21 +677,6 @@ impl AsPrimitive<ObjectValue> for ObjectValue {
             ObjectValue::Primitive(p) => p.to_number(),
             ObjectValue::Object(m) => m.to_number(),
             _ => Err(VMError::runtime(format!("Cannot convert {self} to number"))),
-        }
-    }
-
-    fn to_bool(&self) -> bool {
-        match self {
-            ObjectValue::Tuple(l) => !l.is_empty(),
-            ObjectValue::List(l) => !l.is_empty(),
-            ObjectValue::Set(l) => !l.is_empty(),
-            ObjectValue::Map(m) => !m.is_empty(),
-            ObjectValue::Primitive(p) => p.to_bool(),
-            ObjectValue::Object(o) => o.to_bool(),
-            ObjectValue::Enum(_, _, v) => match v {
-                None => true, // todo should variant 0 be false?
-                Some(e) => e.to_bool(),
-            },
         }
     }
 }

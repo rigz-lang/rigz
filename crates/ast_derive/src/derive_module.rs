@@ -9,6 +9,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use syn::parse::{Parse, ParseStream};
 use syn::{bracketed, parse_str, LitStr, Token, Type};
+use rigz_core::RigzType;
 
 pub(crate) struct DeriveModule {
     ident: Option<Ident>,
@@ -79,7 +80,7 @@ impl ToTokens for DeriveModule {
                     // todo this is probably necessary
                     // let mutable_return = fs.return_type.mutable;
                     let definition = if fs.arguments.is_empty() && fs.self_type.is_none() {
-                        match rigz_type_to_return_type(&fs.return_type.rigz_type) {
+                        match rigz_type_to_return_type(&fs.return_type.rigz_type, true) {
                             None => {
                                 quote! {
                                     fn #method_name(&self);
@@ -100,7 +101,7 @@ impl ToTokens for DeriveModule {
                                 var_arg = var_arg || a.var_arg;
                                 let name = Ident::new(&a.name, Span::call_site());
                                 let ty =
-                                    rigz_type_to_return_type(&a.function_type.rigz_type).unwrap();
+                                    rigz_type_to_return_type(&a.function_type.rigz_type, false).unwrap();
                                 if var_arg {
                                     quote! {
                                         #name: Vec<#ty>,
@@ -121,7 +122,11 @@ impl ToTokens for DeriveModule {
                             }
                             Some(t) => {
                                 let name = Ident::new("this", Span::call_site());
-                                let ty = rigz_type_to_rust_str(&t.rigz_type).unwrap();
+                                let ty = if &t.rigz_type == &RigzType::Any {
+                                    "ObjectValue".to_string()
+                                } else {
+                                    rigz_type_to_rust_str(&t.rigz_type, false).unwrap()
+                                };
                                 let ty =
                                     parse_str::<Type>(ty.as_str()).expect("Failed to read type");
                                 let first = if t.mutable {
@@ -139,7 +144,7 @@ impl ToTokens for DeriveModule {
                             }
                         };
                         if is_vm {
-                            match rigz_type_to_return_type(&fs.return_type.rigz_type) {
+                            match rigz_type_to_return_type(&fs.return_type.rigz_type, true) {
                                 None => {
                                     quote! {
                                         fn #method_name(&self, vm: &mut VM, #(#args)*);
@@ -152,7 +157,7 @@ impl ToTokens for DeriveModule {
                                 }
                             }
                         } else {
-                            match rigz_type_to_return_type(&fs.return_type.rigz_type) {
+                            match rigz_type_to_return_type(&fs.return_type.rigz_type, true) {
                                 None => {
                                     quote! {
                                         fn #method_name(&self, #(#args)*);

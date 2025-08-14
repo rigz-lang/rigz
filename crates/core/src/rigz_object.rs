@@ -1,17 +1,25 @@
-use crate::{
-    AsPrimitive, CreateObject, Definition, Object, ObjectValue, PrimitiveValue, RigzArgs, RigzType,
-    VMError, WithTypeInfo,
-};
+use std::cell::RefCell;
+use crate::{AsPrimitive, CreateObject, Definition, Object, ObjectValue, PrimitiveValue, RigzArgs, RigzType, ToBool, VMError, WithTypeInfo};
 use log::warn;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Deref;
+use std::rc::Rc;
 use std::sync::Arc;
 
-#[derive(Clone, Hash, PartialOrd, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Hash, PartialOrd, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RigzObject {
     #[serde(skip)]
     pub rigz_type: Arc<RigzType>,
     pub values: Vec<ObjectValue>,
+}
+
+impl Clone for RigzObject {
+    fn clone(&self) -> Self {
+        Self {
+            rigz_type: self.rigz_type.clone(),
+            values: self.values.iter().map(|o| o.deep_clone()).collect()
+        }
+    }
 }
 
 impl Default for RigzObject {
@@ -51,8 +59,10 @@ impl WithTypeInfo for RigzObject {
     }
 }
 
-impl AsPrimitive<ObjectValue> for RigzObject {
-    fn get(&self, attr: &ObjectValue) -> Result<ObjectValue, VMError> {
+impl ToBool for RigzObject {}
+
+impl AsPrimitive<ObjectValue, Rc<RefCell<ObjectValue>>> for RigzObject {
+    fn get(&self, attr: &ObjectValue) -> Result<Rc<RefCell<ObjectValue>>, VMError> {
         if let ObjectValue::Primitive(s) = attr {
             match s {
                 PrimitiveValue::Number(n) => {
@@ -64,7 +74,7 @@ impl AsPrimitive<ObjectValue> for RigzObject {
                     } else {
                         index as usize
                     };
-                    Ok(self.values[index].clone())
+                    Ok(self.values[index].clone().into())
                 }
                 PrimitiveValue::String(n) => {
                     if let RigzType::Custom(c) = self.rigz_type.as_ref() {
@@ -76,7 +86,7 @@ impl AsPrimitive<ObjectValue> for RigzObject {
                                 None => Err(VMError::UnsupportedOperation(format!(
                                     "Field {n}({i}) does not exist on {self:?}"
                                 ))),
-                                Some(v) => Ok(v.clone()),
+                                Some(v) => Ok(v.clone().into()),
                             },
                         }
                     } else {

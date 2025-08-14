@@ -1,4 +1,4 @@
-use crate::{AsPrimitive, PrimitiveValue, VMError};
+use crate::{PrimitiveValue, ToBool, VMError};
 use std::ops::Div;
 
 impl Div for &PrimitiveValue {

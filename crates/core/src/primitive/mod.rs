@@ -10,7 +10,7 @@ pub use value_range::ValueRange;
 
 use std::cell::RefCell;
 
-use crate::{impl_from, AsPrimitive, Number, RigzType, WithTypeInfo};
+use crate::{impl_from, AsPrimitive, Number, RigzType, ToBool, WithTypeInfo};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -83,6 +83,28 @@ impl WithTypeInfo for PrimitiveValue {
     }
 }
 
+impl ToBool for PrimitiveValue {
+    #[inline]
+    fn to_bool(&self) -> bool {
+        match self {
+            PrimitiveValue::None => false,
+            PrimitiveValue::Error(_) => false,
+            PrimitiveValue::Type(_) => false,
+            PrimitiveValue::Bool(b) => *b,
+            PrimitiveValue::Number(n) => !n.is_zero(),
+            PrimitiveValue::String(s) => {
+                let empty = s.is_empty();
+                if empty {
+                    return false;
+                }
+
+                s.parse().unwrap_or(true)
+            }
+            PrimitiveValue::Range(r) => !r.is_empty(),
+        }
+    }
+}
+
 impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
     fn iter_len(&self) -> Result<usize, VMError> {
         match self {
@@ -144,26 +166,6 @@ impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
 
         *self = PrimitiveValue::Number(self.to_number()?);
         self.as_number()
-    }
-
-    #[inline]
-    fn to_bool(&self) -> bool {
-        match self {
-            PrimitiveValue::None => false,
-            PrimitiveValue::Error(_) => false,
-            PrimitiveValue::Type(_) => false,
-            PrimitiveValue::Bool(b) => *b,
-            PrimitiveValue::Number(n) => !n.is_zero(),
-            PrimitiveValue::String(s) => {
-                let empty = s.is_empty();
-                if empty {
-                    return false;
-                }
-
-                s.parse().unwrap_or(true)
-            }
-            PrimitiveValue::Range(r) => !r.is_empty(),
-        }
     }
 
     fn as_bool(&mut self) -> Result<&mut bool, VMError> {

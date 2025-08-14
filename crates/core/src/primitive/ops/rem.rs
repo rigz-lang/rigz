@@ -1,4 +1,4 @@
-use crate::{AsPrimitive, PrimitiveValue, VMError};
+use crate::{ToBool, PrimitiveValue, VMError};
 use log::warn;
 use std::ops::Rem;
 

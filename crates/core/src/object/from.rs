@@ -24,7 +24,7 @@ impl<T: Into<PrimitiveValue>> From<T> for ObjectValue {
 impl<T: Into<ObjectValue>> From<Vec<T>> for ObjectValue {
     #[inline]
     fn from(value: Vec<T>) -> Self {
-        ObjectValue::List(value.into_iter().map(|v| v.into()).collect())
+        ObjectValue::List(value.into_iter().map(|v| v.into().into()).collect())
     }
 }
 
@@ -41,16 +41,22 @@ impl<K: Into<ObjectValue>, V: Into<ObjectValue>> From<IndexMap<K, V>> for Object
         ObjectValue::Map(
             value
                 .into_iter()
-                .map(|(k, v)| (k.into(), v.into()))
+                .map(|(k, v)| (k.into(), v.into().into()))
                 .collect(),
         )
+    }
+}
+
+impl From<PrimitiveValue> for Rc<RefCell<ObjectValue>> {
+    fn from(value: PrimitiveValue) -> Self {
+        Rc::new(RefCell::new(value.into()))
     }
 }
 
 impl<A: Into<ObjectValue>, B: Into<ObjectValue>> From<(A, B)> for ObjectValue {
     #[inline]
     fn from(value: (A, B)) -> Self {
-        ObjectValue::Tuple(vec![value.0.into(), value.1.into()])
+        ObjectValue::Tuple(vec![value.0.into().into(), value.1.into().into()])
     }
 }
 
@@ -59,7 +65,7 @@ impl<A: Into<ObjectValue>, B: Into<ObjectValue>, C: Into<ObjectValue>> From<(A, 
 {
     #[inline]
     fn from(value: (A, B, C)) -> Self {
-        ObjectValue::Tuple(vec![value.0.into(), value.1.into(), value.2.into()])
+        ObjectValue::Tuple(vec![value.0.into().into(), value.1.into().into(), value.2.into().into()])
     }
 }
 
@@ -69,10 +75,10 @@ impl<A: Into<ObjectValue>, B: Into<ObjectValue>, C: Into<ObjectValue>, D: Into<O
     #[inline]
     fn from(value: (A, B, C, D)) -> Self {
         ObjectValue::Tuple(vec![
-            value.0.into(),
-            value.1.into(),
-            value.2.into(),
-            value.3.into(),
+            value.0.into().into(),
+            value.1.into().into(),
+            value.2.into().into(),
+            value.3.into().into(),
         ])
     }
 }
@@ -88,11 +94,11 @@ impl<
     #[inline]
     fn from(value: (A, B, C, D, E)) -> Self {
         ObjectValue::Tuple(vec![
-            value.0.into(),
-            value.1.into(),
-            value.2.into(),
-            value.3.into(),
-            value.4.into(),
+            value.0.into().into(),
+            value.1.into().into(),
+            value.2.into().into(),
+            value.3.into().into(),
+            value.4.into().into(),
         ])
     }
 }

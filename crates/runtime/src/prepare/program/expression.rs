@@ -192,7 +192,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 };
                 RigzType::List(base.into())
             },
-            Expression::Set(s) => RigzType::Set(Box::new(RigzType::Any)),
+            Expression::Set(_) => RigzType::Set(Box::new(RigzType::Any)),
             Expression::Map(m) => {
                 if m.is_empty() {
                     RigzType::Map(Box::new(RigzType::Any), Box::new(RigzType::Any))
