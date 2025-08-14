@@ -39,7 +39,11 @@ impl RigzAssertions for AssertionsModule {
             return Ok(());
         }
 
-        let base = format!("\tLeft: {}\n\t\tRight: {}", lhs.borrow().deref(), rhs.borrow().deref());
+        let base = format!(
+            "\tLeft: {}\n\t\tRight: {}",
+            lhs.borrow().deref(),
+            rhs.borrow().deref()
+        );
         let message = if message.is_empty() {
             format!("Assertion Failed\n\t{base}")
         } else {
@@ -59,7 +63,11 @@ impl RigzAssertions for AssertionsModule {
             return Ok(());
         }
 
-        let base = format!("\tLeft: {}\n\t\tRight: {}", lhs.borrow().deref(), rhs.borrow().deref());
+        let base = format!(
+            "\tLeft: {}\n\t\tRight: {}",
+            lhs.borrow().deref(),
+            rhs.borrow().deref()
+        );
         let message = if message.is_empty() {
             format!("Assertion Failed\n\t{base}")
         } else {

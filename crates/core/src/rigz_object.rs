@@ -1,6 +1,9 @@
-use std::cell::RefCell;
-use crate::{AsPrimitive, CreateObject, Definition, Object, ObjectValue, PrimitiveValue, RigzArgs, RigzType, ToBool, VMError, WithTypeInfo};
+use crate::{
+    AsPrimitive, CreateObject, Definition, Object, ObjectValue, PrimitiveValue, RigzArgs, RigzType,
+    ToBool, VMError, WithTypeInfo,
+};
 use log::warn;
+use std::cell::RefCell;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Deref;
 use std::rc::Rc;
@@ -17,7 +20,7 @@ impl Clone for RigzObject {
     fn clone(&self) -> Self {
         Self {
             rigz_type: self.rigz_type.clone(),
-            values: self.values.iter().map(|o| o.deep_clone()).collect()
+            values: self.values.iter().map(|o| o.deep_clone()).collect(),
         }
     }
 }

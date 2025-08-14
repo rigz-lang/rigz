@@ -1,6 +1,9 @@
 use crate::call_frame::{CallFrame, Frames};
 use crate::process::ProcessManager;
-use crate::{runner_common, CallType, Instruction, Modules, ResolvedModule, Runner, Scope, VMOptions, VMStack, VMState, Variable};
+use crate::{
+    runner_common, CallType, Instruction, Modules, ResolvedModule, Runner, Scope, VMOptions,
+    VMStack, VMState, Variable,
+};
 use log_derive::{logfn, logfn_inputs};
 use rigz_core::{
     EnumDeclaration, MutableReference, ObjectValue, ResolveValue, ResolvedValue, RigzArgs,
@@ -126,7 +129,16 @@ impl Runner for ProcessRunner<'_> {
         Some(VMError::todo("Process does not implement `call_for`").into())
     }
 
-    fn call_for_comprehension<T, I, F>(&mut self, scope_id: usize, init: I, mut save: F) -> Result<T, VMState> where F: FnMut(&mut T, ObjectValue) -> Option<VMError>, I: FnOnce(usize) -> T {
+    fn call_for_comprehension<T, I, F>(
+        &mut self,
+        scope_id: usize,
+        init: I,
+        mut save: F,
+    ) -> Result<T, VMState>
+    where
+        F: FnMut(&mut T, ObjectValue) -> Option<VMError>,
+        I: FnOnce(usize) -> T,
+    {
         Err(VMError::todo("Process does not implement `call_for_comprehension`").into())
     }
 

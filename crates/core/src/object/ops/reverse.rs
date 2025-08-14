@@ -1,5 +1,5 @@
-use std::ops::Deref;
 use crate::{ObjectValue, Reverse};
+use std::ops::Deref;
 
 impl Reverse for ObjectValue {
     type Output = ObjectValue;

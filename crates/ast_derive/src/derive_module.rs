@@ -5,11 +5,11 @@ use rigz_ast::{
     FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser, ParserOptions,
 };
 use rigz_core::derive::{rigz_type_to_rust_str, Tokens};
+use rigz_core::RigzType;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use syn::parse::{Parse, ParseStream};
 use syn::{bracketed, parse_str, LitStr, Token, Type};
-use rigz_core::RigzType;
 
 pub(crate) struct DeriveModule {
     ident: Option<Ident>,
@@ -101,7 +101,8 @@ impl ToTokens for DeriveModule {
                                 var_arg = var_arg || a.var_arg;
                                 let name = Ident::new(&a.name, Span::call_site());
                                 let ty =
-                                    rigz_type_to_return_type(&a.function_type.rigz_type, false).unwrap();
+                                    rigz_type_to_return_type(&a.function_type.rigz_type, false)
+                                        .unwrap();
                                 if var_arg {
                                     quote! {
                                         #name: Vec<#ty>,

@@ -110,9 +110,9 @@ mod vm_test {
     fn module_works() {
         let mut builder = VMBuilder::new();
         let module = TestModule {};
-        let test = builder
-            .register_module(module);
-        builder.add_load_instruction("abc".into())
+        let test = builder.register_module(module);
+        builder
+            .add_load_instruction("abc".into())
             .add_call_module_instruction(test, "hello".to_string(), 1);
         let mut vm = builder.build();
         let v = vm.eval().unwrap();

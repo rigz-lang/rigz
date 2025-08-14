@@ -131,14 +131,16 @@ pub fn rigz_type_to_rust_str(rigz_type: &RigzType, return_type: bool) -> Option<
         RigzType::Any | RigzType::Custom(_) if return_type => "ObjectValue".to_string(),
         RigzType::Any | RigzType::Custom(_) => "Rc<RefCell<ObjectValue>>".to_string(),
         RigzType::List(v) => {
-            let v = rigz_type_to_rust_str(v.as_ref(), return_type).expect("None is not valid for list types");
+            let v = rigz_type_to_rust_str(v.as_ref(), return_type)
+                .expect("None is not valid for list types");
             format!("Vec<{v}>")
         }
         RigzType::Set(v) => {
             let v = if v.as_ref() == &RigzType::Any {
                 "ObjectValue".to_string()
             } else {
-                rigz_type_to_rust_str(v.as_ref(), return_type).expect("None is not valid for map key types")
+                rigz_type_to_rust_str(v.as_ref(), return_type)
+                    .expect("None is not valid for map key types")
             };
             format!("IndexSet<{v}>")
         }
@@ -146,14 +148,18 @@ pub fn rigz_type_to_rust_str(rigz_type: &RigzType, return_type: bool) -> Option<
             let k = if k.as_ref() == &RigzType::Any {
                 "ObjectValue".to_string()
             } else {
-                rigz_type_to_rust_str(k.as_ref(), return_type).expect("None is not valid for map key types")
+                rigz_type_to_rust_str(k.as_ref(), return_type)
+                    .expect("None is not valid for map key types")
             };
-            let v =
-                rigz_type_to_rust_str(v.as_ref(), return_type).expect("None is not valid for map value types");
+            let v = rigz_type_to_rust_str(v.as_ref(), return_type)
+                .expect("None is not valid for map value types");
             format!("IndexMap<{k}, {v}>")
         }
         RigzType::Tuple(v) => {
-            let rep = v.iter().filter_map(|m| rigz_type_to_rust_str(m, return_type)).join(",");
+            let rep = v
+                .iter()
+                .filter_map(|m| rigz_type_to_rust_str(m, return_type))
+                .join(",");
             format!("({rep})")
         }
         t => t.to_string(),

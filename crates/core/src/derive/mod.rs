@@ -4,9 +4,9 @@ mod objects;
 mod operations;
 mod value;
 
+use quote::{quote, ToTokens};
 use std::cell::RefCell;
 use std::rc::Rc;
-use quote::{quote, ToTokens};
 
 pub use objects::rigz_type_to_rust_str;
 

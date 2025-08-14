@@ -14,8 +14,8 @@ mod string;
 mod uuid;
 // mod vm;
 
-use std::sync::Arc;
 use crate::prepare::{ModuleDefinition, ProgramParser};
+use std::sync::Arc;
 
 use crate::modules::html::HtmlModule;
 use crate::modules::http::HttpModule;
@@ -62,7 +62,8 @@ impl ProgramParser<'_, VMBuilder> {
             self.parse_object_definition(obj, Some(dep))?;
         }
         let index = self.builder.register_module(module);
-        self.modules.insert(name, ModuleDefinition::Module(def, index));
+        self.modules
+            .insert(name, ModuleDefinition::Module(def, index));
         Ok(())
     }
 

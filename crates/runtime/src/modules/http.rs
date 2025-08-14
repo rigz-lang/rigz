@@ -1,8 +1,8 @@
-use std::cell::RefCell;
 use log::warn;
 use rigz_ast::*;
 use rigz_ast_derive::{derive_module, derive_object};
 use rigz_core::*;
+use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::{Arc, LazyLock, RwLock};
@@ -65,7 +65,12 @@ impl Request {
                     )))
                 }
             },
-        }.map(|m| m.into_iter().map(|(k, v)| (k, v.borrow().clone())).collect());
+        }
+        .map(|m| {
+            m.into_iter()
+                .map(|(k, v)| (k, v.borrow().clone()))
+                .collect()
+        });
 
         Ok(Request {
             method,
@@ -82,7 +87,9 @@ impl RequestObject for Request {
     fn header(&self, key: Rc<RefCell<ObjectValue>>) -> Option<ObjectValue> {
         let binding = key.borrow();
         let key = binding.deref();
-        self.headers.as_ref().map(|h| h.get(key).map(|v| v.clone()))?
+        self.headers
+            .as_ref()
+            .map(|h| h.get(key).map(|v| v.clone()))?
     }
 
     fn mut_body(&mut self, body: Rc<RefCell<ObjectValue>>) {
@@ -119,7 +126,11 @@ impl CreateObject for Request {
             let [path, method, body, headers] = args.take()?;
             let headers = match headers.borrow().map(|o| o.to_map()) {
                 None => None,
-                Some(Ok(s)) => Some(s.into_iter().map(|(k, v)| (k, v.borrow().clone())).collect()),
+                Some(Ok(s)) => Some(
+                    s.into_iter()
+                        .map(|(k, v)| (k, v.borrow().clone()))
+                        .collect(),
+                ),
                 Some(Err(e)) => return Err(e),
             };
             let method = method.borrow();
@@ -248,15 +259,18 @@ fn to_object(res: Result<ureq::Response, ureq::Error>) -> Result<ObjectValue, VM
     }
 }
 
-fn handle_body(req: ureq::Request, body: Option<Rc<RefCell<ObjectValue>>>) -> Result<ObjectValue, VMError> {
+fn handle_body(
+    req: ureq::Request,
+    body: Option<Rc<RefCell<ObjectValue>>>,
+) -> Result<ObjectValue, VMError> {
     let resp = match body {
         None => req.call(),
         // todo support form
         // todo support bytes
         Some(o) => match o.borrow().deref() {
             ObjectValue::Primitive(PrimitiveValue::String(body)) => req.send_string(&body),
-            o => req.send_string(&o.to_string())
-        }
+            o => req.send_string(&o.to_string()),
+        },
     };
     to_object(resp)
 }
@@ -275,7 +289,9 @@ impl RigzHttp for HttpModule {
             },
             o => return Err(VMError::todo(format!("`fetch` cannot be called with {o}"))),
         };
-        let headers = r.headers.map(|m| m.into_iter().map(|(k, v)| (k, v.into())).collect());
+        let headers = r
+            .headers
+            .map(|m| m.into_iter().map(|(k, v)| (k, v.into())).collect());
         match r.method {
             None => {
                 if r.body.is_some() {

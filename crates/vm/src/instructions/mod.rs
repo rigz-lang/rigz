@@ -774,7 +774,10 @@ impl Snapshot for Instruction {
                 Snapshot::from_bytes(bytes, location)?,
                 Snapshot::from_bytes(bytes, location)?,
             ),
-            46 => Instruction::CreateObject(Snapshot::from_bytes(bytes, location)?, Snapshot::from_bytes(bytes, location)?),
+            46 => Instruction::CreateObject(
+                Snapshot::from_bytes(bytes, location)?,
+                Snapshot::from_bytes(bytes, location)?,
+            ),
             47 => Instruction::CreateDependency(
                 Snapshot::from_bytes(bytes, location)?,
                 Snapshot::from_bytes(bytes, location)?,

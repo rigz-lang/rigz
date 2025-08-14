@@ -47,12 +47,16 @@ macro_rules! object_snap {
                 }
             }
 
-            fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+            fn from_bytes<D: Display>(
+                bytes: &mut IntoIter<u8>,
+                location: &D,
+            ) -> Result<Self, VMError> {
                 let next = match bytes.next() {
                     Some(next) => next,
                     None => {
                         return Err(VMError::runtime(format!(
-                            "Missing byte for {} {location}", $name
+                            "Missing byte for {} {location}",
+                            $name
                         )))
                     }
                 };
@@ -70,7 +74,10 @@ macro_rules! object_snap {
                     ),
                     7 => $ty::Set(Snapshot::from_bytes(bytes, location)?),
                     b => {
-                        return Err(VMError::runtime(format!("Illegal byte {b} for {} {location}", $name)))
+                        return Err(VMError::runtime(format!(
+                            "Illegal byte {b} for {} {location}",
+                            $name
+                        )))
                     }
                 };
                 Ok(v)

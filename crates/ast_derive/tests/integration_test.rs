@@ -1,8 +1,8 @@
-use std::ops::Deref;
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
 use rigz_core::*;
 use std::cell::RefCell;
+use std::ops::Deref;
 use std::rc::Rc;
 
 // need to borrow this for ext

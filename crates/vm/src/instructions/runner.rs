@@ -1,6 +1,12 @@
-use crate::{err, errln, out, outln, CallFrame, Instruction, MatchArm, Modules, Scope, VMOptions, VMState};
+use crate::{
+    err, errln, out, outln, CallFrame, Instruction, MatchArm, Modules, Scope, VMOptions, VMState,
+};
 use log::log;
-use rigz_core::{AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, IndexSet, Logical, Module, ObjectValue, PrimitiveValue, Reference, ResolveValue, ResolvedValue, Reverse, RigzArgs, RigzObject, RigzType, StackValue, ToBool, UnaryOperation, VMError, WithTypeInfo};
+use rigz_core::{
+    AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, IndexSet, Logical, Module,
+    ObjectValue, PrimitiveValue, Reference, ResolveValue, ResolvedValue, Reverse, RigzArgs,
+    RigzObject, RigzType, StackValue, ToBool, UnaryOperation, VMError, WithTypeInfo,
+};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
@@ -246,11 +252,13 @@ pub fn eval_binary_operation(
         BinaryOperation::Gte => (lhs >= rhs).into(),
         BinaryOperation::Lt => (lhs < rhs).into(),
         BinaryOperation::Lte => (lhs <= rhs).into(),
-        BinaryOperation::Elvis => if lhs.is_value() {
-            lhs.clone()
-        } else {
-            rhs.clone()
-        },
+        BinaryOperation::Elvis => {
+            if lhs.is_value() {
+                lhs.clone()
+            } else {
+                rhs.clone()
+            }
+        }
     }
 }
 
@@ -266,7 +274,6 @@ pub enum CallType<'c> {
 pub type ResolvedModule = Reference<dyn Module>;
 
 pub trait Runner: ResolveValue {
-
     fn store_value(&mut self, value: StackValue);
 
     fn pop(&mut self) -> Option<StackValue>;
@@ -412,7 +419,15 @@ pub trait Runner: ResolveValue {
 
     fn call_for(&mut self, scope_id: usize) -> Option<VMState>;
 
-    fn call_for_comprehension<T, I, F>(&mut self, scope_id: usize, init: I, save: F) -> Result<T, VMState> where F: FnMut(&mut T, ObjectValue) -> Option<VMError>, I: FnOnce(usize) -> T;
+    fn call_for_comprehension<T, I, F>(
+        &mut self,
+        scope_id: usize,
+        init: I,
+        save: F,
+    ) -> Result<T, VMState>
+    where
+        F: FnMut(&mut T, ObjectValue) -> Option<VMError>,
+        I: FnOnce(usize) -> T;
     // fn vm_extension(
     //     &mut self,
     //     module: ResolvedModule,
@@ -706,43 +721,45 @@ pub trait Runner: ResolveValue {
                 }
             }
             &Instruction::ForList { scope } => {
-                let result = self.call_for_comprehension(scope, Vec::with_capacity, |result, value| {
-                    if !value.is_none() {
-                        result.push(value);
-                    }
-                    None
-                });
+                let result =
+                    self.call_for_comprehension(scope, Vec::with_capacity, |result, value| {
+                        if !value.is_none() {
+                            result.push(value);
+                        }
+                        None
+                    });
                 match result {
                     Ok(r) => self.store_value(r.into()),
-                    Err(e) => return e
+                    Err(e) => return e,
                 }
             }
             &Instruction::ForMap { scope } => {
-                let result = self.call_for_comprehension(scope, IndexMap::with_capacity, |result, value| {
-                    match value {
-                        ObjectValue::Primitive(PrimitiveValue::None) => {}
-                        ObjectValue::Tuple(mut t) if t.len() >= 2 => {
-                            // todo this should be == 2 but same tuple is reused appending to front
-                            let v = t.remove(1);
-                            let k = t.remove(0).borrow().clone();
-                            if !k.is_none() && !v.borrow().is_none() {
-                                result.insert(k, v);
+                let result =
+                    self.call_for_comprehension(scope, IndexMap::with_capacity, |result, value| {
+                        match value {
+                            ObjectValue::Primitive(PrimitiveValue::None) => {}
+                            ObjectValue::Tuple(mut t) if t.len() >= 2 => {
+                                // todo this should be == 2 but same tuple is reused appending to front
+                                let v = t.remove(1);
+                                let k = t.remove(0).borrow().clone();
+                                if !k.is_none() && !v.borrow().is_none() {
+                                    result.insert(k, v);
+                                }
+                            }
+                            // todo should a single value be both the key & value?
+                            _ => {
+                                let e: ObjectValue = VMError::UnsupportedOperation(format!(
+                                    "Invalid args in for-map {value}"
+                                ))
+                                .into();
+                                result.insert(e.clone(), e.into());
                             }
                         }
-                        // todo should a single value be both the key & value?
-                        _ => {
-                            let e: ObjectValue = VMError::UnsupportedOperation(format!(
-                                "Invalid args in for-map {value}"
-                            ))
-                                .into();
-                            result.insert(e.clone(), e.into());
-                        }
-                    }
-                    None
-                });
+                        None
+                    });
                 match result {
                     Ok(r) => self.store_value(ObjectValue::Map(r).into()),
-                    Err(e) => return e
+                    Err(e) => return e,
                 }
             }
             &Instruction::Send(args) => {
@@ -791,14 +808,14 @@ pub trait Runner: ResolveValue {
                                     ObjectValue::Primitive(PrimitiveValue::Number(n)) => {
                                         n.to_usize().map(|i| Vec::with_capacity(i))
                                     }
-                                    _ => base.to_list()
+                                    _ => base.to_list(),
                                 };
                                 match v {
                                     Ok(v) => v,
-                                    Err(e) => return e.into()
+                                    Err(e) => return e.into(),
                                 }
                             }
-                            _ => res
+                            _ => res,
                         };
                         ObjectValue::List(base).into()
                     }
@@ -812,14 +829,14 @@ pub trait Runner: ResolveValue {
                                     ObjectValue::Primitive(PrimitiveValue::Number(n)) => {
                                         n.to_usize().map(|i| IndexSet::with_capacity(i))
                                     }
-                                    _ => base.to_set()
+                                    _ => base.to_set(),
                                 };
                                 match v {
                                     Ok(v) => v,
-                                    Err(e) => return e.into()
+                                    Err(e) => return e.into(),
                                 }
                             }
-                            _ => res.iter().map(|r| r.borrow().clone()).collect()
+                            _ => res.iter().map(|r| r.borrow().clone()).collect(),
                         };
                         ObjectValue::Set(base).into()
                     }
@@ -833,20 +850,23 @@ pub trait Runner: ResolveValue {
                                     ObjectValue::Primitive(PrimitiveValue::Number(n)) => {
                                         n.to_usize().map(|i| IndexMap::with_capacity(i))
                                     }
-                                    _ => base.to_map()
+                                    _ => base.to_map(),
                                 };
                                 match v {
                                     Ok(v) => v,
-                                    Err(e) => return e.into()
+                                    Err(e) => return e.into(),
                                 }
                             }
-                            _ => return VMError::runtime(format!("Invalid args for Map.new {res:?}")).into()
+                            _ => {
+                                return VMError::runtime(format!(
+                                    "Invalid args for Map.new {res:?}"
+                                ))
+                                .into()
+                            }
                         };
                         ObjectValue::Map(base).into()
                     }
-                    _ => {
-                        RigzObject::new(ob.clone()).into()
-                    }
+                    _ => RigzObject::new(ob.clone()).into(),
                 };
                 self.store_value(obj)
             }

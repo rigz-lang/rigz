@@ -869,19 +869,18 @@ impl<'t> Parser<'t> {
                         }
                         let lhs = Assign::InstanceSet(*base, vec![AssignIndex::Index(*index)]);
                         let TokenKind::BinAssign(op) = kind else {
-                            return Ok(Statement::Assignment {
-                                lhs,
-                                expression,
-                            }.into())
+                            return Ok(Statement::Assignment { lhs, expression }.into());
                         };
                         return Ok(Statement::BinaryAssignment {
                             lhs,
                             op,
                             expression,
-                        }.into());
+                        }
+                        .into());
                     }
                 }
-                self.parse_inline_expression(Expression::Index(base, index), 0)?.into()
+                self.parse_inline_expression(Expression::Index(base, index), 0)?
+                    .into()
             } else {
                 self.parse_inline_expression(e, 0)?.into()
             }
@@ -1479,7 +1478,7 @@ impl<'t> Parser<'t> {
                     } else {
                         false
                     }
-                },
+                }
             }
         };
         loop {
@@ -1687,10 +1686,7 @@ impl<'t> Parser<'t> {
                     Ok(Statement::Assignment {
                         lhs: Assign::InstanceSet(
                             lhs,
-                            calls
-                                .into_iter()
-                                .map(AssignIndex::Identifier)
-                                .collect(),
+                            calls.into_iter().map(AssignIndex::Identifier).collect(),
                         ),
                         expression: self.parse_expression(0)?,
                     }
@@ -1888,7 +1884,11 @@ impl<'t> Parser<'t> {
                                 "Unexpected = after {args:?} - {t:?}"
                             )));
                         }
-                        Ok(FunctionExpression::TypeConstructor(RigzType::Set(RigzType::Any.into()), args).into())
+                        Ok(FunctionExpression::TypeConstructor(
+                            RigzType::Set(RigzType::Any.into()),
+                            args,
+                        )
+                        .into())
                     }
                     TokenKind::Lbracket => match self.parse_list()? {
                         Expression::List(v) => Ok(Expression::Set(v)),

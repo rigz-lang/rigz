@@ -12,8 +12,10 @@ pub trait ToBool {
     }
 }
 
-pub trait AsPrimitive<V: Clone + AsPrimitive<V, T> + Default + Sized, T: Clone + Default + Debug + Sized = V>:
-    Display + Debug + ToBool + WithTypeInfo
+pub trait AsPrimitive<
+    V: Clone + AsPrimitive<V, T> + Default + Sized,
+    T: Clone + Default + Debug + Sized = V,
+>: Display + Debug + ToBool + WithTypeInfo
 {
     fn reverse(&self) -> Result<V, VMError> {
         Err(VMError::UnsupportedOperation(format!(

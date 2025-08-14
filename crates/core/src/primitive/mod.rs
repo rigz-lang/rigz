@@ -110,15 +110,23 @@ impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
         match self {
             PrimitiveValue::String(s) => Ok(s.len()),
             // PrimitiveValue::Range(v) => Ok(v),
-            _ => Err(VMError::UnsupportedOperation(format!("{self} is not iterable"))),
+            _ => Err(VMError::UnsupportedOperation(format!(
+                "{self} is not iterable"
+            ))),
         }
     }
 
-    fn iter(&self) -> Result<Box<dyn Iterator<Item=PrimitiveValue> + '_>, VMError> {
+    fn iter(&self) -> Result<Box<dyn Iterator<Item = PrimitiveValue> + '_>, VMError> {
         match self {
-            PrimitiveValue::String(s) => Ok(Box::new(s.bytes().map(|c| String::from(from_utf8(&[c]).expect("Invalid String Byte")).into()))),
+            PrimitiveValue::String(s) => {
+                Ok(Box::new(s.bytes().map(|c| {
+                    String::from(from_utf8(&[c]).expect("Invalid String Byte")).into()
+                })))
+            }
             // PrimitiveValue::Range(v) => Ok(v.iter()),
-            _ => Err(VMError::UnsupportedOperation(format!("{self} is not iterable"))),
+            _ => Err(VMError::UnsupportedOperation(format!(
+                "{self} is not iterable"
+            ))),
         }
     }
 
@@ -126,7 +134,9 @@ impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
         if let PrimitiveValue::Range(r) = self {
             Ok(r.to_list())
         } else {
-            Err(VMError::UnsupportedOperation(format!("Cannot convert {self} to List")))
+            Err(VMError::UnsupportedOperation(format!(
+                "Cannot convert {self} to List"
+            )))
         }
     }
 
@@ -134,7 +144,9 @@ impl AsPrimitive<PrimitiveValue> for PrimitiveValue {
         if let PrimitiveValue::Range(r) = self {
             Ok(r.to_map())
         } else {
-            Err(VMError::UnsupportedOperation(format!("Cannot convert {self} to Map")))
+            Err(VMError::UnsupportedOperation(format!(
+                "Cannot convert {self} to Map"
+            )))
         }
     }
 

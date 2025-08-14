@@ -1627,9 +1627,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 match &ty {
                     RigzType::Set(_) | RigzType::List(_) | RigzType::Map(_, _) => {
                         let cargs = match args.len() {
-                            0 => {
-                                Vec::with_capacity(0)
-                            }
+                            0 => Vec::with_capacity(0),
                             1 => {
                                 if let RigzArguments::Positional(args) = &args {
                                     let rigz_type = self.rigz_type(&args[0])?;
@@ -1643,17 +1641,19 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                                         default: None,
                                         function_type: FunctionType {
                                             mutable: false,
-                                            rigz_type
+                                            rigz_type,
                                         },
                                         var_arg: false,
                                         rest: false,
                                     }]
                                 } else {
-                                    return Err(ValidationError::InvalidType(format!("Invalid args for {name}, positional args required {args:?}")))
+                                    return Err(ValidationError::InvalidType(format!("Invalid args for {name}, positional args required {args:?}")));
                                 }
                             }
                             _ => {
-                                return Err(ValidationError::InvalidType(format!("Invalid args for {name} - {args:?}")))
+                                return Err(ValidationError::InvalidType(format!(
+                                    "Invalid args for {name} - {args:?}"
+                                )))
                             }
                         };
                         let fcs = FunctionCallSignature {
@@ -1668,7 +1668,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                             var_args_start: None,
                         };
                         let len = self.setup_call_args(args, fcs)?;
-                        self.builder.add_create_object_instruction(Arc::new(ty), len);
+                        self.builder
+                            .add_create_object_instruction(Arc::new(ty), len);
                     }
                     _ => {
                         let dec = match self.objects.get(&name) {

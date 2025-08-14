@@ -4,14 +4,17 @@ mod ops;
 #[cfg(feature = "snapshot")]
 mod snapshot;
 
-use crate::{AsPrimitive, DynCompare, IndexMap, IndexSet, Number, Object, PrimitiveValue, RigzType, ToBool, VMError, WithTypeInfo};
+use crate::{
+    AsPrimitive, DynCompare, IndexMap, IndexSet, Number, Object, PrimitiveValue, RigzType, ToBool,
+    VMError, WithTypeInfo,
+};
+use indexmap::set::MutableValues;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
-use indexmap::set::MutableValues;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
@@ -36,36 +39,40 @@ impl ObjectValue {
     pub fn rc(self) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(self))
     }
-    
+
     pub fn is_none(&self) -> bool {
         matches!(self, ObjectValue::Primitive(PrimitiveValue::None))
     }
 
     pub fn deep_clone(&self) -> Self {
         match self {
-            ObjectValue::Primitive(v) => {
-                match v {
-                    PrimitiveValue::Error(e) => {
-                        if let VMError::RuntimeError(r) = e {
-                            VMError::RuntimeError(r.deep_clone().into()).into()
-                        } else {
-                            e.clone().into()
-                        }
+            ObjectValue::Primitive(v) => match v {
+                PrimitiveValue::Error(e) => {
+                    if let VMError::RuntimeError(r) = e {
+                        VMError::RuntimeError(r.deep_clone().into()).into()
+                    } else {
+                        e.clone().into()
                     }
-                    p => p.clone(),
-                }.into()
+                }
+                p => p.clone(),
             }
-            ObjectValue::Tuple(o) =>
-                ObjectValue::Tuple(o.iter().map(|v| v.borrow().deep_clone().into()).collect()),
-            ObjectValue::List(o) =>
-                ObjectValue::List(o.iter().map(|v| v.borrow().deep_clone().into()).collect()),
-            ObjectValue::Set(s) =>
-                ObjectValue::Set(s.iter().map(|v| v.deep_clone()).collect()),
-            ObjectValue::Map(m) =>
-                ObjectValue::Map(m.iter().map(|(k, v)| (k.deep_clone(), v.borrow().deep_clone().into())).collect()),
+            .into(),
+            ObjectValue::Tuple(o) => {
+                ObjectValue::Tuple(o.iter().map(|v| v.borrow().deep_clone().into()).collect())
+            }
+            ObjectValue::List(o) => {
+                ObjectValue::List(o.iter().map(|v| v.borrow().deep_clone().into()).collect())
+            }
+            ObjectValue::Set(s) => ObjectValue::Set(s.iter().map(|v| v.deep_clone()).collect()),
+            ObjectValue::Map(m) => ObjectValue::Map(
+                m.iter()
+                    .map(|(k, v)| (k.deep_clone(), v.borrow().deep_clone().into()))
+                    .collect(),
+            ),
             ObjectValue::Object(o) => ObjectValue::Object(o.clone()),
-            ObjectValue::Enum(id, var, v) =>
+            ObjectValue::Enum(id, var, v) => {
                 ObjectValue::Enum(*id, *var, v.clone().map(|o| o.borrow().deep_clone().into()))
+            }
         }
     }
 }
@@ -84,7 +91,7 @@ impl Hash for ObjectValue {
                 for v in l {
                     v.borrow().hash(state)
                 }
-            },
+            }
             ObjectValue::Set(l) => {
                 for v in l {
                     v.hash(state)
@@ -100,14 +107,14 @@ impl Hash for ObjectValue {
                 for v in t {
                     v.borrow().hash(state)
                 }
-            },
+            }
             ObjectValue::Object(o) => o.hash(state),
             ObjectValue::Enum(e, i, v) => {
                 e.hash(state);
                 i.hash(state);
                 match v {
                     None => None::<ObjectValue>.hash(state),
-                    Some(v) => v.borrow().hash(state)
+                    Some(v) => v.borrow().hash(state),
                 }
             }
         }
@@ -321,7 +328,9 @@ impl ObjectValue {
             (
                 ObjectValue::Primitive(PrimitiveValue::Number(source)),
                 ObjectValue::Primitive(PrimitiveValue::Number(n)),
-            ) => Rc::new(RefCell::new((source.to_bits() & (1 << n.to_int()) != 0).into())),
+            ) => Rc::new(RefCell::new(
+                (source.to_bits() & (1 << n.to_int()) != 0).into(),
+            )),
             (ObjectValue::Object(o), v) => o.get(v)?,
             (source, attr) => {
                 return Err(VMError::UnsupportedOperation(format!(
@@ -496,7 +505,7 @@ impl ObjectValue {
                         Some(current) => {
                             let v = current.borrow().cast(rigz_type).into();
                             *current = v;
-                        },
+                        }
                     }
                 }
                 ObjectValue::Map(res)
@@ -516,7 +525,9 @@ impl WithTypeInfo for ObjectValue {
             ObjectValue::Set(_) => RigzType::Set(Box::default()),
             ObjectValue::List(_) => RigzType::List(Box::default()),
             ObjectValue::Map(_) => RigzType::Map(Box::default(), Box::default()),
-            ObjectValue::Tuple(t) => RigzType::Tuple(t.iter().map(|i| i.borrow().rigz_type()).collect()),
+            ObjectValue::Tuple(t) => {
+                RigzType::Tuple(t.iter().map(|i| i.borrow().rigz_type()).collect())
+            }
             ObjectValue::Object(o) => o.rigz_type(),
             // todo these should be updated
             ObjectValue::Enum(i, _, v) => match v {
@@ -558,13 +569,17 @@ impl AsPrimitive<ObjectValue, Rc<RefCell<ObjectValue>>> for ObjectValue {
         }
     }
 
-    fn iter(&self) -> Result<Box<dyn Iterator<Item=ObjectValue> + '_>, VMError> {
+    fn iter(&self) -> Result<Box<dyn Iterator<Item = ObjectValue> + '_>, VMError> {
         match self {
-            ObjectValue::List(m) | ObjectValue::Tuple(m) => Ok(Box::new(m.iter().map(|b| b.borrow().clone()))),
+            ObjectValue::List(m) | ObjectValue::Tuple(m) => {
+                Ok(Box::new(m.iter().map(|b| b.borrow().clone())))
+            }
             ObjectValue::Set(s) => Ok(Box::new(s.iter().cloned())),
-            ObjectValue::Map(m) => Ok(Box::new(m
-                                          .iter()
-                                          .map(|(k, v)| ObjectValue::Tuple(vec![k.clone().into(), v.clone()])))),
+            ObjectValue::Map(m) => {
+                Ok(Box::new(m.iter().map(|(k, v)| {
+                    ObjectValue::Tuple(vec![k.clone().into(), v.clone()])
+                })))
+            }
             ObjectValue::Primitive(p) => Ok(Box::new(p.iter()?.map(|p| p.into()))),
             ObjectValue::Object(o) => o.iter(),
             _ => Err(VMError::UnsupportedOperation(format!(
@@ -607,7 +622,12 @@ impl AsPrimitive<ObjectValue, Rc<RefCell<ObjectValue>>> for ObjectValue {
                 .iter()
                 .map(|(k, v)| ObjectValue::Tuple(vec![k.clone().into(), v.clone()]).into())
                 .collect()),
-            ObjectValue::Primitive(p) => Ok(p.to_list()?.into_iter().map(|p| p.into()).map(|v: ObjectValue| v.into()).collect()),
+            ObjectValue::Primitive(p) => Ok(p
+                .to_list()?
+                .into_iter()
+                .map(|p| p.into())
+                .map(|v: ObjectValue| v.into())
+                .collect()),
             ObjectValue::Object(o) => o.to_list(),
             _ => Err(VMError::UnsupportedOperation(format!(
                 "Cannot convert {self} to List"
@@ -617,7 +637,9 @@ impl AsPrimitive<ObjectValue, Rc<RefCell<ObjectValue>>> for ObjectValue {
 
     fn to_set(&self) -> Result<IndexSet<ObjectValue>, VMError> {
         match self {
-            ObjectValue::Tuple(v) | ObjectValue::List(v) => Ok(v.iter().map(|v| v.borrow().clone()).collect()),
+            ObjectValue::Tuple(v) | ObjectValue::List(v) => {
+                Ok(v.iter().map(|v| v.borrow().clone()).collect())
+            }
             ObjectValue::Set(s) => Ok(s.clone()),
             ObjectValue::Map(m) => Ok(m
                 .iter()
@@ -640,7 +662,10 @@ impl AsPrimitive<ObjectValue, Rc<RefCell<ObjectValue>>> for ObjectValue {
                 .collect()),
             ObjectValue::Map(m) => Ok(m.clone()),
             ObjectValue::List(l) => Ok(l.iter().map(|v| (v.borrow().clone(), v.clone())).collect()),
-            ObjectValue::Set(l) => Ok(l.iter().map(|v| (v.clone(), Rc::new(RefCell::new(v.clone())))).collect()),
+            ObjectValue::Set(l) => Ok(l
+                .iter()
+                .map(|v| (v.clone(), Rc::new(RefCell::new(v.clone()))))
+                .collect()),
             ObjectValue::Tuple(t) => Ok(t
                 .chunks(2)
                 .map(|c| match &c[..2] {

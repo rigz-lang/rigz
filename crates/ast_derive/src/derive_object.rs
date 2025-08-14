@@ -1,13 +1,13 @@
 use crate::{convert_response, convert_type_for_arg, rigz_type_to_return_type, setup_call_args};
+use log::warn;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use rigz_ast::{FunctionDeclaration, ObjectDefinition, Parser, ParserOptions};
 use rigz_core::derive::Tokens;
 use rigz_core::RigzType;
 use syn::parse::{Parse, ParseStream};
-use syn::{token, ItemStruct, LitStr, Token, Type, Visibility};
-use log::warn;
 use syn::spanned::Spanned;
+use syn::{token, ItemStruct, LitStr, Token, Type, Visibility};
 
 enum ObjectArg {
     Ident(Ident),
@@ -368,7 +368,8 @@ fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTra
                 }
             }
 
-            let ret = rigz_type_to_return_type(&sig.return_type.rigz_type, true).map(|s| quote! { -> #s });
+            let ret = rigz_type_to_return_type(&sig.return_type.rigz_type, true)
+                .map(|s| quote! { -> #s });
             if sig.self_type.is_none() {
                 quote! {
                     fn #fn_name(#(#args, )*) #ret where Self: Sized;

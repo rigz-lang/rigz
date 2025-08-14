@@ -1,4 +1,4 @@
-use crate::{ToBool, PrimitiveValue};
+use crate::{PrimitiveValue, ToBool};
 use std::ops::Not;
 
 impl Not for &PrimitiveValue {

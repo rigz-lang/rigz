@@ -1,4 +1,4 @@
-use crate::{ToBool, PrimitiveValue, VMError};
+use crate::{PrimitiveValue, ToBool, VMError};
 use std::ops::Sub;
 
 impl Sub for &PrimitiveValue {

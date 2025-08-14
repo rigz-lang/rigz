@@ -1,10 +1,10 @@
-use std::ops::Deref;
 use itertools::Itertools;
 use rigz_ast::*;
 use rigz_ast_derive::derive_module;
 use rigz_core::*;
 use rigz_vm::{out, outln};
 use std::cell::RefCell;
+use std::ops::Deref;
 use std::rc::Rc;
 
 derive_module! {
@@ -170,7 +170,9 @@ impl RigzAny for AnyModule {
         this: &ObjectValue,
         index: Rc<RefCell<ObjectValue>>,
     ) -> Result<Option<ObjectValue>, VMError> {
-        Ok(this.get(index.borrow().deref())?.map(|v| v.borrow().clone()))
+        Ok(this
+            .get(index.borrow().deref())?
+            .map(|v| v.borrow().clone()))
     }
 
     fn format(&self, template: String, args: Vec<Rc<RefCell<ObjectValue>>>) -> String {

@@ -1,9 +1,9 @@
-use std::cell::RefCell;
 use rand::{Rng, RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use rigz_ast::*;
 use rigz_ast_derive::{derive_module, derive_object};
 use rigz_core::*;
+use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
 

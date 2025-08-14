@@ -1,9 +1,9 @@
-use std::ops::Deref;
 use rigz_ast::*;
 use rigz_ast_derive::{derive_module, derive_object};
 use rigz_core::*;
 use scraper::Selector;
 use std::cell::RefCell;
+use std::ops::Deref;
 use std::rc::Rc;
 
 derive_object! {

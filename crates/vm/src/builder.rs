@@ -1,8 +1,11 @@
 use crate::vm::VMOptions;
-use crate::{Instruction, LoadValue, Scope, VM};
 use crate::MatchArm;
+use crate::{Instruction, LoadValue, Scope, VM};
 use log::Level;
-use rigz_core::{BinaryOperation, Dependency, EnumDeclaration, IndexSet, Lifecycle, Module, ObjectValue, RigzType, UnaryOperation};
+use rigz_core::{
+    BinaryOperation, Dependency, EnumDeclaration, IndexSet, Lifecycle, Module, ObjectValue,
+    RigzType, UnaryOperation,
+};
 use std::fmt::Debug;
 use std::sync::Arc;
 // todo use Rodeo (single threaded here + runtime), use Reference<(Threaded or not)Resolver> in VM

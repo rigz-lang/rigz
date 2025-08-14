@@ -1,5 +1,5 @@
 use crate::{
-    runner_common, CallFrame, CallType, Instruction, ResolvedModule, Runner, Scope, Modules,
+    runner_common, CallFrame, CallType, Instruction, Modules, ResolvedModule, Runner, Scope,
     VMOptions, VMState, Variable, VM,
 };
 use itertools::Itertools;
@@ -10,9 +10,9 @@ use rigz_core::{
 };
 use std::fmt::Display;
 use std::ops::Deref;
+use std::rc::Rc;
 use std::thread;
 use std::time::Duration;
-use std::rc::Rc;
 
 #[allow(unused_variables)]
 impl Runner for VM {
@@ -370,17 +370,15 @@ impl Runner for VM {
         let mut result: Option<VMState> = None;
         let value = match res.iter() {
             Ok(v) => v,
-            Err(e) => return Some(e.into())
+            Err(e) => return Some(e.into()),
         };
         'outer: for each in value {
             if let ObjectValue::Tuple(tuple) = each {
                 for (value, &(name, mutable)) in tuple.into_iter().zip(&args) {
                     let res = if mutable {
-                        self.frames
-                            .load_mut(name, value.into(), false)
+                        self.frames.load_mut(name, value.into(), false)
                     } else {
-                        self.frames
-                            .load_let(name, value.into(), false)
+                        self.frames.load_let(name, value.into(), false)
                     };
                 }
             } else {
@@ -458,7 +456,15 @@ impl Runner for VM {
         result
     }
 
-    fn call_for_comprehension<T, I, F>(&mut self, scope_id: usize, init: I, mut save: F) -> Result<T, VMState> where F: FnMut(&mut T, ObjectValue) -> Option<VMError>, I: FnOnce(usize) -> T
+    fn call_for_comprehension<T, I, F>(
+        &mut self,
+        scope_id: usize,
+        init: I,
+        mut save: F,
+    ) -> Result<T, VMState>
+    where
+        F: FnMut(&mut T, ObjectValue) -> Option<VMError>,
+        I: FnOnce(usize) -> T,
     {
         let sp = self.sp;
         let current = self.frames.len();
@@ -472,9 +478,10 @@ impl Runner for VM {
 
         let args = match self.scopes.get(scope_id) {
             None => {
-                return Err(
-                    VMError::runtime(format!("Scope does not exist in for loop - {scope_id}")).into()
-                )
+                return Err(VMError::runtime(format!(
+                    "Scope does not exist in for loop - {scope_id}"
+                ))
+                .into())
             }
             Some(v) => v.args.clone(),
         };
@@ -492,11 +499,9 @@ impl Runner for VM {
             if let ObjectValue::Tuple(tuple) = each {
                 for (value, &(name, mutable)) in tuple.into_iter().zip(&args) {
                     if mutable {
-                        self.frames
-                            .load_mut(name, value.into(), false)?
+                        self.frames.load_mut(name, value.into(), false)?
                     } else {
-                        self.frames
-                            .load_let(name, value.into(), false)?
+                        self.frames.load_let(name, value.into(), false)?
                     }
                 }
             } else {
@@ -522,11 +527,14 @@ impl Runner for VM {
                         if s == &Instruction::Ret
                             && self.frames.current.borrow().scope_id == scope_id
                             && self.scopes[self.frames.current.borrow().scope_id]
-                            .instructions
-                            .len()
-                            == self.frames.current.borrow().pc
+                                .instructions
+                                .len()
+                                == self.frames.current.borrow().pc
                         {
-                            save(&mut result, self.next_resolved_value(|| "for").borrow().clone());
+                            save(
+                                &mut result,
+                                self.next_resolved_value(|| "for").borrow().clone(),
+                            );
                             self.frames.current.borrow_mut().pc = 0;
                             self.frames.current.borrow_mut().clear_variables();
                             break;
@@ -543,7 +551,7 @@ impl Runner for VM {
                         while self.frames.len() > current + 1 {
                             let Some(next) = self.frames.pop() else {
                                 return Err(
-                                    VMError::runtime("Missing call frame".to_string()).into(),
+                                    VMError::runtime("Missing call frame".to_string()).into()
                                 );
                             };
                             self.frames.current.swap(&next);
@@ -554,7 +562,7 @@ impl Runner for VM {
                         break;
                     }
                     VMState::Ran(r) => self.store_value(r.into()),
-                    v => return Err(v)
+                    v => return Err(v),
                 }
             }
         }

@@ -753,7 +753,10 @@ fn convert_type_for_borrowed_arg(
                 optional: true,
                 can_return_error: false,
             } => match convert_type_for_arg(name.clone(), base_type, mutable) {
-                None => (quote! { #name.borrow().deref().map(|t| t.clone().into()) }, false),
+                None => (
+                    quote! { #name.borrow().deref().map(|t| t.clone().into()) },
+                    false,
+                ),
                 Some((t, e)) => {
                     if e {
                         (

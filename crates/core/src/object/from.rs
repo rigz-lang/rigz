@@ -65,7 +65,11 @@ impl<A: Into<ObjectValue>, B: Into<ObjectValue>, C: Into<ObjectValue>> From<(A, 
 {
     #[inline]
     fn from(value: (A, B, C)) -> Self {
-        ObjectValue::Tuple(vec![value.0.into().into(), value.1.into().into(), value.2.into().into()])
+        ObjectValue::Tuple(vec![
+            value.0.into().into(),
+            value.1.into().into(),
+            value.2.into().into(),
+        ])
     }
 }
 

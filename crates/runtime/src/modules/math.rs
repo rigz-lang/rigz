@@ -45,7 +45,7 @@ impl RigzMath for MathModule {
     fn number_abs(&self, this: &Number) -> Number {
         match this {
             Number::Int(i) => i.abs().into(),
-            Number::Float(f) => f.abs().into()
+            Number::Float(f) => f.abs().into(),
         }
     }
 
