@@ -3,6 +3,7 @@ use rigz_ast::*;
 use rigz_ast_derive::{derive_module, derive_object};
 use rigz_core::*;
 use std::cell::RefCell;
+use std::fmt::{Display, Formatter};
 use std::ops::Deref;
 use std::rc::Rc;
 use uuid::Uuid;
@@ -15,8 +16,11 @@ derive_object! {
     r#"object UUID
         Self(value: String? = none)
 
-        fn Self.to_s -> String
-    end"#
+        fn Self.braced -> String
+        fn Self.simple -> String
+        fn Self.urn -> String
+    end"#,
+    skip_display
 }
 
 impl From<Uuid> for UUID {
@@ -27,9 +31,21 @@ impl From<Uuid> for UUID {
 
 impl AsPrimitive<ObjectValue, Rc<RefCell<ObjectValue>>> for UUID {}
 
+impl Display for UUID {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.uuid)
+    }
+}
+
 impl UUIDObject for UUID {
-    fn to_s(&self) -> String {
-        self.uuid.to_string()
+    fn braced(&self) -> String {
+        self.uuid.braced().to_string()
+    }
+    fn simple(&self) -> String {
+        self.uuid.simple().to_string()
+    }
+    fn urn(&self) -> String {
+        self.uuid.urn().to_string()
     }
 }
 
