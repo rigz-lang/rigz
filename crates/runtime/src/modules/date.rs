@@ -76,7 +76,7 @@ derive_object! {
         date: DateTime<Utc>
     },
     r#"object UTCDate
-        Self(var value)
+        Self(value: Any? = none)
 
         fn Self.format(template: String) -> String
     end"#,
