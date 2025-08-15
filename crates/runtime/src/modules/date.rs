@@ -50,7 +50,7 @@ impl CreateObject for LocalDate {
     where
         Self: Sized
     {
-        if args.is_empty() {
+        if args.is_empty() || args.0[0].borrow().is_none() {
             return Ok(LocalDate {
                 date: Local::now()
             })
@@ -76,7 +76,7 @@ derive_object! {
         date: DateTime<Utc>
     },
     r#"object UTCDate
-        Self(value: Any? = none)
+        Self(var value)
 
         fn Self.format(template: String) -> String
     end"#,
@@ -88,7 +88,7 @@ impl CreateObject for UTCDate {
     where
         Self: Sized
     {
-        if args.is_empty() {
+        if args.is_empty() || args.0[0].borrow().is_none() {
             return Ok(Self {
                 date: Utc::now()
             })

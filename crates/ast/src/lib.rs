@@ -510,13 +510,20 @@ impl<'t> Parser<'t> {
                 .collect(),
         });
 
-        let constructor = self.parse_constructor()?;
+        let mut constructors = vec![self.parse_constructor()?];
+        loop {
+            let next = self.peek_required_token("object constructors")?;
+            if next.kind != TokenKind::TypeValue("Self") {
+                break;
+            }
+            constructors.push(self.parse_constructor()?);
+        }
         let functions = self.parse_trait_declarations()?;
         self.consume_token_eat_newlines(TokenKind::End)?;
         Ok(ObjectDefinition {
             rigz_type,
             fields,
-            constructor,
+            constructors,
             functions,
         })
     }

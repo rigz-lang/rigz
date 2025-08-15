@@ -785,7 +785,7 @@ pub struct ObjectAttr {
 pub struct ObjectDefinition {
     pub rigz_type: RigzType,
     pub fields: Vec<ObjectAttr>,
-    pub constructor: Constructor,
+    pub constructors: Vec<Constructor>,
     pub functions: Vec<FunctionDeclaration>,
 }
 

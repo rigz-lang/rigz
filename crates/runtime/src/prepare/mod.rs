@@ -151,7 +151,7 @@ enum ObjectConstructor {
 
 #[derive(Debug)]
 struct ObjectDeclaration {
-    constructor: ObjectConstructor,
+    constructors: Vec<ObjectConstructor>,
     rigz_type: Arc<RigzType>,
     fields: Vec<ObjectAttr>,
     dep: Option<usize>,
@@ -765,43 +765,47 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
     ) -> Result<(), ValidationError> {
         let rt = Arc::new(definition.rigz_type);
         let obj = rt.to_string();
-        let constructor = match definition.constructor {
-            Constructor::Default => {
-                let body = Scope {
-                    elements: definition
+        let mut constructors = Vec::with_capacity(definition.constructors.len());
+        for constructor in definition.constructors {
+            let cons = match constructor {
+                Constructor::Default => {
+                    let body = Scope {
+                        elements: definition
+                            .fields
+                            .iter()
+                            .map(|f| {
+                                Element::Statement(Statement::Assignment {
+                                    lhs: Assign::InstanceSet(
+                                        Expression::This,
+                                        vec![AssignIndex::Identifier(f.name.clone())],
+                                    ),
+                                    expression: Expression::Identifier(f.name.clone()),
+                                })
+                            })
+                            .collect(),
+                    };
+                    let args: Vec<_> = definition
                         .fields
                         .iter()
-                        .map(|f| {
-                            Element::Statement(Statement::Assignment {
-                                lhs: Assign::InstanceSet(
-                                    Expression::This,
-                                    vec![AssignIndex::Identifier(f.name.clone())],
-                                ),
-                                expression: Expression::Identifier(f.name.clone()),
-                            })
+                        .map(|a| FunctionArgument {
+                            name: a.name.clone(),
+                            default: a.default.clone(),
+                            function_type: a.attr_type.clone(),
+                            var_arg: false,
+                            rest: false,
                         })
-                        .collect(),
-                };
-                let args: Vec<_> = definition
-                    .fields
-                    .iter()
-                    .map(|a| FunctionArgument {
-                        name: a.name.clone(),
-                        default: a.default.clone(),
-                        function_type: a.attr_type.clone(),
-                        var_arg: false,
-                        rest: false,
-                    })
-                    .collect();
-                let s = self.parse_constructor(body, rt.clone(), &args)?;
-                ObjectConstructor::Scope(args, None, s)
-            }
-            Constructor::Declaration(args, var) => ObjectConstructor::Custom(args, var),
-            Constructor::Definition(args, var, body) => {
-                let s = self.parse_constructor(body, rt.clone(), &args)?;
-                ObjectConstructor::Scope(args, var, s)
-            }
-        };
+                        .collect();
+                    let s = self.parse_constructor(body, rt.clone(), &args)?;
+                    ObjectConstructor::Scope(args, None, s)
+                }
+                Constructor::Declaration(args, var) => ObjectConstructor::Custom(args, var),
+                Constructor::Definition(args, var, body) => {
+                    let s = self.parse_constructor(body, rt.clone(), &args)?;
+                    ObjectConstructor::Scope(args, var, s)
+                }
+            };
+            constructors.push(cons)
+        }
 
         for func in definition.functions {
             match func {
@@ -886,7 +890,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         }
 
         let decl = ObjectDeclaration {
-            constructor,
+            constructors,
             rigz_type: rt,
             fields: definition.fields,
             dep,
@@ -1680,7 +1684,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                             }
                             Some(dec) => dec.clone(),
                         };
-                        let (cargs, var, scope) = match &dec.constructor {
+                        // todo support multiple constructors
+                        let (cargs, var, scope) = match &dec.constructors[0] {
                             ObjectConstructor::Scope(cargs, var, s) => {
                                 (cargs.clone(), *var, Some(*s))
                             }

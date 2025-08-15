@@ -787,13 +787,13 @@ impl ToTokens for TraitDefinition {
 impl ToTokens for ObjectDefinition {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let rt = &self.rigz_type;
-        let c = &self.constructor;
+        let c = csv_vec(&self.constructors);
         let func = csv_vec(&self.functions);
         let f = csv_vec(&self.fields);
         tokens.extend(quote! {
             ObjectDefinition {
                 rigz_type: #rt,
-                constructor: #c,
+                constructors: #c,
                 fields: #f,
                 functions: #func
             }
