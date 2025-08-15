@@ -264,6 +264,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-link",
 ]
@@ -908,9 +909,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26145e563e54f2cadc477553f1ec5ee650b00862f0a58bcd12cbdc5f0ea2d2f4"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "r-efi",
  "wasi 0.14.2+wasi-0.2.4",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1935,7 +1938,7 @@ dependencies = [
  "chrono",
  "criterion",
  "derivative",
- "getrandom 0.2.16",
+ "getrandom 0.3.3",
  "itertools 0.14.0",
  "log",
  "pretty_env_logger",

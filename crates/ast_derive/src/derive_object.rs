@@ -9,6 +9,10 @@ use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use syn::{token, ItemStruct, LitStr, Token, Type, Visibility};
 
+mod keywords {
+    syn::custom_keyword!(skip_display);
+}
+
 enum ObjectArg {
     Ident(Ident),
     Struct(Box<ItemStruct>),
@@ -36,11 +40,23 @@ impl Parse for DeriveObject {
             ObjectArg::Ident(input.parse()?)
         };
         input.parse::<Token![,]>()?;
+        let literal = input.parse()?;
+        let display = if input.peek(Token![,]) {
+            input.parse::<Token![,]>()?;
+            if input.peek(keywords::skip_display) {
+                input.parse::<keywords::skip_display>()?;
+                false
+            } else {
+                return Err(input.error("expected `skip_display` or end of input, remove the trailing comma"));
+            }
+        } else {
+            true
+        };
         Ok(DeriveObject {
             parent,
             definition,
-            literal: input.parse()?,
-            display: true,
+            literal,
+            display,
         })
     }
 }
