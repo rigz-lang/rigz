@@ -751,13 +751,14 @@ pub mod runtime {
             mut_index_bin_op("mut a = [1, 2, 3]; a[1] += 4; a" = vec![1, 6, 3])
             mut_index_push("mut a = {x = [], y = [], z = []}; a.x.push 4; a" = IndexMap::from([("x", vec![4]), ("y", vec![]), ("z", vec![])]))
             mut_reference_update("mut x = []; mut a = {x, y = [], z = []}; a.x.push 4; x" = vec![4])
+            for_list(r#"[for v in [1, 2, 3]: v * v]"# = vec![1, 4, 9])
         }
     }
 
     pub mod debug {
         use super::*;
         run_debug_vm! {
-            for_list(r#"[for v in [1, 2, 3]: v * v]"# = vec![1, 4, 9])
+
         }
     }
 

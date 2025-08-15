@@ -65,7 +65,7 @@ impl RandomObject for Random {
     }
 
     fn mut_next_bool(&mut self, percent: f64) -> bool {
-        self.rng.0.gen_bool(percent)
+        self.rng.0.random_bool(percent)
     }
 }
 
@@ -82,7 +82,7 @@ impl From<ChaCha8Rng> for InnerRng {
 impl Default for InnerRng {
     #[inline]
     fn default() -> Self {
-        ChaCha8Rng::from_entropy().into()
+        ChaCha8Rng::from_rng(&mut rand::rng()).into()
     }
 }
 
@@ -161,7 +161,6 @@ impl RigzRandom for RandomModule {
     }
 
     fn next_bool(&self, percent: f64) -> bool {
-        let mut rng = rand::thread_rng();
-        rng.gen_bool(percent)
+        rand::random_bool(percent)
     }
 }
