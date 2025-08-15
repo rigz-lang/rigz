@@ -7,9 +7,29 @@ Handles parsing and converting rigz to its VM instructions.
 
 ## WASM Support
 
-Create `.cargo/config.toml` with the following
+**NOTE: Rigz is untested with nodejs and other WASM targets, the following assumes a running in browser (like Leptos)**
 
-```toml
-[target.wasm32-unknown-unknown]
-rustflags = ["--cfg", "getrandom_backend=\"wasm_js\""]
-```
+Three steps are required to use Rigz with the wasm32-unknown-unknown target:
+
+1. Enable `js` feature and `no-default-features`, default runtime expects a multithreaded environment. 
+2. Create `.cargo/config.toml` with the following
+    ```toml
+    [target.wasm32-unknown-unknown]
+    rustflags = ["--cfg", "getrandom_backend=\"wasm_js\""]
+    ```
+3. Add `__wasm_call_ctors` extern and call in main
+    ```rust
+    #[cfg(target_family = "wasm")]
+    unsafe extern "C" {
+        fn __wasm_call_ctors();
+    }
+    
+    fn main() {
+        #[cfg(target_family = "wasm")]
+        unsafe {
+            __wasm_call_ctors();
+        }
+    
+        // ...
+    }
+    ```
