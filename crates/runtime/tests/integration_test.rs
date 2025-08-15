@@ -757,9 +757,7 @@ pub mod runtime {
 
     pub mod debug {
         use super::*;
-        run_debug_vm! {
-
-        }
+        run_debug_vm! {}
     }
 
     pub mod recursive {

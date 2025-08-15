@@ -1,10 +1,10 @@
-use std::cell::RefCell;
-use std::ops::Deref;
-use std::rc::Rc;
 use log::warn;
 use rigz_ast::*;
 use rigz_ast_derive::{derive_module, derive_object};
 use rigz_core::*;
+use std::cell::RefCell;
+use std::ops::Deref;
+use std::rc::Rc;
 use uuid::Uuid;
 
 derive_object! {
@@ -21,9 +21,7 @@ derive_object! {
 
 impl From<Uuid> for UUID {
     fn from(value: Uuid) -> Self {
-        Self {
-            uuid: value
-        }
+        Self { uuid: value }
     }
 }
 
@@ -38,10 +36,10 @@ impl UUIDObject for UUID {
 impl CreateObject for UUID {
     fn create(args: RigzArgs) -> Result<Self, VMError>
     where
-        Self: Sized
+        Self: Sized,
     {
         if args.is_empty() {
-            return Ok(UUID::default())
+            return Ok(UUID::default());
         }
 
         if args.len() > 1 {
@@ -52,25 +50,27 @@ impl CreateObject for UUID {
         if let ObjectValue::Primitive(PrimitiveValue::String(s)) = first.deref() {
             match Uuid::parse_str(s) {
                 Ok(u) => Ok(u.into()),
-                Err(e) => Err(VMError::runtime(format!("Cannot create UUID from {s}, {e:?}")))
+                Err(e) => Err(VMError::runtime(format!(
+                    "Cannot create UUID from {s}, {e:?}"
+                ))),
             }
         } else {
-            Err(VMError::UnsupportedOperation(format!("Cannot create UUID from {first}")))
+            Err(VMError::UnsupportedOperation(format!(
+                "Cannot create UUID from {first}"
+            )))
         }
     }
 }
 
 derive_module! {
     [UUID],
-    r#"
-trait UUID
+    r#"trait UUID
     fn v4 -> UUID::UUID
 
     fn create(input: String) -> UUID::UUID!
         UUID::UUID.new input
     end
-end
-"#
+end"#
 }
 
 impl RigzUUID for UUIDModule {
