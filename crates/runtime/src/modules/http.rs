@@ -87,9 +87,7 @@ impl RequestObject for Request {
     fn header(&self, key: Rc<RefCell<ObjectValue>>) -> Option<ObjectValue> {
         let binding = key.borrow();
         let key = binding.deref();
-        self.headers
-            .as_ref()
-            .map(|h| h.get(key).cloned())?
+        self.headers.as_ref().map(|h| h.get(key).cloned())?
     }
 
     fn mut_body(&mut self, body: Rc<RefCell<ObjectValue>>) {

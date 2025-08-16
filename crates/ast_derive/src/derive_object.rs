@@ -54,7 +54,8 @@ impl Parse for DeriveObject {
                 input.parse::<keywords::skip_display>()?;
                 false
             } else {
-                return Err(input.error("expected `skip_display` or end of input, remove the trailing comma"));
+                return Err(input
+                    .error("expected `skip_display` or end of input, remove the trailing comma"));
             }
         } else {
             true
@@ -64,7 +65,7 @@ impl Parse for DeriveObject {
             definition,
             literal,
             display,
-            visibility
+            visibility,
         })
     }
 }
@@ -186,7 +187,7 @@ impl DeriveObject {
         let name = id.to_string();
         let name = match parent {
             None => quote! { #name },
-            Some(p) => quote! { concat!(#p, "::", #name) }
+            Some(p) => quote! { concat!(#p, "::", #name) },
         };
         let mut obj_def = Parser::prepare(lit.as_str(), ParserOptions::default());
         let obj_def = obj_def
@@ -227,7 +228,11 @@ impl DeriveObject {
     }
 }
 
-fn impl_object(name: &Ident, object_definition: &ObjectDefinition, visibility: &Visibility) -> Tokens {
+fn impl_object(
+    name: &Ident,
+    object_definition: &ObjectDefinition,
+    visibility: &Visibility,
+) -> Tokens {
     let CustomTrait {
         ext,
         mutf,
@@ -256,7 +261,11 @@ struct CustomTrait {
     trait_def: Tokens,
 }
 
-fn custom_trait(name: &Ident, object_definition: &ObjectDefinition, visibility: &Visibility) -> CustomTrait {
+fn custom_trait(
+    name: &Ident,
+    object_definition: &ObjectDefinition,
+    visibility: &Visibility,
+) -> CustomTrait {
     let funcs: Vec<_> = object_definition
         .functions
         .iter()

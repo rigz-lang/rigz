@@ -5,7 +5,10 @@ use itertools::Itertools;
 use log::{error, warn, Level};
 pub use program::Program;
 use rigz_ast::*;
-use rigz_core::{EnumDeclaration, FastHashMap, IndexMap, IndexSet, Lifecycle, Number, ObjectValue, PrimitiveValue, RigzType};
+use rigz_core::{
+    EnumDeclaration, FastHashMap, IndexMap, IndexSet, Lifecycle, Number, ObjectValue,
+    PrimitiveValue, RigzType,
+};
 use rigz_vm::{Instruction, LoadValue, MatchArm, RigzBuilder, VMBuilder, VM};
 use std::collections::hash_map::Entry;
 use std::env;
@@ -2591,7 +2594,9 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         } else if self.objects.contains_key(name.as_str()) {
             // objects are auto imported for now
         } else {
-            return Err(ValidationError::InvalidImport(format!("Module or Object {name} does not exist")))
+            return Err(ValidationError::InvalidImport(format!(
+                "Module or Object {name} does not exist"
+            )));
         }
         Ok(())
     }

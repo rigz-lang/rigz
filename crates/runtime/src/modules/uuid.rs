@@ -1,6 +1,6 @@
 use log::warn;
 use rigz_ast::*;
-use rigz_ast_derive::{derive_object};
+use rigz_ast_derive::derive_object;
 use rigz_core::*;
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
@@ -51,7 +51,7 @@ impl UUIDObject for UUID {
 
     fn static_random() -> ObjectValue
     where
-        Self: Sized
+        Self: Sized,
     {
         ObjectValue::Object(Box::new(Into::<UUID>::into(Uuid::new_v4())))
     }

@@ -10,7 +10,7 @@ pub struct Scope {
     pub named: String,
     pub args: Vec<(usize, bool)>,
     pub set_self: Option<bool>,
-    pub propagate: bool
+    pub propagate: bool,
 }
 
 impl Default for Scope {
@@ -50,7 +50,7 @@ impl Snapshot for Scope {
             named,
             args,
             set_self,
-            propagate
+            propagate,
         })
     }
 }

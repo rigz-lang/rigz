@@ -10,7 +10,7 @@ pub use value_range::ValueRange;
 
 use std::cell::RefCell;
 
-use crate::{impl_from, AsPrimitive, Number, RigzType, IndexMap, ToBool, WithTypeInfo};
+use crate::{impl_from, AsPrimitive, IndexMap, Number, RigzType, ToBool, WithTypeInfo};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};

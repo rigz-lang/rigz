@@ -7,6 +7,7 @@ use crate::{ObjectValue, RigzArgs, VMError};
 pub use as_primitive::{AsPrimitive, ToBool, WithTypeInfo};
 use dyn_clone::DynClone;
 pub use dyn_traits::*;
+use fxhash::FxBuildHasher;
 use mopa::mopafy;
 #[cfg(feature = "snapshot")]
 pub use snapshot::Snapshot;
@@ -17,7 +18,6 @@ use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::vec::IntoIter;
-use fxhash::FxBuildHasher;
 
 pub type FastHashMap<K, V> = HashMap<K, V, FxBuildHasher>;
 

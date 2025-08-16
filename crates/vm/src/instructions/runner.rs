@@ -734,8 +734,10 @@ pub trait Runner: ResolveValue {
                 }
             }
             &Instruction::ForMap { scope } => {
-                let result =
-                    self.call_for_comprehension(scope, |v| IndexMap::with_capacity_and_hasher(v, Default::default()), |result, value| {
+                let result = self.call_for_comprehension(
+                    scope,
+                    |v| IndexMap::with_capacity_and_hasher(v, Default::default()),
+                    |result, value| {
                         match value {
                             ObjectValue::Primitive(PrimitiveValue::None) => {}
                             ObjectValue::Tuple(mut t) if t.len() >= 2 => {
@@ -756,7 +758,8 @@ pub trait Runner: ResolveValue {
                             }
                         }
                         None
-                    });
+                    },
+                );
                 match result {
                     Ok(r) => self.store_value(ObjectValue::Map(r).into()),
                     Err(e) => return e,
@@ -827,7 +830,12 @@ pub trait Runner: ResolveValue {
                                 let base = res[0].borrow().clone();
                                 let v = match base {
                                     ObjectValue::Primitive(PrimitiveValue::Number(n)) => {
-                                        n.to_usize().map(|i| IndexSet::with_capacity_and_hasher(i, Default::default()))
+                                        n.to_usize().map(|i| {
+                                            IndexSet::with_capacity_and_hasher(
+                                                i,
+                                                Default::default(),
+                                            )
+                                        })
                                     }
                                     _ => base.to_set(),
                                 };
@@ -848,7 +856,12 @@ pub trait Runner: ResolveValue {
                                 let base = res[0].borrow().clone();
                                 let v = match base {
                                     ObjectValue::Primitive(PrimitiveValue::Number(n)) => {
-                                        n.to_usize().map(|i| IndexMap::with_capacity_and_hasher(i, Default::default()))
+                                        n.to_usize().map(|i| {
+                                            IndexMap::with_capacity_and_hasher(
+                                                i,
+                                                Default::default(),
+                                            )
+                                        })
                                     }
                                     _ => base.to_map(),
                                 };

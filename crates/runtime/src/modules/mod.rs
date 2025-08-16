@@ -29,10 +29,10 @@ pub use number::NumberModule;
 pub use string::StringModule;
 // pub use vm::VMModule;
 
-use rigz_ast::{ParsedDependency, ParsedModule, ParsedObject, ParserOptions, ValidationError};
-use rigz_vm::{RigzBuilder, VMBuilder};
 use crate::modules::random::Random;
 use crate::modules::uuid::UUID;
+use rigz_ast::{ParsedDependency, ParsedModule, ParsedObject, ParserOptions, ValidationError};
+use rigz_vm::{RigzBuilder, VMBuilder};
 
 impl ProgramParser<'_, VMBuilder> {
     pub fn new() -> Self {
@@ -48,7 +48,7 @@ impl ProgramParser<'_, VMBuilder> {
         p
     }
 
-    pub fn register_object<O: ParsedObject + 'static>(&mut self) -> Result<(), ValidationError>  {
+    pub fn register_object<O: ParsedObject + 'static>(&mut self) -> Result<(), ValidationError> {
         let dep = ParsedDependency::new::<O>();
         let obj = dep.object_definition;
         let dep = self.builder.register_dependency(Arc::new(dep.dependency));

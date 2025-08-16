@@ -1,4 +1,5 @@
 use crate::{FastHashMap, IndexMap, IndexSet, VMError, ValueRange};
+use fxhash::FxBuildHasher;
 use itertools::Itertools;
 use log::Level;
 use std::cell::RefCell;
@@ -9,7 +10,6 @@ use std::ops::Range;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::vec::IntoIter;
-use fxhash::FxBuildHasher;
 // todo make snapshot a feature
 
 pub trait Snapshot: Sized {

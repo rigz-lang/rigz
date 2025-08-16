@@ -86,7 +86,7 @@ pub trait RigzBuilder: Debug + Default {
         &mut self,
         named: String,
         args: Vec<(String, bool)>,
-        set_self: Option<bool>
+        set_self: Option<bool>,
     ) -> usize;
 
     fn enter_lifecycle_scope(
@@ -94,7 +94,7 @@ pub trait RigzBuilder: Debug + Default {
         named: String,
         lifecycle: Lifecycle,
         args: Vec<(String, bool)>,
-        set_self: Option<bool>
+        set_self: Option<bool>,
     ) -> usize;
 
     fn exit_scope(&mut self, current: usize) -> &mut Self;

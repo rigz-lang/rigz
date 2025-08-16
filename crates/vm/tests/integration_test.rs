@@ -283,7 +283,7 @@ mod vm_test {
                 lifecycle: Some(Lifecycle::Test(TestLifecycle)),
                 args: Vec::new(),
                 set_self: None,
-                propagate: false
+                propagate: false,
             },
         ]);
         assert_eq!(
