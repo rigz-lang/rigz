@@ -98,8 +98,6 @@ pub trait RigzBuilder: Debug + Default {
 
     fn convert_to_lazy_scope(&mut self, scope_id: usize, var: &str) -> &mut Self;
 
-    fn register_dependency(&mut self, dependency: Arc<Dependency>) -> usize;
-
     fn register_enum(&mut self, dependency: Arc<EnumDeclaration>) -> usize;
 
     fn with_options(&mut self, options: VMOptions) -> &mut Self;
@@ -556,13 +554,6 @@ impl RigzBuilder for VMBuilder {
         }
     }
 
-    #[inline]
-    fn register_dependency(&mut self, dependency: Arc<Dependency>) -> usize {
-        let dep = self.dependencies.len();
-        self.dependencies.push(dependency);
-        dep
-    }
-
     fn register_enum(&mut self, declaration: Arc<EnumDeclaration>) -> usize {
         let index = self.enums.len();
         self.enums.push(declaration);
@@ -585,6 +576,13 @@ impl VMBuilder {
         let index = self.modules.len();
         self.modules.push(Arc::new(module));
         index
+    }
+
+    #[inline]
+    pub fn register_dependency(&mut self, dependency: Arc<Dependency>) -> usize {
+        let dep = self.dependencies.len();
+        self.dependencies.push(dependency);
+        dep
     }
 
     #[inline]

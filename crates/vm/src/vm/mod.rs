@@ -25,7 +25,7 @@ pub type Modules = Arc<Vec<std::sync::Arc<dyn Module + Send + Sync>>>;
 #[cfg(not(feature = "threaded"))]
 pub type Modules = Vec<std::rc::Rc<dyn Module>>;
 
-pub type Dependencies = RwLock<Vec<Arc<Dependency>>>;
+pub type Dependencies = Arc<Vec<Arc<Dependency>>>;
 
 #[derive(Debug)]
 pub struct VM {
@@ -49,20 +49,6 @@ impl RigzBuilder for VM {
     #[inline]
     fn build(self) -> VM {
         self
-    }
-
-    #[inline]
-    fn register_dependency(&mut self, dependency: Arc<Dependency>) -> usize {
-        let dep = self
-            .dependencies
-            .read()
-            .expect("failed to read dependencies")
-            .len();
-        self.dependencies
-            .get_mut()
-            .expect("failed to lock dependencies")
-            .push(dependency);
-        dep
     }
 
     #[inline]

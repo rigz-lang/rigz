@@ -1,5 +1,5 @@
 use crate::process::Process;
-use crate::{Modules, Scope, VMOptions, VM};
+use crate::{Dependencies, Modules, Scope, VMOptions, VM};
 use log::warn;
 use rigz_core::{AsPrimitive, Lifecycle, MutableReference, ObjectValue, Reference, VMError};
 use std::cell::RefCell;
@@ -105,11 +105,12 @@ impl ProcessManager {
         args: Vec<ObjectValue>,
         options: VMOptions,
         modules: Modules,
+        dependencies: Dependencies,
         timeout: Option<usize>,
         process_manager: MutableReference<ProcessManager>,
     ) -> Result<usize, VMError> {
         let pid = self.processes.len();
-        let p = Process::new(scope, options, modules, timeout, process_manager);
+        let p = Process::new(scope, options, modules, dependencies, timeout, process_manager);
         #[cfg(feature = "threaded")]
         {
             let p: Reference<Process> = p.into();
@@ -375,6 +376,7 @@ impl ProcessManager {
                     s.clone(),
                     vm.options,
                     vm.modules.clone(),
+                    vm.dependencies.clone(),
                     None,
                     vm.process_manager.clone(),
                 )

@@ -278,7 +278,7 @@ mod vm_test {
                 ],
                 named: "test".to_string(),
                 lifecycle: Some(Lifecycle::Test(TestLifecycle)),
-                args: Vec::new(),
+                args: Vec::new().into(),
                 set_self: None,
                 propagate: false,
             },

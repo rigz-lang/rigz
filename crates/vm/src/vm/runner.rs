@@ -1,5 +1,5 @@
 use crate::{
-    runner_common, CallFrame, CallType, Instruction, Modules, ResolvedModule, Runner, Scope,
+    runner_common, CallFrame, CallType, Dependencies, Instruction, Modules, ResolvedModule, Runner, Scope,
     VMOptions, VMState, Variable, VM,
 };
 use itertools::Itertools;
@@ -161,33 +161,6 @@ impl Runner for VM {
         Ok(())
     }
 
-    fn call_dependency(
-        &mut self,
-        args: RigzArgs,
-        dep: usize,
-        call_type: CallType,
-    ) -> Result<ObjectValue, VMError> {
-        match self.dependencies.read() {
-            Ok(deps) => match deps.get(dep) {
-                None => Err(VMError::runtime(format!("Dependency not found {dep}"))),
-                Some(dep) => {
-                    let res = match call_type {
-                        CallType::Create => {
-                            let c = dep.create;
-                            c(args)?.into()
-                        }
-                        CallType::Call(func) => {
-                            let c = dep.call;
-                            c(func, args)?
-                        }
-                    };
-                    Ok(res)
-                }
-            },
-            Err(e) => Err(VMError::runtime(format!("Failed to get deps {e}"))),
-        }
-    }
-
     fn goto(&mut self, scope_id: usize, pc: usize) -> Result<(), VMError> {
         self.sp = scope_id;
         self.frames.current.borrow_mut().pc = pc;
@@ -219,9 +192,10 @@ impl Runner for VM {
         };
         let options = self.options;
         let m = self.modules();
+        let d = self.dependencies();
         let pid = self
             .process_manager
-            .update_with_ref(move |p, pm| p.spawn(scope, vec![], options, m, timeout, pm))?;
+            .update_with_ref(move |p, pm| p.spawn(scope, vec![], options, m, d, timeout, pm))?;
         self.store_value((pid as i64).into());
         Ok(())
     }
@@ -236,16 +210,6 @@ impl Runner for VM {
             None => Err(VMError::runtime(format!("Enum {enum_type} doesn't exist"))),
             Some(v) => Ok(v.clone()),
         }
-    }
-
-    fn call(
-        &mut self,
-        module: ResolvedModule,
-        func: &str,
-        args: usize,
-    ) -> Result<ObjectValue, VMError> {
-        let args = self.resolve_args(args).into();
-        module.call(func, args)
     }
     //
     // fn vm_extension(

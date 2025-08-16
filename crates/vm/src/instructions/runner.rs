@@ -1,6 +1,4 @@
-use crate::{
-    err, errln, out, outln, CallFrame, Instruction, MatchArm, Modules, Scope, VMOptions, VMState,
-};
+use crate::{err, errln, out, outln, CallFrame, Dependencies, Instruction, MatchArm, Modules, Scope, VMOptions, VMState};
 use log::log;
 use rigz_core::{AsPrimitive, BinaryAssignOperation, BinaryOperation, EnumDeclaration, IndexMap, IndexSet, Logical, LogicalAssign, Module, ObjectValue, PrimitiveValue, Reference, ResolveValue, ResolvedValue, Reverse, RigzArgs, RigzObject, RigzType, StackValue, ToBool, UnaryOperation, VMError, WithTypeInfo};
 use std::cell::RefCell;
@@ -39,6 +37,45 @@ macro_rules! runner_common {
         #[inline]
         fn modules(&self) -> Modules {
             self.modules.clone()
+        }
+
+        fn call(
+            &mut self,
+            module: ResolvedModule,
+            func: &str,
+            args: usize,
+        ) -> Result<ObjectValue, VMError> {
+            let args = self.resolve_args(args).into();
+            module.call(func, args)
+        }
+
+        #[inline]
+        fn dependencies(&self) -> Dependencies {
+            self.dependencies.clone()
+        }
+
+        fn call_dependency(
+            &mut self,
+            args: RigzArgs,
+            dep: usize,
+            call_type: CallType,
+        ) -> Result<ObjectValue, VMError> {
+            match self.dependencies.get(dep) {
+                None => Err(VMError::runtime(format!("Dependency not found {dep}"))),
+                Some(dep) => {
+                    let res = match call_type {
+                        CallType::Create => {
+                            let c = dep.create;
+                            c(args)?.into()
+                        }
+                        CallType::Call(func) => {
+                            let c = dep.call;
+                            c(func, args)?
+                        }
+                    };
+                    Ok(res)
+                }
+            }
         }
 
         #[inline]
@@ -306,6 +343,8 @@ pub trait Runner: ResolveValue {
     fn update_scope<F>(&mut self, index: usize, update: F) -> Result<(), VMError>
     where
         F: FnMut(&mut Scope) -> Result<(), VMError>;
+
+    fn dependencies(&self) -> Dependencies;
 
     fn modules(&self) -> Modules;
 

@@ -1,5 +1,5 @@
 use crate::process::{ProcessManager, ProcessRunner};
-use crate::{Modules, Scope, VMOptions};
+use crate::{Dependencies, Modules, Scope, VMOptions};
 use rigz_core::{MutableReference, ObjectValue};
 
 #[derive(Debug)]
@@ -7,6 +7,7 @@ pub(crate) struct Process {
     pub scope: Scope,
     options: VMOptions,
     modules: Modules,
+    dependencies: Dependencies,
     pub(crate) timeout: Option<usize>,
     process_manager: MutableReference<ProcessManager>,
 }
@@ -16,6 +17,7 @@ impl Process {
         scope: Scope,
         options: VMOptions,
         modules: Modules,
+        dependencies: Dependencies,
         timeout: Option<usize>,
         process_manager: MutableReference<ProcessManager>,
     ) -> Self {
@@ -23,6 +25,7 @@ impl Process {
             scope,
             options,
             modules,
+            dependencies,
             timeout,
             process_manager,
         }
@@ -34,6 +37,7 @@ impl Process {
             args,
             &self.options,
             self.modules.clone(),
+            self.dependencies.clone(),
             self.process_manager.clone(),
         );
         runner.run()

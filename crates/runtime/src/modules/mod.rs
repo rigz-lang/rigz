@@ -32,7 +32,7 @@ pub use string::StringModule;
 use crate::modules::random::Random;
 use crate::modules::uuid::UUID;
 use rigz_ast::{ParsedDependency, ParsedModule, ParsedObject, ParserOptions, ValidationError};
-use rigz_vm::{RigzBuilder, VMBuilder};
+use rigz_vm::VMBuilder;
 
 impl ProgramParser<'_, VMBuilder> {
     pub fn new() -> Self {

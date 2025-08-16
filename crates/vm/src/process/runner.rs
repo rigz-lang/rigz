@@ -1,14 +1,8 @@
 use crate::call_frame::{CallFrame, Frames};
 use crate::process::ProcessManager;
-use crate::{
-    runner_common, CallType, Instruction, Modules, ResolvedModule, Runner, Scope, VMOptions,
-    VMStack, VMState, Variable,
-};
+use crate::{runner_common, CallType, Dependencies, Instruction, Modules, ResolvedModule, Runner, Scope, VMOptions, VMStack, VMState, Variable};
 use log_derive::{logfn, logfn_inputs};
-use rigz_core::{
-    EnumDeclaration, MutableReference, ObjectValue, ResolveValue, ResolvedValue, RigzArgs,
-    StackValue, VMError,
-};
+use rigz_core::{EnumDeclaration, MutableReference, ObjectValue, ResolveValue, ResolvedValue, RigzArgs, StackValue, VMError};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Deref;
@@ -21,6 +15,7 @@ pub(crate) struct ProcessRunner<'s> {
     stack: VMStack,
     options: &'s VMOptions,
     modules: Modules,
+    dependencies: Dependencies,
     process_manager: MutableReference<ProcessManager>,
 }
 
@@ -47,6 +42,7 @@ impl<'s> ProcessRunner<'s> {
         args: Vec<ObjectValue>,
         options: &'s VMOptions,
         modules: Modules,
+        dependencies: Dependencies,
         process_manager: MutableReference<ProcessManager>,
     ) -> Self {
         Self {
@@ -55,6 +51,7 @@ impl<'s> ProcessRunner<'s> {
             stack: VMStack::new(args.into_iter().map(|v| v.into()).collect()),
             options,
             modules,
+            dependencies,
             process_manager,
         }
     }
@@ -81,17 +78,6 @@ impl Runner for ProcessRunner<'_> {
         ))
     }
 
-    fn call_dependency(
-        &mut self,
-        arg: RigzArgs,
-        dep: usize,
-        call_type: CallType,
-    ) -> Result<ObjectValue, VMError> {
-        Err(VMError::todo(format!(
-            "Process does not implement call dependency {dep}"
-        )))
-    }
-
     fn goto(&mut self, scope_id: usize, pc: usize) -> Result<(), VMError> {
         Err(VMError::todo("Process does not implement `goto`"))
     }
@@ -110,15 +96,6 @@ impl Runner for ProcessRunner<'_> {
 
     fn find_enum(&mut self, enum_type: usize) -> Result<std::sync::Arc<EnumDeclaration>, VMError> {
         Err(VMError::todo("Process does not implement `find_enum`"))
-    }
-
-    fn call(
-        &mut self,
-        module: ResolvedModule,
-        func: &str,
-        args: usize,
-    ) -> Result<ObjectValue, VMError> {
-        Err(VMError::todo("Process does not implement `call`"))
     }
 
     fn call_loop(&mut self, scope_index: usize) -> Option<VMState> {
@@ -172,7 +149,7 @@ impl Runner for ProcessRunner<'_> {
 impl ProcessRunner<'_> {
     #[inline]
     fn load_args(&mut self) -> Result<(), VMError> {
-        for (arg, mutable) in self.scope.args.clone() {
+        for (arg, mutable) in self.scope.args.iter().copied() {
             if mutable {
                 self.load_mut(arg, false)?
             } else {
