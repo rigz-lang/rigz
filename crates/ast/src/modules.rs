@@ -2,7 +2,9 @@ use crate::program::ObjectDefinition;
 use crate::{ModuleTraitDefinition, Parser, ParserOptions};
 use rigz_core::{Dependency, Module, Object};
 
+#[derive(Debug)]
 pub struct ParsedDependency {
+    pub name: &'static str,
     pub dependency: Dependency,
     pub object_definition: ObjectDefinition,
 }
@@ -10,6 +12,7 @@ pub struct ParsedDependency {
 impl ParsedDependency {
     pub fn new<T: ParsedObject>() -> Self {
         Self {
+            name: T::name(),
             dependency: Dependency::new::<T>(),
             object_definition: T::object_definition(),
         }

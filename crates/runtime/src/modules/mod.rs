@@ -13,7 +13,7 @@ mod string;
 mod uuid;
 // mod vm;
 
-use crate::prepare::{ModuleDefinition, ProgramParser};
+use crate::prepare::{DependencyDefinition, ModuleDefinition, ProgramParser};
 use std::sync::Arc;
 
 use crate::modules::html::HtmlModule;
@@ -49,10 +49,9 @@ impl ProgramParser<'_, VMBuilder> {
     }
 
     pub fn register_object<O: ParsedObject + 'static>(&mut self) -> Result<(), ValidationError> {
-        let dep = ParsedDependency::new::<O>();
-        let obj = dep.object_definition;
-        let dep = self.builder.register_dependency(Arc::new(dep.dependency));
-        self.parse_object_definition(obj, Some(dep))?;
+        let ParsedDependency { name, dependency, object_definition } = ParsedDependency::new::<O>();
+        let idx = self.builder.register_dependency(Arc::new(dependency));
+        self.parsed_deps.insert(name, DependencyDefinition::Parsed(object_definition, idx));
         Ok(())
     }
 
@@ -62,10 +61,9 @@ impl ProgramParser<'_, VMBuilder> {
     ) -> Result<(), ValidationError> {
         let name = M::name();
         let def = M::module_definition();
-        for dep in M::parsed_dependencies() {
-            let obj = dep.object_definition;
-            let dep = self.builder.register_dependency(Arc::new(dep.dependency));
-            self.parse_object_definition(obj, Some(dep))?;
+        for ParsedDependency { name, dependency, object_definition } in M::parsed_dependencies() {
+            let idx = self.builder.register_dependency(Arc::new(dependency));
+            self.parsed_deps.insert(name, DependencyDefinition::Parsed(object_definition, idx));
         }
         let index = self.builder.register_module(module);
         self.modules

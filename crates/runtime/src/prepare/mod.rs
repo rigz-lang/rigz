@@ -156,6 +156,12 @@ struct ObjectDeclaration {
     dep: Option<usize>,
 }
 
+#[derive(Debug)]
+pub enum DependencyDefinition {
+    Imported,
+    Parsed(ObjectDefinition, usize)
+}
+
 #[derive(Debug, Hash, PartialEq, Eq)]
 enum ImportPath {
     Url(String),
@@ -166,6 +172,7 @@ enum ImportPath {
 pub struct ProgramParser<'vm, T: RigzBuilder> {
     pub(crate) builder: T,
     pub(crate) modules: FastHashMap<&'vm str, ModuleDefinition>,
+    pub(crate) parsed_deps: FastHashMap<&'vm str, DependencyDefinition>,
     // todo nested functions are global, they should be removed if invalid
     pub(crate) function_scopes: FastHashMap<String, FunctionCallSignatures>,
     pub(crate) constants: FastHashMap<ObjectValue, usize>,
@@ -187,6 +194,7 @@ impl<T: RigzBuilder> Default for ProgramParser<'_, T> {
         ProgramParser {
             builder,
             modules: Default::default(),
+            parsed_deps: Default::default(),
             function_scopes: Default::default(),
             constants: FastHashMap::from_iter([(ObjectValue::default(), none)]),
             identifiers: Default::default(),
@@ -206,6 +214,7 @@ impl<'vm> ProgramParser<'vm, VMBuilder> {
         let ProgramParser {
             builder,
             modules,
+            parsed_deps,
             function_scopes,
             constants,
             identifiers,
@@ -220,6 +229,7 @@ impl<'vm> ProgramParser<'vm, VMBuilder> {
         ProgramParser {
             builder: builder.build(),
             modules,
+            parsed_deps,
             function_scopes,
             constants,
             identifiers,
@@ -1677,9 +1687,15 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     _ => {
                         let dec = match self.objects.get(&name) {
                             None => {
-                                return Err(ValidationError::InvalidType(format!(
-                                    "Missing constructor for {name}"
-                                )))
+                                return if self.parsed_deps.contains_key(name.as_str()) {
+                                    Err(ValidationError::InvalidType(format!(
+                                        "Missing import for {name}"
+                                    )))
+                                } else {
+                                    Err(ValidationError::InvalidType(format!(
+                                        "Missing constructor for {name}"
+                                    )))
+                                }
                             }
                             Some(dec) => dec.clone(),
                         };
@@ -2581,19 +2597,27 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             }
         };
 
-        if let Some(def) = self.modules.get_mut(name.as_str()) {
-            if let ModuleDefinition::Module(_, idx) = def {
-                let idx = *idx;
-                let ModuleDefinition::Module(def, _) =
+        let name = name.as_str();
+        if let Some(def) = self.modules.get_mut(name) {
+            if let ModuleDefinition::Module(_, _) = def {
+                let ModuleDefinition::Module(def, idx) =
                     std::mem::replace(def, ModuleDefinition::Imported)
                 else {
                     unreachable!()
                 };
                 self.parse_module_trait_definition(def, idx)?;
             }
-        } else if self.objects.contains_key(name.as_str()) {
+        } else if let Some(def) = self.parsed_deps.get_mut(name) {
+            if let DependencyDefinition::Parsed(_, _) = def {
+                let DependencyDefinition::Parsed(obj, dep) =
+                    std::mem::replace(def, DependencyDefinition::Imported)
+                else {
+                    unreachable!()
+                };
+                self.parse_object_definition(obj, Some(dep))?;
+            }
             // objects are auto imported for now
-        } else {
+        } else if !self.objects.contains_key(name) {
             return Err(ValidationError::InvalidImport(format!(
                 "Module or Object {name} does not exist"
             )));

@@ -428,9 +428,11 @@ pub mod runtime {
             a + a
             "# = 21)
             default_args_work_modules(r#"
+            import Random
             Random.bool || true
             "# = true)
             default_args_can_be_overwritten(r#"
+            import Random
             Random.bool 1
             "# = true)
             mut_self_clone(r#"
@@ -623,6 +625,7 @@ pub mod runtime {
             a
             "# = 4)
             random_object(r#"
+                import Random
                 mut rand = Random.new 49
                 rand.next_int
             "# = -8718902610742086980i64)
