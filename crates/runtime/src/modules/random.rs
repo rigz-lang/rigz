@@ -1,4 +1,3 @@
-use crate::modules::uuid::{UUIDObject, UUID};
 use rand::{Rng, RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use rigz_ast::*;
@@ -30,7 +29,6 @@ derive_object! {
 
         fn int -> Int
         fn float -> Float
-        fn uuid -> UUID
         fn bool(percent: Float = 0.5) -> Bool
     end
     "#
@@ -88,13 +86,6 @@ impl RandomObject for Random {
         Self: Sized,
     {
         rand::random()
-    }
-
-    fn static_uuid() -> ObjectValue
-    where
-        Self: Sized,
-    {
-        UUID::static_random()
     }
 
     fn static_bool(percent: f64) -> bool
