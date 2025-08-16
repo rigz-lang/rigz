@@ -82,14 +82,6 @@ impl Runner for ProcessRunner<'_> {
         Err(VMError::todo("Process does not implement `goto`"))
     }
 
-    fn send(&mut self, args: usize) -> Result<(), VMError> {
-        Err(VMError::todo("Process does not implement `send`"))
-    }
-
-    fn receive(&mut self, args: usize) -> Result<(), VMError> {
-        Err(VMError::todo("Process does not implement `receive`"))
-    }
-
     fn spawn(&mut self, scope_id: usize, timeout: Option<usize>) -> Result<(), VMError> {
         Err(VMError::todo("Process does not implement `spawn`"))
     }

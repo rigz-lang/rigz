@@ -229,6 +229,20 @@ macro_rules! runner_common {
             let this = self.next_resolved_value(|| "call_extension");
             module.call_mutable_extension(this, func, args)
         }
+
+        fn send(&mut self, args: usize) -> Result<(), VMError> {
+            let args = self.resolve_args(args);
+            let v = self.process_manager.update(|p| p.send(args))?;
+            self.store_value(v.into());
+            Ok(())
+        }
+
+        fn receive(&mut self, args: usize) -> Result<(), VMError> {
+            let args = self.resolve_args(args);
+            let res = self.process_manager.update(move |p| p.receive(args))?;
+            self.store_value(res.into());
+            Ok(())
+        }
     };
 }
 
