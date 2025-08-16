@@ -9,8 +9,6 @@ use std::time::Duration;
 
 #[derive(Debug)]
 pub(crate) struct ProcessManager {
-    #[cfg(feature = "threaded")]
-    pub(crate) handle: tokio::runtime::Handle,
     processes: SpawnedProcesses,
 }
 
@@ -67,6 +65,14 @@ static TOKIO: std::sync::LazyLock<
     Ok((handle, runtime))
 });
 
+#[cfg(feature = "threaded")]
+fn tokio_handle() -> Result<tokio::runtime::Handle, VMError> {
+    match TOKIO.as_ref() {
+        Ok((h, _)) => Ok(h.clone()),
+        Err(e) => Err(e.clone()),
+    }
+}
+
 impl ProcessManager {
     #[cfg(not(feature = "threaded"))]
     pub(crate) fn new() -> Self {
@@ -76,14 +82,15 @@ impl ProcessManager {
     }
 
     #[cfg(feature = "threaded")]
-    pub(crate) fn create() -> Result<Self, VMError> {
-        let handle = match TOKIO.as_ref() {
-            Ok((h, _)) => h.clone(),
-            Err(e) => return Err(e.clone()),
-        };
+    pub(crate) fn sleep(&self, duration: Duration) {
+        if let Ok(handle) = tokio_handle() {
+            handle.block_on(tokio::time::sleep(duration));
+        }
+    }
 
+    #[cfg(feature = "threaded")]
+    pub(crate) fn create() -> Result<Self, VMError> {
         Ok(Self {
-            handle,
             processes: Vec::new(),
         })
     }
@@ -107,7 +114,8 @@ impl ProcessManager {
         {
             let p: Reference<Process> = p.into();
             let arc = p.clone();
-            let t = self.handle.spawn_blocking(move || arc.run(args));
+            let handle = tokio_handle()?;
+            let t = handle.spawn_blocking(move || arc.run(args));
             self.processes.push((p, Some(t)));
         }
 
@@ -129,6 +137,7 @@ impl ProcessManager {
         // todo message or pid
         let message = args.next().unwrap().to_string();
         let args = Vec::from_iter(args);
+        let handle = tokio_handle()?;
         let res: Vec<_> = self
             .processes
             .iter_mut()
@@ -137,7 +146,7 @@ impl ProcessManager {
                 Some(Lifecycle::On(e)) => e.event == message,
                 _ => false,
             })
-            .map(|(id, running)| run_process(&self.handle, id, running, args.clone()))
+            .map(|(id, running)| run_process(&handle, id, running, args.clone()))
             .collect();
 
         if res.is_empty() {
@@ -232,7 +241,11 @@ impl ProcessManager {
                     None => p.timeout,
                     Some(s) => Some(s),
                 };
-                let res = self.handle.block_on(async move {
+                let handle = match tokio_handle() {
+                    Ok(h) => h,
+                    Err(e) => return e.into(),
+                };
+                let res = handle.block_on(async move {
                     match timeout {
                         None => running.await,
                         Some(time) => {
@@ -273,11 +286,18 @@ impl ProcessManager {
 
     #[cfg(feature = "threaded")]
     pub(crate) fn close(&mut self, result: ObjectValue) -> ObjectValue {
+        if self.processes.is_empty() {
+            return result
+        }
         let mut errors: Vec<VMError> = vec![];
+        let tokio = match tokio_handle() {
+            Ok(h) => h,
+            Err(e) => return e.into(),
+        };
         for (id, (_, handle)) in self.processes.drain(..).enumerate() {
             match handle {
                 None => {}
-                Some(t) => match self.handle.block_on(t) {
+                Some(t) => match tokio.block_on(t) {
                     Ok(v) => {
                         warn!("Orphaned value from Process {id} - {v}")
                     }

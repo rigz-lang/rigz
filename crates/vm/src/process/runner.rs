@@ -154,7 +154,7 @@ impl Runner for ProcessRunner<'_> {
     fn sleep(&self, duration: Duration) {
         #[cfg(feature = "threaded")]
         self.process_manager
-            .apply(move |pm| pm.handle.block_on(tokio::time::sleep(duration)));
+            .apply(move |pm| pm.sleep(duration));
 
         #[cfg(not(feature = "threaded"))]
         std::thread::sleep(duration)
