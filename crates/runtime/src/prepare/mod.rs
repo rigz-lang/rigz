@@ -1608,7 +1608,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
 
                 for (index, c) in calls {
                     self.check_module_exists(&c)?;
-                    if self.function_scopes.contains_key(&c) {
+                    if !self.function_scopes.contains_key(&c) {
                         self.builder.add_load_instruction(c.into());
                         self.builder.add_instance_get_instruction(false);
                         rt = RigzType::default();
