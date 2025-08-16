@@ -17,14 +17,14 @@ rhs.sort
 fn part1
     mut res = 0
     for l, r in lhs.zip rhs
-        res += r > l ? r - l : l - r
+        res += (r - l).abs
     end
     res
 end
 
 vals = rhs.group_by(|v| v)
 
-fn part2 = lhs.map {|l| l * ((vals[l] || []) as List).len }.sum
+fn part2 = lhs.map {|l| l * (vals[l] || []).len }.sum
 
 o1 = part1
 o2 = part2

@@ -140,7 +140,7 @@ derive_module! {
         fn Map.has(key) -> Bool
         fn Map.has_value(value) -> Bool
 
-        fn List.group_by(func: |Any| -> Any)
+        fn List.group_by(func: |Any| -> Any) -> { Any, List }
             mut result = {}
             # todo support using reduce with lambda here
             for v in self
