@@ -12,10 +12,14 @@ use mopa::mopafy;
 pub use snapshot::Snapshot;
 use std::cell::RefCell;
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::vec::IntoIter;
+use fxhash::FxBuildHasher;
+
+pub type FastHashMap<K, V> = HashMap<K, V, FxBuildHasher>;
 
 pub trait Definition {
     fn name() -> &'static str

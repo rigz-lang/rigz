@@ -12,6 +12,7 @@ threaded = []
 
 [dependencies]
 dyn-clone = "1.0.20"
+fxhash = "0.2.1"
 indexmap = { version = "2.10.0", features = ["serde"] }
 itertools = "0.14.0"
 log.workspace = true

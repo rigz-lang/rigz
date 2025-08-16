@@ -89,7 +89,7 @@ impl RequestObject for Request {
         let key = binding.deref();
         self.headers
             .as_ref()
-            .map(|h| h.get(key).map(|v| v.clone()))?
+            .map(|h| h.get(key).cloned())?
     }
 
     fn mut_body(&mut self, body: Rc<RefCell<ObjectValue>>) {
@@ -102,7 +102,7 @@ impl RequestObject for Request {
 
     fn mut_headers(&mut self, key: Vec<String>, value: Vec<String>) {
         if self.headers.is_none() {
-            self.headers = Some(IndexMap::new());
+            self.headers = Some(IndexMap::default());
         }
         match &mut self.headers {
             None => unreachable!(),
@@ -139,7 +139,7 @@ impl CreateObject for Request {
             Ok(Self {
                 path: path.to_string(),
                 method: method.map(|o| o.to_string()),
-                body: body.map(|o| o.clone().into()),
+                body: body.map(|o| o.clone()),
                 headers,
             })
         }
@@ -268,7 +268,7 @@ fn handle_body(
         // todo support form
         // todo support bytes
         Some(o) => match o.borrow().deref() {
-            ObjectValue::Primitive(PrimitiveValue::String(body)) => req.send_string(&body),
+            ObjectValue::Primitive(PrimitiveValue::String(body)) => req.send_string(body),
             o => req.send_string(&o.to_string()),
         },
     };

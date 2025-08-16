@@ -7,7 +7,6 @@ mod html;
 mod http;
 mod json;
 mod log;
-mod math;
 mod number;
 mod random;
 mod string;
@@ -26,15 +25,14 @@ pub use date::DateModule;
 pub use file::FileModule;
 pub use json::JSONModule;
 pub use log::LogModule;
-pub use math::MathModule;
 pub use number::NumberModule;
-pub use random::RandomModule;
 pub use string::StringModule;
-pub use uuid::UUIDModule;
 // pub use vm::VMModule;
 
-use rigz_ast::{ParsedModule, ParserOptions, ValidationError};
+use rigz_ast::{ParsedDependency, ParsedModule, ParsedObject, ParserOptions, ValidationError};
 use rigz_vm::{RigzBuilder, VMBuilder};
+use crate::modules::random::Random;
+use crate::modules::uuid::UUID;
 
 impl ProgramParser<'_, VMBuilder> {
     pub fn new() -> Self {
@@ -48,6 +46,14 @@ impl ProgramParser<'_, VMBuilder> {
         let mut p = ProgramParser::default();
         p.parser_options = parser_options;
         p
+    }
+
+    pub fn register_object<O: ParsedObject + 'static>(&mut self) -> Result<(), ValidationError>  {
+        let dep = ParsedDependency::new::<O>();
+        let obj = dep.object_definition;
+        let dep = self.builder.register_dependency(Arc::new(dep.dependency));
+        self.parse_object_definition(obj, Some(dep))?;
+        Ok(())
     }
 
     pub fn register_module<M: ParsedModule + 'static>(
@@ -78,9 +84,8 @@ impl ProgramParser<'_, VMBuilder> {
         self.register_module(JSONModule)?;
         self.register_module(FileModule)?;
         self.register_module(DateModule)?;
-        self.register_module(UUIDModule)?;
-        self.register_module(RandomModule)?;
-        self.register_module(MathModule)?;
+        self.register_object::<UUID>()?;
+        self.register_object::<Random>()?;
         self.register_module(HtmlModule)?; // http module depends on html
         self.register_module(HttpModule::default())?;
         Ok(())

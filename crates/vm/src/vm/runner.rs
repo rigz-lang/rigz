@@ -592,6 +592,7 @@ impl Runner for VM {
             instructions: vec![Instruction::Halt],
             lifecycle: None,
             set_self: None,
+            propagate: false,
         });
         let current = self.frames.current.replace(CallFrame::exit(scope_id));
         self.frames.push(current);

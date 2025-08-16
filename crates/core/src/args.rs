@@ -38,11 +38,6 @@ pub type VarArgs<const START: usize, const COUNT: usize> = (
     [Vec<Rc<RefCell<ObjectValue>>>; COUNT],
 );
 
-pub type VarArgsRc<const START: usize, const COUNT: usize> = (
-    [Rc<RefCell<ObjectValue>>; START],
-    [Rc<RefCell<ObjectValue>>; COUNT],
-);
-
 impl RigzArgs {
     #[inline]
     pub fn len(&self) -> usize {
@@ -113,49 +108,6 @@ impl RigzArgs {
         }
         let min = var[0].len();
         if var.iter().any(|v| v.len() != min) {
-            Err(VMError::runtime(format!(
-                "Invalid var args, expected all args to contain {min}"
-            )))
-        } else {
-            Ok((results, var))
-        }
-    }
-
-    #[inline]
-    pub fn var_args_rc<const START: usize, const COUNT: usize>(
-        self,
-    ) -> Result<VarArgsRc<START, COUNT>, VMError> {
-        if self.len() < START {
-            return Err(VMError::runtime(format!(
-                "Invalid args, expected {START} argument{}",
-                if START > 1 { "s" } else { "" }
-            )));
-        }
-
-        let mut results = [(); START].map(|_| Rc::new(ObjectValue::default().into()));
-        let mut var_len = [0; COUNT];
-        let mut var = [(); COUNT].map(|_| Rc::new(RefCell::new(ObjectValue::default())));
-        for (i, v) in self.0.into_iter().rev().enumerate() {
-            if i < START {
-                results[i] = v;
-                continue;
-            }
-
-            let rc = v.clone();
-            match v.borrow().to_list() {
-                Ok(l) => {
-                    var_len[i - START] = l.len();
-                    var[i - START] = rc;
-                }
-                Err(e) => {
-                    return Err(VMError::runtime(format!(
-                        "Invalid Var Args at {i} - {v:?}: {e}"
-                    )));
-                }
-            };
-        }
-        let min = var_len[0];
-        if var_len.iter().any(|v| *v != min) {
             Err(VMError::runtime(format!(
                 "Invalid var args, expected all args to contain {min}"
             )))

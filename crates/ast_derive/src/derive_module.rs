@@ -123,7 +123,7 @@ impl ToTokens for DeriveModule {
                             }
                             Some(t) => {
                                 let name = Ident::new("this", Span::call_site());
-                                let ty = if &t.rigz_type == &RigzType::Any {
+                                let ty = if t.rigz_type == RigzType::Any {
                                     "ObjectValue".to_string()
                                 } else {
                                     rigz_type_to_rust_str(&t.rigz_type, false).unwrap()

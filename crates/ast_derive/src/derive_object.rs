@@ -23,6 +23,7 @@ pub(crate) struct DeriveObject {
     definition: ObjectArg,
     literal: LitStr,
     display: bool,
+    visibility: Visibility,
 }
 
 impl Parse for DeriveObject {
@@ -33,6 +34,12 @@ impl Parse for DeriveObject {
             Some(parent)
         } else {
             None
+        };
+        // todo support pub(crate)
+        let visibility = if input.peek(token::Pub) {
+            input.parse()?
+        } else {
+            Visibility::Inherited
         };
         let definition = if input.peek(token::Struct) {
             ObjectArg::Struct(input.parse()?)
@@ -57,6 +64,7 @@ impl Parse for DeriveObject {
             definition,
             literal,
             display,
+            visibility
         })
     }
 }
@@ -176,6 +184,10 @@ impl DeriveObject {
         };
 
         let name = id.to_string();
+        let name = match parent {
+            None => quote! { #name },
+            Some(p) => quote! { concat!(#p, "::", #name) }
+        };
         let mut obj_def = Parser::prepare(lit.as_str(), ParserOptions::default());
         let obj_def = obj_def
             .parse_object_definition()
@@ -185,7 +197,7 @@ impl DeriveObject {
 
             impl rigz_core::Definition for #id {
                 fn name() -> &'static str {
-                    concat!(#parent, "::", #name)
+                    #name
                 }
 
                 fn trait_definition() -> &'static str {
@@ -203,7 +215,7 @@ impl DeriveObject {
             }
         };
 
-        let impl_object = impl_object(id, &obj_def);
+        let impl_object = impl_object(id, &obj_def, &self.visibility);
 
         quote! {
             #base
@@ -215,13 +227,13 @@ impl DeriveObject {
     }
 }
 
-fn impl_object(name: &Ident, object_definition: &ObjectDefinition) -> Tokens {
+fn impl_object(name: &Ident, object_definition: &ObjectDefinition, visibility: &Visibility) -> Tokens {
     let CustomTrait {
         ext,
         mutf,
         statf,
         trait_def,
-    } = custom_trait(name, object_definition);
+    } = custom_trait(name, object_definition, visibility);
 
     quote! {
         #[typetag::serde]
@@ -244,7 +256,7 @@ struct CustomTrait {
     trait_def: Tokens,
 }
 
-fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTrait {
+fn custom_trait(name: &Ident, object_definition: &ObjectDefinition, visibility: &Visibility) -> CustomTrait {
     let funcs: Vec<_> = object_definition
         .functions
         .iter()
@@ -457,7 +469,7 @@ fn custom_trait(name: &Ident, object_definition: &ObjectDefinition) -> CustomTra
 
     let trait_name = Ident::new(format!("{}Object", name).as_str(), Span::call_site());
     let trait_def = quote! {
-        trait #trait_name {
+        #visibility trait #trait_name {
             #(#trait_methods)*
         }
     };

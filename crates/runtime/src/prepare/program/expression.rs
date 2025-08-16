@@ -183,12 +183,10 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 };
                 let base = if types.is_empty() {
                     RigzType::Any
+                } else if types.len() == 1 {
+                    types.remove(0)
                 } else {
-                    if types.len() == 1 {
-                        types.remove(0)
-                    } else {
-                        RigzType::Union(types)
-                    }
+                    RigzType::Union(types)
                 };
                 RigzType::List(base.into())
             },
@@ -301,7 +299,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 RigzType::Union(v.iter().map(|v| self.index_type(v)).unique().collect())
             }
             RigzType::Custom(_) => RigzType::Any,
-            RigzType::Wrapper { base_type, .. } => self.index_type(&base_type),
+            RigzType::Wrapper { base_type, .. } => self.index_type(base_type),
             RigzType::Enum(i) => {
                 todo!("Enum indexes aren't supported yet {i}")
             }

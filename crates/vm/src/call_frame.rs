@@ -1,6 +1,7 @@
 use log_derive::{logfn, logfn_inputs};
-use rigz_core::{IndexMap, IndexMapEntry, Snapshot, StackValue, VMError};
+use rigz_core::{FastHashMap, Snapshot, StackValue, VMError};
 use std::cell::RefCell;
+use std::collections::hash_map::Entry;
 use std::fmt::Display;
 use std::ops::Index;
 use std::vec::IntoIter;
@@ -90,7 +91,7 @@ impl Frames {
     #[logfn_inputs(Trace, fmt = "load_let(frames={:#?} name={}, value={:?}, shadow={})")]
     pub fn load_let(&self, name: usize, value: StackValue, shadow: bool) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
-            IndexMapEntry::Occupied(mut v) => {
+            Entry::Occupied(mut v) => {
                 if shadow {
                     *v.get_mut() = Variable::Let(value);
                 } else {
@@ -100,7 +101,7 @@ impl Frames {
                     )));
                 }
             }
-            IndexMapEntry::Vacant(e) => {
+            Entry::Vacant(e) => {
                 e.insert(Variable::Let(value));
             }
         }
@@ -123,7 +124,7 @@ impl Frames {
     #[logfn_inputs(Trace, fmt = "load_mut(frames={:#?} name={}, value={:?}, shadow={})")]
     pub fn load_mut(&self, name: usize, value: StackValue, shadow: bool) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
-            IndexMapEntry::Occupied(mut var) => match var.get() {
+            Entry::Occupied(mut var) => match var.get() {
                 Variable::Let(_) => {
                     if shadow {
                         *var.get_mut() = Variable::Mut(value);
@@ -138,7 +139,7 @@ impl Frames {
                     *var.get_mut() = Variable::Mut(value);
                 }
             },
-            IndexMapEntry::Vacant(e) => {
+            Entry::Vacant(e) => {
                 e.insert(Variable::Mut(value));
             }
         }
@@ -160,7 +161,7 @@ impl Default for Frames {
 pub struct CallFrame {
     pub scope_id: usize,
     pub pc: usize,
-    pub variables: IndexMap<usize, Variable>,
+    pub variables: FastHashMap<usize, Variable>,
     pub parent: Option<usize>,
 }
 

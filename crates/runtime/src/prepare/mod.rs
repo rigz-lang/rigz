@@ -5,13 +5,9 @@ use itertools::Itertools;
 use log::{error, warn, Level};
 pub use program::Program;
 use rigz_ast::*;
-use rigz_core::{
-    EnumDeclaration, IndexMap, IndexMapEntry, IndexSet, Lifecycle, Number, ObjectValue,
-    PrimitiveValue, RigzType,
-};
+use rigz_core::{EnumDeclaration, FastHashMap, IndexMap, IndexSet, Lifecycle, Number, ObjectValue, PrimitiveValue, RigzType};
 use rigz_vm::{Instruction, LoadValue, MatchArm, RigzBuilder, VMBuilder, VM};
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
 use std::env;
 use std::fmt::Debug;
 use std::path::PathBuf;
@@ -166,18 +162,18 @@ enum ImportPath {
 #[derive(Debug)]
 pub struct ProgramParser<'vm, T: RigzBuilder> {
     pub(crate) builder: T,
-    pub(crate) modules: IndexMap<&'vm str, ModuleDefinition>,
+    pub(crate) modules: FastHashMap<&'vm str, ModuleDefinition>,
     // todo nested functions are global, they should be removed if invalid
-    pub(crate) function_scopes: IndexMap<String, FunctionCallSignatures>,
-    pub(crate) constants: IndexMap<ObjectValue, usize>,
-    pub(crate) identifiers: HashMap<String, FunctionType>,
-    pub(crate) types: HashMap<String, RigzType>,
+    pub(crate) function_scopes: FastHashMap<String, FunctionCallSignatures>,
+    pub(crate) constants: FastHashMap<ObjectValue, usize>,
+    pub(crate) identifiers: FastHashMap<String, FunctionType>,
+    pub(crate) types: FastHashMap<String, RigzType>,
     pub(crate) parser_options: ParserOptions,
     // todo imports should be fully resolved path
-    imports: HashMap<ImportPath, Imports>,
-    objects: HashMap<String, Rc<ObjectDeclaration>>,
-    enums: HashMap<String, (usize, Arc<EnumDeclaration>)>,
-    enum_lookups: HashMap<usize, Arc<EnumDeclaration>>,
+    imports: FastHashMap<ImportPath, Imports>,
+    objects: FastHashMap<String, Rc<ObjectDeclaration>>,
+    enums: FastHashMap<String, (usize, Arc<EnumDeclaration>)>,
+    enum_lookups: FastHashMap<usize, Arc<EnumDeclaration>>,
     in_loop: bool,
 }
 
@@ -189,7 +185,7 @@ impl<T: RigzBuilder> Default for ProgramParser<'_, T> {
             builder,
             modules: Default::default(),
             function_scopes: Default::default(),
-            constants: IndexMap::from([(ObjectValue::default(), none)]),
+            constants: FastHashMap::from_iter([(ObjectValue::default(), none)]),
             identifiers: Default::default(),
             types: Default::default(),
             parser_options: Default::default(),
@@ -850,8 +846,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     };
                     let cs = CallSignature::Function(fcs, CallSite::Object(dep));
                     match self.function_scopes.entry(name) {
-                        IndexMapEntry::Occupied(mut ex) => ex.get_mut().push(cs),
-                        IndexMapEntry::Vacant(v) => {
+                        Entry::Occupied(mut ex) => ex.get_mut().push(cs),
+                        Entry::Vacant(v) => {
                             v.insert(vec![cs]);
                         }
                     };
@@ -1004,10 +1000,10 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     let args = args.to_vec();
                     let cs = CallSignature::Lambda(type_definition.clone(), args, *ret.clone());
                     match self.function_scopes.entry(arg.name.clone()) {
-                        IndexMapEntry::Occupied(mut entry) => {
+                        Entry::Occupied(mut entry) => {
                             entry.get_mut().push(cs);
                         }
-                        IndexMapEntry::Vacant(entry) => {
+                        Entry::Vacant(entry) => {
                             entry.insert(vec![cs]);
                         }
                     }
@@ -1022,13 +1018,13 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         let f_def = self.builder.current_scope();
         let self_type = type_definition.self_type.clone();
         match self.function_scopes.entry(name) {
-            IndexMapEntry::Occupied(mut entry) => {
+            Entry::Occupied(mut entry) => {
                 entry.get_mut().push(CallSignature::Function(
                     type_definition,
                     CallSite::Scope(f_def, memoized),
                 ));
             }
-            IndexMapEntry::Vacant(e) => {
+            Entry::Vacant(e) => {
                 e.insert(vec![CallSignature::Function(
                     type_definition,
                     CallSite::Scope(f_def, memoized),
@@ -1074,13 +1070,13 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 } => {
                     let type_definition = self.parse_type_signature(&name, type_definition)?;
                     match self.function_scopes.entry(name) {
-                        IndexMapEntry::Occupied(mut entry) => {
+                        Entry::Occupied(mut entry) => {
                             entry.get_mut().push(CallSignature::Function(
                                 type_definition,
                                 CallSite::Module(index),
                             ));
                         }
-                        IndexMapEntry::Vacant(e) => {
+                        Entry::Vacant(e) => {
                             e.insert(vec![CallSignature::Function(
                                 type_definition,
                                 CallSite::Module(index),
@@ -1609,7 +1605,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
 
                 for (index, c) in calls {
                     self.check_module_exists(&c)?;
-                    if self.function_scopes.get(&c).is_none() {
+                    if self.function_scopes.contains_key(&c) {
                         self.builder.add_load_instruction(c.into());
                         self.builder.add_instance_get_instruction(false);
                         rt = RigzType::default();
@@ -1635,7 +1631,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                             1 => {
                                 if let RigzArguments::Positional(args) = &args {
                                     let rigz_type = self.rigz_type(&args[0])?;
-                                    let name = if &rigz_type == &RigzType::Number {
+                                    let name = if rigz_type == RigzType::Number {
                                         "len".to_string()
                                     } else {
                                         "values".to_string()
@@ -1731,8 +1727,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
 
     fn find_or_create_constant(&mut self, value: ObjectValue) -> usize {
         match self.constants.entry(value) {
-            IndexMapEntry::Occupied(e) => *e.get(),
-            IndexMapEntry::Vacant(e) => {
+            Entry::Occupied(e) => *e.get(),
+            Entry::Vacant(e) => {
                 let index = self.builder.add_constant(e.key().clone());
                 e.insert(index);
                 index
@@ -1802,7 +1798,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
     }
 
     fn parse_set(&mut self, list: Vec<Expression>) -> Result<(), ValidationError> {
-        let mut base = IndexSet::new();
+        let mut base = IndexSet::default();
         let mut values_only = true;
         for (index, v) in list.into_iter().enumerate() {
             if values_only {
@@ -1815,7 +1811,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                         let index = Number::Int(index as i64);
                         self.builder
                             .add_load_instruction(ObjectValue::Set(base).into());
-                        base = IndexSet::new();
+                        base = IndexSet::default();
                         self.builder.add_load_instruction(index.into());
                         self.parse_expression(e)?;
                         self.builder.add_instance_set_instruction();
@@ -1870,7 +1866,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
     }
 
     fn parse_map(&mut self, map: Vec<(Expression, Expression)>) -> Result<(), ValidationError> {
-        let mut base = IndexMap::new();
+        let mut base = IndexMap::default();
         let mut values_only = true;
 
         for (k, v) in map {
@@ -1889,13 +1885,13 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                         self.builder.add_load_instruction(k.into());
                         self.parse_expression(e)?;
                         self.builder.add_instance_set_instruction();
-                        base = IndexMap::new();
+                        base = IndexMap::default();
                     }
                     (k, v) => {
                         values_only = false;
                         self.builder
                             .add_load_instruction(ObjectValue::Map(base).into());
-                        base = IndexMap::new();
+                        base = IndexMap::default();
                         self.parse_expression(k)?;
                         self.parse_expression(v)?;
                         self.builder.add_instance_set_instruction();
@@ -2582,24 +2578,20 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             }
         };
 
-        match self.modules.get_mut(name.as_str()) {
-            None => {
-                // todo support non module imports
-                return Err(ValidationError::ModuleError(format!(
-                    "Module {name} does not exist"
-                )));
+        if let Some(def) = self.modules.get_mut(name.as_str()) {
+            if let ModuleDefinition::Module(_, idx) = def {
+                let idx = *idx;
+                let ModuleDefinition::Module(def, _) =
+                    std::mem::replace(def, ModuleDefinition::Imported)
+                else {
+                    unreachable!()
+                };
+                self.parse_module_trait_definition(def, idx)?;
             }
-            Some(def) => {
-                if let ModuleDefinition::Module(_, idx) = def {
-                    let idx = *idx;
-                    let ModuleDefinition::Module(def, _) =
-                        std::mem::replace(def, ModuleDefinition::Imported)
-                    else {
-                        unreachable!()
-                    };
-                    self.parse_module_trait_definition(def, idx)?;
-                }
-            }
+        } else if self.objects.contains_key(name.as_str()) {
+            // objects are auto imported for now
+        } else {
+            return Err(ValidationError::InvalidImport(format!("Module or Object {name} does not exist")))
         }
         Ok(())
     }

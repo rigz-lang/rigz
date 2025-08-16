@@ -1,7 +1,6 @@
 mod ops;
 
-use crate::{impl_from, PrimitiveValue};
-use indexmap::IndexMap;
+use crate::{impl_from, IndexMap, PrimitiveValue};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};

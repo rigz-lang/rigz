@@ -1,5 +1,4 @@
-use crate::{IndexSet, Number, RigzType, VMError};
-use indexmap::IndexMap;
+use crate::{IndexMap, IndexSet, Number, RigzType, VMError};
 use std::fmt::{Debug, Display};
 
 pub trait WithTypeInfo {

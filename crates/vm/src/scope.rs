@@ -10,6 +10,7 @@ pub struct Scope {
     pub named: String,
     pub args: Vec<(usize, bool)>,
     pub set_self: Option<bool>,
+    pub propagate: bool
 }
 
 impl Default for Scope {
@@ -20,6 +21,7 @@ impl Default for Scope {
             lifecycle: None,
             args: vec![],
             set_self: None,
+            propagate: false,
         }
     }
 }
@@ -31,6 +33,7 @@ impl Snapshot for Scope {
         res.extend(self.lifecycle.as_bytes());
         res.extend(self.args.as_bytes());
         res.extend(self.set_self.as_bytes());
+        res.extend(self.propagate.as_bytes());
         res
     }
 
@@ -40,12 +43,14 @@ impl Snapshot for Scope {
         let lifecycle = Snapshot::from_bytes(bytes, location)?;
         let args = Snapshot::from_bytes(bytes, location)?;
         let set_self = Snapshot::from_bytes(bytes, location)?;
+        let propagate = Snapshot::from_bytes(bytes, location)?;
         Ok(Scope {
             instructions,
             lifecycle,
             named,
             args,
             set_self,
+            propagate
         })
     }
 }
@@ -53,10 +58,12 @@ impl Snapshot for Scope {
 impl Scope {
     #[inline]
     pub fn new(named: String, args: Vec<(usize, bool)>, set_self: Option<bool>) -> Self {
+        let propagate = matches!(named.as_str(), "if" | "unless" | "else" | "loop" | "for");
         Scope {
             named,
             args,
             set_self,
+            propagate,
             ..Default::default()
         }
     }
@@ -68,11 +75,13 @@ impl Scope {
         lifecycle: Lifecycle,
         set_self: Option<bool>,
     ) -> Self {
+        let propagate = matches!(named.as_str(), "if" | "unless" | "else" | "loop" | "for");
         Scope {
             lifecycle: Some(lifecycle),
             named,
             args,
             set_self,
+            propagate,
             ..Default::default()
         }
     }

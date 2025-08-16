@@ -101,6 +101,6 @@ impl RigzHtml for HtmlModule {
         ids: Vec<Rc<RefCell<ObjectValue>>>,
         selectors: Vec<String>,
     ) -> IndexMap<ObjectValue, ObjectValue> {
-        html_elements(&this, ids, selectors)
+        html_elements(this, ids, selectors)
     }
 }

@@ -96,7 +96,7 @@ impl Default for VM {
             process_manager: ProcessManager::new().into(),
             dependencies: Default::default(),
             enums: Default::default(),
-            strings: IndexSet::from(["self".to_string()]),
+            strings: IndexSet::from_iter(["self".to_string()]),
         }
     }
 }
@@ -138,11 +138,7 @@ impl VM {
                     let pc = self.frames.current.borrow().pc;
                     let scope = &self.scopes[sp];
                     let len = scope.instructions.len();
-                    let propagate = len != pc
-                        && matches!(
-                            scope.named.as_str(),
-                            "if" | "unless" | "else" | "loop" | "for"
-                        );
+                    let propagate = scope.propagate && len != pc;
                     if propagate {
                         match self.frames.pop() {
                             None => {

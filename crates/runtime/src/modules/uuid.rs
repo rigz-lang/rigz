@@ -1,6 +1,6 @@
 use log::warn;
 use rigz_ast::*;
-use rigz_ast_derive::{derive_module, derive_object};
+use rigz_ast_derive::{derive_object};
 use rigz_core::*;
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
@@ -9,8 +9,7 @@ use std::rc::Rc;
 use uuid::Uuid;
 
 derive_object! {
-    "UUID",
-    struct UUID {
+    pub struct UUID {
         uuid: Uuid
     },
     r#"object UUID
@@ -19,6 +18,8 @@ derive_object! {
         fn Self.braced -> String
         fn Self.simple -> String
         fn Self.urn -> String
+
+        fn random -> UUID
     end"#,
     skip_display
 }
@@ -46,6 +47,13 @@ impl UUIDObject for UUID {
     }
     fn urn(&self) -> String {
         self.uuid.urn().to_string()
+    }
+
+    fn static_random() -> ObjectValue
+    where
+        Self: Sized
+    {
+        ObjectValue::Object(Box::new(Into::<UUID>::into(Uuid::new_v4())))
     }
 }
 
@@ -75,22 +83,5 @@ impl CreateObject for UUID {
                 "Cannot create UUID from {first}"
             )))
         }
-    }
-}
-
-derive_module! {
-    [UUID],
-    r#"trait UUID
-    fn v4 -> UUID::UUID
-
-    fn create(input: String) -> UUID::UUID!
-        UUID::UUID.new input
-    end
-end"#
-}
-
-impl RigzUUID for UUIDModule {
-    fn v4(&self) -> ObjectValue {
-        ObjectValue::Object(Box::new(Into::<UUID>::into(Uuid::new_v4())))
     }
 }

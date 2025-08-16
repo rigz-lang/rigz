@@ -1,5 +1,4 @@
-use crate::{IndexSet, VMError, ValueRange};
-use indexmap::IndexMap;
+use crate::{FastHashMap, IndexMap, IndexSet, VMError, ValueRange};
 use itertools::Itertools;
 use log::Level;
 use std::cell::RefCell;
@@ -10,6 +9,7 @@ use std::ops::Range;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::vec::IntoIter;
+use fxhash::FxBuildHasher;
 // todo make snapshot a feature
 
 pub trait Snapshot: Sized {
@@ -94,7 +94,7 @@ impl<V: Snapshot + Hash + Eq> Snapshot for IndexSet<V> {
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let len = Snapshot::from_bytes(bytes, &format!("{location} len"))?;
-        let mut results = IndexSet::with_capacity(len);
+        let mut results = IndexSet::with_capacity_and_hasher(len, FxBuildHasher::default());
         for _ in 0..len {
             let v = V::from_bytes(bytes, location)?;
             results.insert(v);
@@ -115,7 +115,29 @@ impl<K: Snapshot + Hash + Eq, V: Snapshot> Snapshot for IndexMap<K, V> {
 
     fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
         let len = Snapshot::from_bytes(bytes, &format!("{location} len"))?;
-        let mut results = IndexMap::with_capacity(len);
+        let mut results = IndexMap::with_capacity_and_hasher(len, Default::default());
+        for _ in 0..len {
+            let k = K::from_bytes(bytes, location)?;
+            let v = V::from_bytes(bytes, location)?;
+            results.insert(k, v);
+        }
+        Ok(results)
+    }
+}
+
+impl<K: Snapshot + Hash + Eq, V: Snapshot> Snapshot for FastHashMap<K, V> {
+    fn as_bytes(&self) -> Vec<u8> {
+        let mut res = Snapshot::as_bytes(&self.len());
+        for (k, v) in self {
+            res.extend(k.as_bytes());
+            res.extend(v.as_bytes());
+        }
+        res
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        let len = Snapshot::from_bytes(bytes, &format!("{location} len"))?;
+        let mut results = FastHashMap::with_capacity_and_hasher(len, FxBuildHasher::default());
         for _ in 0..len {
             let k = K::from_bytes(bytes, location)?;
             let v = V::from_bytes(bytes, location)?;

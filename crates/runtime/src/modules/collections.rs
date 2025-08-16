@@ -146,8 +146,8 @@ derive_module! {
             for v in self
                 val = func v
                 if result.has val
-                    # todo support += and .push
-                    result[val] = result[val] + v
+                    # todo support .push
+                    result[val] += v
                 else
                     result.insert val, [v]
                 end
@@ -195,7 +195,7 @@ impl RigzCollections for CollectionsModule {
         this: &IndexSet<ObjectValue>,
     ) -> (Option<ObjectValue>, IndexSet<ObjectValue>) {
         if this.is_empty() {
-            (None, IndexSet::new())
+            (None, IndexSet::default())
         } else {
             let first = this.first().unwrap();
             (Some(first.clone()), this.iter().skip(1).cloned().collect())
@@ -207,7 +207,7 @@ impl RigzCollections for CollectionsModule {
         this: &IndexSet<ObjectValue>,
     ) -> (Option<ObjectValue>, IndexSet<ObjectValue>) {
         if this.is_empty() {
-            (None, IndexSet::new())
+            (None, IndexSet::default())
         } else {
             let last = this.last().unwrap();
             (
@@ -271,11 +271,11 @@ impl RigzCollections for CollectionsModule {
         IndexMap<ObjectValue, ObjectValue>,
     ) {
         if this.is_empty() {
-            (None, IndexMap::new())
+            (None, IndexMap::default())
         } else {
             let (k, v) = this.first().unwrap();
             (
-                Some((k.clone().into(), v.borrow().clone())),
+                Some((k.clone(), v.borrow().clone())),
                 this.iter()
                     .skip(1)
                     .map(|(k, v)| (k.clone(), v.borrow().clone()))
@@ -292,11 +292,11 @@ impl RigzCollections for CollectionsModule {
         IndexMap<ObjectValue, ObjectValue>,
     ) {
         if this.is_empty() {
-            (None, IndexMap::new())
+            (None, IndexMap::default())
         } else {
             let (k, v) = this.first().unwrap();
             (
-                Some((k.clone().into(), v.borrow().clone())),
+                Some((k.clone(), v.borrow().clone())),
                 this.iter()
                     .rev()
                     .skip(1)
@@ -398,7 +398,7 @@ impl RigzCollections for CollectionsModule {
         number: Number,
     ) -> Result<Option<ObjectValue>, VMError> {
         let index = number.to_usize()?;
-        Ok(this.get_index(index).map(|v| v.clone().into()))
+        Ok(this.get_index(index).cloned())
     }
 
     fn mut_set_insert(
@@ -530,7 +530,7 @@ impl RigzCollections for CollectionsModule {
     }
 
     fn map_keys(&self, this: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>) -> Vec<ObjectValue> {
-        this.keys().map(|k| k.clone().into()).collect()
+        this.keys().cloned().collect()
     }
 
     fn map_values(

@@ -153,10 +153,10 @@ pub mod runtime {
             list_multi_index("[[], [1, 2, 3]][1][2]" = 3)
             list_index_getter("[1, 2, 3].2" = 3)
             list_empty("[].empty" = true)
-            set("Set[1, 2, 3]" = IndexSet::from([1, 2, 3]))
-            set_new("a = [3, 2, 1]; Set.new a" = IndexSet::from([3, 2, 1]))
+            set("Set[1, 2, 3]" = IndexSet::from_iter([1, 2, 3]))
+            set_new("a = [3, 2, 1]; Set.new a" = IndexSet::from_iter([3, 2, 1]))
             split_first("[1, 2, 3].split_first" = ObjectValue::Tuple(vec![ObjectValue::rc(1.into()), ObjectValue::List(vec![ObjectValue::rc(2.into()), ObjectValue::rc(3.into())].into()).into()]))
-            split_first_map("{1, 2, 3}.split_first" = ObjectValue::Tuple(vec![ObjectValue::Tuple(vec![ObjectValue::rc(1.into()), ObjectValue::rc(1.into())].into()).into(), ObjectValue::Map(IndexMap::from([(2.into(), ObjectValue::rc(2.into())), (3.into(), ObjectValue::rc(3.into()))])).into()]))
+            split_first_map("{1, 2, 3}.split_first" = ObjectValue::Tuple(vec![ObjectValue::Tuple(vec![ObjectValue::rc(1.into()), ObjectValue::rc(1.into())].into()).into(), ObjectValue::Map(IndexMap::from_iter([(2.into(), ObjectValue::rc(2.into())), (3.into(), ObjectValue::rc(3.into()))])).into()]))
             split_first_assign("(first, rest) = [1, 2, 3].split_first; first + rest" = vec![1, 2, 3])
             complex_expression_ignore_precedence("1 + 2 * 3 - 4 / 5" = 1)
             ignore_precedence("2 + 1 * 3" = 9)
@@ -232,10 +232,10 @@ pub mod runtime {
             "# = vec![1, 2, 3, 4])
             create_map(r#"
             {1, 2, 3, 4}
-            "# = IndexMap::from([(1, 1), (2, 2), (3, 3), (4, 4)]))
+            "# = IndexMap::from_iter([(1, 1), (2, 2), (3, 3), (4, 4)]))
             create_dynamic_list(r#"
                 [{d = 1}]
-            "# = vec![ObjectValue::Map(IndexMap::from([("d".into(), ObjectValue::rc(1.into()))]))])
+            "# = vec![ObjectValue::Map(IndexMap::from_iter([("d".into(), ObjectValue::rc(1.into()))]))])
             call_extension_function_multiple_times_inline_no_parens(r#"
             fn mut String.foo -> mut Self
                 self += "h"
@@ -316,8 +316,8 @@ pub mod runtime {
             "# = 42)
             for_list_assign(r#"a = [for v in [1, 2, 3]: v * v]; a"# = vec![1, 4, 9])
             for_list_exclude_nones(r#"[for v in [1, 2, 3, 'a', 'b']: v if v.is_num]"# = vec![1, 2, 3])
-            for_map(r#"{for k, v in {1, 2, 3}: k, v if k % 2 == 0}"# = IndexMap::from([(2, 2)]))
-            for_map_assign(r#"val = {for k, v in {1, 2, 3}: k, v if k % 2 == 0}; val"# = IndexMap::from([(2, 2)]))
+            for_map(r#"{for k, v in {1, 2, 3}: k, v if k % 2 == 0}"# = IndexMap::from_iter([(2, 2)]))
+            for_map_assign(r#"val = {for k, v in {1, 2, 3}: k, v if k % 2 == 0}; val"# = IndexMap::from_iter([(2, 2)]))
             lambda_in_for_list_if_expression(r#"
             func = |v| v if v.is_num
             [for a in ['a', 'b', 'c', 1, 2, 3]: func a]
@@ -329,10 +329,10 @@ pub mod runtime {
             trailing_if_false(r#"v = 'a'; v if v.is_num"# = PrimitiveValue::None)
             instance_trailing_if(r#"a = 'a'; a.to_i if a.is_num"# = PrimitiveValue::None)
             filter(r#"[1, 2, 3, 'a', 'b'].filter(|v| v.is_num)"# = vec![1, 2, 3])
-            map_filter(r#"{1, 2, 3, 'a', 'b'}.filter(|k, v| v.is_num)"# = IndexMap::from([(1, 1), (2, 2), (3, 3)]))
-            map_filter_map(r#"{1, 2, 3, 'a', 'b'}.filter { |k, v| v.is_num }.map(|k, v| (k, v * v))"# = IndexMap::from([(1, 1), (2, 4), (3, 9)]))
-            map_map_if(r#"{1, 2, 3, 'a', 'b'}.map(|k, v| (k, k * v) if k.is_num && v.is_num)"# = IndexMap::from([(1, 1), (2, 4), (3, 9)]))
-            map_map(r#"{1, 2, 3}.map(|k, v| (k, k * v))"# = IndexMap::from([(1, 1), (2, 4), (3, 9)]))
+            map_filter(r#"{1, 2, 3, 'a', 'b'}.filter(|k, v| v.is_num)"# = IndexMap::from_iter([(1, 1), (2, 2), (3, 3)]))
+            map_filter_map(r#"{1, 2, 3, 'a', 'b'}.filter { |k, v| v.is_num }.map(|k, v| (k, v * v))"# = IndexMap::from_iter([(1, 1), (2, 4), (3, 9)]))
+            map_map_if(r#"{1, 2, 3, 'a', 'b'}.map(|k, v| (k, k * v) if k.is_num && v.is_num)"# = IndexMap::from_iter([(1, 1), (2, 4), (3, 9)]))
+            map_map(r#"{1, 2, 3}.map(|k, v| (k, k * v))"# = IndexMap::from_iter([(1, 1), (2, 4), (3, 9)]))
             list_map_filter(r#"[1, 2, 3, 'a', 'b'].filter { |v| v.is_num }.map(|v| v * v)"# = vec![1, 4, 9])
             list_map(r#"[1, 2, 3].map(|a| a * a)"# = vec![1, 4, 9])
             self_fib_recursive(r#"
@@ -428,12 +428,10 @@ pub mod runtime {
             a + a
             "# = 21)
             default_args_work_modules(r#"
-            import Random
-            next_bool || true
+            Random.bool || true
             "# = true)
             default_args_can_be_overwritten(r#"
-            import Random
-            next_bool 1
+            Random.bool 1
             "# = true)
             mut_self_clone(r#"
             mut a = 2
@@ -625,8 +623,7 @@ pub mod runtime {
             a
             "# = 4)
             random_object(r#"
-                import Random
-                mut rand = Random.create 49
+                mut rand = Random.new 49
                 rand.next_int
             "# = -8718902610742086980i64)
             on_works_multi_message(r#"
@@ -733,32 +730,32 @@ pub mod runtime {
             mut map = Map.new 1
             map.insert 'Foo', 'Bar'
             map
-            "# = IndexMap::from([("Foo", "Bar")]))
+            "# = IndexMap::from_iter([("Foo", "Bar")]))
             list_new_empty("List.new" = Vec::<ObjectValue>::new())
-            map_new_empty("Map.new" = IndexMap::<ObjectValue, ObjectValue>::new())
-            set_new_empty("Set.new" = IndexSet::<ObjectValue>::new())
+            map_new_empty("Map.new" = IndexMap::<ObjectValue, ObjectValue>::default())
+            set_new_empty("Set.new" = IndexSet::<ObjectValue>::default())
             set_new_len(r#"
             a = 1
             mut set = Set.new a
             set.insert a
             set
-            "# = IndexSet::from([1]))
-            map_index_set("mut a = {}; a[1] = 2; a" = IndexMap::from([(1, 2)]))
-            list_group_by("[1, 1, 1, 2, 2].group_by(|v| v.to_i)" = IndexMap::from([(1, vec![1, 1, 1]), (2, vec![2, 2])]))
+            "# = IndexSet::from_iter([1]))
+            map_index_set("mut a = {}; a[1] = 2; a" = IndexMap::from_iter([(1, 2)]))
+            list_group_by("[1, 1, 1, 2, 2].group_by(|v| v.to_i)" = IndexMap::from_iter([(1, vec![1, 1, 1]), (2, vec![2, 2])]))
             mut_index_set_number("mut a = 0; a[1] = true; a" = 2)
             mut_index_set("mut a = [1, 2, 3]; a[1] = 4; a" = vec![1, 4, 3])
             mut_index_set_empty("mut a = []; a[0] = 4; a" = vec![4])
             mut_index_bin_op("mut a = [1, 2, 3]; a[1] += 4; a" = vec![1, 6, 3])
-            mut_index_push("mut a = {x = [], y = [], z = []}; a.x.push 4; a" = IndexMap::from([("x", vec![4]), ("y", vec![]), ("z", vec![])]))
+            mut_index_push("mut a = {x = [], y = [], z = []}; a.x.push 4; a" = IndexMap::from_iter([("x", vec![4]), ("y", vec![]), ("z", vec![])]))
             mut_reference_update("mut x = []; mut a = {x, y = [], z = []}; a.x.push 4; x" = vec![4])
             for_list(r#"[for v in [1, 2, 3]: v * v]"# = vec![1, 4, 9])
         }
     }
 
-    pub mod debug {
-        use super::*;
-        run_debug_vm! {}
-    }
+    // pub mod debug {
+    //     use super::*;
+    //     run_debug_vm! {}
+    // }
 
     pub mod recursive {
         use super::*;

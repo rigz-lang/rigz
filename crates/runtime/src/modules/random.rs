@@ -1,14 +1,14 @@
 use rand::{Rng, RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use rigz_ast::*;
-use rigz_ast_derive::{derive_module, derive_object};
+use rigz_ast_derive::derive_object;
 use rigz_core::*;
 use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
+use crate::modules::uuid::{UUIDObject, UUID};
 
 derive_object! {
-    "Random",
     struct Random {
         pub seed: i64,
         stream: u64,
@@ -27,6 +27,11 @@ derive_object! {
         fn mut Self.next_int -> Int
         fn mut Self.next_float -> Float
         fn mut Self.next_bool(percent: Float = 0.5) -> Bool
+
+        fn int -> Int
+        fn float -> Float
+        fn uuid -> UUID
+        fn bool(percent: Float = 0.5) -> Bool
     end
     "#
 }
@@ -46,14 +51,17 @@ impl RandomObject for Random {
         let mut offset = lower.to_bits() as u128;
         offset |= (upper.to_bits() as u128) << 64;
         self.offset = offset;
+        self.rng.0.set_word_pos(self.offset)
     }
 
     fn mut_set_stream(&mut self, stream: Number) {
         self.stream = stream.to_bits();
+        self.rng.0.set_stream(self.stream)
     }
 
     fn mut_set_seed(&mut self, seed: Number) {
         self.seed = seed.to_int();
+        self.rng.0 = ChaCha8Rng::seed_from_u64(self.seed as u64);
     }
 
     fn mut_next_int(&mut self) -> i64 {
@@ -66,6 +74,34 @@ impl RandomObject for Random {
 
     fn mut_next_bool(&mut self, percent: f64) -> bool {
         self.rng.0.random_bool(percent)
+    }
+
+    fn static_int() -> i64
+    where
+        Self: Sized
+    {
+        rand::random()
+    }
+
+    fn static_float() -> f64
+    where
+        Self: Sized
+    {
+        rand::random()
+    }
+
+    fn static_uuid() -> ObjectValue
+    where
+        Self: Sized
+    {
+        UUID::static_random()
+    }
+
+    fn static_bool(percent: f64) -> bool
+    where
+        Self: Sized
+    {
+        rand::random_bool(percent)
     }
 }
 
@@ -135,32 +171,5 @@ impl CreateObject for Random {
         rng.0.set_word_pos(self.offset);
         rng.0.set_stream(self.stream);
         self.rng = rng;
-    }
-}
-
-derive_module! {
-    [Random],
-    r#"trait Random
-        fn create(seed: Number? = none) -> Random::Random!
-             Random::Random.new seed
-        end
-
-        fn next_int -> Int
-        fn next_float -> Float
-        fn next_bool(percent: Float = 0.5) -> Bool
-    end"#
-}
-
-impl RigzRandom for RandomModule {
-    fn next_int(&self) -> i64 {
-        rand::random()
-    }
-
-    fn next_float(&self) -> f64 {
-        rand::random()
-    }
-
-    fn next_bool(&self, percent: f64) -> bool {
-        rand::random_bool(percent)
     }
 }

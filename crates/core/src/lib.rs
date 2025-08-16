@@ -15,10 +15,11 @@ mod traits;
 mod types;
 mod vm_values;
 
-pub type IndexMap<K, V> = indexmap::map::IndexMap<K, V>;
-pub type IndexSet<V> = indexmap::set::IndexSet<V>;
+pub type IndexMap<K, V> = indexmap::map::IndexMap<K, V, FxBuildHasher>;
+pub type IndexSet<V> = indexmap::set::IndexSet<V, FxBuildHasher>;
 pub type IndexMapEntry<'a, K, V> = indexmap::map::Entry<'a, K, V>;
 
+use fxhash::FxBuildHasher;
 pub use args::RigzArgs;
 pub use enum_value::*;
 pub use lifecycle::*;

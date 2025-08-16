@@ -367,13 +367,11 @@ impl ObjectValue {
                         if let Some(v) = s.get_mut(index) {
                             *v = value;
                             None
+                        } else if s.len() == index {
+                            s.push(value);
+                            None
                         } else {
-                            if s.len() == index {
-                                s.push(value);
-                                None
-                            } else {
-                                Some(VMError::runtime(format!("Index out of bounds {index}")))
-                            }
+                            Some(VMError::runtime(format!("Index out of bounds {index}")))
                         }
                     }
                     Err(e) => Some(e),
@@ -385,20 +383,18 @@ impl ObjectValue {
                         if let Some(v) = s.get_index_mut2(index) {
                             *v = value.borrow().clone();
                             None
+                        } else if s.len() == index {
+                            s.insert(value.borrow().clone());
+                            None
                         } else {
-                            if s.len() == index {
-                                s.insert(value.borrow().clone());
-                                None
-                            } else {
-                                Some(VMError::runtime(format!("Index {index} out of bounds ")))
-                            }
+                            Some(VMError::runtime(format!("Index {index} out of bounds ")))
                         }
                     }
                     Err(e) => Some(e),
                 }
             }
             (ObjectValue::Map(source), index) => {
-                source.insert(index.clone(), value.clone().into());
+                source.insert(index.clone(), value.clone());
                 None
             }
             (
@@ -653,7 +649,7 @@ impl AsPrimitive<ObjectValue, Rc<RefCell<ObjectValue>>> for ObjectValue {
         }
     }
 
-    fn to_map(&self) -> Result<indexmap::IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>, VMError> {
+    fn to_map(&self) -> Result<IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>, VMError> {
         match self {
             ObjectValue::Primitive(m) => Ok(m
                 .to_map()?
