@@ -1505,6 +1505,7 @@ impl<'t> Parser<'t> {
                     | TokenKind::And
                     | TokenKind::As
                     | TokenKind::Catch
+                    | TokenKind::Period
                     | TokenKind::Minus if !fn_parens => break,
                     TokenKind::Identifier(id) => {
                         self.consume_token(TokenKind::Identifier(id))?;
@@ -1961,7 +1962,7 @@ impl<'t> Parser<'t> {
                                         None
                                     }
                                     Some(t) if t.kind == TokenKind::On => None,
-                                    Some(_) => Some(self.parse_expression(priority)?.into()),
+                                    Some(_) => Some(self.parse_expression(0)?.into()),
                                 };
                                 Expression::Enum(type_value.to_string(), name.to_string(), exp)
                             }

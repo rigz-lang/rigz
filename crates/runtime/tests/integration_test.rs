@@ -629,6 +629,10 @@ pub mod runtime {
                 mut rand = Random.new 49
                 rand.next_int
             "# = -8718902610742086980i64)
+            uuid_to_s(r#"
+            import UUID
+            UUID.new('3250091c-d7d2-4788-b4f1-95d1f5afa5d5').to_s
+            "# = "3250091c-d7d2-4788-b4f1-95d1f5afa5d5")
             on_works_multi_message(r#"
             @on("message")
             fn foo(a, b) = a * b
