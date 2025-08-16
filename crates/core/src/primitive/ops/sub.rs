@@ -1,5 +1,5 @@
 use crate::{PrimitiveValue, ToBool, VMError};
-use std::ops::Sub;
+use std::ops::{Sub, SubAssign};
 
 impl Sub for &PrimitiveValue {
     type Output = PrimitiveValue;
@@ -46,6 +46,12 @@ impl Sub for &PrimitiveValue {
                 VMError::UnsupportedOperation(format!("Not supported: {lhs} - {rhs}")).into()
             }
         }
+    }
+}
+
+impl SubAssign<&PrimitiveValue> for PrimitiveValue {
+    fn sub_assign(&mut self, rhs: &Self) {
+        *self = self.sub(rhs);
     }
 }
 

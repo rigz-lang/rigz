@@ -1,5 +1,5 @@
 use crate::{PrimitiveValue, ToBool, VMError};
-use std::ops::BitAnd;
+use std::ops::{BitAnd, BitAndAssign};
 
 impl BitAnd for &PrimitiveValue {
     type Output = PrimitiveValue;
@@ -25,6 +25,28 @@ impl BitAnd for &PrimitiveValue {
             },
             (lhs, rhs) => {
                 VMError::UnsupportedOperation(format!("Not supported: {lhs} & {rhs}")).into()
+            }
+        }
+    }
+}
+
+impl BitAndAssign<&PrimitiveValue> for PrimitiveValue {
+    fn bitand_assign(&mut self, rhs: &PrimitiveValue) {
+        match (self, rhs) {
+            (PrimitiveValue::Error(_), _) | (PrimitiveValue::None, _) => {}
+            (p, PrimitiveValue::Error(v)) => {
+                *p = PrimitiveValue::Error(v.clone())
+            }
+            (p, PrimitiveValue::None) => *p = PrimitiveValue::None,
+            (a, PrimitiveValue::Type(t)) => *a = PrimitiveValue::Error(
+                VMError::UnsupportedOperation(format!("Invalid Operation (&): {t} and {a}")),
+            ),
+            (PrimitiveValue::Bool(a), PrimitiveValue::Bool(b)) => *a &= b,
+            (PrimitiveValue::Bool(a), b) => *a &= b.to_bool(),
+            (b, PrimitiveValue::Bool(a)) => *b = PrimitiveValue::Bool(a & b.to_bool()),
+            (PrimitiveValue::Number(a), PrimitiveValue::Number(b)) => *a &= b,
+            (lhs, rhs) => {
+                *lhs = lhs.bitand(rhs);
             }
         }
     }

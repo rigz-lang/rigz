@@ -1972,7 +1972,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rigz_core",
- "serde",
  "tokio",
  "wasm-bindgen-test",
  "web-sys",

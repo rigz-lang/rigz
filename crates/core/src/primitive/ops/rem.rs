@@ -1,6 +1,6 @@
 use crate::{PrimitiveValue, ToBool, VMError};
 use log::warn;
-use std::ops::Rem;
+use std::ops::{Rem, RemAssign};
 
 impl Rem for &PrimitiveValue {
     type Output = PrimitiveValue;
@@ -29,6 +29,12 @@ impl Rem for &PrimitiveValue {
                 a - b
             }
         }
+    }
+}
+
+impl RemAssign<&PrimitiveValue> for PrimitiveValue {
+    fn rem_assign(&mut self, rhs: &Self) {
+        *self = self.rem(rhs);
     }
 }
 

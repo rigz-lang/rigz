@@ -1,9 +1,7 @@
 mod runner;
 
 use log::Level;
-use rigz_core::{
-    BinaryOperation, ObjectValue, RigzType, Snapshot, StackValue, UnaryOperation, VMError,
-};
+use rigz_core::{BinaryAssignOperation, BinaryOperation, ObjectValue, RigzType, Snapshot, StackValue, UnaryOperation, VMError};
 pub use runner::{CallType, ResolvedModule, Runner};
 use std::fmt::Display;
 use std::sync::Arc;
@@ -250,7 +248,7 @@ pub enum Instruction {
     HaltIfError,
     Unary(UnaryOperation),
     Binary(BinaryOperation),
-    BinaryAssign(BinaryOperation),
+    BinaryAssign(BinaryAssignOperation),
     Load(LoadValue),
     InstanceGet(bool),
     InstanceSet,

@@ -1,5 +1,5 @@
 use crate::{Number, PrimitiveValue, VMError};
-use std::ops::Shl;
+use std::ops::{Shl, ShlAssign};
 
 impl Shl for &PrimitiveValue {
     type Output = PrimitiveValue;
@@ -54,6 +54,12 @@ impl Shl for &PrimitiveValue {
                 VMError::UnsupportedOperation(format!("Not supported: {lhs} << {rhs}")).into()
             }
         }
+    }
+}
+
+impl ShlAssign<&PrimitiveValue> for PrimitiveValue {
+    fn shl_assign(&mut self, rhs: &Self) {
+        *self = self.shl(rhs);
     }
 }
 

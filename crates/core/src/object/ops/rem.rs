@@ -1,6 +1,6 @@
 use crate::ObjectValue;
 use log::warn;
-use std::ops::{Deref, Rem};
+use std::ops::{Deref, Rem, RemAssign};
 
 impl Rem for &ObjectValue {
     type Output = ObjectValue;
@@ -32,5 +32,11 @@ impl Rem for &ObjectValue {
                 a - b
             }
         }
+    }
+}
+
+impl RemAssign<&ObjectValue> for ObjectValue {
+    fn rem_assign(&mut self, rhs: &ObjectValue) {
+        *self = self.rem(rhs)
     }
 }

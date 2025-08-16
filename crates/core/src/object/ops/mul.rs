@@ -2,7 +2,7 @@ use crate::ObjectValue;
 use crate::ObjectValue::Primitive;
 use crate::{PrimitiveValue, VMError};
 use std::cell::RefCell;
-use std::ops::{Deref, Mul};
+use std::ops::{Deref, Mul, MulAssign};
 use std::rc::Rc;
 
 impl Mul for &ObjectValue {
@@ -38,5 +38,11 @@ impl Mul for &ObjectValue {
                 VMError::UnsupportedOperation(format!("Not supported: {lhs} * {rhs}")).into()
             }
         }
+    }
+}
+
+impl MulAssign<&ObjectValue> for ObjectValue {
+    fn mul_assign(&mut self, rhs: &ObjectValue) {
+        *self = self.mul(rhs);
     }
 }

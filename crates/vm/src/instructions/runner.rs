@@ -2,11 +2,7 @@ use crate::{
     err, errln, out, outln, CallFrame, Instruction, MatchArm, Modules, Scope, VMOptions, VMState,
 };
 use log::log;
-use rigz_core::{
-    AsPrimitive, BinaryOperation, EnumDeclaration, IndexMap, IndexSet, Logical, Module,
-    ObjectValue, PrimitiveValue, Reference, ResolveValue, ResolvedValue, Reverse, RigzArgs,
-    RigzObject, RigzType, StackValue, ToBool, UnaryOperation, VMError, WithTypeInfo,
-};
+use rigz_core::{AsPrimitive, BinaryAssignOperation, BinaryOperation, EnumDeclaration, IndexMap, IndexSet, Logical, LogicalAssign, Module, ObjectValue, PrimitiveValue, Reference, ResolveValue, ResolvedValue, Reverse, RigzArgs, RigzObject, RigzType, StackValue, ToBool, UnaryOperation, VMError, WithTypeInfo};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
@@ -262,6 +258,29 @@ pub fn eval_binary_operation(
     }
 }
 
+#[inline]
+pub fn eval_binary_assign(
+    binary_operation: BinaryAssignOperation,
+    lhs: &mut ObjectValue,
+    rhs: &ObjectValue,
+) {
+    match binary_operation {
+        BinaryAssignOperation::Add => *lhs += rhs,
+        BinaryAssignOperation::Sub => *lhs -= rhs,
+        BinaryAssignOperation::Shr => *lhs >>= rhs,
+        BinaryAssignOperation::Shl => *lhs <<= rhs,
+        BinaryAssignOperation::Mul => *lhs *= rhs,
+        BinaryAssignOperation::Div => *lhs /= rhs,
+        BinaryAssignOperation::Rem => *lhs %= rhs,
+        BinaryAssignOperation::BitOr => *lhs |= rhs,
+        BinaryAssignOperation::BitAnd => *lhs &= rhs,
+        BinaryAssignOperation::BitXor => *lhs ^= rhs,
+        BinaryAssignOperation::And => lhs.and_assign(rhs),
+        BinaryAssignOperation::Or => lhs.or_assign(rhs),
+        BinaryAssignOperation::Xor => lhs.xor_assign(rhs)
+    }
+}
+
 #[cfg(feature = "threaded")]
 pub type ResolvedModule = Reference<dyn Module + Send + Sync>;
 
@@ -354,11 +373,15 @@ pub trait Runner: ResolveValue {
     }
 
     #[inline]
-    fn handle_binary_assign(&mut self, op: BinaryOperation) {
-        let rhs = self.next_resolved_value(|| "handle_binary_assign - rhs");
+    fn handle_binary_assign(&mut self, op: BinaryAssignOperation) {
+        let mut rhs = self.next_resolved_value(|| "handle_binary_assign - rhs");
         let lhs = self.next_resolved_value(|| "handle_binary_assign - lhs");
-        let v = eval_binary_operation(op, lhs.borrow().deref(), rhs.borrow().deref());
-        *lhs.borrow_mut().deref_mut() = v;
+        rhs = if Rc::ptr_eq(&lhs, &rhs) {
+            rhs.borrow().clone().into()
+        } else {
+            rhs
+        };
+        eval_binary_assign(op, lhs.borrow_mut().deref_mut(), rhs.borrow().deref());
     }
 
     #[inline]

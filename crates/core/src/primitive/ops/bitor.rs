@@ -1,5 +1,5 @@
 use crate::{PrimitiveValue, ToBool, VMError};
-use std::ops::BitOr;
+use std::ops::{BitOr, BitOrAssign};
 
 impl BitOr for &PrimitiveValue {
     type Output = PrimitiveValue;
@@ -27,6 +27,12 @@ impl BitOr for &PrimitiveValue {
                 VMError::UnsupportedOperation(format!("Not supported: {lhs} | {rhs}")).into()
             }
         }
+    }
+}
+
+impl BitOrAssign<&PrimitiveValue> for PrimitiveValue {
+    fn bitor_assign(&mut self, rhs: &PrimitiveValue) {
+        *self = self.bitor(rhs);
     }
 }
 

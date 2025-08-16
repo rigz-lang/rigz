@@ -1,5 +1,5 @@
 use crate::{Number, PrimitiveValue, VMError};
-use std::ops::Shr;
+use std::ops::{Shr, ShrAssign};
 
 impl Shr for &PrimitiveValue {
     type Output = PrimitiveValue;
@@ -54,6 +54,12 @@ impl Shr for &PrimitiveValue {
                 VMError::UnsupportedOperation(format!("Not supported: {lhs} >> {rhs}")).into()
             }
         }
+    }
+}
+
+impl ShrAssign<&PrimitiveValue> for PrimitiveValue {
+    fn shr_assign(&mut self, rhs: &Self) {
+        *self = self.shr(rhs);
     }
 }
 

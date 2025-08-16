@@ -712,7 +712,7 @@ impl<'t> Parser<'t> {
                                     mutable: false,
                                     shadow: false,
                                 },
-                                op: BinaryOperation::Add,
+                                op: BinaryAssignOperation::Add,
                                 expression: Expression::Value(1.into()),
                             }
                             .into()
@@ -725,7 +725,7 @@ impl<'t> Parser<'t> {
                                     mutable: false,
                                     shadow: false,
                                 },
-                                op: BinaryOperation::Sub,
+                                op: BinaryAssignOperation::Sub,
                                 expression: Expression::Value(1.into()),
                             }
                             .into()
@@ -783,7 +783,7 @@ impl<'t> Parser<'t> {
                             self.next_token();
                             Statement::BinaryAssignment {
                                 lhs: Assign::This,
-                                op: BinaryOperation::Add,
+                                op: BinaryAssignOperation::Add,
                                 expression: Expression::Value(1.into()),
                             }
                             .into()
@@ -792,7 +792,7 @@ impl<'t> Parser<'t> {
                             self.next_token();
                             Statement::BinaryAssignment {
                                 lhs: Assign::This,
-                                op: BinaryOperation::Sub,
+                                op: BinaryAssignOperation::Sub,
                                 expression: Expression::Value(1.into()),
                             }
                             .into()

@@ -1,4 +1,4 @@
-use crate::{BinaryOperation, Snapshot, UnaryOperation, VMError};
+use crate::{BinaryAssignOperation, BinaryOperation, Snapshot, UnaryOperation, VMError};
 use std::fmt::Display;
 use std::vec::IntoIter;
 
@@ -11,7 +11,7 @@ impl Snapshot for BinaryOperation {
         let next = match bytes.next() {
             None => {
                 return Err(VMError::runtime(format!(
-                    "Missing UnaryOperation byte {location}"
+                    "Missing BinaryOperation byte {location}"
                 )))
             }
             Some(b) => b,
@@ -40,7 +40,46 @@ impl Snapshot for BinaryOperation {
             19 => BinaryOperation::Elvis,
             b => {
                 return Err(VMError::runtime(format!(
-                    "Illegal UnaryOperation byte {b} - {location}"
+                    "Illegal BinaryOperation byte {b} - {location}"
+                )))
+            }
+        };
+        Ok(op)
+    }
+}
+
+impl Snapshot for BinaryAssignOperation {
+    fn as_bytes(&self) -> Vec<u8> {
+        vec![*self as u8]
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        let next = match bytes.next() {
+            None => {
+                return Err(VMError::runtime(format!(
+                    "Missing BinaryAssignOperation byte {location}"
+                )))
+            }
+            Some(b) => b,
+        };
+
+        let op = match next {
+            0 => BinaryAssignOperation::Add,
+            1 => BinaryAssignOperation::Sub,
+            2 => BinaryAssignOperation::Mul,
+            3 => BinaryAssignOperation::Div,
+            4 => BinaryAssignOperation::Rem,
+            5 => BinaryAssignOperation::Shr,
+            6 => BinaryAssignOperation::Shl,
+            7 => BinaryAssignOperation::BitOr,
+            8 => BinaryAssignOperation::BitAnd,
+            9 => BinaryAssignOperation::BitXor,
+            10 => BinaryAssignOperation::Or,
+            11 => BinaryAssignOperation::And,
+            12 => BinaryAssignOperation::Xor,
+            b => {
+                return Err(VMError::runtime(format!(
+                    "Illegal BinaryAssignOperation byte {b} - {location}"
                 )))
             }
         };

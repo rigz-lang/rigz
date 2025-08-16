@@ -24,6 +24,43 @@ pub enum BinaryOperation {
     Elvis,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum BinaryAssignOperation {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+    Shr,
+    Shl,
+    BitOr,
+    BitAnd,
+    BitXor,
+    Or,
+    And,
+    Xor
+}
+
+impl Display for BinaryAssignOperation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryAssignOperation::Add => write!(f, "+="),
+            BinaryAssignOperation::Sub => write!(f, "-="),
+            BinaryAssignOperation::Mul => write!(f, "*="),
+            BinaryAssignOperation::Div => write!(f, "/="),
+            BinaryAssignOperation::Rem => write!(f, "%="),
+            BinaryAssignOperation::Shr => write!(f, ">>="),
+            BinaryAssignOperation::Shl => write!(f, "<<="),
+            BinaryAssignOperation::BitOr => write!(f, "|="),
+            BinaryAssignOperation::BitAnd => write!(f, "&="),
+            BinaryAssignOperation::BitXor => write!(f, "^="),
+            BinaryAssignOperation::Or => write!(f, "||="),
+            BinaryAssignOperation::And => write!(f, "&&="),
+            BinaryAssignOperation::Xor => write!(f, "^="),
+        }
+    }
+}
+
 impl BinaryOperation {
     pub fn infix_priority(&self) -> (u8, u8) {
         match self {

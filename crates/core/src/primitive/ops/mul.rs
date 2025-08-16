@@ -1,5 +1,5 @@
 use crate::{Number, PrimitiveValue, ToBool, VMError};
-use std::ops::Mul;
+use std::ops::{Mul, MulAssign};
 
 impl Mul for &PrimitiveValue {
     type Output = PrimitiveValue;
@@ -60,6 +60,12 @@ impl Mul for &PrimitiveValue {
                 VMError::UnsupportedOperation(format!("Not supported: {lhs} * {rhs}")).into()
             }
         }
+    }
+}
+
+impl MulAssign<&PrimitiveValue> for PrimitiveValue {
+    fn mul_assign(&mut self, rhs: &Self) {
+        *self = self.mul(rhs);
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::ObjectValue;
 use crate::ObjectValue::Primitive;
 use crate::{PrimitiveValue, VMError};
-use std::ops::{Deref, Div};
+use std::ops::{Deref, Div, DivAssign};
 
 impl Div for &ObjectValue {
     type Output = ObjectValue;
@@ -51,5 +51,11 @@ impl Div for &ObjectValue {
                 VMError::UnsupportedOperation(format!("Not supported: {lhs} / {rhs}")).into()
             }
         }
+    }
+}
+
+impl DivAssign<&ObjectValue> for ObjectValue {
+    fn div_assign(&mut self, rhs: &ObjectValue) {
+        *self = self.div(rhs)
     }
 }

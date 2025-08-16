@@ -1,5 +1,5 @@
 use crate::{PrimitiveValue, ToBool, VMError};
-use std::ops::Div;
+use std::ops::{Div, DivAssign};
 
 impl Div for &PrimitiveValue {
     type Output = PrimitiveValue;
@@ -50,6 +50,12 @@ impl Div for &PrimitiveValue {
                 VMError::UnsupportedOperation(format!("Not supported: {lhs} / {rhs}")).into()
             }
         }
+    }
+}
+
+impl DivAssign<&PrimitiveValue> for PrimitiveValue {
+    fn div_assign(&mut self, rhs: &Self) {
+        *self = self.div(rhs);
     }
 }
 

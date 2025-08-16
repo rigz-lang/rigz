@@ -1,8 +1,6 @@
 use crate::ParseError;
 use itertools::Itertools;
-use rigz_core::{
-    BinaryOperation, EnumDeclaration, Lifecycle, PrimitiveValue, RigzType, UnaryOperation,
-};
+use rigz_core::{BinaryAssignOperation, BinaryOperation, EnumDeclaration, Lifecycle, PrimitiveValue, RigzType, UnaryOperation};
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -184,7 +182,7 @@ pub enum Statement {
     },
     BinaryAssignment {
         lhs: Assign,
-        op: BinaryOperation,
+        op: BinaryAssignOperation,
         expression: Expression,
     },
     FunctionDefinition(FunctionDefinition),

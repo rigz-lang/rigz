@@ -1,5 +1,5 @@
 use crate::{ObjectValue, VMError};
-use std::ops::{Deref, Shl};
+use std::ops::{Deref, Shl, ShlAssign};
 
 impl Shl for &ObjectValue {
     type Output = ObjectValue;
@@ -30,5 +30,11 @@ impl Shl for &ObjectValue {
                 VMError::UnsupportedOperation(format!("Not supported: {lhs} << {rhs}")).into()
             }
         }
+    }
+}
+
+impl ShlAssign<&ObjectValue> for ObjectValue {
+    fn shl_assign(&mut self, rhs: &ObjectValue) {
+        *self = self.shl(rhs)
     }
 }

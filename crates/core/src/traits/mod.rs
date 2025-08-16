@@ -226,6 +226,12 @@ pub trait Logical<Rhs> {
     fn xor(self, rhs: Rhs) -> Self::Output;
 }
 
+pub trait LogicalAssign<Rhs> {
+    fn and_assign(&mut self, rhs: Rhs);
+    fn or_assign(&mut self, rhs: Rhs);
+    fn xor_assign(&mut self, rhs: Rhs);
+}
+
 impl<T: Clone + ToBool + Default + Sized> Logical<&T> for &T {
     type Output = T;
 
@@ -253,6 +259,30 @@ impl<T: Clone + ToBool + Default + Sized> Logical<&T> for &T {
             (false, false) | (true, true) => T::default(),
             (false, _) => rhs.clone(),
             (true, _) => self.clone(),
+        }
+    }
+}
+
+impl<T: Clone + ToBool + Default + Sized> LogicalAssign<&T> for T {
+    fn and_assign(&mut self, rhs: &T) {
+        if self.to_bool() {
+            *self = rhs.clone();
+        }
+    }
+
+    fn or_assign(&mut self, rhs: &T) {
+        if !self.to_bool() {
+            *self = rhs.clone();
+        }
+    }
+
+    fn xor_assign(&mut self, rhs: &T) {
+        match (self.to_bool(), rhs.to_bool()) {
+            (false, false) | (true, true) => {
+                *self = T::default()
+            },
+            (false, _) => *self = rhs.clone(),
+            (true, _) => {},
         }
     }
 }

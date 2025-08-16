@@ -1,6 +1,6 @@
 use proc_macro2::*;
 
-use crate::{BinaryOperation, UnaryOperation};
+use crate::{BinaryAssignOperation, BinaryOperation, UnaryOperation};
 use quote::*;
 
 impl ToTokens for UnaryOperation {
@@ -41,6 +41,27 @@ impl ToTokens for BinaryOperation {
             BinaryOperation::Lt => quote! { BinaryOperation::Lt },
             BinaryOperation::Lte => quote! { BinaryOperation::Lte },
             BinaryOperation::Elvis => quote! { BinaryOperation::Elvis },
+        };
+        tokens.extend(t);
+    }
+}
+
+impl ToTokens for BinaryAssignOperation {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let t = match self {
+            BinaryAssignOperation::Add => quote! { BinaryAssignOperation::Add },
+            BinaryAssignOperation::Sub => quote! { BinaryAssignOperation::Sub },
+            BinaryAssignOperation::Mul => quote! { BinaryAssignOperation::Mul },
+            BinaryAssignOperation::Div => quote! { BinaryAssignOperation::Div },
+            BinaryAssignOperation::Rem => quote! { BinaryAssignOperation::Rem },
+            BinaryAssignOperation::Shr => quote! { BinaryAssignOperation::Shr },
+            BinaryAssignOperation::Shl => quote! { BinaryAssignOperation::Shl },
+            BinaryAssignOperation::BitOr => quote! { BinaryAssignOperation::BitOr },
+            BinaryAssignOperation::BitAnd => quote! { BinaryAssignOperation::BitAnd },
+            BinaryAssignOperation::BitXor => quote! { BinaryAssignOperation::BitXor },
+            BinaryAssignOperation::Or => quote! { BinaryAssignOperation::Or },
+            BinaryAssignOperation::And => quote! { BinaryAssignOperation::And },
+            BinaryAssignOperation::Xor => quote! { BinaryAssignOperation::Xor }
         };
         tokens.extend(t);
     }

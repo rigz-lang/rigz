@@ -1,8 +1,5 @@
 mod vm_test {
-    use rigz_core::{
-        BinaryOperation, Definition, Lifecycle, Module, ObjectValue, PrimitiveValue, RigzArgs,
-        RigzType, TestLifecycle, TestResults, VMError,
-    };
+    use rigz_core::{BinaryAssignOperation, BinaryOperation, Definition, Lifecycle, Module, ObjectValue, PrimitiveValue, RigzArgs, RigzType, TestLifecycle, TestResults, VMError};
     use rigz_vm::{Instruction, LoadValue, RigzBuilder, Scope, VMBuilder, VM};
     use wasm_bindgen_test::*;
 
@@ -183,7 +180,7 @@ mod vm_test {
             .add_load_mut_instruction(a, false)
             .add_get_mutable_variable_instruction(a)
             .add_load_instruction(7.into())
-            .add_binary_assign_instruction(BinaryOperation::Add)
+            .add_binary_assign_instruction(BinaryAssignOperation::Add)
             .add_get_mutable_variable_instruction(a)
             .add_halt_instruction();
         let mut vm = builder.build();
@@ -211,7 +208,7 @@ mod vm_test {
                 instructions: vec![
                     Instruction::GetMutableVariable(0),
                     Instruction::Load(3.into()),
-                    Instruction::BinaryAssign(BinaryOperation::Mul),
+                    Instruction::BinaryAssign(BinaryAssignOperation::Mul),
                     Instruction::GetMutableVariable(0),
                     Instruction::Ret,
                 ],
@@ -245,7 +242,7 @@ mod vm_test {
                 instructions: vec![
                     Instruction::GetMutableVariable(0),
                     Instruction::Load(3.into()),
-                    Instruction::BinaryAssign(BinaryOperation::Mul),
+                    Instruction::BinaryAssign(BinaryAssignOperation::Mul),
                     Instruction::GetMutableVariable(0),
                     Instruction::Ret,
                 ],

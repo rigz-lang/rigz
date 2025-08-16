@@ -1,5 +1,5 @@
 use logos::{Logos, Span};
-use rigz_core::{BinaryOperation, Number, PrimitiveValue};
+use rigz_core::{BinaryAssignOperation, BinaryOperation, Number, PrimitiveValue};
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::ParseBoolError;
@@ -130,19 +130,19 @@ pub(crate) enum TokenKind<'lex> {
     #[token("^", |_| BinaryOperation::Xor)]
     #[token("?:", |_| BinaryOperation::Elvis)]
     BinOp(BinaryOperation),
-    #[token(">>=", |_| BinaryOperation::Shr)]
-    #[token("<<=", |_| BinaryOperation::Shl)]
-    #[token("+=", |_| BinaryOperation::Add)]
-    #[token("-=", |_| BinaryOperation::Sub)]
-    #[token("*=", |_| BinaryOperation::Mul)]
-    #[token("/=", |_| BinaryOperation::Div)]
-    #[token("%=", |_| BinaryOperation::Rem)]
-    #[token("&&=", |_| BinaryOperation::And)]
-    #[token("||=", |_| BinaryOperation::Or)]
-    #[token("&=", |_| BinaryOperation::BitAnd)]
-    #[token("|=", |_| BinaryOperation::BitOr)]
-    #[token("^=", |_| BinaryOperation::Xor)]
-    BinAssign(BinaryOperation),
+    #[token(">>=", |_| BinaryAssignOperation::Shr)]
+    #[token("<<=", |_| BinaryAssignOperation::Shl)]
+    #[token("+=", |_| BinaryAssignOperation::Add)]
+    #[token("-=", |_| BinaryAssignOperation::Sub)]
+    #[token("*=", |_| BinaryAssignOperation::Mul)]
+    #[token("/=", |_| BinaryAssignOperation::Div)]
+    #[token("%=", |_| BinaryAssignOperation::Rem)]
+    #[token("&&=", |_| BinaryAssignOperation::And)]
+    #[token("||=", |_| BinaryAssignOperation::Or)]
+    #[token("&=", |_| BinaryAssignOperation::BitAnd)]
+    #[token("|=", |_| BinaryAssignOperation::BitOr)]
+    #[token("^=", |_| BinaryAssignOperation::Xor)]
+    BinAssign(BinaryAssignOperation),
     #[token("!")]
     Not,
     #[regex("[A-Z][A-Za-z0-9_]+(::[A-Z][A-Za-z0-9_]+)*!?\\??", |lex| lex.slice())]

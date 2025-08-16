@@ -1,5 +1,5 @@
 use crate::number::Number;
-use std::ops::Shl;
+use std::ops::{Shl, ShlAssign};
 
 impl Shl for &Number {
     type Output = Number;
@@ -14,6 +14,20 @@ impl Shl for &Number {
         match self {
             Number::Int(i) => Number::Int(i << shift),
             Number::Float(f) => Number::Float(f64::from_bits(f.to_bits() << shift)),
+        }
+    }
+}
+
+impl ShlAssign<&Number> for Number {
+    fn shl_assign(&mut self, rhs: &Number) {
+        let shift = match rhs {
+            Number::Int(i) => i,
+            Number::Float(f) => &(*f as i64),
+        };
+
+        match self {
+            Number::Int(i) => *i <<= shift,
+            Number::Float(f) => *f = f64::from_bits(f.to_bits() << shift),
         }
     }
 }

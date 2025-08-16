@@ -1,5 +1,5 @@
 use crate::{PrimitiveValue, ToBool, VMError};
-use std::ops::BitXor;
+use std::ops::{BitXor, BitXorAssign};
 
 impl BitXor for &PrimitiveValue {
     type Output = PrimitiveValue;
@@ -28,6 +28,12 @@ impl BitXor for &PrimitiveValue {
                 VMError::UnsupportedOperation(format!("Not supported: {lhs} ^ {rhs}")).into()
             }
         }
+    }
+}
+
+impl BitXorAssign<&PrimitiveValue> for PrimitiveValue {
+    fn bitxor_assign(&mut self, rhs: &PrimitiveValue) {
+        *self = self.bitxor(rhs);
     }
 }
 
