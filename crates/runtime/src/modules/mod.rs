@@ -61,13 +61,16 @@ impl ProgramParser<'_, VMBuilder> {
     ) -> Result<(), ValidationError> {
         let name = M::name();
         let def = M::module_definition();
-        for ParsedDependency { name, dependency, object_definition } in M::parsed_dependencies() {
+        let deps = M::parsed_dependencies();
+        let mut dep_names = Vec::with_capacity(deps.len());
+        for ParsedDependency { name, dependency, object_definition } in deps {
             let idx = self.builder.register_dependency(Arc::new(dependency));
             self.parsed_deps.insert(name, DependencyDefinition::Parsed(object_definition, idx));
+            dep_names.push(name);
         }
         let index = self.builder.register_module(module);
         self.modules
-            .insert(name, ModuleDefinition::Module(def, index));
+            .insert(name, ModuleDefinition::Module(def, index, dep_names));
         Ok(())
     }
 

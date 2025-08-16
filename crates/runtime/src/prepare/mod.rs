@@ -133,7 +133,7 @@ type FunctionCallSignatures = Vec<CallSignature>;
 #[derive(Debug)]
 pub(crate) enum ModuleDefinition {
     Imported,
-    Module(ModuleTraitDefinition, usize),
+    Module(ModuleTraitDefinition, usize, Vec<&'static str>),
 }
 
 #[derive(Clone, Debug)]
@@ -1152,7 +1152,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             .iter()
             .filter_map(|(_, m)| match m {
                 ModuleDefinition::Imported => None,
-                ModuleDefinition::Module(m, _) => {
+                ModuleDefinition::Module(m, _, _) => {
                     if m.auto_import
                         && m.definition.functions.iter().any(|f| match f {
                             FunctionDeclaration::Declaration { name, .. } => *name == function,
@@ -2599,28 +2599,38 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
 
         let name = name.as_str();
         if let Some(def) = self.modules.get_mut(name) {
-            if let ModuleDefinition::Module(_, _) = def {
-                let ModuleDefinition::Module(def, idx) =
+            if let ModuleDefinition::Module(_, _, _) = def {
+                let ModuleDefinition::Module(def, idx, deps) =
                     std::mem::replace(def, ModuleDefinition::Imported)
                 else {
                     unreachable!()
                 };
                 self.parse_module_trait_definition(def, idx)?;
+                for dep in deps {
+                    self.parse_dep(dep)?;
+                }
             }
-        } else if let Some(def) = self.parsed_deps.get_mut(name) {
-            if let DependencyDefinition::Parsed(_, _) = def {
-                let DependencyDefinition::Parsed(obj, dep) =
-                    std::mem::replace(def, DependencyDefinition::Imported)
-                else {
-                    unreachable!()
-                };
-                self.parse_object_definition(obj, Some(dep))?;
-            }
-            // objects are auto imported for now
+        } else if self.parsed_deps.contains_key(name) {
+            self.parse_dep(name)?;
         } else if !self.objects.contains_key(name) {
             return Err(ValidationError::InvalidImport(format!(
                 "Module or Object {name} does not exist"
             )));
+        }
+        Ok(())
+    }
+
+    fn parse_dep(&mut self, name: &str) -> Result<(), ValidationError> {
+        let def = self.parsed_deps.get_mut(name).ok_or_else(|| {
+            ValidationError::InvalidImport(format!("Dependency {name} does not exist"))
+        })?;
+        if let DependencyDefinition::Parsed(_, _) = def {
+            let DependencyDefinition::Parsed(obj, dep) =
+                std::mem::replace(def, DependencyDefinition::Imported)
+            else {
+                unreachable!()
+            };
+            self.parse_object_definition(obj, Some(dep))?;
         }
         Ok(())
     }
