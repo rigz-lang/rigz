@@ -36,14 +36,30 @@ derive_module! {
         fn Any.div(other) = self / other
         fn Any.shr(other) = self >> other
         fn Any.shl(other) = self << other
-        fn Any.modulo(other) = self % other
+        fn Any.rem(other) = self % other
         fn Any.and(other) = self && other
         fn Any.or(other) = self || other
         fn Any.bit_and(other) = self & other
         fn Any.bit_or(other) = self | other
         fn Any.xor(other) = self ^ other
+        fn mut Any.add_set(other) = self += other
+        fn mut Any.sub_set(other) = self -= other
+        fn mut Any.mul_set(other) = self *= other
+        fn mut Any.div_set(other) = self /= other
+        fn mut Any.shr_set(other) = self >>= other
+        fn mut Any.shl_set(other) = self <<= other
+        fn mut Any.rem_set(other) = self %= other
+        fn mut Any.and_set(other) = self &&= other
+        fn mut Any.or_set(other) = self ||= other
+        fn mut Any.bit_and_set(other) = self &= other
+        fn mut Any.bit_or_set(other) = self |= other
+        fn mut Any.xor_set(other) = self ^= other
         fn Any.eq(other) = self == other
         fn Any.neq(other) = self != other
+        fn Any.lt(other) = self < other
+        fn Any.gt(other) = self > other
+        fn Any.lte(other) = self <= other
+        fn Any.gte(other) = self >= other
 
         fn format(template: String, var args) -> String
         fn print(var args) -> None

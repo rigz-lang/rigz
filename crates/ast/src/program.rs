@@ -213,7 +213,7 @@ impl Display for Statement {
                 lhs,
                 op,
                 expression,
-            } => write!(f, "{lhs} {op}= {expression}"),
+            } => write!(f, "{lhs} {op} {expression}"),
             Statement::FunctionDefinition(func) => write!(f, "{func}"),
             Statement::Trait(t) => write!(f, "{t}"),
             Statement::Import(s) => write!(f, "import {s}"),
