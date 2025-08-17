@@ -763,6 +763,13 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 self.builder.add_for_instruction(new);
                 self.identifiers = identifiers;
             }
+            Statement::Module(base, elements) => {
+                let current = self.builder.current_scope();
+                let new = self.builder.enter_scope(base, vec![], None);
+                self.parse_elements_pop_all_expressions(elements)?;
+                self.builder.exit_scope(current);
+                self.builder.add_call_instruction(new);
+            }
         }
         Ok(())
     }

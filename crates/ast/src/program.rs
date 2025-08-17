@@ -203,6 +203,7 @@ pub enum Statement {
         body: Scope,
     },
     Loop(Scope),
+    Module(String, Vec<Element>)
 }
 
 impl Display for Statement {
@@ -236,6 +237,7 @@ impl Display for Statement {
                 body,
             } => write!(f, "for {each} in {expression} do \n{body}\nend"),
             Statement::Loop(body) => write!(f, "loop\n{body}\nend"),
+            Statement::Module(rt, elements) => write!(f, "mod {rt}\n{}\nend", elements.iter().map(|e| e.to_string()).join("\n")),
         }
     }
 }

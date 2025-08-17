@@ -662,6 +662,23 @@ impl<'t> Parser<'t> {
                 self.next_token();
                 self.parse_assignment(true, true)?.into()
             }
+            TokenKind::Module => {
+                self.next_token();
+                let name = self.next_required_token("module name")?;
+                let TokenKind::TypeValue(name) = name.kind else {
+                    return Err(ParsingError::ParseError(format!("Invalid Module, expected Type received {name:?}")))
+                };
+                let mut elements = vec![];
+                loop {
+                    let p = self.peek_required_token("module end")?;
+                    if p.kind == TokenKind::End {
+                        self.next_token();
+                        break
+                    }
+                    elements.push(self.parse_element()?);
+                }
+                Statement::Module(name.to_string(), elements).into()
+            }
             TokenKind::Impl => {
                 self.next_token();
                 let base_trait = self.parse_rigz_type(None, false)?;

@@ -635,6 +635,12 @@ impl ToTokens for Statement {
                     }
                 }
             }
+            Statement::Module(base, elements) => {
+                let elements = csv_vec(elements);
+                quote! {
+                    Statement::Module(#base, #elements)
+                }
+            }
         };
         tokens.extend(t)
     }
