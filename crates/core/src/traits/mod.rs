@@ -3,7 +3,7 @@ mod dyn_traits;
 #[cfg(feature = "snapshot")]
 mod snapshot;
 
-use crate::{ObjectValue, RigzArgs, VMError};
+use crate::{ObjectValue, PrimitiveValue, RigzArgs, VMError};
 pub use as_primitive::{AsPrimitive, ToBool, WithTypeInfo};
 use dyn_clone::DynClone;
 pub use dyn_traits::*;
@@ -18,8 +18,15 @@ use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::vec::IntoIter;
+use itertools::Itertools;
 
 pub type FastHashMap<K, V> = HashMap<K, V, FxBuildHasher>;
+
+pub trait DevPrint: Display {
+    fn dev_print(&self) -> String {
+        self.to_string()
+    }
+}
 
 pub trait Definition {
     fn name() -> &'static str
@@ -97,6 +104,12 @@ pub trait CreateObject {
         Self: Sized;
 
     fn post_deserialize(&mut self) {}
+}
+
+impl DevPrint for dyn Object {
+    fn dev_print(&self) -> String {
+        format!("\"{self}\"")
+    }
 }
 
 #[allow(unused_variables)]

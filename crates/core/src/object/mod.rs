@@ -4,10 +4,7 @@ mod ops;
 #[cfg(feature = "snapshot")]
 mod snapshot;
 
-use crate::{
-    AsPrimitive, DynCompare, IndexMap, IndexSet, Number, Object, PrimitiveValue, RigzType, ToBool,
-    VMError, WithTypeInfo,
-};
+use crate::{AsPrimitive, DevPrint, DynCompare, IndexMap, IndexSet, Number, Object, PrimitiveValue, RigzType, ToBool, VMError, WithTypeInfo};
 use indexmap::set::MutableValues;
 use std::cell::RefCell;
 use std::cmp::Ordering;
@@ -15,6 +12,7 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
+use itertools::Itertools;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
@@ -28,8 +26,25 @@ pub enum ObjectValue {
     Enum(usize, usize, Option<Rc<RefCell<ObjectValue>>>),
 }
 
+// todo switch to pointers stored in call frame based arenas long term
 unsafe impl Send for ObjectValue {}
 unsafe impl Sync for ObjectValue {}
+
+impl DevPrint for ObjectValue {
+    fn dev_print(&self) -> String {
+        match self {
+            ObjectValue::Primitive(PrimitiveValue::String(s)) => format!(r#""{s}""#),
+            ObjectValue::Primitive(p) => p.to_string(),
+            ObjectValue::List(v) => format!("[{}]", v.iter().map(|v| v.borrow().dev_print()).join(", ")),
+            ObjectValue::Set(v) => format!("Set[{}]", v.iter().map(|v| v.dev_print()).join(", ")),
+            ObjectValue::Tuple(v) => format!("({})", v.iter().map(|v| v.borrow().dev_print()).join(", ")),
+            ObjectValue::Object(o) => o.dev_print(),
+            ObjectValue::Map(m) => format!("{{{}}}", m.iter().map(|(k, v)| format!("{} = {}", k.dev_print(), v.borrow().dev_print())).join(", ")),
+            // todo improve Enum dev print, requires VM though
+            o => o.to_string(),
+        }
+    }
+}
 
 impl ObjectValue {
     pub fn new(obj: impl Object) -> Self {
