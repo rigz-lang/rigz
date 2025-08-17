@@ -142,7 +142,7 @@ macro_rules! errln {
     ($($arg:tt)*) => {{
         #[cfg(feature = "std_capture")]
         {
-            match $crate::CAPTURE.out.read() {
+            match $crate::CAPTURE.err.read() {
                 Ok(curr) => {
                     if let Some(o) = curr.deref() {
                         let mut s = format_args!($($arg)*).to_string();

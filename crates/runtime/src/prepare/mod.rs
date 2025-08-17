@@ -1990,7 +1990,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             }
             "log" => {
                 if arguments.len() >= 2 {
-                    let len = arguments.len() - 2;
+                    let mut len = arguments.len() - 2;
                     let mut arguments = arguments.iter();
                     let level = match arguments.next().unwrap() {
                         Expression::Value(PrimitiveValue::String(s)) => {
@@ -2005,15 +2005,22 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                         }
                     };
 
-                    let template = match arguments.next().unwrap() {
-                        Expression::Value(PrimitiveValue::String(s)) => s.clone(),
-                        _ => "{}".to_string(),
+                    let (template, exp) = match arguments.next().unwrap() {
+                        Expression::Value(PrimitiveValue::String(s)) => {
+                            (s.clone(), None)
+                        },
+                        v => {
+                            len += 1;
+                            ("{}".to_string(), Some(v.clone()))
+                        },
                     };
 
-                    for arg in arguments {
+                    for arg in arguments.rev() {
                         self.parse_expression(arg.clone())?;
                     }
-
+                    if let Some(e) = exp {
+                        self.parse_expression(e)?;
+                    }
                     self.builder.add_log_instruction(level, template, len);
                 } else {
                     return Err(ValidationError::InvalidFunction(format!(

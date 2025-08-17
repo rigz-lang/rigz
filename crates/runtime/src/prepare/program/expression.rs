@@ -307,7 +307,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         let e = match fe {
             FunctionExpression::FunctionCall(name, _) => {
                 match name.as_str() {
-                    "puts" | "log" | "sleep" => return Ok(RigzType::None),
+                    "puts" | "log" | "sleep" | "println" | "print" | "eprint" | "eprintln" => return Ok(RigzType::None),
                     "spawn" => return Ok(RigzType::Int),
                     "receive" => return Ok(RigzType::Any),
                     "send" => return Ok(RigzType::List(Box::new(RigzType::Int))),

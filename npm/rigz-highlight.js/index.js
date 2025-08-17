@@ -76,7 +76,6 @@ export function rigz(hljs) {
             "Int",
             "JSON",
             "List",
-            "Log",
             "Map",
             "None",
             "Number",

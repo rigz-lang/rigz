@@ -93,6 +93,10 @@ derive_module! {
             self.reduce(0, |prev, res| prev + res)
         end
 
+        fn List.join(sep = ",") -> String
+
+        fn Set.join(sep = ",") -> String
+
         fn Map.reduce(init: Any, func: |Any, Any, Any| -> Any) -> Any
             mut result = init
             for k, v in self
@@ -329,6 +333,14 @@ impl RigzCollections for CollectionsModule {
 
     fn list_to_tuple(&self, this: &Vec<Rc<RefCell<ObjectValue>>>) -> ObjectValue {
         ObjectValue::Tuple(this.clone())
+    }
+
+    fn list_join(&self, this: &Vec<Rc<RefCell<ObjectValue>>>, sep: String) -> String {
+        this.iter().map(|v| v.borrow().to_string()).join(sep.as_str())
+    }
+
+    fn set_join(&self, this: &IndexSet<ObjectValue>, sep: String) -> String {
+        this.iter().map(|v| v.to_string()).join(sep.as_str())
     }
 
     fn list_len(&self, this: &Vec<Rc<RefCell<ObjectValue>>>) -> i64 {

@@ -580,6 +580,14 @@ impl AsPrimitive<ObjectValue, Rc<RefCell<ObjectValue>>> for ObjectValue {
         }
     }
 
+    fn is_value(&self) -> bool {
+        if let ObjectValue::Primitive(p) = self {
+            p.is_value()
+        } else {
+            true
+        }
+    }
+
     fn iter(&self) -> Result<Box<dyn Iterator<Item = ObjectValue> + '_>, VMError> {
         match self {
             ObjectValue::List(m) | ObjectValue::Tuple(m) => {
