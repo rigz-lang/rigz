@@ -2605,10 +2605,10 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 else {
                     unreachable!()
                 };
-                self.parse_module_trait_definition(def, idx)?;
                 for dep in deps {
                     self.parse_dep(dep)?;
                 }
+                self.parse_module_trait_definition(def, idx)?;
             }
         } else if self.parsed_deps.contains_key(name) {
             self.parse_dep(name)?;
