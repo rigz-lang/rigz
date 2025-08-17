@@ -20,6 +20,10 @@ derive_module! {
             Set[for v in self: func v]
         end
 
+        fn Set.enumerate -> [(Int, Any)]
+        fn List.enumerate -> [(Int, Any)]
+        fn Map.enumerate -> [(Int, (Any, Any))]
+
         fn List.each(func: |Any| -> Any)
             for v in self = func v
         end
@@ -158,6 +162,18 @@ derive_module! {
 }
 
 impl RigzCollections for CollectionsModule {
+    fn set_enumerate(&self, this: &IndexSet<ObjectValue>) -> Vec<(i64, ObjectValue)> {
+        this.into_iter().enumerate().map(|(i, v)| (i as i64, v.clone())).collect()
+    }
+
+    fn list_enumerate(&self, this: &Vec<Rc<RefCell<ObjectValue>>>) -> Vec<(i64, ObjectValue)> {
+        this.into_iter().enumerate().map(|(i, v)| (i as i64, v.borrow().clone())).collect()
+    }
+
+    fn map_enumerate(&self, this: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>) -> Vec<(i64, (ObjectValue, ObjectValue))> {
+        this.into_iter().enumerate().map(|(i, (k, v))| (i as i64, (k.clone(), v.borrow().clone()))).collect()
+    }
+
     fn mut_set_extend(&self, this: &mut IndexSet<ObjectValue>, value: IndexSet<ObjectValue>) {
         this.extend(value)
     }

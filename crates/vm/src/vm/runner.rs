@@ -56,9 +56,9 @@ impl Runner for VM {
 
         for (arg, mutable) in self.scopes[scope_index].args.clone() {
             if mutable {
-                self.load_mut(arg, false)?;
+                self.load_mut(arg, true)?;
             } else {
-                self.load_let(arg, false)?;
+                self.load_let(arg, true)?;
             }
         }
 
@@ -370,7 +370,7 @@ impl Runner for VM {
                         s
                     }
                 };
-                match unsafe { self.process_instruction_scope(ins) } {
+                match unsafe { self.process_instruction(ins) } {
                     VMState::Running => {}
                     VMState::Break => {
                         break 'outer;
@@ -492,7 +492,7 @@ impl Runner for VM {
                         s
                     }
                 };
-                match unsafe { self.process_instruction_scope(ins) } {
+                match unsafe { self.process_instruction(ins) } {
                     VMState::Running => {}
                     VMState::Break => {
                         break 'outer;
@@ -511,7 +511,6 @@ impl Runner for VM {
                         self.frames.current.borrow_mut().clear_variables();
                         break;
                     }
-                    VMState::Ran(r) => self.store_value(r.into()),
                     v => return Err(v),
                 }
             }

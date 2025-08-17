@@ -380,7 +380,7 @@ pub trait Runner: ResolveValue {
         if mutable {
             self.load_mut(0, true)
         } else {
-            self.load_let(0, false)
+            self.load_let(0, true)
         }
     }
 

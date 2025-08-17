@@ -1,6 +1,6 @@
 use crate::prepare::{CallSignature, FunctionCallSignatures, ProgramParser};
 use itertools::Itertools;
-use rigz_ast::{Element, Expression, FunctionExpression, MatchVariant, Scope, ValidationError};
+use rigz_ast::{Element, Expression, FunctionExpression, FunctionType, MatchVariant, RigzArguments, Scope, ValidationError};
 use rigz_core::{PrimitiveValue, RigzType, UnaryOperation, ValueRange, WithTypeInfo};
 use rigz_vm::RigzBuilder;
 use std::cmp::Ordering;
@@ -414,7 +414,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                             match matched.len() {
                                 0 => {
                                     return Err(ValidationError::InvalidFunction(format!(
-                                        "extension {name} does not exist"
+                                        "Cannot call extension {ex}.{}", calls.join(".")
                                     )))
                                 }
                                 1 => matched.iter().next().cloned().unwrap(),

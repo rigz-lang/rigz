@@ -75,7 +75,6 @@ export function rigz(hljs) {
             "List",
             "Log",
             "Map",
-            "Math",
             "None",
             "Number",
             "Random",

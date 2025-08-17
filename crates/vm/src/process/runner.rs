@@ -143,9 +143,9 @@ impl ProcessRunner<'_> {
     fn load_args(&mut self) -> Result<(), VMError> {
         for (arg, mutable) in self.scope.args.iter().copied() {
             if mutable {
-                self.load_mut(arg, false)?
+                self.load_mut(arg, true)?
             } else {
-                self.load_let(arg, false)?
+                self.load_let(arg, true)?
             };
         }
         Ok(())

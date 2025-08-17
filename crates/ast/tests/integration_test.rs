@@ -126,6 +126,10 @@ pub mod valid {
                 c = 42
             end
         "#,
+        multi_line r#"a
+            .foo
+            .bar
+            .baz 1234"#,
         list_string r#"
             let s: [String] = ["1", "a"]
         "#,

@@ -2309,8 +2309,27 @@ impl<'t> Parser<'t> {
         }
 
         loop {
-            let Some(next) = self.peek_token() else { break };
+            let Some(mut next) = self.peek_token() else { break };
 
+            if next.kind == TokenKind::Newline && self.tokens.len() > 1 {
+                let mut current = 1;
+                loop {
+                    match self.tokens.get(current) {
+                        None => break,
+                        Some(t) if t.kind == TokenKind::Newline => {
+                            current += 1;
+                        }
+                        Some(t) if t.kind == TokenKind::Period => {
+                            for _ in 1..=current {
+                                self.tokens.pop_front();
+                            }
+                            next = self.peek_token().unwrap();
+                            break
+                        }
+                        Some(_) => break
+                    }
+                }
+            }
             if next.terminal() || matches!(next.kind, TokenKind::Comma) {
                 break;
             }
@@ -2475,16 +2494,10 @@ impl<'t> Parser<'t> {
                         self.consume_token(TokenKind::Rbracket)?;
                         RigzType::List(Box::default())
                     }
-                    TokenKind::TypeValue(_) => {
+                    _ => {
                         let l = RigzType::List(Box::new(self.parse_rigz_type(None, paren)?));
                         self.consume_token(TokenKind::Rbracket)?;
                         l
-                    }
-                    _ => {
-                        return Err(ParsingError::ParseError(format!(
-                            "Invalid list type {:?}",
-                            t
-                        )))
                     }
                 }
             }
