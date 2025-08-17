@@ -1,5 +1,5 @@
 use crate::vm::VMOptions;
-use crate::MatchArm;
+use crate::{DisplayType, MatchArm};
 use crate::{Instruction, LoadValue, Scope, VM};
 use log::Level;
 use rigz_core::{BinaryAssignOperation, BinaryOperation, Dependency, EnumDeclaration, IndexSet, Lifecycle, Module, ObjectValue, RigzType, UnaryOperation};
@@ -51,6 +51,18 @@ macro_rules! generate_unary_op_methods {
             #[inline]
             fn $name(&mut self) -> &mut Self {
                 self.add_instruction(Instruction::Unary(UnaryOperation::$variant))
+            }
+        )*
+    };
+}
+
+#[macro_export]
+macro_rules! generate_display_methods {
+    ($($name:ident => $variant:ident),*) => {
+        $(
+            #[inline]
+            fn $name(&mut self, args: usize) -> &mut Self {
+                self.add_instruction(Instruction::Display(args, DisplayType::$variant))
             }
         )*
     };
@@ -126,12 +138,17 @@ pub trait RigzBuilder: Debug + Default {
     generate_unary_op_methods! {
         add_neg_instruction => Neg,
         add_not_instruction => Not,
+        add_reverse_instruction => Reverse
+    }
+
+    generate_display_methods! {
+        add_puts_instruction => Puts,
         add_print_instruction => Print,
         add_eprint_instruction => EPrint,
         add_println_instruction => PrintLn,
-        add_eprintln_instruction => EPrintLn,
-        add_reverse_instruction => Reverse
+        add_eprintln_instruction => EPrintLn
     }
+
 
     #[inline]
     fn add_break_instruction(&mut self) -> &mut Self {
@@ -361,8 +378,8 @@ pub trait RigzBuilder: Debug + Default {
     }
 
     #[inline]
-    fn add_puts_instruction(&mut self, values: usize) -> &mut Self {
-        self.add_instruction(Instruction::Puts(values))
+    fn add_display_instruction(&mut self, args: usize, display_type: DisplayType) -> &mut Self {
+        self.add_instruction(Instruction::Display(args, display_type))
     }
 
     #[inline]

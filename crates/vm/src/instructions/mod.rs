@@ -242,6 +242,45 @@ impl Snapshot for MatchArm {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum DisplayType {
+    Puts,
+    EPrint,
+    EPrintLn,
+    Print,
+    PrintLn,
+}
+
+impl Snapshot for DisplayType {
+    fn as_bytes(&self) -> Vec<u8> {
+        vec![*self as u8]
+    }
+
+    fn from_bytes<D: Display>(bytes: &mut IntoIter<u8>, location: &D) -> Result<Self, VMError> {
+        let next = match bytes.next() {
+            None => {
+                return Err(VMError::runtime(format!(
+                    "Missing DisplayType byte {location}"
+                )))
+            }
+            Some(b) => b,
+        };
+
+        let op = match next {
+            0 => DisplayType::Print,
+            1 => DisplayType::EPrint,
+            2 => DisplayType::PrintLn,
+            3 => DisplayType::EPrintLn,
+            b => {
+                return Err(VMError::runtime(format!(
+                    "Illegal DisplayType byte {b} - {location}"
+                )))
+            }
+        };
+        Ok(op)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Instruction {
     Halt,
@@ -268,7 +307,7 @@ pub enum Instruction {
     },
     Match(Vec<MatchArm>),
     Log(Level, String, usize),
-    Puts(usize),
+    Display(usize, DisplayType),
     CallEq(usize),
     CallNeq(usize),
     // todo do I need if, if_else, unless statements, or can I use expressions in the VM?
@@ -421,9 +460,10 @@ impl Snapshot for Instruction {
                 res.extend(a.as_bytes());
                 res
             }
-            Instruction::Puts(a) => {
+            Instruction::Display(args, ty) => {
                 let mut res = vec![16];
-                res.extend(a.as_bytes());
+                res.extend(args.as_bytes());
+                res.extend(ty.as_bytes());
                 res
             }
             Instruction::CallEq(a) => {
@@ -691,7 +731,7 @@ impl Snapshot for Instruction {
                 Snapshot::from_bytes(bytes, location)?,
                 Snapshot::from_bytes(bytes, location)?,
             ),
-            16 => Instruction::Puts(Snapshot::from_bytes(bytes, location)?),
+            16 => Instruction::Display(Snapshot::from_bytes(bytes, location)?, Snapshot::from_bytes(bytes, location)?),
             17 => Instruction::CallEq(Snapshot::from_bytes(bytes, location)?),
             18 => Instruction::CallNeq(Snapshot::from_bytes(bytes, location)?),
             19 => Instruction::IfElse {

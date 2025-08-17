@@ -106,10 +106,6 @@ impl Snapshot for UnaryOperation {
             0 => UnaryOperation::Neg,
             1 => UnaryOperation::Not,
             2 => UnaryOperation::Reverse,
-            3 => UnaryOperation::Print,
-            4 => UnaryOperation::EPrint,
-            5 => UnaryOperation::PrintLn,
-            6 => UnaryOperation::EPrintLn,
             b => {
                 return Err(VMError::runtime(format!(
                     "Illegal UnaryOperation byte {b} - {location}"

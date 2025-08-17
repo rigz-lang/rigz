@@ -9,7 +9,7 @@ use rigz_core::{
     EnumDeclaration, FastHashMap, IndexMap, IndexSet, Lifecycle, Number, ObjectValue,
     PrimitiveValue, RigzType,
 };
-use rigz_vm::{Instruction, LoadValue, MatchArm, RigzBuilder, VMBuilder, VM};
+use rigz_vm::{DisplayType, Instruction, LoadValue, MatchArm, RigzBuilder, VMBuilder, VM};
 use std::collections::hash_map::Entry;
 use std::env;
 use std::fmt::Debug;
@@ -1973,12 +1973,20 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         };
 
         match name {
-            "puts" => {
+            "puts" | "println" | "print" | "eprint" | "eprintln" => {
                 let len = arguments.len();
                 for arg in arguments.into_iter().rev() {
                     self.parse_expression(arg)?;
                 }
-                self.builder.add_puts_instruction(len);
+                let disp = match name {
+                    "puts" => DisplayType::Puts,
+                    "println" => DisplayType::PrintLn,
+                    "print" => DisplayType::Print,
+                    "eprint" => DisplayType::EPrint,
+                    "eprintln" => DisplayType::EPrintLn,
+                    _ => unreachable!("{name} is invalid built in function"),
+                };
+                self.builder.add_display_instruction(len, disp);
             }
             "log" => {
                 if arguments.len() >= 2 {

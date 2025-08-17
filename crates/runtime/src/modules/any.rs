@@ -62,7 +62,6 @@ derive_module! {
         fn Any.gte(other) = self >= other
 
         fn format(template: String, var args) -> String
-        fn print(var args) -> None
         fn printf(template: String, var args) -> None
         fn any(var values) -> Bool
         fn all(var values) -> Bool
@@ -198,11 +197,6 @@ impl RigzAny for AnyModule {
             res = res.replacen("{}", l.as_str(), 1);
         }
         res
-    }
-
-    fn print(&self, args: Vec<Rc<RefCell<ObjectValue>>>) {
-        let s = args.iter().map(|a| a.borrow().to_string()).join("");
-        out!("{s}")
     }
 
     fn printf(&self, template: String, args: Vec<Rc<RefCell<ObjectValue>>>) {

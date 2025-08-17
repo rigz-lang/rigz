@@ -62,7 +62,7 @@ macro_rules! out {
     () => {
         $crate::handle_js! {
             web_sys::console::log_0(),
-            print!()
+            print!("")
         }
     };
     ($($arg:tt)*) => {{
@@ -92,7 +92,7 @@ macro_rules! err {
     () => {
         $crate::handle_js! {
            web_sys::console::error_0(),
-           eprint!()
+           eprint!("")
         }
     };
     ($($arg:tt)*) => {{

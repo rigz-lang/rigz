@@ -4,11 +4,7 @@ use std::fmt::{Display, Formatter};
 pub enum UnaryOperation {
     Neg,
     Not,
-    Reverse,
-    Print,
-    EPrint,
-    PrintLn,
-    EPrintLn,
+    Reverse
 }
 
 impl Display for UnaryOperation {
@@ -17,10 +13,6 @@ impl Display for UnaryOperation {
             UnaryOperation::Neg => write!(f, "-"),
             UnaryOperation::Not => write!(f, "!"),
             UnaryOperation::Reverse => write!(f, "rev"),
-            UnaryOperation::Print => write!(f, "print"),
-            UnaryOperation::EPrint => write!(f, "eprint"),
-            UnaryOperation::PrintLn => write!(f, "println"),
-            UnaryOperation::EPrintLn => write!(f, "eprintln"),
         }
     }
 }

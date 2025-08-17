@@ -1,4 +1,4 @@
-use crate::{err, errln, out, outln, CallFrame, Dependencies, Instruction, MatchArm, Modules, Scope, VMOptions, VMState};
+use crate::{err, errln, out, outln, CallFrame, Dependencies, DisplayType, Instruction, MatchArm, Modules, Scope, VMOptions, VMState};
 use log::log;
 use rigz_core::{AsPrimitive, BinaryAssignOperation, BinaryOperation, EnumDeclaration, IndexMap, IndexSet, Logical, LogicalAssign, Module, ObjectValue, PrimitiveValue, Reference, ResolveValue, ResolvedValue, Reverse, RigzArgs, RigzObject, RigzType, StackValue, ToBool, UnaryOperation, VMError, WithTypeInfo};
 use std::cell::RefCell;
@@ -247,28 +247,13 @@ macro_rules! runner_common {
 }
 
 use std::time::Duration;
+use itertools::Itertools;
 
 #[inline]
 pub fn eval_unary(unary_operation: UnaryOperation, val: &ObjectValue) -> ObjectValue {
     match unary_operation {
         UnaryOperation::Neg => -val,
         UnaryOperation::Not => !val,
-        UnaryOperation::PrintLn => {
-            outln!("{}", val);
-            ObjectValue::default()
-        }
-        UnaryOperation::EPrintLn => {
-            errln!("{}", val);
-            ObjectValue::default()
-        }
-        UnaryOperation::Print => {
-            out!("{}", val);
-            ObjectValue::default()
-        }
-        UnaryOperation::EPrint => {
-            err!("{}", val);
-            ObjectValue::default()
-        }
         UnaryOperation::Reverse => Reverse::reverse(val),
     }
 }
@@ -698,14 +683,47 @@ pub trait Runner: ResolveValue {
                 log!(*level, "{}", res);
                 self.store_value(ObjectValue::default().into());
             }
-            &Instruction::Puts(args) => {
+            &Instruction::Display(args, ty) => {
                 if args == 0 {
-                    outln!();
+                    match ty {
+                        DisplayType::PrintLn | DisplayType::Puts => {
+                            outln!();
+                        }
+                        DisplayType::EPrint => {
+                            err!();
+                        },
+                        DisplayType::EPrintLn => {
+                            errln!();
+                        },
+                        DisplayType::Print => {
+                            out!();
+                        }
+                    }
                 } else {
                     let args = self.resolve_args(args);
-                    for arg in args {
-                        let s = arg.borrow().to_string();
-                        outln!("{}", s);
+                    match ty {
+                        DisplayType::Puts => {
+                            for arg in args {
+                                let s = arg.borrow().to_string();
+                                outln!("{s}");
+                            }
+                        }
+                        DisplayType::EPrint => {
+                            let s = args.iter().map(|a| a.borrow().to_string()).join("");
+                            err!("{s}");
+                        }
+                        DisplayType::EPrintLn => {
+                            let s = args.iter().map(|a| a.borrow().to_string()).join("");
+                            errln!("{s}");
+                        }
+                        DisplayType::Print => {
+                            let s = args.iter().map(|a| a.borrow().to_string()).join("");
+                            out!("{s}");
+                        }
+                        DisplayType::PrintLn => {
+                            let s = args.iter().map(|a| a.borrow().to_string()).join("");
+                            outln!("{s}");
+                        }
                     }
                 }
                 self.store_value(ObjectValue::default().into());

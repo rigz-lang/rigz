@@ -9,10 +9,6 @@ impl ToTokens for UnaryOperation {
             UnaryOperation::Neg => quote! { UnaryOperation::Neg },
             UnaryOperation::Not => quote! { UnaryOperation::Not },
             UnaryOperation::Reverse => quote! { UnaryOperation::Reverse },
-            UnaryOperation::Print => quote! { UnaryOperation::Print },
-            UnaryOperation::EPrint => quote! { UnaryOperation::EPrint },
-            UnaryOperation::PrintLn => quote! { UnaryOperation::PrintLn },
-            UnaryOperation::EPrintLn => quote! { UnaryOperation::EPrintLn },
         };
         tokens.extend(t);
     }

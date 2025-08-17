@@ -72,10 +72,6 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     _ => RigzType::Bool,
                 },
                 UnaryOperation::Neg | UnaryOperation::Reverse => self.rigz_type(e)?,
-                UnaryOperation::Print
-                | UnaryOperation::EPrint
-                | UnaryOperation::PrintLn
-                | UnaryOperation::EPrintLn => RigzType::None,
             },
             Expression::Cast(_, r) => r.clone(),
             Expression::Scope(s) => self.scope_type(s)?,
