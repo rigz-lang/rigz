@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["rigz_vm/threaded"]
 js = ["rigz_vm/js", "dep:getrandom", "dep:web-sys", "dep:ring", "dep:rustls-pki-types", "uuid/js", "chrono/js-sys"]
+std_capture = ["rigz_vm/std_capture"]
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }

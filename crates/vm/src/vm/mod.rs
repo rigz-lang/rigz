@@ -1,3 +1,4 @@
+use std::ops::Deref;
 mod options;
 mod runner;
 mod values;

@@ -4,3 +4,6 @@ pub mod runtime;
 
 pub use modules::*;
 pub use runtime::{eval, Runtime, RuntimeError};
+
+#[cfg(feature = "std_capture")]
+pub use rigz_vm::{CAPTURE, StdOutCapture};

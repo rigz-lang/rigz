@@ -10,6 +10,7 @@ keywords = ["rigz", "vm"]
 
 [features]
 default = ["threaded"]
+std_capture = []
 derive = ["rigz_core/derive", "dep:proc-macro2", "dep:quote"]
 js = ["dep:web-sys", "dep:web-time"]
 threaded = ["dep:tokio", "rigz_core/threaded"]

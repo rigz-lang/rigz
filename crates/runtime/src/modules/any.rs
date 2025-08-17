@@ -206,7 +206,8 @@ impl RigzAny for AnyModule {
     }
 
     fn printf(&self, template: String, args: Vec<Rc<RefCell<ObjectValue>>>) {
-        outln!("{}", self.format(template, args))
+        let fmt = self.format(template, args);
+        outln!("{}", fmt)
     }
 
     fn any(&self, values: Vec<Rc<RefCell<ObjectValue>>>) -> bool {
