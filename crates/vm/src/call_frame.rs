@@ -88,7 +88,7 @@ impl Frames {
     }
 
     #[inline]
-    #[logfn_inputs(Trace, fmt = "load_let(frames={:#?} name={}, value={:?}, shadow={})")]
+    #[logfn_inputs(Trace, fmt = "load_let(frames={:#p} name={}, value={:?}, shadow={})")]
     pub fn load_let(&self, name: usize, value: StackValue, shadow: bool) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
             Entry::Occupied(mut v) => {
@@ -121,7 +121,7 @@ impl Frames {
     }
 
     #[inline]
-    #[logfn_inputs(Trace, fmt = "load_mut(frames={:#?} name={}, value={:?}, shadow={})")]
+    #[logfn_inputs(Trace, fmt = "load_mut(frames={:#p} name={}, value={:?}, shadow={})")]
     pub fn load_mut(&self, name: usize, value: StackValue, shadow: bool) -> Result<(), VMError> {
         match self.current.borrow_mut().variables.entry(name) {
             Entry::Occupied(mut var) => match var.get() {
