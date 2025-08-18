@@ -1552,6 +1552,10 @@ impl<'t> Parser<'t> {
                                         assign = true;
                                         break;
                                     }
+                                    TokenKind::Lparen => {
+                                        args.push(self.parse_identifier_expression(id)?);
+                                        needs_comma = true
+                                    }
                                     _ => {
                                         args.push(self.parse_inline_expression(id.into(), 0)?);
                                         needs_comma = true
