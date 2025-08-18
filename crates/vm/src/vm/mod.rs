@@ -322,6 +322,19 @@ impl VM {
             let v = self.eval();
             match v {
                 Err(e) => {
+                    #[cfg(feature = "std_capture")]
+                    {
+                        match crate::CAPTURE.out.read() {
+                        Ok(curr) => {
+                            if let Some(o) = curr.deref() {
+                                o.applied("FAILED\n".to_string())
+                            }
+                        }
+                        Err(_) => {
+                            // todo notify that RwLock is poisoned
+                        }
+                    }
+                    }
                     #[cfg(not(feature = "js"))]
                     println!("\x1b[31mFAILED\x1b[0m");
                     #[cfg(feature = "js")]
@@ -330,6 +343,19 @@ impl VM {
                     failure_messages.push((named.to_string(), e));
                 }
                 Ok(_) => {
+                    #[cfg(feature = "std_capture")]
+                    {
+                        match crate::CAPTURE.out.read() {
+                            Ok(curr) => {
+                                if let Some(o) = curr.deref() {
+                                    o.applied("ok\n".to_string())
+                                }
+                            }
+                            Err(_) => {
+                                // todo notify that RwLock is poisoned
+                            }
+                        }
+                    }
                     #[cfg(not(feature = "js"))]
                     println!("\x1b[32mok\x1b[0m");
                     #[cfg(feature = "js")]

@@ -74,7 +74,7 @@ macro_rules! out {
                         o.applied(format_args!($($arg)*).to_string())
                     }
                 }
-                Err(e) => {
+                Err(_) => {
                     // todo notify that RwLock is poisoned
                 }
             }

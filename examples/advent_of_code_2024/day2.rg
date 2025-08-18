@@ -15,10 +15,10 @@ fn List.safe -> Bool
 
     last = n;
     for n in nums
-        if (increasing && n > last)
+        if increasing && n > last
             return :second if n - last > 3
         else
-            if (!increasing && last > n)
+            if !increasing && last > n
                 return :third if (last - n > 3)
             else
                 return :forth
