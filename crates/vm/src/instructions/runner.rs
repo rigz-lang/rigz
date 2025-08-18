@@ -166,8 +166,16 @@ macro_rules! runner_common {
         fn get_variable(&mut self, name: usize) {
             let r = self.frames.get_variable(name);
             let v = match r {
-                None => VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))
-                    .into(),
+                None => {
+                    match self.translate_variable(name) {
+                        Some(name) => {
+                            VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))
+                        }
+                        None => {
+                            VMError::VariableDoesNotExist(format!("Variable index {} does not exist", name))
+                        }
+                    }.into()
+                },
                 Some(v) => v.resolve(self).into(),
             };
             self.store_value(v);
@@ -182,11 +190,16 @@ macro_rules! runner_common {
             };
 
             let v = match og {
-                None => VMError::VariableDoesNotExist(format!(
-                    "Mutable variable {} does not exist",
-                    name
-                ))
-                .into(),
+                None => {
+                    match self.translate_variable(name) {
+                        Some(name) => {
+                            VMError::VariableDoesNotExist(format!("Mutable variable {} does not exist", name))
+                        }
+                        None => {
+                            VMError::VariableDoesNotExist(format!("Mutable variable index {} does not exist", name))
+                        }
+                    }.into()
+                }
                 Some(v) => v.resolve(self).into(),
             };
             self.store_value(v);
@@ -329,6 +342,8 @@ pub enum CallType<'c> {
 pub type ResolvedModule = Reference<dyn Module>;
 
 pub trait Runner: ResolveValue {
+    fn translate_variable(&self, index: usize) -> Option<&String>;
+
     fn store_value(&mut self, value: StackValue);
 
     fn pop(&mut self) -> Option<StackValue>;

@@ -17,7 +17,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             Some(s) => s,
         };
         match e {
-            Element::Statement(_) => Ok(RigzType::None),
+            Element::Statement(_) => Ok(RigzType::Never),
             Element::Expression(e) => self.rigz_type(e),
         }
     }

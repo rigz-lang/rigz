@@ -18,6 +18,10 @@ use std::time::Duration;
 impl Runner for VM {
     runner_common!();
 
+    fn translate_variable(&self, index: usize) -> Option<&String> {
+        self.strings.get_index(index)
+    }
+    
     fn update_scope<F>(&mut self, index: usize, mut update: F) -> Result<(), VMError>
     where
         F: FnMut(&mut Scope) -> Result<(), VMError>,

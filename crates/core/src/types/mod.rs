@@ -50,6 +50,10 @@ impl Default for RigzType {
 
 impl RigzType {
     pub fn matches(&self, other: &RigzType) -> bool {
+        if self == &RigzType::Never || other == &RigzType::Never {
+            return false
+        }
+
         if self == other {
             return true;
         }

@@ -61,6 +61,10 @@ impl<'s> ProcessRunner<'s> {
 impl Runner for ProcessRunner<'_> {
     runner_common!();
 
+    fn translate_variable(&self, index: usize) -> Option<&String> {
+        todo!("Process does not implement `translate_variable` - {index}")
+    }
+
     fn update_scope<F>(&mut self, index: usize, mut update: F) -> Result<(), VMError>
     where
         F: FnMut(&mut Scope) -> Result<(), VMError>,
