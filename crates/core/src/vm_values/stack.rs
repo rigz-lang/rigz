@@ -23,6 +23,7 @@ impl From<Rc<RefCell<ObjectValue>>> for StackValue {
     }
 }
 
+#[derive(Debug)]
 pub enum ResolvedValue {
     Break,
     Next,

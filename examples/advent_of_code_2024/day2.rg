@@ -11,17 +11,17 @@ fn List.safe -> Bool
     let diff = (last - n).abs
     let increasing = last < n;
 
-    return :first if (diff > 3 || diff == 0)
+    return false if (diff > 3 || diff == 0)
 
     last = n;
     for n in nums
         if increasing && n > last
-            return :second if n - last > 3
+            return false if n - last > 3
         else
             if !increasing && last > n
-                return :third if (last - n > 3)
+                return false if (last - n > 3)
             else
-                return :forth
+                return false
             end
         end
         last = next
@@ -29,7 +29,7 @@ fn List.safe -> Bool
     true
 end
 
-fn part1 = [for v in lines: 1 if v.safe.is true ].len
+fn part1 = [for v in lines: 1 if v.safe ].len
 
 fn part2
     mut result = 0;

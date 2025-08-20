@@ -301,7 +301,7 @@ impl Runner for VM {
             );
         };
         let res = value.resolve(self);
-        let res = res.borrow_mut();
+        let res = res.borrow();
 
         let args = match self.scopes.get(scope_id) {
             None => {
@@ -428,7 +428,7 @@ impl Runner for VM {
             );
         };
         let res = value.resolve(self);
-        let res = res.borrow_mut();
+        let res = res.borrow();
 
         let args = match self.scopes.get(scope_id) {
             None => {
