@@ -88,7 +88,7 @@ fn is_float(s: &str) -> bool {
 
 impl RigzAny for AnyModule {
     fn any_clone(&self, this: &ObjectValue) -> ObjectValue {
-        this.clone()
+        this.deep_clone()
     }
 
     fn any_is_err(&self, this: &ObjectValue) -> bool {
