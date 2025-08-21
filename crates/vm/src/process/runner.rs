@@ -8,6 +8,7 @@ use std::fmt::Display;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Duration;
+use itertools::Either;
 
 pub(crate) struct ProcessRunner<'s> {
     scope: &'s Scope,
@@ -94,12 +95,12 @@ impl Runner for ProcessRunner<'_> {
         Err(VMError::todo("Process does not implement `find_enum`"))
     }
 
-    fn call_loop(&mut self, scope_index: usize) -> Option<VMState> {
-        Some(VMError::todo("Process does not implement `call_loop`").into())
+    fn call_loop(&mut self, scope_index: usize) -> Result<Option<VMState>, VMError> {
+        Err(VMError::todo("Process does not implement `call_loop`").into())
     }
 
-    fn call_for(&mut self, scope_index: usize) -> Option<VMState> {
-        Some(VMError::todo("Process does not implement `call_for`").into())
+    fn call_for(&mut self, scope_index: usize) -> Result<Option<VMState>, VMError> {
+        Err(VMError::todo("Process does not implement `call_for`").into())
     }
 
     fn call_for_comprehension<T, I, F>(
@@ -107,12 +108,12 @@ impl Runner for ProcessRunner<'_> {
         scope_id: usize,
         init: I,
         mut save: F,
-    ) -> Result<T, VMState>
+    ) -> Result<Either<T, VMState>, VMError>
     where
         F: FnMut(&mut T, ObjectValue) -> Option<VMError>,
         I: FnOnce(usize) -> T,
     {
-        Err(VMError::todo("Process does not implement `call_for_comprehension`").into())
+        Err(VMError::todo("Process does not implement `call_for_comprehension`"))
     }
 
     // fn vm_extension(
@@ -162,7 +163,7 @@ impl ProcessRunner<'_> {
         let state: VMState = if let Instruction::Ret = instruction {
             VMState::Ran(self.stack.next_value(|| "process_run").resolve(self))
         } else {
-            self.process_core_instruction(&instruction)
+            self.process_core_instruction(&instruction).unwrap_or_else(|e| e.into())
         };
 
         match state {

@@ -260,7 +260,7 @@ macro_rules! runner_common {
 }
 
 use std::time::Duration;
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 
 #[inline]
 pub fn eval_unary(unary_operation: UnaryOperation, val: &ObjectValue) -> ObjectValue {
@@ -491,16 +491,16 @@ pub trait Runner: ResolveValue {
         args: usize,
     ) -> Result<Option<ObjectValue>, VMError>;
 
-    fn call_loop(&mut self, scope_id: usize) -> Option<VMState>;
+    fn call_loop(&mut self, scope_id: usize) -> Result<Option<VMState>, VMError>;
 
-    fn call_for(&mut self, scope_id: usize) -> Option<VMState>;
+    fn call_for(&mut self, scope_id: usize) -> Result<Option<VMState>, VMError>;
 
     fn call_for_comprehension<T, I, F>(
         &mut self,
         scope_id: usize,
         init: I,
         save: F,
-    ) -> Result<T, VMState>
+    ) -> Result<Either<T, VMState>, VMError>
     where
         F: FnMut(&mut T, ObjectValue) -> Option<VMError>,
         I: FnOnce(usize) -> T;
@@ -521,14 +521,14 @@ pub trait Runner: ResolveValue {
     #[allow(unused_variables)]
     #[inline]
     #[log_derive::logfn_inputs(Debug, fmt = "process_instruction(vm={:#p}, instruction={:?})")]
-    fn process_core_instruction(&mut self, instruction: &Instruction) -> VMState {
+    fn process_core_instruction(&mut self, instruction: &Instruction) -> Result<VMState, VMError> {
         match instruction {
             Instruction::Halt => {
                 let v = self
                     .pop()
                     .map(|e| e.resolve(self))
                     .unwrap_or_else(|| ObjectValue::default().into());
-                return VMState::Done(v);
+                return Ok(VMState::Done(v));
             }
             Instruction::Exit => {
                 let v = self
@@ -536,7 +536,7 @@ pub trait Runner: ResolveValue {
                     .map(|e| e.resolve(self))
                     .unwrap_or_else(|| ObjectValue::default().into());
                 self.exit(v.clone());
-                return VMState::Done(v);
+                return Ok(VMState::Done(v));
             }
             Instruction::HaltIfError => {
                 let value = self
@@ -544,7 +544,7 @@ pub trait Runner: ResolveValue {
                     .map(|e| e.resolve(self))
                     .unwrap_or_else(|| ObjectValue::default().into());
                 if let ObjectValue::Primitive(PrimitiveValue::Error(e)) = value.borrow().deref() {
-                    return e.clone().into();
+                    return Ok(e.clone().into());
                 };
                 let s: StackValue = value.into();
                 self.store_value(s);
@@ -556,19 +556,13 @@ pub trait Runner: ResolveValue {
                 self.store_value(r.clone().into());
             }
             &Instruction::LoadLet(name, shadow) => {
-                if let Err(e) = self.load_let(name, shadow) {
-                    return e.into();
-                }
+                self.load_let(name, shadow)?;
             }
             &Instruction::LoadMut(name, shadow) => {
-                if let Err(e) = self.load_mut(name, shadow) {
-                    return e.into();
-                }
+                self.load_mut(name, shadow)?;
             }
             &Instruction::Call(scope) => {
-                if let Err(e) = self.call_frame(scope) {
-                    return e.into();
-                }
+                self.call_frame(scope)?;
             }
             Instruction::CallModule { module, func, args } => {
                 if let Some(module) = self.get_module(*module) {
@@ -606,8 +600,8 @@ pub trait Runner: ResolveValue {
             //     };
             // }
             &Instruction::PersistScope(var) => {
-                if let Some(s) = self.persist_scope(var) {
-                    return s.into();
+                if let Some(e) = self.persist_scope(var) {
+                    return Err(e)
                 }
             }
             Instruction::Cast { rigz_type } => {
@@ -622,18 +616,14 @@ pub trait Runner: ResolveValue {
                 let b = self.next_resolved_value(|| "call eq - rhs");
                 let a = self.next_resolved_value(|| "call eq - lhs");
                 if a == b {
-                    if let Err(e) = self.call_frame(scope_index) {
-                        return e.into();
-                    };
+                    self.call_frame(scope_index)?;
                 }
             }
             &Instruction::CallNeq(scope_index) => {
                 let b = self.next_resolved_value(|| "call neq - rhs");
                 let a = self.next_resolved_value(|| "call neq - lhs");
-                if a == b {
-                    if let Err(e) = self.call_frame(scope_index) {
-                        return e.into();
-                    };
+                if a != b {
+                    self.call_frame(scope_index)?
                 }
             }
             &Instruction::IfElse {
@@ -647,20 +637,20 @@ pub trait Runner: ResolveValue {
                     else_scope
                 };
                 match self.handle_scope(scope) {
-                    ResolvedValue::Break => return VMState::Break,
-                    ResolvedValue::Next => return VMState::Next,
+                    ResolvedValue::Break => return Ok(VMState::Break),
+                    ResolvedValue::Next => return Ok(VMState::Next),
                     ResolvedValue::Value(v) => self.store_value(v.into()),
-                    ResolvedValue::Done(v) => return VMState::Done(v),
+                    ResolvedValue::Done(v) => return Ok(VMState::Done(v)),
                 };
             }
             &Instruction::If(if_scope) => {
                 let truthy = self.next_resolved_value(|| "if");
                 let v = if truthy.borrow().to_bool() {
                     match self.handle_scope(if_scope) {
-                        ResolvedValue::Break => return VMState::Break,
-                        ResolvedValue::Next => return VMState::Next,
+                        ResolvedValue::Break => return Ok(VMState::Break),
+                        ResolvedValue::Next => return Ok(VMState::Next),
                         ResolvedValue::Value(v) => v,
-                        ResolvedValue::Done(v) => return VMState::Done(v),
+                        ResolvedValue::Done(v) => return Ok(VMState::Done(v)),
                     }
                 } else {
                     ObjectValue::default().into()
@@ -671,10 +661,10 @@ pub trait Runner: ResolveValue {
                 let truthy = self.next_resolved_value(|| "unless");
                 let v = if !truthy.borrow().to_bool() {
                     match self.handle_scope(unless_scope) {
-                        ResolvedValue::Break => return VMState::Break,
-                        ResolvedValue::Next => return VMState::Next,
+                        ResolvedValue::Break => return Ok(VMState::Break),
+                        ResolvedValue::Next => return Ok(VMState::Next),
                         ResolvedValue::Value(v) => v,
-                        ResolvedValue::Done(v) => return VMState::Done(v),
+                        ResolvedValue::Done(v) => return Ok(VMState::Done(v)),
                     }
                 } else {
                     ObjectValue::default().into()
@@ -686,7 +676,7 @@ pub trait Runner: ResolveValue {
             &Instruction::GetMutableVariable(name) => self.get_mutable_variable(name),
             Instruction::Log(level, tmpl, args) => {
                 if !self.options().enable_logging {
-                    return VMState::Running;
+                    return Ok(VMState::Running);
                 }
 
                 let mut res = tmpl.to_string();
@@ -744,37 +734,27 @@ pub trait Runner: ResolveValue {
                 self.store_value(ObjectValue::default().into());
             }
             Instruction::Ret => {
-                return VMError::UnsupportedOperation(format!(
+                return Err(VMError::UnsupportedOperation(format!(
                     "Ret not handled by parent function - {}",
                     self.location()
-                ))
-                .into()
+                )))
             }
-            &Instruction::Goto(scope_id, index) => match self.goto(scope_id, index) {
-                Ok(_) => {}
-                Err(e) => return e.into(),
-            },
+            &Instruction::Goto(scope_id, index) =>self.goto(scope_id, index)?,
             Instruction::AddInstruction(scope, instruction) => {
-                let updated = self.update_scope(*scope, |s| {
+                self.update_scope(*scope, |s| {
                     s.instructions.push(*instruction.clone());
                     Ok(())
-                });
-                if let Err(e) = updated {
-                    return e.into();
-                }
+                })?;
             }
             Instruction::InsertAtInstruction(scope, index, new_instruction) => {
-                let updated = self.update_scope(*scope, |s| {
+                self.update_scope(*scope, |s| {
                     // todo this can panic
                     s.instructions.insert(*index, *new_instruction.clone());
                     Ok(())
-                });
-                if let Err(e) = updated {
-                    return e.into();
-                }
+                })?;
             }
             Instruction::UpdateInstruction(scope, index, new_instruction) => {
-                let updated = self.update_scope(*scope, |s| {
+                self.update_scope(*scope, |s| {
                     match s.instructions.get_mut(*index) {
                         None => {
                             return Err(VMError::ScopeDoesNotExist(format!(
@@ -787,13 +767,10 @@ pub trait Runner: ResolveValue {
                         }
                     }
                     Ok(())
-                });
-                if let Err(e) = updated {
-                    return e.into();
-                }
+                })?;
             }
             &Instruction::RemoveInstruction(scope, index) => {
-                let updated = self.update_scope(scope, |s| {
+                self.update_scope(scope, |s| {
                     if index >= s.instructions.len() {
                         return Err(VMError::UnsupportedOperation(format!(
                             "Instruction does not exist: {}#{}",
@@ -802,10 +779,7 @@ pub trait Runner: ResolveValue {
                     }
                     s.instructions.remove(index);
                     Ok(())
-                });
-                if let Err(e) = updated {
-                    return e.into();
-                }
+                })?;
             }
             &Instruction::InstanceGet(multiple) => {
                 self.instance_get(multiple);
@@ -825,9 +799,7 @@ pub trait Runner: ResolveValue {
                 }
             }
             &Instruction::CallMemo(scope) => {
-                if let Err(e) = self.call_frame_memo(scope) {
-                    return e.into();
-                }
+                self.call_frame_memo(scope)?;
             }
             &Instruction::ForList { scope } => {
                 let result =
@@ -836,10 +808,10 @@ pub trait Runner: ResolveValue {
                             result.push(value);
                         }
                         None
-                    });
+                    })?;
                 match result {
-                    Ok(r) => self.store_value(r.into()),
-                    Err(e) => return e,
+                    Either::Left(r) => self.store_value(r.into()),
+                    Either::Right(s) => return Ok(s)
                 }
             }
             &Instruction::ForMap { scope } => {
@@ -868,16 +840,14 @@ pub trait Runner: ResolveValue {
                         }
                         None
                     },
-                );
+                )?;
                 match result {
-                    Ok(r) => self.store_value(ObjectValue::Map(r).into()),
-                    Err(e) => return e,
+                    Either::Left(r) => self.store_value(ObjectValue::Map(r).into()),
+                    Either::Right(s) => return Ok(s)
                 }
             }
             &Instruction::Send(args) => {
-                if let Err(o) = self.send(args) {
-                    return o.into();
-                }
+                self.send(args)?
             }
             &Instruction::Spawn(scope_id, timeout) => {
                 let timeout = if timeout {
@@ -885,25 +855,21 @@ pub trait Runner: ResolveValue {
                     let v = v.borrow();
                     match v.to_usize() {
                         Ok(u) => Some(u),
-                        Err(o) => return o.into(),
+                        Err(o) => return Err(o),
                     }
                 } else {
                     None
                 };
-                if let Err(o) = self.spawn(scope_id, timeout) {
-                    return o.into();
-                }
+                self.spawn(scope_id, timeout)?
             }
             &Instruction::Receive(args) => {
-                if let Err(o) = self.receive(args) {
-                    return o.into();
-                }
+                self.receive(args)?
             }
             Instruction::Sleep => {
                 let v = self.next_resolved_value(|| "sleep");
                 let duration = match v.borrow().to_usize() {
                     Ok(v) => Duration::from_millis(v as u64),
-                    Err(e) => return e.into(),
+                    Err(e) => return Err(e),
                 };
                 self.sleep(duration);
                 self.store_value(ObjectValue::default().into());
@@ -924,7 +890,7 @@ pub trait Runner: ResolveValue {
                                 };
                                 match v {
                                     Ok(v) => v,
-                                    Err(e) => return e.into(),
+                                    Err(e) => return Err(e),
                                 }
                             }
                             _ => res,
@@ -950,7 +916,7 @@ pub trait Runner: ResolveValue {
                                 };
                                 match v {
                                     Ok(v) => v,
-                                    Err(e) => return e.into(),
+                                    Err(e) => return Err(e),
                                 }
                             }
                             _ => res.iter().map(|r| r.borrow().clone()).collect(),
@@ -976,14 +942,13 @@ pub trait Runner: ResolveValue {
                                 };
                                 match v {
                                     Ok(v) => v,
-                                    Err(e) => return e.into(),
+                                    Err(e) => return Err(e),
                                 }
                             }
                             _ => {
-                                return VMError::runtime(format!(
+                                return Err(VMError::runtime(format!(
                                     "Invalid args for Map.new {res:?}"
-                                ))
-                                .into()
+                                )))
                             }
                         };
                         ObjectValue::Map(base).into()
@@ -1035,7 +1000,7 @@ pub trait Runner: ResolveValue {
             Instruction::Try => {
                 let next = self.next_resolved_value(|| "try");
                 if next.borrow().is_error() {
-                    return VMState::Ran(next);
+                    return Ok(VMState::Ran(next));
                 } else {
                     self.store_value(next.into())
                 }
@@ -1064,7 +1029,7 @@ pub trait Runner: ResolveValue {
             } => {
                 let decl = match self.find_enum(enum_type) {
                     Ok(v) => v,
-                    Err(e) => return e.into(),
+                    Err(e) => return Err(e),
                 };
                 let value = if has_expression {
                     Some(self.next_resolved_value(|| "create_enum"))
@@ -1073,11 +1038,10 @@ pub trait Runner: ResolveValue {
                 };
                 let name = match decl.variants.get(variant) {
                     None => {
-                        return VMError::runtime(format!(
+                        return Err(VMError::runtime(format!(
                             "Invalid enum variant {} for {}",
                             variant, decl.name
-                        ))
-                        .into()
+                        )))
                     }
                     Some((v, _)) => v.clone(),
                 };
@@ -1113,32 +1077,32 @@ pub trait Runner: ResolveValue {
                 }
                 match scope {
                     None => {
-                        return VMError::runtime("No value found for match expression".to_string())
-                            .into()
+                        return Err(VMError::runtime("No value found for match expression".to_string()))
                     }
-                    Some(s) => match self.call_frame(*s) {
-                        Ok(_) => {}
-                        Err(e) => return e.into(),
-                    },
+                    Some(s) =>self.call_frame(*s)?,
                 }
             }
             &Instruction::Loop(scope_id) => {
-                if let Some(e) = self.call_loop(scope_id) {
-                    return e;
+                match self.call_loop(scope_id) {
+                    Ok(Some(v)) => return Ok(v),
+                    Err(e) => return Err(e),
+                    _ => {}
                 }
             }
             &Instruction::For { scope } => {
-                if let Some(e) = self.call_for(scope) {
-                    return e;
+                match self.call_for(scope) {
+                    Ok(Some(v)) => return Ok(v),
+                    Err(e) => return Err(e),
+                    _ => {}
                 }
             }
-            Instruction::Break => return VMState::Break,
-            Instruction::Next => return VMState::Next,
+            Instruction::Break => return Ok(VMState::Break),
+            Instruction::Next => return Ok(VMState::Next),
             ins => {
-                return VMError::todo(format!("Instruction is not supported yet {ins:?}")).into()
+                return Err(VMError::todo(format!("Instruction is not supported yet {ins:?}")))
             }
         };
-        VMState::Running
+        Ok(VMState::Running)
     }
 
     #[inline]

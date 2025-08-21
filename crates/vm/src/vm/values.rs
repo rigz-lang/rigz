@@ -34,23 +34,35 @@ impl ResolveValue for VM {
         };
 
         let mut v = match self.run_scope() {
-            VMState::Break => return ResolvedValue::Break,
-            VMState::Next => return ResolvedValue::Next,
-            VMState::Running => unreachable!(),
-            VMState::Done(v) => return ResolvedValue::Done(v),
-            VMState::Ran(v) => ResolvedValue::Value(v),
+            Ok(v) => match v {
+                VMState::Break => return ResolvedValue::Break,
+                VMState::Next => return ResolvedValue::Next,
+                VMState::Running => unreachable!(),
+                VMState::Done(v) => return ResolvedValue::Done(v),
+                VMState::Ran(v) => ResolvedValue::Value(v),
+            },
+            Err(e) => {
+                let o: ObjectValue = e.into();
+                return ResolvedValue::Done(o.into())
+            }
         };
         while current != self.frames.current.borrow().scope_id {
             if let ResolvedValue::Value(v) = v {
                 self.stack.push(v.into());
             }
             v = match self.run_scope() {
-                VMState::Break => return ResolvedValue::Break,
-                VMState::Next => return ResolvedValue::Next,
-                VMState::Running => unreachable!(),
-                VMState::Done(v) => return ResolvedValue::Done(v),
-                VMState::Ran(v) => ResolvedValue::Value(v),
-            };
+                Ok(v) => match v {
+                    VMState::Break => return ResolvedValue::Break,
+                    VMState::Next => return ResolvedValue::Next,
+                    VMState::Running => unreachable!(),
+                    VMState::Done(v) => return ResolvedValue::Done(v),
+                    VMState::Ran(v) => ResolvedValue::Value(v),
+                },
+                Err(e) => {
+                    let o: ObjectValue = e.into();
+                    return ResolvedValue::Done(o.into())
+                }
+            }
         }
         v
     }

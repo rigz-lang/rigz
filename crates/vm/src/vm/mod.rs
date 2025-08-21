@@ -165,16 +165,16 @@ impl VM {
     }
 
     #[inline]
-    unsafe fn process_instruction(&mut self, instruction: *const Instruction) -> VMState {
+    unsafe fn process_instruction(&mut self, instruction: *const Instruction) -> Result<VMState, VMError> {
         match &*instruction {
-            Instruction::Ret => self.process_ret(false),
+            Instruction::Ret => Ok(self.process_ret(false)),
             instruction => self.process_core_instruction(instruction),
         }
     }
 
-    unsafe fn process_instruction_scope(&mut self, instruction: *const Instruction) -> VMState {
+    unsafe fn process_instruction_scope(&mut self, instruction: *const Instruction) -> Result<VMState, VMError> {
         match &*instruction {
-            Instruction::Ret => self.process_ret(true),
+            Instruction::Ret => Ok(self.process_ret(true)),
             ins => self.process_core_instruction(ins),
         }
     }
@@ -218,8 +218,10 @@ impl VM {
         self.start_processes();
 
         let mut run = || loop {
-            if let Some(v) = self.step() {
-                return v;
+            match self.step() {
+                Ok(None) => {}
+                Ok(Some(s)) => return s,
+                Err(e) => return e.into()
             }
         };
 
@@ -228,28 +230,28 @@ impl VM {
     }
 
     #[inline]
-    fn step(&mut self) -> Option<ObjectValue> {
+    fn step(&mut self) -> Result<Option<ObjectValue>, VMError> {
         let instruction = match self.next_instruction() {
             // TODO this should probably be an error requiring explicit halt, this might still be an error
-            None => return self.stack.pop().map(|e| e.resolve(self).borrow().clone()),
+            None => return Ok(self.stack.pop().map(|e| e.resolve(self).borrow().clone())),
             Some(s) => s,
         };
 
-        match unsafe { self.process_instruction(instruction) } {
+        match unsafe { self.process_instruction(instruction)? } {
             VMState::Break => {
-                return Some(
-                    VMError::UnsupportedOperation("Invalid break instruction".to_string()).into(),
+                return Err(
+                    VMError::UnsupportedOperation("Invalid break instruction".to_string()),
                 )
             }
             VMState::Next => {
-                return Some(
-                    VMError::UnsupportedOperation("Invalid next instruction".to_string()).into(),
+                return Err(
+                    VMError::UnsupportedOperation("Invalid next instruction".to_string()),
                 )
             }
             VMState::Running => {}
-            VMState::Ran(v) | VMState::Done(v) => return Some(v.borrow().clone()),
+            VMState::Ran(v) | VMState::Done(v) => return Ok(Some(v.borrow().clone())),
         };
-        None
+        Ok(None)
     }
 
     pub fn run_within(&mut self, duration: Duration) -> Result<ObjectValue, VMError> {
@@ -265,12 +267,13 @@ impl VM {
                 return VMError::TimeoutError(format!(
                     "Exceeded runtime {duration:?} - {:?}",
                     elapsed
-                ))
-                .into();
+                )).into();
             }
 
-            if let Some(v) = self.step() {
-                return v;
+            match self.step() {
+                Ok(None) => {}
+                Ok(Some(v)) => return v,
+                Err(e) => return e.into(),
             }
         };
         let res = run();
@@ -373,17 +376,17 @@ impl VM {
         }
     }
 
-    pub fn run_scope(&mut self) -> VMState {
+    pub fn run_scope(&mut self) -> Result<VMState, VMError> {
         loop {
             let instruction = match self.next_instruction() {
                 // TODO this should probably be an error requiring explicit halt, result would be none
-                None => return VMState::Done(ObjectValue::default().into()),
+                None => return Ok(VMState::Done(ObjectValue::default().into())),
                 Some(s) => s,
             };
 
-            match unsafe { self.process_instruction_scope(instruction) } {
+            match unsafe { self.process_instruction_scope(instruction)? } {
                 VMState::Running => {}
-                s => return s,
+                s => return Ok(s),
             };
         }
     }

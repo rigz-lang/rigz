@@ -1,4 +1,4 @@
-use crate::ObjectValue;
+use crate::{ObjectValue, VMError};
 use std::cell::RefCell;
 use std::rc::Rc;
 
