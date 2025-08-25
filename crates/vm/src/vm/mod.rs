@@ -249,7 +249,10 @@ impl VM {
                 )
             }
             VMState::Running => {}
-            VMState::Ran(v) | VMState::Done(v) => return Ok(Some(v.borrow().clone())),
+            VMState::Ran(v) => {
+                self.store_value(v.into());
+            },
+            VMState::Done(v) => return Ok(Some(v.borrow().clone())),
         };
         Ok(None)
     }

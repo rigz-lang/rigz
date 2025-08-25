@@ -280,18 +280,18 @@ pub mod runtime {
             end
 
             3.apply { |v| v * v }"# = 9)
-            // fib_recursive_dynamic_programming(r#"
-            // @memo
-            // fn fib(n: Number) -> Number
-            //     if n <= 1
-            //         n
-            //     else
-            //         b = n - 2
-            //         (fib n - 1) + fib b
-            //     end
-            // end
-            // fib 10
-            // "# = 55)
+            fib_recursive_dynamic_programming(r#"
+            @memo
+            fn fib(n: Number) -> Number
+                if n <= 1
+                    n
+                else
+                    b = n - 2
+                    (fib n - 1) + fib b
+                end
+            end
+            fib 10
+            "# = 55)
             if_else_true(r#"if 0 == ""
                 42
             else
@@ -670,8 +670,8 @@ pub mod runtime {
                 end
                 a
             end
-            foo
-            "# = 42)
+            foo + 27
+            "# = 69)
             unary_neg_values("-3 + 4" = 1)
             unary_neg_expression("a = 3; -a + 4" = 1)
             multiple_ors("a = 1; a == 'b' || a == 1 || a == 'f'" = true)
