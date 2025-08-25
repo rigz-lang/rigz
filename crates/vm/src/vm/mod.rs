@@ -379,6 +379,7 @@ impl VM {
         }
     }
 
+    // todo run_scope and process_instruction_scope should not be required
     pub fn run_scope(&mut self) -> Result<VMState, VMError> {
         loop {
             let instruction = match self.next_instruction() {

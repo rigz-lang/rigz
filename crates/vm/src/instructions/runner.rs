@@ -636,16 +636,12 @@ pub trait Runner: ResolveValue {
                 } else {
                     else_scope
                 };
-                match self.handle_scope(scope) {
-                    ResolvedValue::Break => return Ok(VMState::Break),
-                    ResolvedValue::Next => return Ok(VMState::Next),
-                    ResolvedValue::Value(v) => self.store_value(v.into()),
-                    ResolvedValue::Done(v) => return Ok(VMState::Done(v)),
-                };
+                self.call_frame(scope)?;
             }
             &Instruction::If(if_scope) => {
                 let truthy = self.next_resolved_value(|| "if");
                 let v = if truthy.borrow().to_bool() {
+                    // todo handle_scope should not be necessary
                     match self.handle_scope(if_scope) {
                         ResolvedValue::Break => return Ok(VMState::Break),
                         ResolvedValue::Next => return Ok(VMState::Next),
