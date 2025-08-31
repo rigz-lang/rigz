@@ -653,7 +653,7 @@ impl ToTokens for FunctionDefinition {
             type_definition,
             body,
             lifecycle,
-            docs
+            docs,
         } = self;
         let l = option(lifecycle);
         let name = name.as_str();
@@ -750,7 +750,7 @@ impl ToTokens for FunctionDeclaration {
             FunctionDeclaration::Declaration {
                 name,
                 type_definition,
-                docs
+                docs,
             } => {
                 let d = match docs {
                     Some(d) => quote! { Some(#d.to_string()) },

@@ -159,7 +159,7 @@ struct ObjectDeclaration {
 #[derive(Debug)]
 pub enum DependencyDefinition {
     Imported,
-    Parsed(ObjectDefinition, usize)
+    Parsed(ObjectDefinition, usize),
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -829,7 +829,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 FunctionDeclaration::Declaration {
                     name,
                     type_definition,
-                    docs: _
+                    docs: _,
                 } => {
                     let FunctionSignature {
                         arguments,
@@ -986,7 +986,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             type_definition,
             body,
             lifecycle,
-            docs: _
+            docs: _,
         } = function_definition;
         let identifiers = self.identifiers.clone();
         let type_definition = self.parse_type_signature(&name, type_definition)?;
@@ -1090,7 +1090,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 FunctionDeclaration::Declaration {
                     type_definition,
                     name,
-                    docs: _
+                    docs: _,
                 } => {
                     let type_definition = self.parse_type_signature(&name, type_definition)?;
                     match self.function_scopes.entry(name) {
@@ -2010,13 +2010,11 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                     };
 
                     let (template, exp) = match arguments.next().unwrap() {
-                        Expression::Value(PrimitiveValue::String(s)) => {
-                            (s.clone(), None)
-                        },
+                        Expression::Value(PrimitiveValue::String(s)) => (s.clone(), None),
                         v => {
                             len += 1;
                             ("{}".to_string(), Some(v.clone()))
-                        },
+                        }
                     };
 
                     for arg in arguments.rev() {

@@ -1,6 +1,9 @@
 use crate::prepare::{CallSignature, FunctionCallSignatures, ProgramParser};
 use itertools::Itertools;
-use rigz_ast::{Element, Expression, FunctionExpression, FunctionType, MatchVariant, RigzArguments, Scope, ValidationError};
+use rigz_ast::{
+    Element, Expression, FunctionExpression, FunctionType, MatchVariant, RigzArguments, Scope,
+    ValidationError,
+};
 use rigz_core::{PrimitiveValue, RigzType, UnaryOperation, ValueRange, WithTypeInfo};
 use rigz_vm::RigzBuilder;
 use std::cmp::Ordering;
@@ -307,7 +310,9 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
         let e = match fe {
             FunctionExpression::FunctionCall(name, _) => {
                 match name.as_str() {
-                    "puts" | "log" | "sleep" | "println" | "print" | "eprint" | "eprintln" => return Ok(RigzType::None),
+                    "puts" | "log" | "sleep" | "println" | "print" | "eprint" | "eprintln" => {
+                        return Ok(RigzType::None)
+                    }
                     "spawn" => return Ok(RigzType::Int),
                     "receive" => return Ok(RigzType::Any),
                     "send" => return Ok(RigzType::List(Box::new(RigzType::Int))),
@@ -410,7 +415,8 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                             match matched.len() {
                                 0 => {
                                     return Err(ValidationError::InvalidFunction(format!(
-                                        "Cannot call extension {ex}.{}", calls.join(".")
+                                        "Cannot call extension {ex}.{}",
+                                        calls.join(".")
                                     )))
                                 }
                                 1 => matched.iter().next().cloned().unwrap(),

@@ -47,9 +47,14 @@ impl ProgramParser<'_, VMBuilder> {
     }
 
     pub fn register_object<O: ParsedObject + 'static>(&mut self) -> Result<(), ValidationError> {
-        let ParsedDependency { name, dependency, object_definition } = ParsedDependency::new::<O>();
+        let ParsedDependency {
+            name,
+            dependency,
+            object_definition,
+        } = ParsedDependency::new::<O>();
         let idx = self.builder.register_dependency(Arc::new(dependency));
-        self.parsed_deps.insert(name, DependencyDefinition::Parsed(object_definition, idx));
+        self.parsed_deps
+            .insert(name, DependencyDefinition::Parsed(object_definition, idx));
         Ok(())
     }
 
@@ -61,9 +66,15 @@ impl ProgramParser<'_, VMBuilder> {
         let def = M::module_definition();
         let deps = M::parsed_dependencies();
         let mut dep_names = Vec::with_capacity(deps.len());
-        for ParsedDependency { name, dependency, object_definition } in deps {
+        for ParsedDependency {
+            name,
+            dependency,
+            object_definition,
+        } in deps
+        {
             let idx = self.builder.register_dependency(Arc::new(dependency));
-            self.parsed_deps.insert(name, DependencyDefinition::Parsed(object_definition, idx));
+            self.parsed_deps
+                .insert(name, DependencyDefinition::Parsed(object_definition, idx));
             dep_names.push(name);
         }
         let index = self.builder.register_module(module);

@@ -57,7 +57,7 @@ impl ToTokens for BinaryAssignOperation {
             BinaryAssignOperation::BitXor => quote! { BinaryAssignOperation::BitXor },
             BinaryAssignOperation::Or => quote! { BinaryAssignOperation::Or },
             BinaryAssignOperation::And => quote! { BinaryAssignOperation::And },
-            BinaryAssignOperation::Xor => quote! { BinaryAssignOperation::Xor }
+            BinaryAssignOperation::Xor => quote! { BinaryAssignOperation::Xor },
         };
         tokens.extend(t);
     }

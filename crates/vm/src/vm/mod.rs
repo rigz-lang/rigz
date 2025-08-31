@@ -152,8 +152,7 @@ impl VM {
                     false => VMState::Running,
                     true => {
                         let source = self.next_resolved_value(|| "process_ret - ran");
-                        if updated && self.scopes[last_scope].propagate
-                        {
+                        if updated && self.scopes[last_scope].propagate {
                             VMState::Done(source)
                         } else {
                             VMState::Ran(source)
@@ -165,14 +164,20 @@ impl VM {
     }
 
     #[inline]
-    unsafe fn process_instruction(&mut self, instruction: *const Instruction) -> Result<VMState, VMError> {
+    unsafe fn process_instruction(
+        &mut self,
+        instruction: *const Instruction,
+    ) -> Result<VMState, VMError> {
         match &*instruction {
             Instruction::Ret => Ok(self.process_ret(false)),
             instruction => self.process_core_instruction(instruction),
         }
     }
 
-    unsafe fn process_instruction_scope(&mut self, instruction: *const Instruction) -> Result<VMState, VMError> {
+    unsafe fn process_instruction_scope(
+        &mut self,
+        instruction: *const Instruction,
+    ) -> Result<VMState, VMError> {
         match &*instruction {
             Instruction::Ret => Ok(self.process_ret(true)),
             ins => self.process_core_instruction(ins),
@@ -221,7 +226,7 @@ impl VM {
             match self.step() {
                 Ok(None) => {}
                 Ok(Some(s)) => return s,
-                Err(e) => return e.into()
+                Err(e) => return e.into(),
             }
         };
 
@@ -239,19 +244,19 @@ impl VM {
 
         match unsafe { self.process_instruction(instruction)? } {
             VMState::Break => {
-                return Err(
-                    VMError::UnsupportedOperation("Invalid break instruction".to_string()),
-                )
+                return Err(VMError::UnsupportedOperation(
+                    "Invalid break instruction".to_string(),
+                ))
             }
             VMState::Next => {
-                return Err(
-                    VMError::UnsupportedOperation("Invalid next instruction".to_string()),
-                )
+                return Err(VMError::UnsupportedOperation(
+                    "Invalid next instruction".to_string(),
+                ))
             }
             VMState::Running => {}
             VMState::Ran(v) => {
                 self.store_value(v.into());
-            },
+            }
             VMState::Done(v) => return Ok(Some(v.borrow().clone())),
         };
         Ok(None)
@@ -270,7 +275,8 @@ impl VM {
                 return VMError::TimeoutError(format!(
                     "Exceeded runtime {duration:?} - {:?}",
                     elapsed
-                )).into();
+                ))
+                .into();
             }
 
             match self.step() {
@@ -331,15 +337,15 @@ impl VM {
                     #[cfg(feature = "std_capture")]
                     {
                         match crate::CAPTURE.out.read() {
-                        Ok(curr) => {
-                            if let Some(o) = curr.deref() {
-                                o.applied("FAILED\n".to_string())
+                            Ok(curr) => {
+                                if let Some(o) = curr.deref() {
+                                    o.applied("FAILED\n".to_string())
+                                }
+                            }
+                            Err(_) => {
+                                // todo notify that RwLock is poisoned
                             }
                         }
-                        Err(_) => {
-                            // todo notify that RwLock is poisoned
-                        }
-                    }
                     }
                     #[cfg(not(feature = "js"))]
                     println!("\x1b[31mFAILED\x1b[0m");

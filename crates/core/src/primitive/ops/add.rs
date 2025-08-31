@@ -61,7 +61,7 @@ impl Add for &PrimitiveValue {
 impl AddAssign<&PrimitiveValue> for PrimitiveValue {
     fn add_assign(&mut self, rhs: &PrimitiveValue) {
         match (self, rhs) {
-            (PrimitiveValue::Error(_), _) | (_, PrimitiveValue::None) => {},
+            (PrimitiveValue::Error(_), _) | (_, PrimitiveValue::None) => {}
             (b, PrimitiveValue::Error(v)) => *b = v.into(),
             (PrimitiveValue::Bool(a), PrimitiveValue::Bool(b)) => *a |= b,
             (PrimitiveValue::Number(a), PrimitiveValue::Number(b)) => *a += b,
@@ -69,12 +69,8 @@ impl AddAssign<&PrimitiveValue> for PrimitiveValue {
                 a.push_str(b.as_str());
             }
             // todo should "a" + true = "atrue" or true
-            (PrimitiveValue::Bool(a), b) => {
-                *a |= b.to_bool()
-            }
-            (b, PrimitiveValue::Bool(a)) => {
-                *b = PrimitiveValue::Bool(a | b.to_bool())
-            }
+            (PrimitiveValue::Bool(a), b) => *a |= b.to_bool(),
+            (b, PrimitiveValue::Bool(a)) => *b = PrimitiveValue::Bool(a | b.to_bool()),
             (a, b) => {
                 *a = a.add(b);
             }

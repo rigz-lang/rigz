@@ -110,7 +110,14 @@ impl ProcessManager {
         process_manager: MutableReference<ProcessManager>,
     ) -> Result<usize, VMError> {
         let pid = self.processes.len();
-        let p = Process::new(scope, options, modules, dependencies, timeout, process_manager);
+        let p = Process::new(
+            scope,
+            options,
+            modules,
+            dependencies,
+            timeout,
+            process_manager,
+        );
         #[cfg(feature = "threaded")]
         {
             let p: Reference<Process> = p.into();
@@ -288,7 +295,7 @@ impl ProcessManager {
     #[cfg(feature = "threaded")]
     pub(crate) fn close(&mut self, result: ObjectValue) -> ObjectValue {
         if self.processes.is_empty() {
-            return result
+            return result;
         }
         let mut errors: Vec<VMError> = vec![];
         let tokio = match tokio_handle() {

@@ -167,15 +167,27 @@ derive_module! {
 
 impl RigzCollections for CollectionsModule {
     fn set_enumerate(&self, this: &IndexSet<ObjectValue>) -> Vec<(i64, ObjectValue)> {
-        this.into_iter().enumerate().map(|(i, v)| (i as i64, v.clone())).collect()
+        this.into_iter()
+            .enumerate()
+            .map(|(i, v)| (i as i64, v.clone()))
+            .collect()
     }
 
     fn list_enumerate(&self, this: &Vec<Rc<RefCell<ObjectValue>>>) -> Vec<(i64, ObjectValue)> {
-        this.into_iter().enumerate().map(|(i, v)| (i as i64, v.borrow().clone())).collect()
+        this.into_iter()
+            .enumerate()
+            .map(|(i, v)| (i as i64, v.borrow().clone()))
+            .collect()
     }
 
-    fn map_enumerate(&self, this: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>) -> Vec<(i64, (ObjectValue, ObjectValue))> {
-        this.into_iter().enumerate().map(|(i, (k, v))| (i as i64, (k.clone(), v.borrow().clone()))).collect()
+    fn map_enumerate(
+        &self,
+        this: &IndexMap<ObjectValue, Rc<RefCell<ObjectValue>>>,
+    ) -> Vec<(i64, (ObjectValue, ObjectValue))> {
+        this.into_iter()
+            .enumerate()
+            .map(|(i, (k, v))| (i as i64, (k.clone(), v.borrow().clone())))
+            .collect()
     }
 
     fn mut_set_extend(&self, this: &mut IndexSet<ObjectValue>, value: IndexSet<ObjectValue>) {
@@ -336,7 +348,9 @@ impl RigzCollections for CollectionsModule {
     }
 
     fn list_join(&self, this: &Vec<Rc<RefCell<ObjectValue>>>, sep: String) -> String {
-        this.iter().map(|v| v.borrow().to_string()).join(sep.as_str())
+        this.iter()
+            .map(|v| v.borrow().to_string())
+            .join(sep.as_str())
     }
 
     fn set_join(&self, this: &IndexSet<ObjectValue>, sep: String) -> String {

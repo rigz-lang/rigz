@@ -33,14 +33,18 @@ impl BitAndAssign<&ObjectValue> for ObjectValue {
                 for (a, b) in a.iter_mut().zip(b) {
                     *a.borrow_mut().deref_mut() &= b.borrow().deref();
                 }
-            },
+            }
             (ObjectValue::Tuple(a), b) => {
                 for v in a {
                     *v.borrow_mut().deref_mut() &= b;
                 }
             }
             (b, ObjectValue::Tuple(a)) => {
-                *b = ObjectValue::Tuple(a.iter().map(|a| (b.deref() & a.borrow().deref()).into()).collect())
+                *b = ObjectValue::Tuple(
+                    a.iter()
+                        .map(|a| (b.deref() & a.borrow().deref()).into())
+                        .collect(),
+                )
             }
             (lhs, rhs) => {
                 *lhs = VMError::UnsupportedOperation(format!("Not supported: {lhs} & {rhs}")).into()

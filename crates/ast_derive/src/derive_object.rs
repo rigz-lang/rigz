@@ -281,7 +281,7 @@ fn custom_trait(
             FunctionDeclaration::Declaration {
                 name,
                 type_definition,
-                docs: _
+                docs: _,
             } => Some((name, type_definition)),
             FunctionDeclaration::Definition(_) => None,
         })

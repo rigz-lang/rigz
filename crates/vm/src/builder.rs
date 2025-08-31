@@ -2,7 +2,10 @@ use crate::vm::VMOptions;
 use crate::{DisplayType, MatchArm};
 use crate::{Instruction, LoadValue, Scope, VM};
 use log::Level;
-use rigz_core::{BinaryAssignOperation, BinaryOperation, Dependency, EnumDeclaration, IndexSet, Lifecycle, Module, ObjectValue, RigzType, UnaryOperation};
+use rigz_core::{
+    BinaryAssignOperation, BinaryOperation, Dependency, EnumDeclaration, IndexSet, Lifecycle,
+    Module, ObjectValue, RigzType, UnaryOperation,
+};
 use std::fmt::Debug;
 use std::sync::Arc;
 // todo use Rodeo (single threaded here + runtime), use Reference<(Threaded or not)Resolver> in VM
@@ -148,7 +151,6 @@ pub trait RigzBuilder: Debug + Default {
         add_println_instruction => PrintLn,
         add_eprintln_instruction => EPrintLn
     }
-
 
     #[inline]
     fn add_break_instruction(&mut self) -> &mut Self {

@@ -34,13 +34,13 @@ impl BitAndAssign<&PrimitiveValue> for PrimitiveValue {
     fn bitand_assign(&mut self, rhs: &PrimitiveValue) {
         match (self, rhs) {
             (PrimitiveValue::Error(_), _) | (PrimitiveValue::None, _) => {}
-            (p, PrimitiveValue::Error(v)) => {
-                *p = PrimitiveValue::Error(v.clone())
-            }
+            (p, PrimitiveValue::Error(v)) => *p = PrimitiveValue::Error(v.clone()),
             (p, PrimitiveValue::None) => *p = PrimitiveValue::None,
-            (a, PrimitiveValue::Type(t)) => *a = PrimitiveValue::Error(
-                VMError::UnsupportedOperation(format!("Invalid Operation (&): {t} and {a}")),
-            ),
+            (a, PrimitiveValue::Type(t)) => {
+                *a = PrimitiveValue::Error(VMError::UnsupportedOperation(format!(
+                    "Invalid Operation (&): {t} and {a}"
+                )))
+            }
             (PrimitiveValue::Bool(a), PrimitiveValue::Bool(b)) => *a &= b,
             (PrimitiveValue::Bool(a), b) => *a &= b.to_bool(),
             (b, PrimitiveValue::Bool(a)) => *b = PrimitiveValue::Bool(a & b.to_bool()),

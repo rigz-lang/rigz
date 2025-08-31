@@ -1,5 +1,8 @@
 mod vm_test {
-    use rigz_core::{BinaryAssignOperation, BinaryOperation, Definition, Lifecycle, Module, ObjectValue, PrimitiveValue, RigzArgs, RigzType, TestLifecycle, TestResults, VMError};
+    use rigz_core::{
+        BinaryAssignOperation, BinaryOperation, Definition, Lifecycle, Module, ObjectValue,
+        PrimitiveValue, RigzArgs, RigzType, TestLifecycle, TestResults, VMError,
+    };
     use rigz_vm::{Instruction, LoadValue, RigzBuilder, Scope, VMBuilder, VM};
     use wasm_bindgen_test::*;
 

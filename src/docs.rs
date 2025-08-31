@@ -1,9 +1,9 @@
+use clap::Args;
+use rigz_ast::{generate_docs, Element, FunctionDeclaration, ParserOptions, Statement};
 use std::fs::File;
 use std::io;
 use std::io::Read;
 use std::path::PathBuf;
-use clap::Args;
-use rigz_ast::{generate_docs, Element, FunctionDeclaration, ParserOptions, Statement};
 
 #[derive(Args)]
 pub struct DocArgs {

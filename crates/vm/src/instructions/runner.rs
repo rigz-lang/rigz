@@ -1,6 +1,14 @@
-use crate::{err, errln, out, outln, CallFrame, Dependencies, DisplayType, Instruction, MatchArm, Modules, Scope, VMOptions, VMState};
+use crate::{
+    err, errln, out, outln, CallFrame, Dependencies, DisplayType, Instruction, MatchArm, Modules,
+    Scope, VMOptions, VMState,
+};
 use log::log;
-use rigz_core::{AsPrimitive, BinaryAssignOperation, BinaryOperation, EnumDeclaration, IndexMap, IndexSet, Logical, LogicalAssign, Module, ObjectValue, PrimitiveValue, Reference, ResolveValue, ResolvedValue, Reverse, RigzArgs, RigzObject, RigzType, StackValue, ToBool, UnaryOperation, VMError, WithTypeInfo};
+use rigz_core::{
+    AsPrimitive, BinaryAssignOperation, BinaryOperation, EnumDeclaration, IndexMap, IndexSet,
+    Logical, LogicalAssign, Module, ObjectValue, PrimitiveValue, Reference, ResolveValue,
+    ResolvedValue, Reverse, RigzArgs, RigzObject, RigzType, StackValue, ToBool, UnaryOperation,
+    VMError, WithTypeInfo,
+};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
@@ -166,16 +174,16 @@ macro_rules! runner_common {
         fn get_variable(&mut self, name: usize) {
             let r = self.frames.get_variable(name);
             let v = match r {
-                None => {
-                    match self.translate_variable(name) {
-                        Some(name) => {
-                            VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))
-                        }
-                        None => {
-                            VMError::VariableDoesNotExist(format!("Variable index {} does not exist", name))
-                        }
-                    }.into()
-                },
+                None => match self.translate_variable(name) {
+                    Some(name) => {
+                        VMError::VariableDoesNotExist(format!("Variable {} does not exist", name))
+                    }
+                    None => VMError::VariableDoesNotExist(format!(
+                        "Variable index {} does not exist",
+                        name
+                    )),
+                }
+                .into(),
                 Some(v) => v.resolve(self).into(),
             };
             self.store_value(v);
@@ -190,16 +198,17 @@ macro_rules! runner_common {
             };
 
             let v = match og {
-                None => {
-                    match self.translate_variable(name) {
-                        Some(name) => {
-                            VMError::VariableDoesNotExist(format!("Mutable variable {} does not exist", name))
-                        }
-                        None => {
-                            VMError::VariableDoesNotExist(format!("Mutable variable index {} does not exist", name))
-                        }
-                    }.into()
+                None => match self.translate_variable(name) {
+                    Some(name) => VMError::VariableDoesNotExist(format!(
+                        "Mutable variable {} does not exist",
+                        name
+                    )),
+                    None => VMError::VariableDoesNotExist(format!(
+                        "Mutable variable index {} does not exist",
+                        name
+                    )),
                 }
+                .into(),
                 Some(v) => v.resolve(self).into(),
             };
             self.store_value(v);
@@ -259,8 +268,8 @@ macro_rules! runner_common {
     };
 }
 
-use std::time::Duration;
 use itertools::{Either, Itertools};
+use std::time::Duration;
 
 #[inline]
 pub fn eval_unary(unary_operation: UnaryOperation, val: &ObjectValue) -> ObjectValue {
@@ -326,7 +335,7 @@ pub fn eval_binary_assign(
         BinaryAssignOperation::BitXor => *lhs ^= rhs,
         BinaryAssignOperation::And => lhs.and_assign(rhs),
         BinaryAssignOperation::Or => lhs.or_assign(rhs),
-        BinaryAssignOperation::Xor => lhs.xor_assign(rhs)
+        BinaryAssignOperation::Xor => lhs.xor_assign(rhs),
     }
 }
 
@@ -601,7 +610,7 @@ pub trait Runner: ResolveValue {
             // }
             &Instruction::PersistScope(var) => {
                 if let Some(e) = self.persist_scope(var) {
-                    return Err(e)
+                    return Err(e);
                 }
             }
             Instruction::Cast { rigz_type } => {
@@ -692,10 +701,10 @@ pub trait Runner: ResolveValue {
                         }
                         DisplayType::EPrint => {
                             err!();
-                        },
+                        }
                         DisplayType::EPrintLn => {
                             errln!();
-                        },
+                        }
                         DisplayType::Print => {
                             out!();
                         }
@@ -735,7 +744,7 @@ pub trait Runner: ResolveValue {
                     self.location()
                 )))
             }
-            &Instruction::Goto(scope_id, index) =>self.goto(scope_id, index)?,
+            &Instruction::Goto(scope_id, index) => self.goto(scope_id, index)?,
             Instruction::AddInstruction(scope, instruction) => {
                 self.update_scope(*scope, |s| {
                     s.instructions.push(*instruction.clone());
@@ -807,7 +816,7 @@ pub trait Runner: ResolveValue {
                     })?;
                 match result {
                     Either::Left(r) => self.store_value(r.into()),
-                    Either::Right(s) => return Ok(s)
+                    Either::Right(s) => return Ok(s),
                 }
             }
             &Instruction::ForMap { scope } => {
@@ -839,12 +848,10 @@ pub trait Runner: ResolveValue {
                 )?;
                 match result {
                     Either::Left(r) => self.store_value(ObjectValue::Map(r).into()),
-                    Either::Right(s) => return Ok(s)
+                    Either::Right(s) => return Ok(s),
                 }
             }
-            &Instruction::Send(args) => {
-                self.send(args)?
-            }
+            &Instruction::Send(args) => self.send(args)?,
             &Instruction::Spawn(scope_id, timeout) => {
                 let timeout = if timeout {
                     let v = self.next_resolved_value(|| "spawn");
@@ -858,9 +865,7 @@ pub trait Runner: ResolveValue {
                 };
                 self.spawn(scope_id, timeout)?
             }
-            &Instruction::Receive(args) => {
-                self.receive(args)?
-            }
+            &Instruction::Receive(args) => self.receive(args)?,
             Instruction::Sleep => {
                 let v = self.next_resolved_value(|| "sleep");
                 let duration = match v.borrow().to_usize() {
@@ -1073,29 +1078,29 @@ pub trait Runner: ResolveValue {
                 }
                 match scope {
                     None => {
-                        return Err(VMError::runtime("No value found for match expression".to_string()))
+                        return Err(VMError::runtime(
+                            "No value found for match expression".to_string(),
+                        ))
                     }
-                    Some(s) =>self.call_frame(*s)?,
+                    Some(s) => self.call_frame(*s)?,
                 }
             }
-            &Instruction::Loop(scope_id) => {
-                match self.call_loop(scope_id) {
-                    Ok(Some(v)) => return Ok(v),
-                    Err(e) => return Err(e),
-                    _ => {}
-                }
-            }
-            &Instruction::For { scope } => {
-                match self.call_for(scope) {
-                    Ok(Some(v)) => return Ok(v),
-                    Err(e) => return Err(e),
-                    _ => {}
-                }
-            }
+            &Instruction::Loop(scope_id) => match self.call_loop(scope_id) {
+                Ok(Some(v)) => return Ok(v),
+                Err(e) => return Err(e),
+                _ => {}
+            },
+            &Instruction::For { scope } => match self.call_for(scope) {
+                Ok(Some(v)) => return Ok(v),
+                Err(e) => return Err(e),
+                _ => {}
+            },
             Instruction::Break => return Ok(VMState::Break),
             Instruction::Next => return Ok(VMState::Next),
             ins => {
-                return Err(VMError::todo(format!("Instruction is not supported yet {ins:?}")))
+                return Err(VMError::todo(format!(
+                    "Instruction is not supported yet {ins:?}"
+                )))
             }
         };
         Ok(VMState::Running)

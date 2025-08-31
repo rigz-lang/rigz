@@ -19,9 +19,7 @@ impl BitOrAssign<&Number> for Number {
     fn bitor_assign(&mut self, rhs: &Number) {
         match (self, rhs) {
             (Number::Int(i), rhs) => *i |= rhs.to_int(),
-            (Number::Float(f), rhs) => {
-                *f = f64::from_bits(f.to_bits() | rhs.to_float().to_bits())
-            }
+            (Number::Float(f), rhs) => *f = f64::from_bits(f.to_bits() | rhs.to_float().to_bits()),
         }
     }
 }

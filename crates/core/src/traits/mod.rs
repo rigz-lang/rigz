@@ -8,6 +8,7 @@ pub use as_primitive::{AsPrimitive, ToBool, WithTypeInfo};
 use dyn_clone::DynClone;
 pub use dyn_traits::*;
 use fxhash::FxBuildHasher;
+use itertools::Itertools;
 use mopa::mopafy;
 #[cfg(feature = "snapshot")]
 pub use snapshot::Snapshot;
@@ -18,7 +19,6 @@ use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::vec::IntoIter;
-use itertools::Itertools;
 
 pub type FastHashMap<K, V> = HashMap<K, V, FxBuildHasher>;
 
@@ -114,7 +114,9 @@ impl DevPrint for dyn Object {
 
 #[cfg(feature = "gen_docs")]
 pub trait GenDocs {
-    fn generate_docs() -> &'static str where Self: Sized;
+    fn generate_docs() -> &'static str
+    where
+        Self: Sized;
 }
 
 #[allow(unused_variables)]
@@ -296,11 +298,9 @@ impl<T: Clone + ToBool + Default + Sized> LogicalAssign<&T> for T {
 
     fn xor_assign(&mut self, rhs: &T) {
         match (self.to_bool(), rhs.to_bool()) {
-            (false, false) | (true, true) => {
-                *self = T::default()
-            },
+            (false, false) | (true, true) => *self = T::default(),
             (false, _) => *self = rhs.clone(),
-            (true, _) => {},
+            (true, _) => {}
         }
     }
 }

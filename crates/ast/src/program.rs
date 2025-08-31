@@ -1,6 +1,9 @@
 use crate::ParseError;
 use itertools::Itertools;
-use rigz_core::{BinaryAssignOperation, BinaryOperation, EnumDeclaration, Lifecycle, PrimitiveValue, RigzType, UnaryOperation};
+use rigz_core::{
+    BinaryAssignOperation, BinaryOperation, EnumDeclaration, Lifecycle, PrimitiveValue, RigzType,
+    UnaryOperation,
+};
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -204,7 +207,7 @@ pub enum Statement {
         body: Scope,
     },
     Loop(Scope),
-    Module(String, Vec<Element>)
+    Module(String, Vec<Element>),
 }
 
 impl Display for Statement {
@@ -238,7 +241,11 @@ impl Display for Statement {
                 body,
             } => write!(f, "for {each} in {expression} do \n{body}\nend"),
             Statement::Loop(body) => write!(f, "loop\n{body}\nend"),
-            Statement::Module(rt, elements) => write!(f, "mod {rt}\n{}\nend", elements.iter().map(|e| e.to_string()).join("\n")),
+            Statement::Module(rt, elements) => write!(
+                f,
+                "mod {rt}\n{}\nend",
+                elements.iter().map(|e| e.to_string()).join("\n")
+            ),
         }
     }
 }

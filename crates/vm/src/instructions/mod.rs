@@ -1,7 +1,10 @@
 mod runner;
 
 use log::Level;
-use rigz_core::{BinaryAssignOperation, BinaryOperation, ObjectValue, RigzType, Snapshot, StackValue, UnaryOperation, VMError};
+use rigz_core::{
+    BinaryAssignOperation, BinaryOperation, ObjectValue, RigzType, Snapshot, StackValue,
+    UnaryOperation, VMError,
+};
 pub use runner::{CallType, ResolvedModule, Runner};
 use std::fmt::Display;
 use std::sync::Arc;
@@ -731,7 +734,10 @@ impl Snapshot for Instruction {
                 Snapshot::from_bytes(bytes, location)?,
                 Snapshot::from_bytes(bytes, location)?,
             ),
-            16 => Instruction::Display(Snapshot::from_bytes(bytes, location)?, Snapshot::from_bytes(bytes, location)?),
+            16 => Instruction::Display(
+                Snapshot::from_bytes(bytes, location)?,
+                Snapshot::from_bytes(bytes, location)?,
+            ),
             17 => Instruction::CallEq(Snapshot::from_bytes(bytes, location)?),
             18 => Instruction::CallNeq(Snapshot::from_bytes(bytes, location)?),
             19 => Instruction::IfElse {

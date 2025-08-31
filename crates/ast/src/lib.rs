@@ -6,9 +6,9 @@ mod validate;
 #[cfg(feature = "derive")]
 mod ast_derive;
 
+mod docs;
 #[cfg(feature = "format")]
 mod format;
-mod docs;
 
 #[cfg(feature = "format")]
 pub use format::format;
@@ -84,7 +84,7 @@ pub struct Parser<'t> {
     parser_options: ParserOptions,
     tokens: VecDeque<Token<'t>>,
     errors: Vec<ParseError>,
-    current_docs: Option<String>
+    current_docs: Option<String>,
 }
 
 // TODO better error messages
@@ -118,7 +118,7 @@ impl<'t> Parser<'t> {
             };
 
             if !parser_options.parse_doc_comments && matches!(kind, TokenKind::DocComment(_)) {
-                continue
+                continue;
             }
 
             if !matches!(kind, TokenKind::Comment(_)) {
@@ -608,7 +608,7 @@ impl<'t> Parser<'t> {
             if let Some(t) = &t {
                 if let TokenKind::DocComment(s) = t.kind {
                     self.current_docs = Some(s.to_string());
-                    return self.next_token()
+                    return self.next_token();
                 }
             }
         }
@@ -688,14 +688,16 @@ impl<'t> Parser<'t> {
                 self.next_token();
                 let name = self.next_required_token("module name")?;
                 let TokenKind::TypeValue(name) = name.kind else {
-                    return Err(ParsingError::ParseError(format!("Invalid Module, expected Type received {name:?}")))
+                    return Err(ParsingError::ParseError(format!(
+                        "Invalid Module, expected Type received {name:?}"
+                    )));
                 };
                 let mut elements = vec![];
                 loop {
                     let p = self.peek_required_token("module end")?;
                     if p.kind == TokenKind::End {
                         self.next_token();
-                        break
+                        break;
                     }
                     elements.push(self.parse_element()?);
                 }
@@ -2353,7 +2355,9 @@ impl<'t> Parser<'t> {
         }
 
         loop {
-            let Some(mut next) = self.peek_token() else { break };
+            let Some(mut next) = self.peek_token() else {
+                break;
+            };
 
             if next.kind == TokenKind::Newline && self.tokens.len() > 1 {
                 let mut current = 1;
@@ -2368,9 +2372,9 @@ impl<'t> Parser<'t> {
                                 self.tokens.pop_front();
                             }
                             next = self.peek_token().unwrap();
-                            break
+                            break;
                         }
-                        Some(_) => break
+                        Some(_) => break,
                     }
                 }
             }

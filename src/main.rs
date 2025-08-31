@@ -1,11 +1,11 @@
 mod ast;
 mod debug;
+mod docs;
 mod format;
 mod repl;
 mod run;
 mod test;
 mod utils;
-mod docs;
 
 use crate::ast::{ast, AstArgs};
 use crate::format::{format, FormatArgs};

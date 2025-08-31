@@ -1,14 +1,20 @@
 use crate::call_frame::{CallFrame, Frames};
 use crate::process::ProcessManager;
-use crate::{runner_common, CallType, Dependencies, Instruction, Modules, ResolvedModule, Runner, Scope, VMOptions, VMStack, VMState, Variable};
+use crate::{
+    runner_common, CallType, Dependencies, Instruction, Modules, ResolvedModule, Runner, Scope,
+    VMOptions, VMStack, VMState, Variable,
+};
+use itertools::Either;
 use log_derive::{logfn, logfn_inputs};
-use rigz_core::{EnumDeclaration, MutableReference, ObjectValue, ResolveValue, ResolvedValue, RigzArgs, StackValue, VMError};
+use rigz_core::{
+    EnumDeclaration, MutableReference, ObjectValue, ResolveValue, ResolvedValue, RigzArgs,
+    StackValue, VMError,
+};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Duration;
-use itertools::Either;
 
 pub(crate) struct ProcessRunner<'s> {
     scope: &'s Scope,
@@ -113,7 +119,9 @@ impl Runner for ProcessRunner<'_> {
         F: FnMut(&mut T, ObjectValue) -> Option<VMError>,
         I: FnOnce(usize) -> T,
     {
-        Err(VMError::todo("Process does not implement `call_for_comprehension`"))
+        Err(VMError::todo(
+            "Process does not implement `call_for_comprehension`",
+        ))
     }
 
     // fn vm_extension(
@@ -127,8 +135,7 @@ impl Runner for ProcessRunner<'_> {
 
     fn sleep(&self, duration: Duration) {
         #[cfg(feature = "threaded")]
-        self.process_manager
-            .apply(move |pm| pm.sleep(duration));
+        self.process_manager.apply(move |pm| pm.sleep(duration));
 
         #[cfg(not(feature = "threaded"))]
         std::thread::sleep(duration)
@@ -163,7 +170,8 @@ impl ProcessRunner<'_> {
         let state: VMState = if let Instruction::Ret = instruction {
             VMState::Ran(self.stack.next_value(|| "process_run").resolve(self))
         } else {
-            self.process_core_instruction(&instruction).unwrap_or_else(|e| e.into())
+            self.process_core_instruction(&instruction)
+                .unwrap_or_else(|e| e.into())
         };
 
         match state {

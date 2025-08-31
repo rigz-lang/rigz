@@ -38,7 +38,7 @@ pub enum BinaryAssignOperation {
     BitXor,
     Or,
     And,
-    Xor
+    Xor,
 }
 
 impl Display for BinaryAssignOperation {

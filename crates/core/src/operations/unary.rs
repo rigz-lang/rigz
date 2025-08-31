@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 pub enum UnaryOperation {
     Neg,
     Not,
-    Reverse
+    Reverse,
 }
 
 impl Display for UnaryOperation {

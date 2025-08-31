@@ -43,7 +43,7 @@ impl ResolveValue for VM {
             },
             Err(e) => {
                 let o: ObjectValue = e.into();
-                return ResolvedValue::Done(o.into())
+                return ResolvedValue::Done(o.into());
             }
         };
         while current != self.frames.current.borrow().scope_id {
@@ -60,7 +60,7 @@ impl ResolveValue for VM {
                 },
                 Err(e) => {
                     let o: ObjectValue = e.into();
-                    return ResolvedValue::Done(o.into())
+                    return ResolvedValue::Done(o.into());
                 }
             }
         }

@@ -1,6 +1,6 @@
 use crate::{
-    runner_common, CallFrame, CallType, Dependencies, Instruction, Modules, ResolvedModule, Runner, Scope,
-    VMOptions, VMState, Variable, VM,
+    runner_common, CallFrame, CallType, Dependencies, Instruction, Modules, ResolvedModule, Runner,
+    Scope, VMOptions, VMState, Variable, VM,
 };
 use itertools::{Either, Itertools};
 use log_derive::{logfn, logfn_inputs};
@@ -21,7 +21,7 @@ impl Runner for VM {
     fn translate_variable(&self, index: usize) -> Option<&String> {
         self.strings.get_index(index)
     }
-    
+
     fn update_scope<F>(&mut self, index: usize, mut update: F) -> Result<(), VMError>
     where
         F: FnMut(&mut Scope) -> Result<(), VMError>,
@@ -253,11 +253,9 @@ impl Runner for VM {
                     {
                         let frame = match self.frames.pop() {
                             None => {
-                                return Err(
-                                    VMError::EmptyStack(
-                                        "loop processed empty frame - next".to_string(),
-                                    ),
-                                )
+                                return Err(VMError::EmptyStack(
+                                    "loop processed empty frame - next".to_string(),
+                                ))
                             }
                             Some(frame) => frame,
                         };
@@ -277,9 +275,9 @@ impl Runner for VM {
         while self.frames.len() > current {
             let frame = match self.frames.pop() {
                 None => {
-                    return Err(
-                        VMError::EmptyStack("loop processed empty frame - break".to_string())
-                    )
+                    return Err(VMError::EmptyStack(
+                        "loop processed empty frame - break".to_string(),
+                    ))
                 }
                 Some(frame) => frame,
             };
@@ -292,25 +290,25 @@ impl Runner for VM {
         let sp = self.sp;
         let current = self.frames.len();
         let Some(value) = self.pop() else {
-            return Err(
-                VMError::runtime(format!("No object passed into for loop - {scope_id}"))
-            );
+            return Err(VMError::runtime(format!(
+                "No object passed into for loop - {scope_id}"
+            )));
         };
         let res = value.resolve(self);
         let res = res.borrow();
 
         let args = match self.scopes.get(scope_id) {
             None => {
-                return Err(
-                    VMError::runtime(format!("Scope does not exist in for loop - {scope_id}")),
-                )
+                return Err(VMError::runtime(format!(
+                    "Scope does not exist in for loop - {scope_id}"
+                )))
             }
             Some(v) => v.args.clone(),
         };
         if args.is_empty() {
-            return Err(
-                VMError::runtime(format!("No args for scope in for loop- {scope_id}")),
-            );
+            return Err(VMError::runtime(format!(
+                "No args for scope in for loop- {scope_id}"
+            )));
         }
         let new_frame = CallFrame::child(scope_id, self.frames.len());
         let old = self.frames.current.replace(new_frame);
@@ -375,7 +373,7 @@ impl Runner for VM {
                         while self.frames.len() > current + 1 {
                             let Some(next) = self.frames.pop() else {
                                 return Err(
-                                    VMError::runtime("Missing call frame".to_string()).into(),
+                                    VMError::runtime("Missing call frame".to_string()).into()
                                 );
                             };
                             self.frames.current.swap(&next);
@@ -415,9 +413,9 @@ impl Runner for VM {
         let sp = self.sp;
         let current = self.frames.len();
         let Some(value) = self.pop() else {
-            return Err(
-                VMError::runtime(format!("No object passed into for loop - {scope_id}")),
-            );
+            return Err(VMError::runtime(format!(
+                "No object passed into for loop - {scope_id}"
+            )));
         };
         let res = value.resolve(self);
         let res = res.borrow();
@@ -431,9 +429,9 @@ impl Runner for VM {
             Some(v) => v.args.clone(),
         };
         if args.is_empty() {
-            return Err(
-                VMError::runtime(format!("No args for scope in for loop- {scope_id}"))
-            );
+            return Err(VMError::runtime(format!(
+                "No args for scope in for loop- {scope_id}"
+            )));
         }
         let new_frame = CallFrame::child(scope_id, self.frames.len());
         let old = self.frames.current.replace(new_frame);

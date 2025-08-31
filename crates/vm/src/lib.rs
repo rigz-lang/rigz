@@ -15,7 +15,6 @@ pub use scope::Scope;
 pub use stack::VMStack;
 pub use vm::*;
 
-
 #[cfg(feature = "std_capture")]
 pub trait StdOutCapture: Send + Sync {
     fn applied(&self, value: String);
