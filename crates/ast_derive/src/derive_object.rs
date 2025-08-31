@@ -2,7 +2,7 @@ use crate::{convert_response, convert_type_for_arg, rigz_type_to_return_type, se
 use log::warn;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
-use rigz_ast::{FunctionDeclaration, ObjectDefinition, Parser, ParserOptions};
+use rigz_ast::{generate_docs, FunctionDeclaration, ObjectDefinition, Parser, ParserOptions};
 use rigz_core::derive::Tokens;
 use rigz_core::RigzType;
 use syn::parse::{Parse, ParseStream};
@@ -193,6 +193,7 @@ impl DeriveObject {
         let obj_def = obj_def
             .parse_object_definition()
             .expect("failed to parse object definition");
+        let docs = generate_docs(name.to_string().as_str(), &obj_def.functions);
         let definition = quote! {
             impl ToBool for #id {}
 
@@ -212,6 +213,13 @@ impl DeriveObject {
                     Self: Sized,
                 {
                     #obj_def
+                }
+            }
+
+            #[cfg(feature = "gen_docs")]
+            impl GenDocs for #id {
+                fn generate_docs() -> &'static str where Self: Sized {
+                    #docs
                 }
             }
         };
@@ -273,6 +281,7 @@ fn custom_trait(
             FunctionDeclaration::Declaration {
                 name,
                 type_definition,
+                docs: _
             } => Some((name, type_definition)),
             FunctionDeclaration::Definition(_) => None,
         })

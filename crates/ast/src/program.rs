@@ -57,6 +57,7 @@ pub struct FunctionDefinition {
     pub type_definition: FunctionSignature,
     pub body: Scope,
     pub lifecycle: Option<Lifecycle>,
+    pub docs: Option<String>,
 }
 
 impl Display for FunctionDefinition {
@@ -742,6 +743,7 @@ pub enum FunctionDeclaration {
     Declaration {
         name: String,
         type_definition: FunctionSignature,
+        docs: Option<String>,
     },
     Definition(FunctionDefinition),
 }
@@ -752,6 +754,7 @@ impl Display for FunctionDeclaration {
             FunctionDeclaration::Declaration {
                 name,
                 type_definition,
+                docs: _,
             } => write!(f, "fn {name}{type_definition}"),
             FunctionDeclaration::Definition(def) => write!(f, "{def}"),
         }

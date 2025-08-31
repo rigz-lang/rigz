@@ -10,10 +10,16 @@ repository = "https://gitlab.com/inapinch/rigz/crates/runtime"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[[bin]]
+required-features = ["gen_docs"]
+name = "gen_docs"
+path = "bin/generate_docs.rs"
+
 [features]
 default = ["rigz_vm/threaded"]
 js = ["rigz_vm/js", "dep:getrandom", "dep:web-sys", "dep:ring", "dep:rustls-pki-types", "uuid/js", "chrono/js-sys"]
 std_capture = ["rigz_vm/std_capture"]
+gen_docs = ["rigz_core/gen_docs"]
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }

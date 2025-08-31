@@ -112,6 +112,11 @@ impl DevPrint for dyn Object {
     }
 }
 
+#[cfg(feature = "gen_docs")]
+pub trait GenDocs {
+    fn generate_docs() -> &'static str where Self: Sized;
+}
+
 #[allow(unused_variables)]
 #[typetag::serde]
 pub trait Object:

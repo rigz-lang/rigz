@@ -653,15 +653,21 @@ impl ToTokens for FunctionDefinition {
             type_definition,
             body,
             lifecycle,
+            docs
         } = self;
         let l = option(lifecycle);
         let name = name.as_str();
+        let docs = match docs {
+            Some(docs) => quote! { Some(#docs.to_string()) },
+            None => quote! { None },
+        };
         tokens.extend(quote! {
             FunctionDefinition {
                 name: #name.to_string(),
                 lifecycle: #l,
                 type_definition: #type_definition,
-                body: #body
+                body: #body,
+                docs: #docs
             }
         })
     }
@@ -744,11 +750,17 @@ impl ToTokens for FunctionDeclaration {
             FunctionDeclaration::Declaration {
                 name,
                 type_definition,
+                docs
             } => {
+                let d = match docs {
+                    Some(d) => quote! { Some(#d.to_string()) },
+                    None => quote! { None },
+                };
                 quote! {
                     FunctionDeclaration::Declaration {
                         name: #name.to_string(),
-                        type_definition: #type_definition
+                        type_definition: #type_definition,
+                        docs: #d
                     }
                 }
             }

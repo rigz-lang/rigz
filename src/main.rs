@@ -5,6 +5,7 @@ mod repl;
 mod run;
 mod test;
 mod utils;
+mod docs;
 
 use crate::ast::{ast, AstArgs};
 use crate::format::{format, FormatArgs};
@@ -16,6 +17,7 @@ use log::{warn, LevelFilter};
 use repl::repl;
 use run::run;
 use test::test;
+// use crate::docs::DocArgs;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -39,6 +41,7 @@ pub enum Commands {
     Run(RunArgs),
     Repl(ReplArgs),
     Fmt(FormatArgs),
+    // Docs(DocArgs),
     // Debug(DebugArgs),
     Test(TestArgs),
     // todo add a Lock command that verifies or writes a checksum of all URLs (and eventually packages)
@@ -74,6 +77,7 @@ fn main() {
                 Commands::Run(args) => run(args),
                 Commands::Repl(args) => repl(args),
                 Commands::Test(args) => test(args),
+                // Commands::Docs(args) => docs(args),
                 // Commands::Debug(args) => debug(args),
                 Commands::Fmt(args) => format(args),
             }

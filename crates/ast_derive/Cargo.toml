@@ -8,6 +8,9 @@ readme = "README.md"
 license = "MIT"
 repository = "https://gitlab.com/inapinch/rigz/crates/ast_derive"
 
+[features]
+default = []
+
 [lib]
 proc-macro = true
 

@@ -8,7 +8,7 @@ use crate::derive_object::DeriveObject;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use rigz_ast::FunctionSignature;
+use rigz_ast::{FunctionArgument, FunctionDeclaration, FunctionSignature, FunctionType};
 use rigz_core::derive::{rigz_type_to_rust_str, Tokens};
 use rigz_core::RigzType;
 use syn::{parse_macro_input, parse_str, Type};

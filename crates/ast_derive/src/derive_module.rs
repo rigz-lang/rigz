@@ -1,9 +1,7 @@
 use crate::{create_matched_call, method_name, rigz_type_to_return_type, FirstArg};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
-use rigz_ast::{
-    FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser, ParserOptions,
-};
+use rigz_ast::{generate_docs, FunctionDeclaration, FunctionSignature, ModuleTraitDefinition, Parser, ParserOptions};
 use rigz_core::derive::{rigz_type_to_rust_str, Tokens};
 use rigz_core::RigzType;
 use std::collections::hash_map::Entry;
@@ -75,6 +73,7 @@ impl ToTokens for DeriveModule {
                 FunctionDeclaration::Declaration {
                     name,
                     type_definition: fs,
+                    docs: _
                 } => {
                     let method_name = method_name(name, fs);
                     // todo this is probably necessary
@@ -332,6 +331,8 @@ impl DeriveModule {
         has_vm: bool,
     ) -> TokenStream {
         let name = &module.definition.name;
+        let docs = generate_docs(name, &module.definition.functions);
+
         let module_name = match &self.ident {
             Some(id) => id.clone(),
             None => Ident::new(format!("{name}Module").as_str(), Span::call_site()),
@@ -401,6 +402,13 @@ impl DeriveModule {
                 #[inline]
                 fn module_definition() -> ModuleTraitDefinition where Self: Sized {
                     #module
+                }
+            }
+
+            #[cfg(feature = "gen_docs")]
+            impl GenDocs for #lifetime_module {
+                fn generate_docs() -> &'static str where Self: Sized {
+                    #docs
                 }
             }
         };

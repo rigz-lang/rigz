@@ -219,7 +219,8 @@ test_parse_equivalent! {
                         Element::Expression(Expression::Value(PrimitiveValue::String("hi there".to_string())))
                     ],
                     },
-                lifecycle: None
+                lifecycle: None,
+                docs: None
                 })),
                 Element::Expression(Expression::Identifier("hello".to_string()))
             ];
@@ -249,7 +250,8 @@ test_parse_equivalent! {
                         Element::Expression(Expression::Value(PrimitiveValue::String("hi there".to_string())))
                     ],
                         },
-                lifecycle: None
+                lifecycle: None,
+                docs: None
                 })),
                 Element::Expression(Expression::Identifier("hello".to_string()))
             ];
@@ -303,7 +305,8 @@ test_parse_equivalent! {
                         ).into(),
                     ],
                 },
-                lifecycle: None
+                lifecycle: None,
+                docs: None
             })),
             Element::Expression(FunctionExpression::FunctionCall("add".to_string(), vec![Expression::Value(PrimitiveValue::Number(1.into())), Expression::Value(PrimitiveValue::Number(2.into())), Expression::Value(PrimitiveValue::Number(3.into()))].into()).into())
         ];
@@ -341,6 +344,7 @@ test_parse! {
                             arg_type: ArgType::Positional,
                             var_args_start: None
                         },
+                        docs: None
                     },
                     FunctionDeclaration::Declaration {
                         name: "bar".to_string(),
@@ -351,6 +355,7 @@ test_parse! {
                             arg_type: ArgType::Positional,
                             var_args_start: None
                         },
+                        docs: None
                     },
                     FunctionDeclaration::Definition(FunctionDefinition {
                         name: "say".to_string(),
@@ -374,7 +379,8 @@ test_parse! {
                                 Element::Expression(FunctionExpression::FunctionCall("puts".to_string(), vec!["message".into()].into()).into())
                             ]
                         },
-                        lifecycle: None
+                        lifecycle: None,
+                        docs: None
                  }),
                 ],
             }))
@@ -517,6 +523,7 @@ test_parse! {
             Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
                 name: "add".to_string(),
                 lifecycle: None,
+                docs: None,
                 type_definition: FunctionSignature {
                     arg_type: ArgType::Map,
                     self_type: None,
@@ -571,6 +578,7 @@ test_parse! {
             Element::Statement(Statement::FunctionDefinition(FunctionDefinition {
                 name: "add".to_string(),
                 lifecycle: None,
+                docs: None,
                 type_definition: FunctionSignature {
                     arg_type: ArgType::Map,
                     self_type: None,

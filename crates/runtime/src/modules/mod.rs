@@ -15,8 +15,8 @@ mod uuid;
 use crate::prepare::{DependencyDefinition, ModuleDefinition, ProgramParser};
 use std::sync::Arc;
 
-use crate::modules::html::HtmlModule;
-use crate::modules::http::HttpModule;
+pub use crate::modules::html::HtmlModule;
+pub use crate::modules::http::HttpModule;
 pub use any::AnyModule;
 pub use assertions::AssertionsModule;
 pub use collections::CollectionsModule;
@@ -27,8 +27,8 @@ pub use number::NumberModule;
 pub use string::StringModule;
 // pub use vm::VMModule;
 
-use crate::modules::random::Random;
-use crate::modules::uuid::UUID;
+pub use crate::modules::random::Random;
+pub use crate::modules::uuid::UUID;
 use rigz_ast::{ParsedDependency, ParsedModule, ParsedObject, ParserOptions, ValidationError};
 use rigz_vm::VMBuilder;
 

@@ -47,7 +47,7 @@ log.workspace = true
 rigz_core = {workspace = true, features = ["colors"]}
 rigz_vm.workspace = true
 rigz_ast = {workspace = true, features = ["format"]}
-rigz_runtime.workspace = true
+rigz_runtime = { workspace = true, features = ["gen_docs"] }
 tree-sitter-highlight = "0.24"
 tree-sitter-rigz.workspace = true
 rustyline = "14.0.0"

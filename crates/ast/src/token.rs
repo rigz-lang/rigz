@@ -204,9 +204,10 @@ pub(crate) enum TokenKind<'lex> {
     Decrement,
     #[token("self")]
     This,
-    #[regex("#[^\n]*")]
+    #[regex("#([^\n]*)")]
+    Comment(&'lex str),
     #[regex("/\\*(?:[^*]|\\*[^/])*\\*/")]
-    Comment, //todo support doc-tests, nested comments
+    DocComment(&'lex str),
     // Reserved for future versions
     #[regex("\\$[0-9]+", |lex| { let s = lex.slice(); s[1..].parse::<usize>().unwrap() })]
     Arg(usize),
@@ -320,7 +321,8 @@ impl Display for TokenKind<'_> {
             TokenKind::Range => write!(f, ".."),
             TokenKind::RangeInclusive => write!(f, "..="),
             TokenKind::Optional => write!(f, "?"),
-            TokenKind::Comment => write!(f, "# comment"),
+            TokenKind::Comment(s) => write!(f, "# {s}"),
+            TokenKind::DocComment(s) => write!(f, "/*{s}*/"),
             TokenKind::This => write!(f, "self"),
             TokenKind::Arg(a) => write!(f, "${}", a),
             TokenKind::Increment => write!(f, "++"),

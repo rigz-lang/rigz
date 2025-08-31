@@ -51,7 +51,7 @@ impl<'l> Formmatter<'l> {
                 self.new_indent(token);
                 self.leading_spaces(token);
                 match token {
-                    TokenKind::Comment => self.result.push_str(tokens.slice()),
+                    TokenKind::Comment(_) | TokenKind::DocComment(_) => self.result.push_str(tokens.slice()),
                     TokenKind::Value(TokenValue::String(s)) => {
                         let single = s.contains('\'');
                         let double = s.contains('\"');

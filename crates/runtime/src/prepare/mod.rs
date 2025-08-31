@@ -384,6 +384,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 var_args_start,
             },
             lifecycle: None,
+            docs: None,
         };
         self.parse_function_definition(fd)?;
         old.into_iter().for_each(|(name, rt)| match rt {
@@ -828,6 +829,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 FunctionDeclaration::Declaration {
                     name,
                     type_definition,
+                    docs: _
                 } => {
                     let FunctionSignature {
                         arguments,
@@ -984,6 +986,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
             type_definition,
             body,
             lifecycle,
+            docs: _
         } = function_definition;
         let identifiers = self.identifiers.clone();
         let type_definition = self.parse_type_signature(&name, type_definition)?;
@@ -1087,6 +1090,7 @@ impl<T: RigzBuilder> ProgramParser<'_, T> {
                 FunctionDeclaration::Declaration {
                     type_definition,
                     name,
+                    docs: _
                 } => {
                     let type_definition = self.parse_type_signature(&name, type_definition)?;
                     match self.function_scopes.entry(name) {

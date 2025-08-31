@@ -9,6 +9,7 @@ colors = []
 derive = ["dep:proc-macro2", "dep:quote"]
 snapshot = []
 threaded = []
+gen_docs = []
 
 [dependencies]
 dyn-clone = "1.0.20"

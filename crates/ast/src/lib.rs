@@ -8,6 +8,7 @@ mod ast_derive;
 
 #[cfg(feature = "format")]
 mod format;
+mod docs;
 
 #[cfg(feature = "format")]
 pub use format::format;
@@ -15,6 +16,8 @@ pub use format::format;
 use logos::Logos;
 pub use modules::{ParsedDependency, ParsedModule, ParsedObject};
 pub use program::*;
+
+pub use docs::generate_docs;
 
 use rigz_core::*;
 use std::collections::VecDeque;
@@ -31,6 +34,7 @@ pub struct ParserOptions {
     pub debug: bool,
     pub disable_file_imports: bool,
     pub disable_url_imports: bool,
+    pub parse_doc_comments: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -80,6 +84,7 @@ pub struct Parser<'t> {
     parser_options: ParserOptions,
     tokens: VecDeque<Token<'t>>,
     errors: Vec<ParseError>,
+    current_docs: Option<String>
 }
 
 // TODO better error messages
@@ -112,7 +117,11 @@ impl<'t> Parser<'t> {
                 }
             };
 
-            if kind != TokenKind::Comment {
+            if !parser_options.parse_doc_comments && matches!(kind, TokenKind::DocComment(_)) {
+                continue
+            }
+
+            if !matches!(kind, TokenKind::Comment(_)) {
                 tokens.push_back(Token { kind, span })
             }
         }
@@ -122,6 +131,7 @@ impl<'t> Parser<'t> {
             tokens,
             parser_options,
             errors,
+            current_docs: None,
         }
     }
 
@@ -303,16 +313,19 @@ impl<'t> Parser<'t> {
         let mut type_definition = self.parse_function_type_definition(!is_vm && mutable)?;
         type_definition.self_type = self_type;
         let next = self.peek_required_token_eat_newlines("parse_typed_function_declaration")?;
+        let docs = self.current_docs.take();
         let dec = match next.kind {
             TokenKind::FunctionDef | TokenKind::End => FunctionDeclaration::Declaration {
                 name: name.to_string(),
                 type_definition,
+                docs,
             },
             _ => FunctionDeclaration::Definition(FunctionDefinition {
                 name: name.to_string(),
                 type_definition,
                 body: self.parse_scope()?,
                 lifecycle: None,
+                docs,
             }),
         };
         Ok(dec)
@@ -590,7 +603,16 @@ impl<'t> Parser<'t> {
 
     #[inline]
     fn next_token(&mut self) -> Option<Token<'t>> {
-        self.tokens.pop_front()
+        let t = self.tokens.pop_front();
+        if self.parser_options.parse_doc_comments {
+            if let Some(t) = &t {
+                if let TokenKind::DocComment(s) = t.kind {
+                    self.current_docs = Some(s.to_string());
+                    return self.next_token()
+                }
+            }
+        }
+        t
     }
 
     fn next_required_token(&mut self, caller: &'static str) -> Result<Token<'t>, ParsingError> {
@@ -916,6 +938,7 @@ impl<'t> Parser<'t> {
                 self.next_token();
             }
         }
+        self.current_docs = None;
         Ok(ele)
     }
 
